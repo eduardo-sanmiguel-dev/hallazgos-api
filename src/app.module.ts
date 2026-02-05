@@ -52,6 +52,7 @@ import { IcsModule } from './ics/ics.module';
 import { TopicsModule } from './topics/topics.module';
 import { ConfigsTgModule } from './configs-tg/configs-tg.module';
 import { TrainingGuidesModule } from './training-guides/training-guides.module';
+import { SafetyDataFilesModule } from './safety-data-files/safety-data-files.module';
 
 @Module({
   imports: [
@@ -156,6 +157,7 @@ import { TrainingGuidesModule } from './training-guides/training-guides.module';
     TopicsModule,
     ConfigsTgModule,
     TrainingGuidesModule,
+    SafetyDataFilesModule,
   ],
   controllers: [],
   providers: [JwtService],
