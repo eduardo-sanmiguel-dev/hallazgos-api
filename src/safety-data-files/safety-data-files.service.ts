@@ -20,17 +20,15 @@ export class SafetyDataFilesService {
   }
 
   async seed() {
+    await this.safetyDataFileRepository.delete({});
+
     const files = readdirSync(this.filePath);
+
     for (const fileName of files) {
-      const existingFile = await this.safetyDataFileRepository.findOneBy({
+      const newFile = this.safetyDataFileRepository.create({
         name: fileName,
       });
-      if (!existingFile) {
-        const newFile = this.safetyDataFileRepository.create({
-          name: fileName,
-        });
-        await this.safetyDataFileRepository.save(newFile);
-      }
+      await this.safetyDataFileRepository.save(newFile);
     }
   }
 
