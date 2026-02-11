@@ -22,6 +22,9 @@ import { MailService } from './mail.service';
               user: configService.get('MAIL_USER'),
               pass: configService.get('MAIL_PASSWORD'),
             },
+            tls: {
+              rejectUnauthorized: false, // ⚠️ Solo recomendable en desarrollo
+            },
           },
           /*transport: { // Gmail
             host: configService.get('MAIL_HOST'),

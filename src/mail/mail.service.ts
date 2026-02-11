@@ -194,15 +194,21 @@ export class MailService {
   }
 
   async sendPendingTrainingGuide(trainingGuide: TrainingGuide, email: string) {
-    await this.mailerService.sendMail({
-      to: this.emailTest ?? email,
-      from: `"Hada app (Guía de entrenamiento pendiente)" <${this.MAIL_USER_APP}>`,
-      subject: 'Guía de entrenamiento pendiente',
-      template: './pending-training-guide',
-      context: {
-        ...trainingGuide,
-        link: `${this.FRONTEND_URL}/training-guide?employee=${trainingGuide.employee.name}`,
-      },
-    });
+    await this.mailerService
+      .sendMail({
+        to: this.emailTest ?? email,
+        from: `"Hada app (Guía de entrenamiento pendiente)" <${this.MAIL_USER_APP}>`,
+        subject: 'Guía de entrenamiento pendiente',
+        template: './pending-training-guide',
+        context: {
+          ...trainingGuide,
+          link: `${this.FRONTEND_URL}/training-guide?employee=${trainingGuide.employee.name}`,
+        },
+      })
+      .catch((error) => {
+        this.logger.error(
+          `Failed to send pending training guide email to ${email} for training guide ID ${trainingGuide.id}: ${error.message}`,
+        );
+      });
   }
 }

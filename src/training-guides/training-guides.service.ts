@@ -213,12 +213,12 @@ export class TrainingGuidesService {
         //const { areaManager, humanResourceManager } = trainingGuideRow
 
         if (process.env.NODE_ENV === ENV_DEVELOPMENT) {
-          this.mailService.sendPendingTrainingGuide(
+          await this.mailService.sendPendingTrainingGuide(
             trainingGuideRow,
             'eduardo-266@hotmail.com',
           );
         } else {
-          this.mailService.sendPendingTrainingGuide(
+          await this.mailService.sendPendingTrainingGuide(
             trainingGuideRow,
             'ggarcia@hadamexico.com',
           );
