@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: 'live-dock-api', // Nombre de la aplicación
+      name: 'hallazgos-api', // Nombre de la aplicación
       script: 'dist/main.js', // Archivo compilado de NestJS
       instances: 1, // Usa una sola instancia en modo fork
       exec_mode: 'fork', // Modo de ejecución (fork o cluster)
