@@ -136,6 +136,9 @@ export class ConfigsTgService {
     const config = await this.configsTgRepository.findOne({
       ...this.optionsDefault,
       where,
+      order: {
+        topics: { order: 'ASC' },
+      },
     });
 
     if (!config) {
