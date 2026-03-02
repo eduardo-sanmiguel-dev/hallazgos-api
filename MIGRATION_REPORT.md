@@ -367,3 +367,74 @@ Conclusión:
 
 - `pnpm run build` ✅
 - `pnpm run start:dev` ✅ (compilación watch sin errores)
+
+---
+
+## FASE 8 — Validación final y cierre
+
+### Ejecuciones finales
+
+- `node --version` → **v24.13.0** ✅
+- `pnpm run build` → ✅
+- `pnpm run lint` → ✅
+- `pnpm run test` → ❌ (no existen unit tests bajo el patrón configurado)
+- `pnpm run test:e2e` → ❌ (fallo preexistente de resolución de alias `@config`)
+- `pnpm run start:dev` → arranca módulos y rutas, pero falla bind de puerto con:
+  - `EACCES: permission denied 0.0.0.0:4000`
+
+### 📦 Versiones finales instaladas (`pnpm list`)
+
+Dependencias principales:
+
+- `@apollo/server@5.4.0`
+- `@as-integrations/express5@1.1.2`
+- `@nestjs/apollo@13.2.4`
+- `@nestjs/common@11.1.14`
+- `@nestjs/config@4.0.3`
+- `@nestjs/core@11.1.14`
+- `@nestjs/graphql@13.2.4`
+- `@nestjs/platform-express@11.1.14`
+- `@nestjs/serve-static@5.0.4`
+- `@nestjs/typeorm@11.0.0`
+- `graphql@16.9.0`
+- `pg@8.19.0`
+- `typeorm@0.3.28`
+- `typescript@5.9.3`
+
+### ✅ Lista de fases completadas
+
+- Fase 0: Auditoría completa y matriz de riesgo.
+- Fase 1: Actualización de dependencias objetivo + instalación.
+- Fase 2: Ajustes de sintaxis Express v5 en middleware routes.
+- Fase 3: Migración de configuración Apollo/Nest GraphQL.
+- Fase 4: Verificación de breaking changes core NestJS.
+- Fase 5: Validación TypeORM + datasource de seeds.
+- Fase 6: Ajustes TS/ESLint para toolchain actual.
+- Fase 7: Compatibilidad frontend/GraphQL + corrección runtime TypeORM.
+- Fase 8: Validación final y consolidación de reporte.
+
+### ⚠️ Deuda técnica
+
+- `graphql@16.9.0` queda por debajo del peer recomendado por `@apollo/server@5` y `@nestjs/graphql@13` (esperan `^16.10/16.11`). Se mantuvo por alcance definido.
+- `@nestjs/mapped-types@2.0.5` reporta peer hasta Nest 10; pendiente validar versión oficialmente alineada con Nest 11.
+- `strict: true` en TypeScript requiere refactor de tipado amplio fuera de alcance de esta migración de plataforma.
+
+### 🔴 Acciones manuales pendientes (fuera de alcance)
+
+- Resolver permisos/uso de puerto `4000` en ambiente local (error `EACCES`).
+- Ajustar suite de pruebas:
+  - Definir estrategia para `pnpm run test` sin tests unitarios.
+  - Corregir alias de paths en `test/jest-e2e.json` para `@config` y `@shared/*`.
+- Confirmar en frontend envío de headers compatibles con CSRF de Apollo Server 5 (`Apollo-Require-Preflight` o `content-type: application/json`).
+
+### 🔗 Compatibilidad con frontend
+
+- Se preservaron contratos GraphQL (sin cambios de esquema, campos ni resolvers).
+- Introspection en desarrollo quedó activa y en producción desactivada por entorno.
+- CORS quedó alineado a `FRONTEND_URL` con credenciales.
+
+### 🛡️ Verificación CSRF frontend/backend
+
+- Backend queda con comportamiento por defecto de Apollo Server 5 (CSRF habilitado).
+- No se deshabilitó CSRF en backend.
+- Validación end-to-end de headers desde frontend queda como verificación manual pendiente.

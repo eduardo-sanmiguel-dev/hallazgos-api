@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@apollo/server": "^5.0.0",
+    "@as-integrations/express5": "^1.1.2",
     "@nestjs-modules/mailer": "^2.0.2",
     "@nestjs/apollo": "^13.0.0",
     "@nestjs/common": "^11.1.14",
