@@ -261,3 +261,27 @@ Posible impacto por cambio de precedencia en NestJS 11:
 
 - ✅ Build exitoso.
 - Errores de compilación: **ninguno**.
+
+---
+
+## FASE 4 — Breaking changes de NestJS Core
+
+### Verificaciones y resultado
+
+- `plainToClass`: no existe uso en el código (sin cambios requeridos).
+- `Reflector.getAllAndMerge`: no existe uso en el código.
+- `Reflector.getAllAndOverride`: no existe uso en el código.
+- `@ReflectMetadata`: no existe uso en el código.
+- Cambio de precedencia en `ConfigService.get()` revisado para:
+  - `src/app.module.ts` (`appKey`)
+  - `src/mail/mail.module.ts` (`MAIL_HOST`, `MAIL_USER`, `MAIL_PASSWORD`)
+
+Conclusión:
+
+- No se detectaron rupturas directas de código por APIs deprecadas de NestJS core en esta base.
+- Se mantiene seguimiento de comportamiento runtime para valores de config en fases de validación final.
+
+### Resultado de compilación (`pnpm run build`)
+
+- ✅ Build exitoso.
+- Errores de compilación: **ninguno**.
