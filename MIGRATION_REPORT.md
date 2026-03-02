@@ -223,3 +223,18 @@ Posible impacto por cambio de precedencia en NestJS 11:
 ### Notas para fases siguientes
 
 - Las advertencias de peer se gestionarán en fases 3-4 mediante ajustes de configuración/código, sin cambiar contrato GraphQL del frontend.
+
+---
+
+## FASE 2 — Sintaxis de rutas Express v5
+
+### Cambios aplicados
+
+- `src/app.module.ts`
+  - `consumer.apply(AppKeyMiddleware).forRoutes('*')` → `forRoutes('/')`
+  - `consumer.apply(JwtMiddleware)...forRoutes('*')` → `forRoutes('/')`
+
+### Resultado de compilación (`pnpm run build`)
+
+- ✅ Build exitoso.
+- Errores de compilación: **ninguno**.

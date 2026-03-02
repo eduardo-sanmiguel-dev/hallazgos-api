@@ -164,7 +164,7 @@ import { SafetyDataFilesModule } from './safety-data-files/safety-data-files.mod
 })
 export class AppModule implements NestModule {
   public configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(AppKeyMiddleware).forRoutes('*');
+    consumer.apply(AppKeyMiddleware).forRoutes('/');
     consumer
       .apply(JwtMiddleware)
       .exclude(
@@ -177,6 +177,6 @@ export class AppModule implements NestModule {
         { path: 'auth/login-restore-password', method: RequestMethod.POST },
         { path: 'auth/forgot-password', method: RequestMethod.POST },
       )
-      .forRoutes('*');
+      .forRoutes('/');
   }
 }
