@@ -307,3 +307,32 @@ Conclusión:
 
 - ✅ Build exitoso.
 - Errores de compilación: **ninguno**.
+
+---
+
+## FASE 6 — TypeScript 5.6 → 5.8 + ESLint v8
+
+### Cambios aplicados
+
+- `tsconfig.json`
+  - Se aseguró configuración backend compatible con NestJS:
+    - `module: commonjs`
+    - `moduleResolution: node`
+    - `target: ES2021`
+    - `emitDecoratorMetadata: true`
+    - `experimentalDecorators: true`
+    - `strictPropertyInitialization: false`
+    - `skipLibCheck: true`
+- ESLint
+  - Se migró a formato flat config de ESLint 9 en `eslint.config.js`.
+  - Se mantuvo `.eslintrc.js` existente como legado, pero `lint` ya usa flat config.
+
+### Validaciones
+
+- `pnpm run lint` ✅
+- `pnpm run build` ✅
+
+### Observación importante (deuda técnica)
+
+- Activar `strict: true` en esta base dispara un volumen alto de errores de tipado preexistentes y no triviales (tipos de `Request.user`, nullabilidad y anotaciones implícitas).
+- Para no modificar lógica de negocio fuera del alcance de migración de plataforma, se mantuvo `strict: false` en esta iteración.
