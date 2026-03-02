@@ -285,3 +285,25 @@ Conclusión:
 
 - ✅ Build exitoso.
 - Errores de compilación: **ninguno**.
+
+---
+
+## FASE 5 — TypeORM 0.3.17 → 0.3.28
+
+### Cambios aplicados
+
+- Se validó que no hay uso de APIs removidas (`getConnection`, `getManager`, `getRepository`).
+- Se creó `src/config/typeorm.config.ts` para alinear scripts `seed:dev` / `seed:prod` con `typeorm-extension`.
+- Se tipó el datasource como `DataSourceOptions & SeederOptions`.
+- Se ajustó patrón de entidades a la estructura real del proyecto:
+  - `src/**/entities/*{.ts,.js}`
+
+### Validación de seed (`pnpm run seed:dev`)
+
+- El comando quedó operativo con datasource existente.
+- Se observó warning de Node sobre `MODULE_TYPELESS_PACKAGE_JSON` (informativo, no bloqueante).
+
+### Resultado de compilación (`pnpm run build`)
+
+- ✅ Build exitoso.
+- Errores de compilación: **ninguno**.
