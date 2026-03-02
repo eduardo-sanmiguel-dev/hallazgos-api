@@ -12,10 +12,10 @@ async function bootstrap() {
   const logger = new Logger('APP-SERVICE');
 
   const app = await NestFactory.create(AppModule, {
-    cors: {
+    /* cors: {
       origin: process.env.FRONTEND_URL || 'http://localhost:3000',
       credentials: true,
-    },
+    }, */
   });
 
   app.useGlobalPipes(
