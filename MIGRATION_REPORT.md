@@ -196,3 +196,30 @@ Posible impacto por cambio de precedencia en NestJS 11:
 
 - Fase 1: actualización de `package.json` + `pnpm install` + `pnpm run build` (sin corregir errores todavía, solo registrar).
 - Fase 2+: corrección progresiva de ruptura Express/Apollo/Nest/TypeORM/TS.
+
+---
+
+## FASE 1 — Actualización de `package.json` + instalación
+
+### Cambios aplicados
+
+- Se actualizaron dependencias y devDependencies a las versiones objetivo de migración.
+- Se removió `multer` de `dependencies` para alinear con el objetivo solicitado.
+
+### Resultado de instalación (`pnpm install`)
+
+- Instalación completada correctamente.
+- Advertencias de peer dependencies detectadas:
+  - `@apollo/server@5.4.0` y `@nestjs/graphql@13.x` esperan `graphql@^16.11.0`; actualmente `graphql@16.9.0` (se mantiene por requerimiento de alcance).
+  - `@nestjs/apollo@13.x` reporta peer de `graphql` similar.
+  - `@apollo/server-plugin-landing-page-graphql-playground@4.0.1` aparece como subdependencia transitiva incompatible con `@apollo/server@5`.
+  - `@nestjs/mapped-types@2.0.5` reporta peer hasta Nest 10.
+
+### Resultado de compilación (`pnpm run build`)
+
+- ✅ Build exitoso.
+- Errores de compilación registrados en esta fase: **ninguno**.
+
+### Notas para fases siguientes
+
+- Las advertencias de peer se gestionarán en fases 3-4 mediante ajustes de configuración/código, sin cambiar contrato GraphQL del frontend.
