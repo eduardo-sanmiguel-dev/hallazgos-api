@@ -22,6 +22,77 @@ export class DashboardService {
     @Inject(REQUEST) private readonly request: Request,
   ) {}
 
+  findMyEvidences(userId: number) {
+    const queryRaw = `
+      SELECT
+        a.total, a.abiertas, a.cerradas, a.canceladas,
+        ma.total        AS total_mes_actual,
+        mp.total        AS total_mes_anterior,
+        ma.abiertas     AS abiertas_mes_actual,
+        mp.abiertas     AS abiertas_mes_anterior,
+        ma.cerradas     AS cerradas_mes_actual,
+        mp.cerradas     AS cerradas_mes_anterior,
+        ma.canceladas   AS canceladas_mes_actual,
+        mp.canceladas   AS canceladas_mes_anterior,
+        CASE
+          WHEN mp.total = 0 AND ma.total > 0 THEN 100.0
+          WHEN mp.total = 0                  THEN 0.0
+          ELSE ROUND((ma.total - mp.total) * 100.0 / mp.total, 1)
+        END AS pct_total,
+        CASE
+          WHEN mp.abiertas = 0 AND ma.abiertas > 0 THEN 100.0
+          WHEN mp.abiertas = 0                      THEN 0.0
+          ELSE ROUND((ma.abiertas - mp.abiertas) * 100.0 / mp.abiertas, 1)
+        END AS pct_abiertas,
+        CASE
+          WHEN mp.cerradas = 0 AND ma.cerradas > 0 THEN 100.0
+          WHEN mp.cerradas = 0                      THEN 0.0
+          ELSE ROUND((ma.cerradas - mp.cerradas) * 100.0 / mp.cerradas, 1)
+        END AS pct_cerradas,
+        CASE
+          WHEN mp.canceladas = 0 AND ma.canceladas > 0 THEN 100.0
+          WHEN mp.canceladas = 0                        THEN 0.0
+          ELSE ROUND((ma.canceladas - mp.canceladas) * 100.0 / mp.canceladas, 1)
+        END AS pct_canceladas
+      FROM
+      (
+        SELECT
+          COUNT(*)                                          AS total,
+          COUNT(CASE WHEN status = 'Abierto'   THEN 1 END) AS abiertas,
+          COUNT(CASE WHEN status = 'Cerrado'   THEN 1 END) AS cerradas,
+          COUNT(CASE WHEN status = 'Cancelado' THEN 1 END) AS canceladas
+        FROM evidence
+        WHERE "userId" = ${userId}
+      ) a,
+      (
+        SELECT
+          COUNT(*)                                          AS total,
+          COUNT(CASE WHEN status = 'Abierto'   THEN 1 END) AS abiertas,
+          COUNT(CASE WHEN status = 'Cerrado'   THEN 1 END) AS cerradas,
+          COUNT(CASE WHEN status = 'Cancelado' THEN 1 END) AS canceladas
+        FROM evidence
+        WHERE "userId" = ${userId}
+          AND "createdAt" >= DATE_TRUNC('month', NOW())
+          AND "createdAt" <= NOW()
+      ) ma,
+      (
+        SELECT
+          COUNT(*)                                          AS total,
+          COUNT(CASE WHEN status = 'Abierto'   THEN 1 END) AS abiertas,
+          COUNT(CASE WHEN status = 'Cerrado'   THEN 1 END) AS cerradas,
+          COUNT(CASE WHEN status = 'Cancelado' THEN 1 END) AS canceladas
+        FROM evidence
+        WHERE "userId" = ${userId}
+          AND "createdAt" >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month'
+          AND "createdAt" <= NOW() - INTERVAL '1 month'
+      ) mp;
+    `;
+
+    const query = this.manufacturingPlant.manager.query(queryRaw);
+
+    return query;
+  }
+
   findManufacturingPlantsIdsCurrentUser() {
     const user = this.request['user'] as User;
 

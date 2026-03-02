@@ -1,10 +1,15 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 
 import { DashboardService } from './dashboard.service';
 
 @Controller('dashboard')
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
+
+  @Get('my-evidences/:userId')
+  findMyEvidences(@Param('userId') userId: number) {
+    return this.dashboardService.findMyEvidences(userId);
+  }
 
   @Get('status')
   findAllStatus() {
