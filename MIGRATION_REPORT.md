@@ -238,3 +238,26 @@ Posible impacto por cambio de precedencia en NestJS 11:
 
 - ✅ Build exitoso.
 - Errores de compilación: **ninguno**.
+
+---
+
+## FASE 3 — Apollo Server 4 → 5 y `@nestjs/graphql` v13
+
+### Cambios aplicados
+
+- `src/app.module.ts`
+  - Se removió la propiedad `playground` de `GraphQLModule.forRootAsync`.
+  - Se removió el plugin `ApolloServerPluginLandingPageLocalDefault`.
+  - Se ajustó introspección a entorno:
+    - `introspection: process.env.NODE_ENV !== 'production'`
+
+### Verificaciones
+
+- `@Plugin()` desde `@nestjs/graphql`: no aplica (no existe uso en el código).
+- `subscriptions-transport-ws`: no detectado en el código.
+- `ApolloFederationDriver` / `ApolloGatewayDriver`: no usados.
+
+### Resultado de compilación (`pnpm run build`)
+
+- ✅ Build exitoso.
+- Errores de compilación: **ninguno**.

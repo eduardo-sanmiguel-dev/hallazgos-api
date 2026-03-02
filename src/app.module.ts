@@ -9,8 +9,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { ServeStaticModule } from '@nestjs/serve-static';
-
-import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
 import { join } from 'path';
 
 import { EnvConfiguration, JoiValidationSchema } from '@config';
@@ -80,10 +78,8 @@ import { SafetyDataFilesModule } from './safety-data-files/safety-data-files.mod
         configService: ConfigService,
         jwtService: JwtService,
       ) => ({
-        playground: false,
         autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
-        plugins: [ApolloServerPluginLandingPageLocalDefault()],
-        introspection: true,
+        introspection: process.env.NODE_ENV !== 'production',
         async context({ req }) {
           const appKey = configService.get<string>('appKey');
 
