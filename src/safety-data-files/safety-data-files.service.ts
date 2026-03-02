@@ -20,7 +20,7 @@ export class SafetyDataFilesService {
   }
 
   async seed() {
-    await this.safetyDataFileRepository.delete({});
+    await this.safetyDataFileRepository.clear();
 
     const files = readdirSync(this.filePath);
 

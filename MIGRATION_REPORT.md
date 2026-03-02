@@ -336,3 +336,34 @@ Conclusión:
 
 - Activar `strict: true` en esta base dispara un volumen alto de errores de tipado preexistentes y no triviales (tipos de `Request.user`, nullabilidad y anotaciones implícitas).
 - Para no modificar lógica de negocio fuera del alcance de migración de plataforma, se mantuvo `strict: false` en esta iteración.
+
+---
+
+## FASE 7 — Compatibilidad GraphQL y frontend (Next.js 16 + Apollo Client 4)
+
+### Cambios aplicados
+
+- `src/main.ts`
+  - CORS alineado a frontend:
+    - `origin: process.env.FRONTEND_URL || 'http://localhost:3000'`
+    - `credentials: true`
+- `src/app.module.ts`
+  - Introspection en desarrollo mantenido:
+    - `introspection: process.env.NODE_ENV !== 'production'`
+
+### Verificación CSRF (Apollo Server 5)
+
+- Se mantiene comportamiento por defecto de Apollo Server 5 (`csrfPrevention` activo).
+- Compatibilidad esperada con frontend Apollo Client 4 usando `content-type: application/json` o header `Apollo-Require-Preflight`.
+
+### Corrección adicional detectada en runtime
+
+- Al ejecutar `start:dev` se detectó ruptura por TypeORM 0.3.28:
+  - `delete({})` ya no permite criterios vacíos.
+- Ajuste aplicado en `src/safety-data-files/safety-data-files.service.ts`:
+  - `repository.delete({})` → `repository.clear()`
+
+### Validaciones
+
+- `pnpm run build` ✅
+- `pnpm run start:dev` ✅ (compilación watch sin errores)

@@ -13,7 +13,7 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule, {
     cors: {
-      origin: `${process.env.WHITE_LIST_DOMAINS}`.split(','),
+      origin: process.env.FRONTEND_URL || 'http://localhost:3000',
       credentials: true,
     },
   });
