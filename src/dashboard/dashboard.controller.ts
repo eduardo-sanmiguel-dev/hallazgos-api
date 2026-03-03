@@ -18,6 +18,13 @@ export class DashboardController {
     return this.dashboardService.findCriticalZones(+manufacturingPlantId);
   }
 
+  @Get('global-summary')
+  findGlobalSummary(
+    @Query('manufacturingPlantId') manufacturingPlantId: string,
+  ) {
+    return this.dashboardService.findGlobalSummary(+manufacturingPlantId);
+  }
+
   @Get('status')
   findAllStatus() {
     return this.dashboardService.findAllStatus();

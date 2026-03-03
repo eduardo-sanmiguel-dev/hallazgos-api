@@ -93,7 +93,91 @@ export class DashboardService {
     return query;
   }
 
-  async findCriticalZones(manufacturingPlantId: number) {
+  executeQuery(query: string) {
+    return this.manufacturingPlant.manager.query(query);
+  }
+
+  async findGlobalSummary(manufacturingPlantId: number) {
+    const query = `
+      SELECT
+        mp.name                                                                                     AS planta,
+        COALESCE(a.total, 0)                                                                       AS total,
+        COALESCE(a.abiertas, 0)                                                                    AS abiertas,
+        COALESCE(a.cerradas, 0)                                                                    AS cerradas,
+        COALESCE(a.canceladas, 0)                                                                  AS canceladas,
+        COALESCE(ROUND(COALESCE(a.cerradas, 0) * 100.0 / NULLIF(COALESCE(a.total, 0), 0), 1), 0) AS pct_resolucion_historica,
+        COALESCE(ma.total, 0)       AS total_mes_actual,
+        COALESCE(mp2.total, 0)      AS total_mes_anterior,
+        COALESCE(ma.abiertas, 0)    AS abiertas_mes_actual,
+        COALESCE(mp2.abiertas, 0)   AS abiertas_mes_anterior,
+        COALESCE(ma.cerradas, 0)    AS cerradas_mes_actual,
+        COALESCE(mp2.cerradas, 0)   AS cerradas_mes_anterior,
+        COALESCE(ma.canceladas, 0)  AS canceladas_mes_actual,
+        COALESCE(mp2.canceladas, 0) AS canceladas_mes_anterior,
+        CASE
+          WHEN COALESCE(mp2.total, 0) = 0 AND COALESCE(ma.total, 0) > 0 THEN 100.0
+          WHEN COALESCE(mp2.total, 0) = 0                                THEN 0.0
+          ELSE ROUND((COALESCE(ma.total, 0) - COALESCE(mp2.total, 0)) * 100.0 / COALESCE(mp2.total, 0), 1)
+        END AS pct_total,
+        CASE
+          WHEN COALESCE(mp2.abiertas, 0) = 0 AND COALESCE(ma.abiertas, 0) > 0 THEN 100.0
+          WHEN COALESCE(mp2.abiertas, 0) = 0                                    THEN 0.0
+          ELSE ROUND((COALESCE(ma.abiertas, 0) - COALESCE(mp2.abiertas, 0)) * 100.0 / COALESCE(mp2.abiertas, 0), 1)
+        END AS pct_abiertas,
+        CASE
+          WHEN COALESCE(mp2.cerradas, 0) = 0 AND COALESCE(ma.cerradas, 0) > 0 THEN 100.0
+          WHEN COALESCE(mp2.cerradas, 0) = 0                                    THEN 0.0
+          ELSE ROUND((COALESCE(ma.cerradas, 0) - COALESCE(mp2.cerradas, 0)) * 100.0 / COALESCE(mp2.cerradas, 0), 1)
+        END AS pct_cerradas,
+        CASE
+          WHEN COALESCE(mp2.canceladas, 0) = 0 AND COALESCE(ma.canceladas, 0) > 0 THEN 100.0
+          WHEN COALESCE(mp2.canceladas, 0) = 0                                      THEN 0.0
+          ELSE ROUND((COALESCE(ma.canceladas, 0) - COALESCE(mp2.canceladas, 0)) * 100.0 / COALESCE(mp2.canceladas, 0), 1)
+        END AS pct_canceladas
+      FROM manufacturing_plant mp
+      LEFT JOIN (
+        SELECT "manufacturingPlantId",
+          COUNT(*)                                          AS total,
+          COUNT(CASE WHEN status = 'Abierto'   THEN 1 END) AS abiertas,
+          COUNT(CASE WHEN status = 'Cerrado'   THEN 1 END) AS cerradas,
+          COUNT(CASE WHEN status = 'Cancelado' THEN 1 END) AS canceladas
+        FROM evidence
+        GROUP BY "manufacturingPlantId"
+      ) a ON mp.id = a."manufacturingPlantId"
+      LEFT JOIN (
+        SELECT "manufacturingPlantId",
+          COUNT(*)                                          AS total,
+          COUNT(CASE WHEN status = 'Abierto'   THEN 1 END) AS abiertas,
+          COUNT(CASE WHEN status = 'Cerrado'   THEN 1 END) AS cerradas,
+          COUNT(CASE WHEN status = 'Cancelado' THEN 1 END) AS canceladas
+        FROM evidence
+        WHERE "createdAt" >= DATE_TRUNC('month', NOW())
+          AND "createdAt" <= NOW()
+        GROUP BY "manufacturingPlantId"
+      ) ma ON mp.id = ma."manufacturingPlantId"
+      LEFT JOIN (
+        SELECT "manufacturingPlantId",
+          COUNT(*)                                          AS total,
+          COUNT(CASE WHEN status = 'Abierto'   THEN 1 END) AS abiertas,
+          COUNT(CASE WHEN status = 'Cerrado'   THEN 1 END) AS cerradas,
+          COUNT(CASE WHEN status = 'Cancelado' THEN 1 END) AS canceladas
+        FROM evidence
+        WHERE "createdAt" >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month'
+          AND "createdAt" <= NOW() - INTERVAL '1 month'
+        GROUP BY "manufacturingPlantId"
+      ) mp2 ON mp.id = mp2."manufacturingPlantId"
+      WHERE mp."isActive" = true
+        AND mp.id = ${manufacturingPlantId}
+        AND COALESCE(a.total, 0) > 0
+      ORDER BY COALESCE(a.total, 0) DESC;
+    `;
+
+    const result = await this.executeQuery(query);
+
+    return result[0];
+  }
+
+  findCriticalZones(manufacturingPlantId: number) {
     const query = `
     SELECT
       mp.name                                                                                      AS planta,
@@ -117,9 +201,7 @@ export class DashboardService {
     ORDER BY total_abiertas DESC, max_dias_sin_resolver DESC;
   `;
 
-    const result = await this.manufacturingPlant.manager.query(query);
-
-    return result;
+    return this.executeQuery(query);
   }
 
   findManufacturingPlantsIdsCurrentUser() {
