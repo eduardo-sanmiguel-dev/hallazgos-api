@@ -11,6 +11,13 @@ export class DashboardController {
     return this.dashboardService.findMyEvidences(userId);
   }
 
+  @Get('critical-zones')
+  findCriticalZones(
+    @Query('manufacturingPlantId') manufacturingPlantId: string,
+  ) {
+    return this.dashboardService.findCriticalZones(+manufacturingPlantId);
+  }
+
   @Get('status')
   findAllStatus() {
     return this.dashboardService.findAllStatus();

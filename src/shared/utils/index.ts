@@ -70,3 +70,5 @@ export function calculateAge(birthDate: string | Date): number {
 
   return age;
 }
+
+export * from './query-string-array-transformer.util';

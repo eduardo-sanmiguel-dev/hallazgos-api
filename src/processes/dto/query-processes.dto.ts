@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
@@ -5,6 +6,8 @@ import {
   IsPositive,
   IsString,
 } from 'class-validator';
+
+import { parseStringArrayQueryByKey } from 'shared/utils';
 
 export class QueryProcessesDto {
   @IsOptional()
@@ -16,6 +19,7 @@ export class QueryProcessesDto {
   manufacturingPlantId: number;
 
   @IsOptional()
+  @Transform(parseStringArrayQueryByKey('manufacturingPlantNames'))
   @IsArray()
   @IsString({ each: true })
   @ArrayMinSize(1)

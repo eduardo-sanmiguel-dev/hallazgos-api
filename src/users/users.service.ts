@@ -64,7 +64,14 @@ export class UsersService {
   }
 
   findAll(queryUserDto: QueryUserDto): Promise<User[]> {
-    const { name, manufacturingPlantId, rule, zoneId } = queryUserDto;
+    const { name, manufacturingPlantId, rule, zoneId, orderBy } = queryUserDto;
+
+    let order;
+
+    if (orderBy) {
+      const [key, direction] = orderBy.split('|');
+      order = { [key]: direction.toUpperCase() };
+    }
 
     return this.userRepository.find({
       where: {
@@ -84,7 +91,11 @@ export class UsersService {
         'processes.manufacturingPlant',
       ],
       order: {
-        id: 'DESC',
+        ...(order
+          ? {
+              [Object.keys(order)[0]]: Object.values(order)[0],
+            }
+          : { id: 'DESC' }),
         manufacturingPlants: {
           name: 'ASC',
         },

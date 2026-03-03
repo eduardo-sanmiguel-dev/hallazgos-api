@@ -93,6 +93,35 @@ export class DashboardService {
     return query;
   }
 
+  async findCriticalZones(manufacturingPlantId: number) {
+    const query = `
+    SELECT
+      mp.name                                                                                      AS planta,
+      z.name                                                                                       AS zona,
+      COUNT(DISTINCT e.id)                                                                         AS total_abiertas,
+      MIN(e."createdAt")::date                                                                     AS hallazgo_mas_antiguo,
+      EXTRACT(DAY FROM NOW() - MIN(e."createdAt"))::int                                            AS max_dias_sin_resolver,
+      ROUND(AVG(EXTRACT(DAY FROM NOW() - e."createdAt"))::numeric, 1)                              AS promedio_dias_abierto,
+      COUNT(DISTINCT CASE WHEN e."createdAt" >= DATE_TRUNC('month', NOW()) THEN e.id END)          AS nuevos_este_mes,
+      COUNT(DISTINCT CASE WHEN e."createdAt" < DATE_TRUNC('month', NOW()) - INTERVAL '3 months' THEN e.id END) AS criticos_mas_90_dias,
+      STRING_AGG(DISTINCT u.name, ', ' ORDER BY u.name)                                            AS responsables
+    FROM evidence e
+    JOIN manufacturing_plant mp              ON e."manufacturingPlantId" = mp.id
+    JOIN zones z                             ON e."zoneId"               = z.id
+    LEFT JOIN evidence_responsibles_user eru ON eru."evidenceId"         = e.id
+    LEFT JOIN "user" u                       ON eru."userId"             = u.id
+    WHERE mp."isActive" = true
+      AND e.status = 'Abierto'
+      AND mp.id = ${manufacturingPlantId}
+    GROUP BY mp.id, mp.name, z.id, z.name
+    ORDER BY total_abiertas DESC, max_dias_sin_resolver DESC;
+  `;
+
+    const result = await this.manufacturingPlant.manager.query(query);
+
+    return result;
+  }
+
   findManufacturingPlantsIdsCurrentUser() {
     const user = this.request['user'] as User;
 

@@ -16,4 +16,8 @@ export class QueryUserDto {
   @IsOptional()
   @IsPositive()
   zoneId: number;
+
+  @IsOptional()
+  @IsString()
+  orderBy: string;
 }
