@@ -9,6 +9,7 @@ import {
   Param,
   Delete,
   Res,
+  Query,
 } from '@nestjs/common';
 
 import * as XlsxPopulate from 'xlsx-populate';
@@ -49,8 +50,8 @@ export class EppsController {
   }
 
   @Get()
-  findAll() {
-    return this.eppsService.findAll();
+  findAll(@Query('manufacturingPlantId') manufacturingPlantId: string) {
+    return this.eppsService.findAll(+manufacturingPlantId);
   }
 
   @Get('download/file/:employeeId')

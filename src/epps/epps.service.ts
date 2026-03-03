@@ -95,10 +95,13 @@ export class EppsService {
     });
   }
 
-  findAll() {
+  findAll(manufacturingPlantId: number) {
     return this.employeeRepository.find({
       where: {
         isActive: true,
+        manufacturingPlants: {
+          id: manufacturingPlantId,
+        },
         epps: {
           isActive: true,
         },

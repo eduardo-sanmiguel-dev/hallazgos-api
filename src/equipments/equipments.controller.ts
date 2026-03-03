@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 
 import { CreateEquipmentDto, UpdateEquipmentDto } from './dto';
@@ -26,8 +27,8 @@ export class EquipmentsController {
   }
 
   @Get()
-  findAll() {
-    return this.equipmentsService.findAll();
+  findAll(@Query('manufacturingPlantId') manufacturingPlantId: string) {
+    return this.equipmentsService.findAll(+manufacturingPlantId);
   }
 
   @Get(':id')

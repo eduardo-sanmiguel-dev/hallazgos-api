@@ -5,8 +5,10 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  ManyToOne,
 } from 'typeorm';
 
+import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
 import { EquipmentCostHistory } from './equipment-cost-history.entity';
 import { EppEquipment } from 'epps/entities';
 
@@ -32,4 +34,10 @@ export class Equipment {
 
   @OneToMany(() => EppEquipment, (eppEquipment) => eppEquipment.equipment)
   eppEquipments: EppEquipment[];
+
+  @ManyToOne(
+    () => ManufacturingPlant,
+    (manufacturingPlant) => manufacturingPlant.evidences,
+  )
+  manufacturingPlant: ManufacturingPlant;
 }
