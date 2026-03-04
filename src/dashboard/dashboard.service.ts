@@ -22,8 +22,12 @@ export class DashboardService {
     @Inject(REQUEST) private readonly request: Request,
   ) {}
 
-  findMyEvidences(userId: number) {
-    const queryRaw = `
+  executeQuery(query: string) {
+    return this.manufacturingPlant.manager.query(query);
+  }
+
+  async findMyEvidences(userId: number) {
+    const query = `
       SELECT
         a.total, a.abiertas, a.cerradas, a.canceladas,
         ma.total        AS total_mes_actual,
@@ -88,13 +92,67 @@ export class DashboardService {
       ) mp;
     `;
 
-    const query = this.manufacturingPlant.manager.query(queryRaw);
+    const result = await this.executeQuery(query);
 
-    return query;
+    return result[0];
   }
 
-  executeQuery(query: string) {
-    return this.manufacturingPlant.manager.query(query);
+  async findOpenEvidences(manufacturingPlantId: number, userId: number) {
+    const query = `
+      SELECT
+        e.id,
+        e.description,
+        e."createdAt",
+        mt.name  AS tipo_principal,
+        st.name  AS tipo_secundario,
+        z.name   AS zona,
+        mp.name  AS planta,
+        EXTRACT(DAY FROM NOW() - e."createdAt")::int       AS dias_abierto,
+        STRING_AGG(DISTINCT ur.name, ', ' ORDER BY ur.name) AS responsables,
+        STRING_AGG(DISTINCT us.name, ', ' ORDER BY us.name) AS supervisores
+      FROM evidence e
+      LEFT JOIN main_type mt               ON e."mainTypeId"           = mt.id
+      LEFT JOIN secondary_type st          ON e."secondaryTypeId"      = st.id
+      LEFT JOIN zones z                    ON e."zoneId"               = z.id
+      LEFT JOIN manufacturing_plant mp     ON e."manufacturingPlantId" = mp.id
+      LEFT JOIN evidence_responsibles_user eru ON eru."evidenceId"     = e.id
+      LEFT JOIN "user" ur                  ON eru."userId"             = ur.id
+      LEFT JOIN evidence_supervisors_user  esu ON esu."evidenceId"     = e.id
+      LEFT JOIN "user" us                  ON esu."userId"             = us.id
+      WHERE e."userId" = ${userId}
+        AND mp."id" = ${manufacturingPlantId}
+        AND e.status = 'Abierto'
+        AND e."solutionDate" IS NULL
+      GROUP BY e.id, e.description, e."createdAt", mt.name, st.name, z.name, mp.name
+      ORDER BY e."createdAt" ASC;
+    `;
+
+    return this.executeQuery(query);
+  }
+
+  findRecentEvidences(manufacturingPlantId: number, userId: number) {
+    const query = `
+      SELECT
+        e.id,
+        e.description,
+        e."createdAt",
+        e.status,
+        mt.name AS tipo_principal,
+        st.name AS tipo_secundario,
+        z.name  AS zona,
+        mp.name AS planta
+      FROM evidence e
+      LEFT JOIN main_type mt           ON e."mainTypeId"           = mt.id
+      LEFT JOIN secondary_type st      ON e."secondaryTypeId"      = st.id
+      LEFT JOIN zones z                ON e."zoneId"               = z.id
+      LEFT JOIN manufacturing_plant mp ON e."manufacturingPlantId" = mp.id
+      WHERE e."userId" = ${userId}
+      AND mp."id" = ${manufacturingPlantId}
+      ORDER BY e."createdAt" DESC
+      LIMIT 10;
+    `;
+
+    return this.executeQuery(query);
   }
 
   async findGlobalSummary(manufacturingPlantId: number) {
@@ -167,7 +225,7 @@ export class DashboardService {
         GROUP BY "manufacturingPlantId"
       ) mp2 ON mp.id = mp2."manufacturingPlantId"
       WHERE mp."isActive" = true
-        AND mp.id = ${manufacturingPlantId}
+        AND mp."id" = ${manufacturingPlantId}
         AND COALESCE(a.total, 0) > 0
       ORDER BY COALESCE(a.total, 0) DESC;
     `;
@@ -196,10 +254,244 @@ export class DashboardService {
     LEFT JOIN "user" u                       ON eru."userId"             = u.id
     WHERE mp."isActive" = true
       AND e.status = 'Abierto'
-      AND mp.id = ${manufacturingPlantId}
+      AND mp."id" = ${manufacturingPlantId}
     GROUP BY mp.id, mp.name, z.id, z.name
     ORDER BY total_abiertas DESC, max_dias_sin_resolver DESC;
   `;
+
+    return this.executeQuery(query);
+  }
+
+  findRankingOfResponsibles(manufacturingPlantId: number) {
+    const query = `SELECT
+      u.id                                                                                      AS user_id,
+      u.name                                                                                    AS responsable,
+      mp.name                                                                                   AS planta,
+      COALESCE(a.total, 0)                                                                      AS total_asignadas,
+      COALESCE(a.abiertas, 0)                                                                   AS pendientes,
+      COALESCE(a.cerradas, 0)                                                                   AS cerradas,
+      COALESCE(a.canceladas, 0)                                                                 AS canceladas,
+      COALESCE(ROUND(a.cerradas * 100.0 / NULLIF(a.total, 0), 1), 0)                          AS pct_resolucion,
+      COALESCE(ma.total, 0)                                                                     AS total_mes_actual,
+      COALESCE(mp2.total, 0)                                                                    AS total_mes_anterior,
+      COALESCE(ma.abiertas, 0)                                                                  AS pendientes_mes_actual,
+      COALESCE(mp2.abiertas, 0)                                                                 AS pendientes_mes_anterior,
+      COALESCE(ma.cerradas, 0)                                                                  AS cerradas_mes_actual,
+      COALESCE(mp2.cerradas, 0)                                                                 AS cerradas_mes_anterior,
+      CASE
+        WHEN COALESCE(mp2.total, 0) = 0 AND COALESCE(ma.total, 0) > 0 THEN 100.0
+        WHEN COALESCE(mp2.total, 0) = 0                                THEN 0.0
+        ELSE ROUND((COALESCE(ma.total, 0) - COALESCE(mp2.total, 0)) * 100.0 / COALESCE(mp2.total, 0), 1)
+      END AS pct_carga,
+      CASE
+        WHEN COALESCE(mp2.cerradas, 0) = 0 AND COALESCE(ma.cerradas, 0) > 0 THEN 100.0
+        WHEN COALESCE(mp2.cerradas, 0) = 0                                    THEN 0.0
+        ELSE ROUND((COALESCE(ma.cerradas, 0) - COALESCE(mp2.cerradas, 0)) * 100.0 / COALESCE(mp2.cerradas, 0), 1)
+      END AS pct_cerradas
+    FROM "user" u
+    JOIN user_manufacturing_plants ump ON ump."userId" = u.id
+    JOIN manufacturing_plant mp        ON mp.id = ump."manufacturingPlantId"
+    LEFT JOIN (
+      SELECT eru."userId",
+        COUNT(*)                                          AS total,
+        COUNT(CASE WHEN e.status = 'Abierto'   THEN 1 END) AS abiertas,
+        COUNT(CASE WHEN e.status = 'Cerrado'   THEN 1 END) AS cerradas,
+        COUNT(CASE WHEN e.status = 'Cancelado' THEN 1 END) AS canceladas
+      FROM evidence_responsibles_user eru
+      JOIN evidence e ON eru."evidenceId" = e.id
+      GROUP BY eru."userId"
+    ) a ON u.id = a."userId"
+    LEFT JOIN (
+      SELECT eru."userId",
+        COUNT(*)                                          AS total,
+        COUNT(CASE WHEN e.status = 'Abierto'   THEN 1 END) AS abiertas,
+        COUNT(CASE WHEN e.status = 'Cerrado'   THEN 1 END) AS cerradas,
+        COUNT(CASE WHEN e.status = 'Cancelado' THEN 1 END) AS canceladas
+      FROM evidence_responsibles_user eru
+      JOIN evidence e ON eru."evidenceId" = e.id
+      WHERE e."createdAt" >= DATE_TRUNC('month', NOW())
+        AND e."createdAt" <= NOW()
+      GROUP BY eru."userId"
+    ) ma ON u.id = ma."userId"
+    LEFT JOIN (
+      SELECT eru."userId",
+        COUNT(*)                                          AS total,
+        COUNT(CASE WHEN e.status = 'Abierto'   THEN 1 END) AS abiertas,
+        COUNT(CASE WHEN e.status = 'Cerrado'   THEN 1 END) AS cerradas,
+        COUNT(CASE WHEN e.status = 'Cancelado' THEN 1 END) AS canceladas
+      FROM evidence_responsibles_user eru
+      JOIN evidence e ON eru."evidenceId" = e.id
+      WHERE e."createdAt" >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month'
+        AND e."createdAt" <= NOW() - INTERVAL '1 month'
+      GROUP BY eru."userId"
+    ) mp2 ON u.id = mp2."userId"
+    WHERE mp."isActive" = true
+      AND mp."id" = ${manufacturingPlantId}
+      AND COALESCE(a.total, 0) > 0
+    ORDER BY pendientes DESC, pct_resolucion ASC;`;
+
+    return this.executeQuery(query);
+  }
+
+  async findAverageResolutionTime(manufacturingPlantId: number) {
+    const query = `
+      SELECT
+        mp.name                                                                                     AS planta,
+        COALESCE(ROUND(AVG(
+          EXTRACT(DAY FROM e."solutionDate" - e."createdAt")
+        )::numeric, 1), 0)                                                                         AS promedio_dias_historico,
+        COALESCE(COUNT(*), 0)                                                                      AS total_cerradas_historico,
+        COALESCE(ROUND(AVG(CASE
+          WHEN e."solutionDate" >= DATE_TRUNC('month', NOW())
+          AND e."solutionDate" <= NOW()
+          THEN EXTRACT(DAY FROM e."solutionDate" - e."createdAt")
+        END)::numeric, 1), 0)                                                                      AS promedio_dias_mes_actual,
+        COALESCE(COUNT(CASE
+          WHEN e."solutionDate" >= DATE_TRUNC('month', NOW())
+          AND e."solutionDate" <= NOW() THEN 1
+        END), 0)                                                                                   AS total_cerradas_mes_actual,
+        COALESCE(ROUND(AVG(CASE
+          WHEN e."solutionDate" >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month'
+          AND e."solutionDate" <= NOW() - INTERVAL '1 month'
+          THEN EXTRACT(DAY FROM e."solutionDate" - e."createdAt")
+        END)::numeric, 1), 0)                                                                      AS promedio_dias_mes_anterior,
+        COALESCE(COUNT(CASE
+          WHEN e."solutionDate" >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month'
+          AND e."solutionDate" <= NOW() - INTERVAL '1 month' THEN 1
+        END), 0)                                                                                   AS total_cerradas_mes_anterior,
+        CASE
+          WHEN COALESCE(AVG(CASE
+            WHEN e."solutionDate" >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month'
+            AND e."solutionDate" <= NOW() - INTERVAL '1 month'
+            THEN EXTRACT(DAY FROM e."solutionDate" - e."createdAt") END), 0) = 0
+          AND COALESCE(AVG(CASE
+            WHEN e."solutionDate" >= DATE_TRUNC('month', NOW())
+            AND e."solutionDate" <= NOW()
+            THEN EXTRACT(DAY FROM e."solutionDate" - e."createdAt") END), 0) > 0 THEN 100.0
+          WHEN COALESCE(AVG(CASE
+            WHEN e."solutionDate" >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month'
+            AND e."solutionDate" <= NOW() - INTERVAL '1 month'
+            THEN EXTRACT(DAY FROM e."solutionDate" - e."createdAt") END), 0) = 0 THEN 0.0
+          ELSE ROUND((
+            COALESCE(AVG(CASE
+              WHEN e."solutionDate" >= DATE_TRUNC('month', NOW())
+              AND e."solutionDate" <= NOW()
+              THEN EXTRACT(DAY FROM e."solutionDate" - e."createdAt") END), 0) -
+            COALESCE(AVG(CASE
+              WHEN e."solutionDate" >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month'
+              AND e."solutionDate" <= NOW() - INTERVAL '1 month'
+              THEN EXTRACT(DAY FROM e."solutionDate" - e."createdAt") END), 0)
+          ) * 100.0 / NULLIF(COALESCE(AVG(CASE
+            WHEN e."solutionDate" >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month'
+            AND e."solutionDate" <= NOW() - INTERVAL '1 month'
+            THEN EXTRACT(DAY FROM e."solutionDate" - e."createdAt") END), 0), 0), 1)
+        END                                                                                         AS pct_cambio_promedio
+      FROM manufacturing_plant mp
+      JOIN evidence e ON e."manufacturingPlantId" = mp.id
+      WHERE mp."isActive" = true
+        AND mp."id" = ${manufacturingPlantId}
+        AND e.status = 'Cerrado'
+        AND e."solutionDate" IS NOT NULL
+      GROUP BY mp.id, mp.name
+      ORDER BY promedio_dias_historico DESC;
+    `;
+
+    const result = await this.executeQuery(query);
+
+    return result[0];
+  }
+
+  async findMonthlyGlobalTrend(
+    manufacturingPlantId: number,
+    isAdmin: boolean,
+    userId: number,
+  ) {
+    const queryAdmin = `
+        SELECT
+          mp.name                                                                                   AS planta,
+          DATE_TRUNC('month', e."createdAt")                                                        AS mes,
+          COUNT(*)                                                                                  AS total,
+          COUNT(CASE WHEN e.status = 'Abierto'   THEN 1 END)                                        AS abiertas,
+          COUNT(CASE WHEN e.status = 'Cerrado'   THEN 1 END)                                        AS cerradas,
+          COUNT(CASE WHEN e.status = 'Cancelado' THEN 1 END)                                        AS canceladas,
+          ROUND(COUNT(CASE WHEN e.status = 'Cerrado' THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0), 1)  AS pct_resolucion,
+          SUM(COUNT(CASE WHEN e.status = 'Abierto' THEN 1 END))
+            OVER (PARTITION BY mp.id ORDER BY DATE_TRUNC('month', e."createdAt") ASC)               AS backlog_acumulado
+        FROM evidence e
+        JOIN manufacturing_plant mp ON e."manufacturingPlantId" = mp.id
+        WHERE mp."isActive" = true 
+          AND mp."id" = ${manufacturingPlantId}
+          AND e."createdAt" >= DATE_TRUNC('month', NOW()) - INTERVAL '11 months'
+        GROUP BY mp.id, mp.name, mes
+        ORDER BY mp.name, mes ASC;
+    `;
+
+    const query = `
+      SELECT
+        mp.name                                                                   AS planta,
+        DATE_TRUNC('month', e."createdAt")                                        AS mes,
+        COUNT(*)                                                                  AS total,
+        COUNT(CASE WHEN e.status = 'Abierto'   THEN 1 END)                        AS abiertas,
+        COUNT(CASE WHEN e.status = 'Cerrado'   THEN 1 END)                        AS cerradas,
+        COUNT(CASE WHEN e.status = 'Cancelado' THEN 1 END)                        AS canceladas,
+        ROUND(COUNT(CASE WHEN e.status = 'Cerrado' THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0), 1) AS pct_resolucion,
+        SUM(COUNT(CASE WHEN e.status = 'Abierto' THEN 1 END))
+          OVER (PARTITION BY mp.id ORDER BY DATE_TRUNC('month', e."createdAt") ASC) AS backlog_acumulado
+      FROM evidence_responsibles_user eru
+      JOIN evidence e              ON eru."evidenceId"        = e.id
+      JOIN manufacturing_plant mp  ON e."manufacturingPlantId" = mp.id
+      WHERE eru."userId" = ${userId}
+        AND mp.id = ${manufacturingPlantId}
+        AND e."createdAt" >= DATE_TRUNC('month', NOW()) - INTERVAL '11 months'
+      GROUP BY mp.id, mp.name, mes
+      ORDER BY mp.name, mes ASC;
+    `;
+
+    return this.executeQuery(isAdmin ? queryAdmin : query);
+  }
+
+  async findMonthlyTypeTrend(manufacturingPlantId: number) {
+    const query = `
+    SELECT
+      mp.name  AS planta,
+      mt.name  AS tipo_principal,
+      COALESCE(a.total, 0)                                                        AS total_historico,
+      COALESCE(ma.total, 0)                                                       AS total_mes_actual,
+      COALESCE(mp2.total, 0)                                                      AS total_mes_anterior,
+      CASE
+        WHEN COALESCE(mp2.total, 0) = 0 AND COALESCE(ma.total, 0) > 0 THEN 100.0
+        WHEN COALESCE(mp2.total, 0) = 0                                THEN 0.0
+        ELSE ROUND((COALESCE(ma.total, 0) - COALESCE(mp2.total, 0)) * 100.0 / COALESCE(mp2.total, 0), 1)
+      END AS pct_cambio
+    FROM manufacturing_plant mp
+    CROSS JOIN main_type mt
+    LEFT JOIN (
+      SELECT "manufacturingPlantId", "mainTypeId", COUNT(*) AS total
+      FROM evidence
+      WHERE status = 'Abierto'
+      GROUP BY "manufacturingPlantId", "mainTypeId"
+    ) a ON mp.id = a."manufacturingPlantId" AND mt.id = a."mainTypeId"
+    LEFT JOIN (
+      SELECT "manufacturingPlantId", "mainTypeId", COUNT(*) AS total
+      FROM evidence
+      WHERE status = 'Abierto'
+        AND "createdAt" >= DATE_TRUNC('month', NOW())
+        AND "createdAt" <= NOW()
+      GROUP BY "manufacturingPlantId", "mainTypeId"
+    ) ma ON mp.id = ma."manufacturingPlantId" AND mt.id = ma."mainTypeId"
+    LEFT JOIN (
+      SELECT "manufacturingPlantId", "mainTypeId", COUNT(*) AS total
+      FROM evidence
+      WHERE status = 'Abierto'
+        AND "createdAt" >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month'
+        AND "createdAt" <= NOW() - INTERVAL '1 month'
+      GROUP BY "manufacturingPlantId", "mainTypeId"
+    ) mp2 ON mp.id = mp2."manufacturingPlantId" AND mt.id = mp2."mainTypeId"
+    WHERE mp."isActive" = true
+      AND mp."id" = ${manufacturingPlantId}
+      AND COALESCE(a.total, 0) > 0
+    ORDER BY mp.name, a.total DESC;
+    `;
 
     return this.executeQuery(query);
   }
@@ -228,6 +520,54 @@ export class DashboardService {
     );
 
     return manufacturingPlantsWithEvidences;
+  }
+
+  async findMonthlySubtypeTrend(manufacturingPlantId: number) {
+    const query = `
+    SELECT
+      mp.name  AS planta,
+      mt.name  AS tipo_principal,
+      st.name  AS tipo_secundario,
+      COALESCE(a.total, 0)                                                        AS total_historico,
+      COALESCE(ma.total, 0)                                                       AS total_mes_actual,
+      COALESCE(mp2.total, 0)                                                      AS total_mes_anterior,
+      CASE
+        WHEN COALESCE(mp2.total, 0) = 0 AND COALESCE(ma.total, 0) > 0 THEN 100.0
+        WHEN COALESCE(mp2.total, 0) = 0                                THEN 0.0
+        ELSE ROUND((COALESCE(ma.total, 0) - COALESCE(mp2.total, 0)) * 100.0 / COALESCE(mp2.total, 0), 1)
+      END AS pct_cambio
+    FROM manufacturing_plant mp
+    CROSS JOIN secondary_type st
+    JOIN main_type mt ON st."mainTypeId" = mt.id
+    LEFT JOIN (
+      SELECT "manufacturingPlantId", "secondaryTypeId", COUNT(*) AS total
+      FROM evidence
+      WHERE status = 'Abierto'
+      GROUP BY "manufacturingPlantId", "secondaryTypeId"
+    ) a ON mp.id = a."manufacturingPlantId" AND st.id = a."secondaryTypeId"
+    LEFT JOIN (
+      SELECT "manufacturingPlantId", "secondaryTypeId", COUNT(*) AS total
+      FROM evidence
+      WHERE status = 'Abierto'
+        AND "createdAt" >= DATE_TRUNC('month', NOW())
+        AND "createdAt" <= NOW()
+      GROUP BY "manufacturingPlantId", "secondaryTypeId"
+    ) ma ON mp.id = ma."manufacturingPlantId" AND st.id = ma."secondaryTypeId"
+    LEFT JOIN (
+      SELECT "manufacturingPlantId", "secondaryTypeId", COUNT(*) AS total
+      FROM evidence
+      WHERE status = 'Abierto'
+        AND "createdAt" >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month'
+        AND "createdAt" <= NOW() - INTERVAL '1 month'
+      GROUP BY "manufacturingPlantId", "secondaryTypeId"
+    ) mp2 ON mp.id = mp2."manufacturingPlantId" AND st.id = mp2."secondaryTypeId"
+    WHERE mp."isActive" = true
+      AND mp."id" = ${manufacturingPlantId}
+      AND COALESCE(a.total, 0) > 0
+    ORDER BY mp.name, mt.name, a.total DESC;
+    `;
+
+    return this.executeQuery(query);
   }
 
   async findAllStatus() {
