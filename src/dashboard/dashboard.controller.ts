@@ -42,6 +42,40 @@ export class DashboardController {
       +manufacturingPlantId,
     );
   }
+  @Get('average-resolution-time-by-user')
+  findAverageResolutionTimeByUser(
+    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('userId') userId: string,
+    @Query('assigned') assigned: string,
+  ) {
+    return this.dashboardService.findAverageResolutionTimeByUser(
+      +manufacturingPlantId,
+      +userId,
+      assigned === 'true',
+    );
+  }
+
+  @Get('type-evidence-by-user')
+  findTypeEvidenceByUser(
+    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('userId') userId: string,
+  ) {
+    return this.dashboardService.findTypeEvidenceByUser(
+      +manufacturingPlantId,
+      +userId,
+    );
+  }
+
+  @Get('pending-by-seniority-by-user')
+  findPendingBySeniorityByUser(
+    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('userId') userId: string,
+  ) {
+    return this.dashboardService.findPendingBySeniorityByUser(
+      +manufacturingPlantId,
+      +userId,
+    );
+  }
 
   @Get('monthly-global-trend')
   findMonthlyGlobalTrend(

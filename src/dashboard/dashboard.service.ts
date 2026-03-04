@@ -401,6 +401,150 @@ export class DashboardService {
     return result[0];
   }
 
+  async findAverageResolutionTimeByUser(
+    manufacturingPlantId: number,
+    userId: number,
+    assigned: boolean,
+  ) {
+    const query = `
+      SELECT
+        mp.name                                                                                                    AS planta,
+        COALESCE(ROUND(AVG(
+          EXTRACT(DAY FROM e."solutionDate" - e."createdAt")
+        )::numeric, 1), 0)                                                                                        AS promedio_dias_historico,
+        COALESCE(MIN(EXTRACT(DAY FROM e."solutionDate" - e."createdAt"))::int, 0)                                AS minimo_dias,
+        COALESCE(MAX(EXTRACT(DAY FROM e."solutionDate" - e."createdAt"))::int, 0)                                AS maximo_dias,
+        COALESCE(COUNT(*), 0)                                                                                     AS total_cerradas_historico,
+        COALESCE(ROUND(AVG(CASE
+          WHEN e."solutionDate" >= DATE_TRUNC('month', NOW())
+          AND e."solutionDate" <= NOW()
+          THEN EXTRACT(DAY FROM e."solutionDate" - e."createdAt")
+        END)::numeric, 1), 0)                                                                                     AS promedio_dias_mes_actual,
+        COALESCE(COUNT(CASE
+          WHEN e."solutionDate" >= DATE_TRUNC('month', NOW())
+          AND e."solutionDate" <= NOW() THEN 1
+        END), 0)                                                                                                   AS total_cerradas_mes_actual,
+        COALESCE(ROUND(AVG(CASE
+          WHEN e."solutionDate" >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month'
+          AND e."solutionDate" <= NOW() - INTERVAL '1 month'
+          THEN EXTRACT(DAY FROM e."solutionDate" - e."createdAt")
+        END)::numeric, 1), 0)                                                                                     AS promedio_dias_mes_anterior,
+        COALESCE(COUNT(CASE
+          WHEN e."solutionDate" >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month'
+          AND e."solutionDate" <= NOW() - INTERVAL '1 month' THEN 1
+        END), 0)                                                                                                   AS total_cerradas_mes_anterior,
+        CASE
+          WHEN COALESCE(AVG(CASE
+            WHEN e."solutionDate" >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month'
+            AND e."solutionDate" <= NOW() - INTERVAL '1 month'
+            THEN EXTRACT(DAY FROM e."solutionDate" - e."createdAt") END), 0) = 0
+          AND COALESCE(AVG(CASE
+            WHEN e."solutionDate" >= DATE_TRUNC('month', NOW())
+            AND e."solutionDate" <= NOW()
+            THEN EXTRACT(DAY FROM e."solutionDate" - e."createdAt") END), 0) > 0 THEN 100.0
+          WHEN COALESCE(AVG(CASE
+            WHEN e."solutionDate" >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month'
+            AND e."solutionDate" <= NOW() - INTERVAL '1 month'
+            THEN EXTRACT(DAY FROM e."solutionDate" - e."createdAt") END), 0) = 0 THEN 0.0
+          ELSE ROUND((
+            COALESCE(AVG(CASE
+              WHEN e."solutionDate" >= DATE_TRUNC('month', NOW())
+              AND e."solutionDate" <= NOW()
+              THEN EXTRACT(DAY FROM e."solutionDate" - e."createdAt") END), 0) -
+            COALESCE(AVG(CASE
+              WHEN e."solutionDate" >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month'
+              AND e."solutionDate" <= NOW() - INTERVAL '1 month'
+              THEN EXTRACT(DAY FROM e."solutionDate" - e."createdAt") END), 0)
+          ) * 100.0 / NULLIF(COALESCE(AVG(CASE
+            WHEN e."solutionDate" >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month'
+            AND e."solutionDate" <= NOW() - INTERVAL '1 month'
+            THEN EXTRACT(DAY FROM e."solutionDate" - e."createdAt") END), 0), 0), 1)
+        END                                                                                                        AS pct_cambio_promedio
+      FROM evidence_responsibles_user eru
+      JOIN evidence e             ON eru."evidenceId"        = e.id
+      JOIN manufacturing_plant mp ON e."manufacturingPlantId" = mp.id
+      WHERE eru."userId" = ${userId}
+        AND e.status = 'Cerrado'
+        AND e."solutionDate" IS NOT NULL
+        AND mp.id = ${manufacturingPlantId}
+      GROUP BY mp.id, mp.name
+      ORDER BY promedio_dias_historico DESC;
+    `;
+
+    const queryAsigned = `
+      SELECT
+        a.total, a.abiertas, a.cerradas, a.canceladas,
+        ma.total        AS total_mes_actual,
+        mp.total        AS total_mes_anterior,
+        ma.abiertas     AS abiertas_mes_actual,
+        mp.abiertas     AS abiertas_mes_anterior,
+        ma.cerradas     AS cerradas_mes_actual,
+        mp.cerradas     AS cerradas_mes_anterior,
+        ma.canceladas   AS canceladas_mes_actual,
+        mp.canceladas   AS canceladas_mes_anterior,
+        CASE
+          WHEN mp.total = 0 AND ma.total > 0 THEN 100.0
+          WHEN mp.total = 0                  THEN 0.0
+          ELSE ROUND((ma.total - mp.total) * 100.0 / mp.total, 1)
+        END AS pct_total,
+        CASE
+          WHEN mp.abiertas = 0 AND ma.abiertas > 0 THEN 100.0
+          WHEN mp.abiertas = 0                      THEN 0.0
+          ELSE ROUND((ma.abiertas - mp.abiertas) * 100.0 / mp.abiertas, 1)
+        END AS pct_abiertas,
+        CASE
+          WHEN mp.cerradas = 0 AND ma.cerradas > 0 THEN 100.0
+          WHEN mp.cerradas = 0                      THEN 0.0
+          ELSE ROUND((ma.cerradas - mp.cerradas) * 100.0 / mp.cerradas, 1)
+        END AS pct_cerradas,
+        CASE
+          WHEN mp.canceladas = 0 AND ma.canceladas > 0 THEN 100.0
+          WHEN mp.canceladas = 0                        THEN 0.0
+          ELSE ROUND((ma.canceladas - mp.canceladas) * 100.0 / mp.canceladas, 1)
+        END AS pct_canceladas
+      FROM
+      (
+        SELECT
+          COUNT(*)                                          AS total,
+          COUNT(CASE WHEN e.status = 'Abierto'   THEN 1 END) AS abiertas,
+          COUNT(CASE WHEN e.status = 'Cerrado'   THEN 1 END) AS cerradas,
+          COUNT(CASE WHEN e.status = 'Cancelado' THEN 1 END) AS canceladas
+        FROM evidence_responsibles_user eru
+        JOIN evidence e ON eru."evidenceId" = e.id
+        WHERE eru."userId" = ${userId}
+      ) a,
+      (
+        SELECT
+          COUNT(*)                                          AS total,
+          COUNT(CASE WHEN e.status = 'Abierto'   THEN 1 END) AS abiertas,
+          COUNT(CASE WHEN e.status = 'Cerrado'   THEN 1 END) AS cerradas,
+          COUNT(CASE WHEN e.status = 'Cancelado' THEN 1 END) AS canceladas
+        FROM evidence_responsibles_user eru
+        JOIN evidence e ON eru."evidenceId" = e.id
+        WHERE eru."userId" = ${userId}
+          AND e."createdAt" >= DATE_TRUNC('month', NOW())
+          AND e."createdAt" <= NOW()
+      ) ma,
+      (
+        SELECT
+          COUNT(*)                                          AS total,
+          COUNT(CASE WHEN e.status = 'Abierto'   THEN 1 END) AS abiertas,
+          COUNT(CASE WHEN e.status = 'Cerrado'   THEN 1 END) AS cerradas,
+          COUNT(CASE WHEN e.status = 'Cancelado' THEN 1 END) AS canceladas
+        FROM evidence_responsibles_user eru
+        JOIN evidence e ON eru."evidenceId" = e.id
+        WHERE eru."userId" = ${userId}
+          AND e."manufacturingPlantId" = ${manufacturingPlantId}
+          AND e."createdAt" >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month'
+          AND e."createdAt" <= NOW() - INTERVAL '1 month'
+      ) mp;
+      `;
+
+    const result = await this.executeQuery(assigned ? queryAsigned : query);
+
+    return result[0];
+  }
+
   async findMonthlyGlobalTrend(
     manufacturingPlantId: number,
     isAdmin: boolean,
@@ -448,6 +592,85 @@ export class DashboardService {
     `;
 
     return this.executeQuery(isAdmin ? queryAdmin : query);
+  }
+
+  async findTypeEvidenceByUser(manufacturingPlantId: number, userId: number) {
+    const query = `
+      SELECT
+        mt.name                                                                        AS tipo_principal,
+        a.total                                                                        AS total_historico,
+        COALESCE(ma.total, 0)                                                          AS total_mes_actual,
+        COALESCE(mp.total, 0)                                                          AS total_mes_anterior,
+        CASE
+          WHEN COALESCE(mp.total, 0) = 0 AND COALESCE(ma.total, 0) > 0 THEN 100.0
+          WHEN COALESCE(mp.total, 0) = 0                                THEN 0.0
+          ELSE ROUND((COALESCE(ma.total, 0) - COALESCE(mp.total, 0)) * 100.0 / COALESCE(mp.total, 0), 1)
+        END AS pct_cambio
+      FROM main_type mt
+      JOIN (
+        SELECT e."mainTypeId", COUNT(*) AS total
+        FROM evidence_responsibles_user eru
+        JOIN evidence e ON eru."evidenceId" = e.id
+        WHERE eru."userId" = ${userId}
+          AND e.status = 'Abierto'
+          AND e."manufacturingPlantId" = ${manufacturingPlantId}
+        GROUP BY e."mainTypeId"
+      ) a ON mt.id = a."mainTypeId"
+      LEFT JOIN (
+        SELECT e."mainTypeId", COALESCE(COUNT(*), 0) AS total
+        FROM evidence_responsibles_user eru
+        JOIN evidence e ON eru."evidenceId" = e.id
+        WHERE eru."userId" = ${userId}
+          AND e.status = 'Abierto'
+          AND e."manufacturingPlantId" = ${manufacturingPlantId}
+          AND e."createdAt" >= DATE_TRUNC('month', NOW())
+          AND e."createdAt" <= NOW()
+        GROUP BY e."mainTypeId"
+      ) ma ON mt.id = ma."mainTypeId"
+      LEFT JOIN (
+        SELECT e."mainTypeId", COALESCE(COUNT(*), 0) AS total
+        FROM evidence_responsibles_user eru
+        JOIN evidence e ON eru."evidenceId" = e.id
+        WHERE eru."userId" = ${userId}
+          AND e.status = 'Abierto'
+          AND e."manufacturingPlantId" = ${manufacturingPlantId}
+          AND e."createdAt" >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month'
+          AND e."createdAt" <= NOW() - INTERVAL '1 month'
+        GROUP BY e."mainTypeId"
+      ) mp ON mt.id = mp."mainTypeId"
+      ORDER BY a.total DESC;
+    `;
+
+    return this.executeQuery(query);
+  }
+
+  findPendingBySeniorityByUser(manufacturingPlantId: number, userId: number) {
+    const query = `
+      SELECT
+        e.id,
+        e.description,
+        e."createdAt",
+        mt.name AS tipo_principal,
+        st.name AS tipo_secundario,
+        z.name  AS zona,
+        mp.name AS planta,
+        u.name  AS creado_por,
+        EXTRACT(DAY FROM NOW() - e."createdAt")::int AS dias_sin_resolver
+      FROM evidence_responsibles_user eru
+      JOIN evidence e              ON eru."evidenceId"        = e.id
+      LEFT JOIN main_type mt       ON e."mainTypeId"          = mt.id
+      LEFT JOIN secondary_type st  ON e."secondaryTypeId"     = st.id
+      LEFT JOIN zones z            ON e."zoneId"              = z.id
+      LEFT JOIN manufacturing_plant mp ON e."manufacturingPlantId" = mp.id
+      LEFT JOIN "user" u           ON e."userId"              = u.id
+      WHERE eru."userId" = ${userId}
+      AND mp."id" = ${manufacturingPlantId}
+        AND e.status = 'Abierto'
+        AND e."solutionDate" IS NULL
+      ORDER BY dias_sin_resolver DESC;
+    `;
+
+    return this.executeQuery(query);
   }
 
   async findMonthlyTypeTrend(manufacturingPlantId: number) {
