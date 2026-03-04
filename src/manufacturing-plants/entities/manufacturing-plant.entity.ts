@@ -23,6 +23,7 @@ import { Topic } from 'topics/entities/topic.entity';
 import { Ciael } from 'ciaels/entities/ciael.entity';
 import { Zone } from 'zones/entities/zone.entity';
 import { ConfigsTg } from 'configs-tg/entities';
+import { Equipment } from 'equipments/entities';
 import { Employee } from 'employees/entities';
 import { Ics } from 'ics/entities/ics.entity';
 @Entity()
@@ -127,4 +128,7 @@ export class ManufacturingPlant {
     (trainingGuide) => trainingGuide.manufacturingPlant,
   )
   trainingGuides: TrainingGuide[];
+
+  @OneToMany(() => Equipment, (equipment) => equipment.manufacturingPlant)
+  equipments: Equipment[];
 }

@@ -20,13 +20,16 @@ export class Equipment {
   @Column()
   name: string;
 
-  @Column({ default: true })
+  @Column({ name: 'delivery_frequency', type: 'int', nullable: true })
+  deliveryFrequency: number;
+
+  @Column({ default: true, name: 'is_active' })
   isActive: boolean;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz', name: 'created_at', precision: 3 })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamptz', name: 'updated_at', precision: 3 })
   updatedAt: Date;
 
   @OneToMany(() => EquipmentCostHistory, (costHistory) => costHistory.equipment)
@@ -37,7 +40,7 @@ export class Equipment {
 
   @ManyToOne(
     () => ManufacturingPlant,
-    (manufacturingPlant) => manufacturingPlant.evidences,
+    (manufacturingPlant) => manufacturingPlant.equipments,
   )
   manufacturingPlant: ManufacturingPlant;
 }

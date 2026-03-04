@@ -51,7 +51,6 @@ import { TopicsModule } from './topics/topics.module';
 import { ConfigsTgModule } from './configs-tg/configs-tg.module';
 import { TrainingGuidesModule } from './training-guides/training-guides.module';
 import { SafetyDataFilesModule } from './safety-data-files/safety-data-files.module';
-import { ConfigEppModule } from './config-epp/config-epp.module';
 
 @Module({
   imports: [
@@ -155,7 +154,6 @@ import { ConfigEppModule } from './config-epp/config-epp.module';
     ConfigsTgModule,
     TrainingGuidesModule,
     SafetyDataFilesModule,
-    ConfigEppModule,
   ],
   controllers: [],
   providers: [JwtService],
