@@ -18,12 +18,13 @@ import { ConfigsTg } from 'configs-tg/entities/configs-tg.entity';
 import { Processes } from 'processes/entities/processes.entity';
 import { Evidence } from 'evidences/entities/evidence.entity';
 import { Comment } from 'evidences/entities/comments.entity';
+import { TrainingGuide } from 'training-guides/entities';
 import { Topic } from 'topics/entities/topic.entity';
 import { Ciael } from 'ciaels/entities/ciael.entity';
 import { Zone } from 'zones/entities/zone.entity';
+import { Equipment } from 'equipments/entities';
 import { Epp } from 'epps/entities/epp.entity';
 import { Ics } from 'ics/entities/ics.entity';
-import { TrainingGuide } from 'training-guides/entities';
 
 @Entity()
 @ObjectType()
@@ -106,6 +107,12 @@ export class User {
 
   @OneToMany(() => ConfigsTg, (configsTg) => configsTg.updatedBy)
   configTgUpdated: ConfigsTg[];
+
+  @OneToMany(() => Equipment, (equipment) => equipment.createdBy)
+  equipmentCreated: Equipment[];
+
+  @OneToMany(() => Equipment, (equipment) => equipment.updatedBy)
+  equipmentUpdated: Equipment[];
 
   @OneToMany(() => ConfigsTg, (configsTg) => configsTg.areaManager)
   areaTg: ConfigsTg[];
