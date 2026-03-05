@@ -71,7 +71,7 @@ export class User {
   @Exclude({ toPlainOnly: true }) // Exclude from response, allow in requests
   isAdmin: boolean;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz', precision: 3 })
   createdAt: Date;
 
   @Column()
@@ -126,7 +126,7 @@ export class UsersController {
   @SerializeOptions({ type: UserResponseDto })
   async findAll(): Promise<UserResponseDto[]> {
     const users = await this.usersService.findAll();
-    return users.map(u => plainToInstance(UserResponseDto, u));
+    return users.map((u) => plainToInstance(UserResponseDto, u));
   }
 
   @Get(':id')

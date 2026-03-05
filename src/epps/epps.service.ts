@@ -34,6 +34,51 @@ export class EppsService {
     private readonly equipmentRepository: Repository<Equipment>,
   ) {}
 
+  async validateDeliveryFrequency(equipmentId: number, employeeId: number) {
+    const equipment = await this.equipmentRepository.findOne({
+      where: { id: equipmentId, isActive: true },
+    });
+
+    if (!equipment) {
+      throw new NotFoundException(`El equipo con id ${equipmentId} no existe.`);
+    }
+
+    const lastEpp = await this.eppEquipmentRepository.findOne({
+      where: {
+        equipment: { id: equipmentId },
+        epp: {
+          employee: { id: employeeId },
+          isActive: true,
+        },
+      },
+      order: {
+        deliveryDate: 'DESC',
+      },
+    });
+
+    if (!lastEpp) {
+      return { canDeliver: true, message: 'El equipo puede ser entregado.' };
+    }
+
+    const now = new Date();
+    const deliveryFrequency = equipment.deliveryFrequency || 0;
+    const nextDeliveryDate = new Date(lastEpp.deliveryDate);
+    nextDeliveryDate.setDate(nextDeliveryDate.getDate() + deliveryFrequency);
+
+    if (now >= nextDeliveryDate) {
+      return { canDeliver: true, message: 'El equipo puede ser entregado.' };
+    } else {
+      const daysRemaining = Math.ceil(
+        (nextDeliveryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+      );
+
+      return {
+        canDeliver: false,
+        message: `El equipo no puede ser entregado. Faltan ${daysRemaining} día(s) para la próxima entrega.`,
+      };
+    }
+  }
+
   async create(createEppDto: CreateEppDto) {
     const createBy = this.request['user'] as User;
 
@@ -45,6 +90,31 @@ export class EppsService {
 
     if (!employee) {
       throw new NotFoundException(`Employee with ID ${employeeId} not found.`);
+    }
+
+    for (const equipment of equipments) {
+      const currrentEquipment = await this.equipmentRepository.findOne({
+        where: { id: equipment.id, isActive: true },
+      });
+
+      if (!currrentEquipment) {
+        throw new NotFoundException(
+          `Equipo con ID ${equipment.id} no encontrado.`,
+        );
+      }
+
+      if (currrentEquipment.deliveryFrequency) {
+        const messageValidation = await this.validateDeliveryFrequency(
+          equipment.id,
+          employeeId,
+        );
+
+        if (!messageValidation.canDeliver) {
+          equipment['outOfRangeDelivery'] = true;
+        } else {
+          equipment['outOfRangeDelivery'] = false;
+        }
+      }
     }
 
     const epp = await this.eppRepository.save({
@@ -71,6 +141,7 @@ export class EppsService {
         quantity: equipment.quantity,
         observations: equipment.observations,
         equipment: currentEquipment,
+        outOfRangeDelivery: equipment['outOfRangeDelivery'],
         epp,
         creationDate: new Date(),
         updatedAt: new Date(),

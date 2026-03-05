@@ -27,8 +27,11 @@ export class EquipmentsController {
   }
 
   @Get()
-  findAll(@Query('manufacturingPlantId') manufacturingPlantId: string) {
-    return this.equipmentsService.findAll(+manufacturingPlantId);
+  findAll(
+    @Query('manufacturingPlantId') manufacturingPlantId: string = '0',
+    @Query('name') name: string = '',
+  ) {
+    return this.equipmentsService.findAll(+manufacturingPlantId, name);
   }
 
   @Get(':id')

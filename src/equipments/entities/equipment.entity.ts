@@ -27,13 +27,13 @@ export class Equipment {
   @Column({ default: true, name: 'is_active' })
   isActive: boolean;
 
-  @CreateDateColumn({ type: 'timestamptz', name: 'created_at', precision: 3 })
+  @CreateDateColumn({ type: 'timestamptz', precision: 3 })
   createdAt: Date;
 
   @ManyToOne(() => User, (user) => user.equipmentCreated)
   createdBy: User;
 
-  @UpdateDateColumn({ type: 'timestamptz', name: 'updated_at', precision: 3 })
+  @UpdateDateColumn({ type: 'timestamptz', precision: 3 })
   updatedAt: Date;
 
   @ManyToOne(() => User, (user) => user.equipmentUpdated)

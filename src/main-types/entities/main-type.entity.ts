@@ -29,11 +29,11 @@ export class MainType {
   })
   isActive: boolean;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz', precision: 3 })
   @Field(() => Date)
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamptz', precision: 3 })
   @Field(() => Date)
   updatedAt: Date;
 

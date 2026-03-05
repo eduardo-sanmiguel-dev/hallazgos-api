@@ -54,6 +54,17 @@ export class EppsController {
     return this.eppsService.findAll(+manufacturingPlantId);
   }
 
+  @Get('validate-delivery-frequency')
+  validateDeliveryFrequency(
+    @Query('equipmentId') equipmentId: string,
+    @Query('employeeId') employeeId: string,
+  ) {
+    return this.eppsService.validateDeliveryFrequency(
+      +equipmentId,
+      +employeeId,
+    );
+  }
+
   @Get('download/file/:employeeId')
   async downloadFile(
     @Param('employeeId') employeeId: string,

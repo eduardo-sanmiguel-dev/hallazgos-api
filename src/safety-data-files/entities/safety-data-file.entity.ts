@@ -21,13 +21,9 @@ export class SafetyDataFile {
   @Column({ default: true, name: 'is_active' })
   isActive: boolean;
 
-  @CreateDateColumn({
-    name: 'created_at',
-  })
+  @CreateDateColumn({ type: 'timestamptz', precision: 3 })
   createdAt: Date;
 
-  @UpdateDateColumn({
-    name: 'updated_at',
-  })
+  @UpdateDateColumn({ type: 'timestamptz', precision: 3 })
   updatedAt: Date;
 }

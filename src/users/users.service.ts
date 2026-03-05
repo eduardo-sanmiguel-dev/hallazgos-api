@@ -281,7 +281,12 @@ export class UsersService {
           isActive: true,
         },
       },
-      relations: ['manufacturingPlants', 'zones', 'processes'],
+      relations: [
+        'manufacturingPlants',
+        'zones',
+        'processes',
+        'manufacturingPlants.country',
+      ],
     });
 
     if (!user)

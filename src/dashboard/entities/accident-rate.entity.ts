@@ -33,12 +33,14 @@ export class AccidentRate {
   numberOfEmployees: number;
 
   @CreateDateColumn({
-    name: 'created_at',
+    type: 'timestamptz',
+    precision: 3,
   })
   createdAt: Date;
 
   @UpdateDateColumn({
-    name: 'updated_at',
+    type: 'timestamptz',
+    precision: 3,
   })
   updatedAt: Date;
 }
