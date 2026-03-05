@@ -25,6 +25,7 @@ import { Zone } from 'zones/entities/zone.entity';
 import { Equipment } from 'equipments/entities';
 import { Epp } from 'epps/entities/epp.entity';
 import { Ics } from 'ics/entities/ics.entity';
+import { ConfigsTopicTg } from 'configs-tg/entities';
 
 @Entity()
 @ObjectType()
@@ -137,6 +138,12 @@ export class User {
     (trainingGuide) => trainingGuide.humanResourceManager,
   )
   trainingGuidesHumanResourceManager: TrainingGuide[];
+
+  @ManyToMany(
+    () => ConfigsTopicTg,
+    (configsTopicTg) => configsTopicTg.responsibles,
+  )
+  configsTopicTg: ConfigsTopicTg[];
 
   @BeforeInsert()
   async hashPassword() {

@@ -14,7 +14,6 @@ import { EmployeePosition } from './employee-position.entity';
 import { EmployeeArea } from './employee-area.entity';
 import { Ciael } from 'ciaels/entities/ciael.entity';
 import { Genre } from 'genres/entities/genre.entity';
-import { ConfigsTopicTg } from 'configs-tg/entities';
 import { Epp } from 'epps/entities/epp.entity';
 import { Ics } from 'ics/entities/ics.entity';
 import { TrainingGuide } from 'training-guides/entities/training-guide.entity';
@@ -87,12 +86,6 @@ export class Employee {
 
   @ManyToMany(() => Ics, (ics) => ics.employees)
   ics: Ics[];
-
-  @ManyToMany(
-    () => ConfigsTopicTg,
-    (configsTopicTg) => configsTopicTg.responsibles,
-  )
-  configsTopicTg: ConfigsTopicTg[];
 
   @OneToMany(() => TrainingGuide, (trainingGuide) => trainingGuide.employee)
   trainingGuides: TrainingGuide[];

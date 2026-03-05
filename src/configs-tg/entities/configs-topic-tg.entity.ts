@@ -8,8 +8,8 @@ import {
 } from 'typeorm';
 
 import { Topic } from 'topics/entities/topic.entity';
+import { User } from 'users/entities/user.entity';
 import { ConfigsTg } from './configs-tg.entity';
-import { Employee } from 'employees/entities';
 
 @Entity()
 export class ConfigsTopicTg {
@@ -22,11 +22,11 @@ export class ConfigsTopicTg {
   @ManyToOne(() => Topic, (topic) => topic.configs)
   topic: Topic;
 
-  @ManyToMany(() => Employee, (employee) => employee.configsTopicTg)
+  @ManyToMany(() => User, (employee) => employee.configsTopicTg)
   @JoinTable({
     name: 'configs_topic_tg_responsibles',
   })
-  responsibles: Employee[];
+  responsibles: User[];
 
   @ManyToOne(() => ConfigsTg, (configsTg) => configsTg.topics)
   configTg: ConfigsTg;
