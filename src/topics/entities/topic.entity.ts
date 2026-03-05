@@ -44,13 +44,13 @@ export class Topic {
   @ManyToOne(() => User, (user) => user.topicsCreated)
   createdBy: User;
 
-  @CreateDateColumn({ type: 'timestamptz', precision: 3 })
+  @CreateDateColumn()
   createdAt: Date;
 
   @ManyToOne(() => User, (user) => user.topicsUpdated)
   updatedBy: User;
 
-  @UpdateDateColumn({ type: 'timestamptz', precision: 3 })
+  @UpdateDateColumn()
   updatedAt: Date;
 
   @ManyToMany(

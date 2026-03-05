@@ -2837,7 +2837,7 @@ export class Order {
   @Column()
   status: string;
 
-  @CreateDateColumn({ type: 'timestamptz', precision: 3 })
+  @CreateDateColumn()
   createdAt: Date;
 }
 
@@ -3984,7 +3984,7 @@ export class User {
   @Exclude({ toPlainOnly: true }) // Exclude from response, allow in requests
   isAdmin: boolean;
 
-  @CreateDateColumn({ type: 'timestamptz', precision: 3 })
+  @CreateDateColumn()
   createdAt: Date;
 
   @Column()

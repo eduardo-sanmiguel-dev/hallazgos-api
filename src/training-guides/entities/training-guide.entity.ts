@@ -62,13 +62,13 @@ export class TrainingGuide {
   @ManyToOne(() => User, (user) => user.configTgCreated)
   createdBy: User;
 
-  @CreateDateColumn({ type: 'timestamptz', precision: 3 })
+  @CreateDateColumn()
   createdAt: Date;
 
   @ManyToOne(() => User, (user) => user.configTgUpdated)
   updatedBy: User;
 
-  @UpdateDateColumn({ type: 'timestamptz', precision: 3 })
+  @UpdateDateColumn()
   updatedAt: Date;
 
   @ManyToOne(() => Employee, (employee) => employee.trainingGuides)

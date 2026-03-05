@@ -34,10 +34,10 @@ export class TrainingGuideEvaluation {
   @Column({ default: true })
   isActive: boolean;
 
-  @CreateDateColumn({ type: 'timestamptz', precision: 3 })
+  @CreateDateColumn()
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz', precision: 3 })
+  @UpdateDateColumn()
   updatedAt: Date;
 
   @ManyToOne(() => TrainingGuide, (trainingGuide) => trainingGuide.evaluations)

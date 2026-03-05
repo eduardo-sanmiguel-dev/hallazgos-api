@@ -106,7 +106,7 @@ export class Order {
   @Column()
   status: string;
 
-  @CreateDateColumn({ type: 'timestamptz', precision: 3 })
+  @CreateDateColumn()
   createdAt: Date;
 }
 

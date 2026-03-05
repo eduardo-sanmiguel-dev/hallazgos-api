@@ -22,10 +22,10 @@ export class EmployeePosition {
   @Column({ default: true })
   isActive: boolean;
 
-  @CreateDateColumn({ type: 'timestamptz', precision: 3 })
+  @CreateDateColumn()
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz', precision: 3 })
+  @UpdateDateColumn()
   updatedAt: Date;
 
   @OneToMany(() => Employee, (employee) => employee.position)

@@ -54,11 +54,11 @@ export class User {
   @Field(() => Boolean)
   isActive: boolean;
 
-  @CreateDateColumn({ type: 'timestamptz', precision: 3 })
+  @CreateDateColumn()
   @Field(() => Date)
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz', precision: 3 })
+  @UpdateDateColumn()
   @Field(() => Date)
   updatedAt: Date;
 

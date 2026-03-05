@@ -986,7 +986,7 @@ export class DashboardService {
       )})
     `;
 
-    const categories = await manager.query(`
+    const queryCategories = `
       SELECT
         to_char( evidence."createdAt", 'Mon' ) AS mon 
       FROM
@@ -998,7 +998,15 @@ export class DashboardService {
       ORDER BY
         MIN ( evidence."createdAt" )
       ASC
-    `);
+    `;
+
+    const categories = await manager.query(queryCategories);
+
+    console.log({
+      year,
+      categories,
+      query: queryCategories.replace(/\n/g, ''),
+    });
 
     const manufacturingByMonth = [];
 
