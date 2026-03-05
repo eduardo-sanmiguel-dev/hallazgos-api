@@ -40,7 +40,7 @@ export class AuthService {
     return {
       httpOnly: true,
       secure: this.environment === ENV_PRODUCTION,
-      sameSite: this.environment === ENV_PRODUCTION ? 'none' : 'strict',
+      sameSite: this.environment === ENV_PRODUCTION ? 'none' : 'lax',
       path: '/',
       domain:
         this.environment === ENV_PRODUCTION ? 'comportarte.com' : 'localhost',

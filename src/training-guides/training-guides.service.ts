@@ -210,7 +210,7 @@ export class TrainingGuidesService {
           },
         );
 
-        //const { areaManager, humanResourceManager } = trainingGuideRow
+        //const { areaManager, humanResourceManager } = trainingGuideRow;
 
         if (process.env.NODE_ENV === ENV_DEVELOPMENT) {
           await this.mailService.sendPendingTrainingGuide(
@@ -218,18 +218,20 @@ export class TrainingGuidesService {
             'eduardo-266@hotmail.com',
           );
         } else {
-          await this.mailService.sendPendingTrainingGuide(
+          this.mailService.sendPendingTrainingGuide(
             trainingGuideRow,
             'ggarcia@hadamexico.com',
           );
-          /* this.mailService.sendPendingTrainingGuide(
-            trainingGuideRow,
-            areaManager.email,
-          );
-          this.mailService.sendPendingTrainingGuide(
-            trainingGuideRow,
-            humanResourceManager.email,
-          ); */
+
+          // this.mailService.sendPendingTrainingGuide(
+          //   trainingGuideRow,
+          //   areaManager.email,
+          // );
+
+          // this.mailService.sendPendingTrainingGuide(
+          //   trainingGuideRow,
+          //   humanResourceManager.email,
+          // );
         }
 
         break;

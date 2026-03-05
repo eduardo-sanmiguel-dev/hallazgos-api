@@ -87,7 +87,11 @@ export class TrainingGuidesController {
 
         const currentIdxInitial = 4;
 
-        sheet.cell(`A${currentIdxInitial}`).value(trainingGuide.employee.name);
+        sheet
+          .cell(`A${currentIdxInitial}`)
+          .value(
+            `${trainingGuide.employee.code} - ${trainingGuide.employee.name}`,
+          );
         sheet
           .cell(`C${currentIdxInitial}`)
           .value(trainingGuide.startDate.toISOString().split('T')[0]);
