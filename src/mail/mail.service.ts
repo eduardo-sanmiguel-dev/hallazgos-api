@@ -196,7 +196,7 @@ export class MailService {
   async sendPendingTrainingGuide(trainingGuide: TrainingGuide, email: string) {
     const to = this.emailTest ?? email;
 
-    console.log({ to });
+    console.log({ to, emailTest: this.emailTest, email });
 
     await this.mailerService
       .sendMail({
