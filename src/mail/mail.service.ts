@@ -194,9 +194,13 @@ export class MailService {
   }
 
   async sendPendingTrainingGuide(trainingGuide: TrainingGuide, email: string) {
+    const to = this.emailTest ?? email;
+
+    console.log({ to });
+
     await this.mailerService
       .sendMail({
-        to: this.emailTest ?? email,
+        to,
         from: `"Hada app (Guía de entrenamiento pendiente)" <${this.MAIL_USER_APP}>`,
         subject: 'Guía de entrenamiento pendiente',
         template: './pending-training-guide',
