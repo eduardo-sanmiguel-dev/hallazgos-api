@@ -1002,12 +1002,6 @@ export class DashboardService {
 
     const categories = await manager.query(queryCategories);
 
-    console.log({
-      year,
-      categories,
-      query: queryCategories.replace(/\n/g, ''),
-    });
-
     const manufacturingByMonth = [];
 
     const months = {
