@@ -21,8 +21,8 @@
             <h1
               style='margin: 0; font-size: 24px; line-height: 30px; font-weight: 700;'
             >Detalles del hallazgo #{{id}}</h1>
-            <p style='margin: 8px 0 0 0; font-size: 14px; line-height: 20px;'>
-              Notificación de hallazgo registrado.
+            <p style='margin: 8px 0 0 0; font-size: 14px; line-height: 20px; color: red; font-weight: 700;'>
+              Hallazgo cancelado.
             </p>
           </td>
         </tr>
@@ -96,6 +96,21 @@
                   {{createdAt}}
                 </td>
               </tr>
+              <tr>
+                <td
+                  style='padding: 0 16px 16px 16px; font-size: 14px; line-height: 22px;'
+                >
+                  <strong>Cancelado por:</strong>
+                  {{cancelledByName}}
+                </td>
+              </tr>
+              <tr>
+                <td
+                  style='padding: 0 16px 16px 16px; font-size: 14px; line-height: 22px;'
+                >
+                  <strong>Fecha de cancelación:</strong>
+                  {{cancelledAt}}
+                </td>
             </table>
           </td>
         </tr>

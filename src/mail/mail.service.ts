@@ -142,9 +142,11 @@ export class MailService {
   }
 
   async sendCancel({
+    cancelledBy,
     user,
     evidenceCurrent,
   }: {
+    cancelledBy: User;
     user: User;
     evidenceCurrent: Evidence;
   }) {
@@ -162,6 +164,8 @@ export class MailService {
         secondaryType: evidenceCurrent.secondaryType.name,
         zone: evidenceCurrent.zone.name,
         userWhoCreated: evidenceCurrent.user.name,
+        cancelledByName: cancelledBy.name,
+        cancelledAt: stringToDateWithTime(new Date()),
         descripcion: evidenceCurrent.description,
         createdAt: stringToDateWithTime(evidenceCurrent.createdAt),
         supervisor: evidenceCurrent.supervisors

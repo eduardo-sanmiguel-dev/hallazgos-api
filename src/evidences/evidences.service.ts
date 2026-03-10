@@ -174,6 +174,8 @@ export class EvidencesService {
   }
 
   async sendEmailUsers(users: User[], evidenceCurrent: Evidence, type: string) {
+    const requestUser = this.request['user'] as User;
+
     if (process.env.NODE_ENV === ENV_DEVELOPMENT) {
       const mio = await this.usersService.findOne(1);
       users = [mio];
@@ -195,6 +197,7 @@ export class EvidencesService {
           break;
         case 'cancel':
           await this.mailService.sendCancel({
+            cancelledBy: requestUser,
             user: userToSendEmail,
             evidenceCurrent,
           });
