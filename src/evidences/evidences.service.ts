@@ -4,6 +4,7 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 
@@ -45,6 +46,8 @@ pdfMake.vfs = pdfFonts.vfs;
 
 @Injectable()
 export class EvidencesService {
+  private readonly logger = new Logger(EvidencesService.name);
+
   private readonly relations = [
     'manufacturingPlant',
     'mainType',
@@ -176,6 +179,10 @@ export class EvidencesService {
       users = [mio];
     }
 
+    this.logger.debug(
+      `sendEmailUsers: Usuarios a notificar para la planta ${evidenceCurrent.manufacturingPlant.name}: ${users.length}`,
+    );
+
     for (let i = 0, size = users.length; i < size; i++) {
       const userToSendEmail = users[i];
 
@@ -211,8 +218,17 @@ export class EvidencesService {
     evidenceCurrent: Evidence;
     type: string;
   }) {
-    const plantUsers = await this.usersService.findAllByPlant(
+    let plantUsers = await this.usersService.findAllByPlant(
       manufacturingPlant.id,
+    );
+
+    if (process.env.NODE_ENV === ENV_DEVELOPMENT) {
+      const mio = await this.usersService.findOne(1);
+      plantUsers = [mio];
+    }
+
+    this.logger.debug(
+      `notifyByEmail: Usuarios a notificar para la planta ${manufacturingPlant.name}: ${plantUsers.length}`,
     );
 
     if (!plantUsers.length) {
