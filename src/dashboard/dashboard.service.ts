@@ -1247,4 +1247,170 @@ export class DashboardService {
       hola: 'mundo',
     };
   }
+
+  findMainTypesGlobalTrend(manufacturingPlantId: number) {
+    const query = `
+      SELECT
+        mt."id",
+        mt.name                                                                                        AS tipo_principal,
+        COUNT(*)                                                                                       AS total_historico,
+        COUNT(CASE WHEN e.status = 'Abierto'   THEN 1 END)                                           AS abiertas,
+        COUNT(CASE WHEN e.status = 'Cerrado'   THEN 1 END)                                           AS cerradas,
+        COUNT(CASE WHEN e.status = 'Cancelado' THEN 1 END)                                           AS canceladas,
+        ROUND(COUNT(CASE WHEN e.status = 'Cerrado' THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0), 1)    AS pct_resolucion_historica,
+        COALESCE(ma.total, 0)                                                                          AS total_mes_actual,
+        COALESCE(mp.total, 0)                                                                          AS total_mes_anterior,
+        COALESCE(ma.cerradas, 0)                                                                       AS cerradas_mes_actual,
+        COALESCE(mp.cerradas, 0)                                                                       AS cerradas_mes_anterior,
+        COALESCE(ma.abiertas, 0)                                                                       AS abiertas_mes_actual,
+        COALESCE(mp.abiertas, 0)                                                                       AS abiertas_mes_anterior,
+        CASE
+          WHEN COALESCE(mp.total, 0) = 0 AND COALESCE(ma.total, 0) > 0 THEN 100.0
+          WHEN COALESCE(mp.total, 0) = 0                                THEN 0.0
+          ELSE ROUND((COALESCE(ma.total, 0) - COALESCE(mp.total, 0)) * 100.0 / COALESCE(mp.total, 0), 1)
+        END AS pct_cambio_total,
+        CASE
+          WHEN COALESCE(mp.cerradas, 0) = 0 AND COALESCE(ma.cerradas, 0) > 0 THEN 100.0
+          WHEN COALESCE(mp.cerradas, 0) = 0                                    THEN 0.0
+          ELSE ROUND((COALESCE(ma.cerradas, 0) - COALESCE(mp.cerradas, 0)) * 100.0 / COALESCE(mp.cerradas, 0), 1)
+        END AS pct_cambio_cerradas,
+        CASE
+          WHEN COALESCE(mp.abiertas, 0) = 0 AND COALESCE(ma.abiertas, 0) > 0 THEN 100.0
+          WHEN COALESCE(mp.abiertas, 0) = 0                                    THEN 0.0
+          ELSE ROUND((COALESCE(ma.abiertas, 0) - COALESCE(mp.abiertas, 0)) * 100.0 / COALESCE(mp.abiertas, 0), 1)
+        END AS pct_cambio_abiertas
+      FROM evidence e
+      JOIN main_type mt ON e."mainTypeId" = mt.id
+      LEFT JOIN (
+        SELECT "mainTypeId",
+          COUNT(*)                                          AS total,
+          COUNT(CASE WHEN status = 'Abierto'   THEN 1 END) AS abiertas,
+          COUNT(CASE WHEN status = 'Cerrado'   THEN 1 END) AS cerradas,
+          COUNT(CASE WHEN status = 'Cancelado' THEN 1 END) AS canceladas
+        FROM evidence
+        WHERE "manufacturingPlantId" = ${manufacturingPlantId}
+          AND "createdAt" >= DATE_TRUNC('month', NOW())
+          AND "createdAt" <= NOW()
+        GROUP BY "mainTypeId"
+      ) ma ON mt.id = ma."mainTypeId"
+      LEFT JOIN (
+        SELECT "mainTypeId",
+          COUNT(*)                                          AS total,
+          COUNT(CASE WHEN status = 'Abierto'   THEN 1 END) AS abiertas,
+          COUNT(CASE WHEN status = 'Cerrado'   THEN 1 END) AS cerradas,
+          COUNT(CASE WHEN status = 'Cancelado' THEN 1 END) AS canceladas
+        FROM evidence
+        WHERE "manufacturingPlantId" = ${manufacturingPlantId}
+          AND "createdAt" >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month'
+          AND "createdAt" <= NOW() - INTERVAL '1 month'
+        GROUP BY "mainTypeId"
+      ) mp ON mt.id = mp."mainTypeId"
+      WHERE e."manufacturingPlantId" = ${manufacturingPlantId}
+      GROUP BY mt.id, mt.name, ma.total, ma.abiertas, ma.cerradas, ma.canceladas,
+              mp.total, mp.abiertas, mp.cerradas, mp.canceladas
+      ORDER BY total_historico DESC;
+    `;
+
+    return this.executeQuery(query);
+  }
+
+  findMainTypesGlobalTrendDetails(
+    manufacturingPlantId: number,
+    mainTypeId: number,
+  ) {
+    const query = `
+        SELECT
+          u.id                                                                                        AS responsable_id,
+          u.name                                                                                      AS responsable,
+          COUNT(DISTINCT e.id)                                                                        AS total_asignadas,
+          COUNT(DISTINCT CASE WHEN e.status = 'Abierto'   THEN e.id END)                            AS abiertas,
+          COUNT(DISTINCT CASE WHEN e.status = 'Cerrado'   THEN e.id END)                            AS cerradas,
+          COUNT(DISTINCT CASE WHEN e.status = 'Cancelado' THEN e.id END)                            AS canceladas,
+          COALESCE(ROUND(COUNT(DISTINCT CASE WHEN e.status = 'Cerrado' THEN e.id END) * 100.0
+            / NULLIF(COUNT(DISTINCT e.id), 0), 1), 0)                                               AS pct_resolucion,
+          COALESCE(ROUND(AVG(CASE
+            WHEN e.status = 'Cerrado' AND e."solutionDate" IS NOT NULL
+            THEN EXTRACT(DAY FROM e."solutionDate" - e."createdAt")
+          END)::numeric, 1), 0)                                                                      AS promedio_dias_resolucion,
+          COUNT(DISTINCT CASE
+            WHEN e.status = 'Abierto'
+            AND e."createdAt" < NOW() - INTERVAL '90 days'
+            THEN e.id END)                                                                            AS criticos_mas_90_dias,
+          COUNT(DISTINCT CASE
+            WHEN e.status = 'Abierto'
+            AND e."createdAt" >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month'
+            AND e."createdAt" <= NOW() - INTERVAL '1 month'
+            THEN e.id END)                                                                            AS asignadas_mes_anterior,
+          COUNT(DISTINCT CASE
+            WHEN e.status = 'Abierto'
+            AND e."createdAt" >= DATE_TRUNC('month', NOW())
+            AND e."createdAt" <= NOW()
+            THEN e.id END)                                                                            AS asignadas_mes_actual,
+          MAX(EXTRACT(DAY FROM NOW() - e."createdAt"))::int                                          AS max_dias_sin_resolver
+        FROM evidence_responsibles_user eru
+        JOIN evidence e  ON eru."evidenceId" = e.id
+        JOIN "user" u    ON eru."userId"     = u.id
+        JOIN main_type mt ON e."mainTypeId"  = mt.id
+        WHERE e."manufacturingPlantId" = ${manufacturingPlantId}
+          AND mt."id" = ${mainTypeId}
+        GROUP BY u.id, u.name
+        ORDER BY abiertas DESC, pct_resolucion ASC;
+      `;
+
+    return this.executeQuery(query);
+  }
+
+  findPercentageComplianceByZone(
+    manufacturingPlantId: number,
+    mainTypeId: number,
+  ) {
+    const query = `
+      SELECT
+        mp.name                                                                                     AS planta,
+        z.name                                                                                      AS zona,
+        COUNT(DISTINCT e.id)                                                                        AS total_hallazgos,
+        COUNT(DISTINCT CASE WHEN e.status = 'Cerrado'   THEN e.id END)                            AS cerradas,
+        COUNT(DISTINCT CASE WHEN e.status = 'Abierto'   THEN e.id END)                            AS abiertas,
+        COUNT(DISTINCT CASE WHEN e.status = 'Cancelado' THEN e.id END)                            AS canceladas,
+        ROUND(COUNT(DISTINCT CASE WHEN e.status = 'Cerrado' THEN e.id END) * 100.0
+          / NULLIF(COUNT(DISTINCT e.id), 0), 1)                                                    AS pct_cumplimiento_historico,
+        COALESCE(ROUND(COUNT(DISTINCT CASE
+          WHEN e.status = 'Cerrado'
+          AND e."createdAt" >= DATE_TRUNC('month', NOW())
+          AND e."createdAt" <= NOW()
+          THEN e.id END) * 100.0
+          / NULLIF(COUNT(DISTINCT CASE
+            WHEN e."createdAt" >= DATE_TRUNC('month', NOW())
+            AND e."createdAt" <= NOW()
+          THEN e.id END), 0), 1), 0)                                                               AS pct_cumplimiento_mes_actual,
+        COALESCE(ROUND(COUNT(DISTINCT CASE
+          WHEN e.status = 'Cerrado'
+          AND e."createdAt" >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month'
+          AND e."createdAt" <= NOW() - INTERVAL '1 month'
+          THEN e.id END) * 100.0
+          / NULLIF(COUNT(DISTINCT CASE
+            WHEN e."createdAt" >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month'
+            AND e."createdAt" <= NOW() - INTERVAL '1 month'
+          THEN e.id END), 0), 1), 0)                                                               AS pct_cumplimiento_mes_anterior,
+        COUNT(DISTINCT CASE
+          WHEN e.status = 'Abierto'
+          AND e."createdAt" < NOW() - INTERVAL '90 days'
+          THEN e.id END)                                                                            AS criticos_mas_90_dias,
+        COALESCE(ROUND(AVG(CASE
+          WHEN e.status = 'Cerrado' AND e."solutionDate" IS NOT NULL
+          THEN EXTRACT(DAY FROM e."solutionDate" - e."createdAt")
+        END)::numeric, 1), 0)                                                                      AS promedio_dias_resolucion
+      FROM evidence e
+      JOIN zones z                 ON e."zoneId"               = z.id
+      JOIN manufacturing_plant mp  ON e."manufacturingPlantId" = mp.id
+      JOIN main_type mt            ON e."mainTypeId"           = mt.id
+      WHERE mp.id = ${manufacturingPlantId}
+        AND mt.id = ${mainTypeId}
+      GROUP BY mp.id, mp.name, z.id, z.name
+      HAVING COUNT(DISTINCT e.id) > 0
+      ORDER BY pct_cumplimiento_historico ASC, criticos_mas_90_dias DESC;
+    `;
+
+    return this.executeQuery(query);
+  }
 }

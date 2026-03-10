@@ -146,6 +146,37 @@ export class DashboardController {
     return this.dashboardService.findAllEvidencesByMonth(year);
   }
 
+  @Get('main-types-global-trend')
+  findMainTypesGlobalTrend(
+    @Query('manufacturingPlantId') manufacturingPlantId: string,
+  ) {
+    return this.dashboardService.findMainTypesGlobalTrend(
+      +manufacturingPlantId,
+    );
+  }
+
+  @Get('main-types-global-trend-details')
+  findMainTypesGlobalTrendDetails(
+    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('mainTypeId') mainTypeId: string,
+  ) {
+    return this.dashboardService.findMainTypesGlobalTrendDetails(
+      +manufacturingPlantId,
+      +mainTypeId,
+    );
+  }
+
+  @Get('percentage-compliance-by-zone')
+  findPercentageComplianceByZone(
+    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('mainTypeId') mainTypeId: string,
+  ) {
+    return this.dashboardService.findPercentageComplianceByZone(
+      +manufacturingPlantId,
+      +mainTypeId,
+    );
+  }
+
   @Get('accidents-by-month')
   findAllAccidentsByMonth(@Query('year') year: number) {
     return this.dashboardService.findAllAccidentsByMonth(year);
