@@ -8,6 +8,10 @@ export class CreateEquipmentDto {
   @IsPositive()
   deliveryFrequency?: number;
 
+  @IsOptional()
+  @IsPositive()
+  price?: number;
+
   @IsPositive()
   manufacturingPlantId: number;
 }

@@ -37,7 +37,11 @@ import {
   QueryEvidenceDto,
   UpdateEvidenceDto,
 } from './dto';
-import { uploadStaticImage, stringToDateWithTime } from '@shared/utils';
+import {
+  uploadStaticImage,
+  stringToDateWithTime,
+  getColombiaNow,
+} from '@shared/utils';
 
 const pdfMake = require('pdfmake/build/pdfmake');
 const pdfFonts = require('pdfmake/build/vfs_fonts');
@@ -127,14 +131,10 @@ export class EvidencesService {
       supervisorId: supervisor,
     });
 
-    const colombianIds = [4, 3, 6, 5];
+    const colombianIds =
+      await this.manufacturingPlantsService.getColombianPlantsIds();
 
-    const getColombiaNow = () => {
-      const now = new Date();
-      return new Date(
-        now.toLocaleString('en-US', { timeZone: 'America/Bogota' }),
-      );
-    };
+    const createdAt = getColombiaNow(colombianIds, manufacturingPlantId);
 
     const evidenceCurrent = await this.evidenceRepository.save(
       this.evidenceRepository.create({
@@ -148,12 +148,8 @@ export class EvidencesService {
         supervisors,
         responsibles,
         status: STATUS_OPEN,
-        createdAt: colombianIds.includes(manufacturingPlantId)
-          ? getColombiaNow()
-          : new Date(),
-        updatedAt: colombianIds.includes(manufacturingPlantId)
-          ? getColombiaNow()
-          : new Date(),
+        createdAt,
+        updatedAt: createdAt,
         description: description || '',
       }),
     );

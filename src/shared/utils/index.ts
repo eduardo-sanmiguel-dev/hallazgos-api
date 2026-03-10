@@ -72,3 +72,18 @@ export function calculateAge(birthDate: string | Date): number {
 }
 
 export * from './query-string-array-transformer.util';
+
+export const getColombiaNow = (
+  colombianIds: number[],
+  manufacturingPlantId: number,
+) => {
+  const now = new Date();
+
+  const dateColombian = new Date(
+    now.toLocaleString('en-US', { timeZone: 'America/Bogota' }),
+  );
+
+  return colombianIds.includes(manufacturingPlantId)
+    ? dateColombian
+    : new Date();
+};

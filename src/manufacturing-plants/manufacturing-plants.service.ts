@@ -110,4 +110,17 @@ export class ManufacturingPlantsService {
       },
     });
   }
+
+  async getColombianPlantsIds(): Promise<number[]> {
+    const colombianPlants = await this.manufacturingPlantRepository.find({
+      where: {
+        country: {
+          name: 'Colombia',
+        },
+        isActive: true,
+      },
+    });
+
+    return colombianPlants.map((plant) => plant.id);
+  }
 }
