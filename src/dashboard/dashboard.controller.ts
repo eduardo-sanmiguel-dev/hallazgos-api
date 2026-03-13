@@ -6,6 +6,15 @@ import { DashboardService } from './dashboard.service';
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
+  @Get('business-intelligence/epp')
+  findBusinessIntelligenceEpp(
+    @Query('manufacturingPlantId') manufacturingPlantId: string,
+  ) {
+    return this.dashboardService.findBusinessIntelligenceEpp(
+      +manufacturingPlantId,
+    );
+  }
+
   @Get('my-evidences/:userId')
   findMyEvidences(@Param('userId') userId: number) {
     return this.dashboardService.findMyEvidences(userId);
