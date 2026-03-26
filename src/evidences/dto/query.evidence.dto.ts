@@ -1,4 +1,4 @@
-import { IsOptional, IsPositive, IsString } from 'class-validator';
+import { IsOptional, IsPositive, IsString, Matches } from 'class-validator';
 
 export class QueryEvidenceDto {
   @IsOptional()
@@ -20,4 +20,14 @@ export class QueryEvidenceDto {
   @IsOptional()
   @IsString()
   status: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{2}\/\d{2}\/\d{4}$/)
+  startDate: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{2}\/\d{2}\/\d{4}$/)
+  endDate: string;
 }

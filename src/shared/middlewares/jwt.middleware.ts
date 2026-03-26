@@ -19,7 +19,11 @@ export class JwtMiddleware implements NestMiddleware {
   async use(req: Request, res: Response, next: NextFunction) {
     res.statusCode;
 
-    const token = req.cookies['token'] ? `${req.cookies['token']}` : '';
+    let token = req.cookies['token'] ? `${req.cookies['token']}` : '';
+
+    if (!token) {
+      token = `${req.headers['authorization'] || ''}`.split('Bearer ')[1] || '';
+    }
 
     if (!token) {
       throw new UnauthorizedException('Credenciales no válidas');

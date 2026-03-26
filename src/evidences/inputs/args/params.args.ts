@@ -1,6 +1,12 @@
 import { ArgsType, Field, Int } from '@nestjs/graphql';
 
-import { IsNumber, IsOptional, IsPositive, IsString } from 'class-validator';
+import {
+  IsNumber,
+  IsOptional,
+  IsPositive,
+  IsString,
+  Matches,
+} from 'class-validator';
 
 @ArgsType()
 export class ParamsArgs {
@@ -41,4 +47,16 @@ export class ParamsArgs {
   @IsString()
   @Field(() => String, { nullable: true })
   status?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{2}\/\d{2}\/\d{4}$/)
+  @Field(() => String, { nullable: true })
+  startDate?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{2}\/\d{2}\/\d{4}$/)
+  @Field(() => String, { nullable: true })
+  endDate?: string;
 }

@@ -38,7 +38,7 @@ async function bootstrap() {
 
   //app.useGlobalFilters(new GlobalExceptionFilter());
 
-  await app.listen(process.env.PORT);
+  await app.listen(process.env.PORT, '0.0.0.0');
 
   logger.debug(
     `Running on port: [${process.env.PORT}], environment: [${process.env.NODE_ENV}]`,

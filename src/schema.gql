@@ -107,5 +107,5 @@ type AggregationsEvidenceType {
 }
 
 type Query {
-  evidences(page: Int!, limit: Int!, manufacturingPlantId: Float, mainTypeId: Float, secondaryTypeId: Float, zoneId: Float, processId: Float, status: String): AggregationsEvidenceType!
+  evidences(page: Int!, limit: Int!, manufacturingPlantId: Float, mainTypeId: Float, secondaryTypeId: Float, zoneId: Float, processId: Float, status: String, startDate: String, endDate: String): AggregationsEvidenceType!
 }

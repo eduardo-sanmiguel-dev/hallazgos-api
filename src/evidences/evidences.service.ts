@@ -8,10 +8,17 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { FindOptionsWhere, In, Repository } from 'typeorm';
+import {
+  Between,
+  FindOptionsWhere,
+  In,
+  LessThanOrEqual,
+  Repository,
+} from 'typeorm';
 import { StyleDictionary, TDocumentDefinitions } from 'pdfmake/interfaces';
 import * as XlsxPopulate from 'xlsx-populate';
 import { Request, Response } from 'express';
+import * as moment from 'moment';
 
 import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
@@ -78,6 +85,60 @@ export class EvidencesService {
     private readonly usersService: UsersService,
     private readonly mailService: MailService,
   ) {}
+
+  private parseDateFilter(
+    date: string,
+    label: string,
+    isEndDate = false,
+  ): Date {
+    const parsedDate = new Date(moment(date, 'DD/MM/YYYY', true).toDate());
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      throw new BadRequestException(
+        `${label} debe tener el formato DD/MM/YYYY`,
+      );
+    }
+
+    if (isEndDate) {
+      parsedDate.setHours(23, 59, 59, 999);
+      return parsedDate;
+    }
+
+    parsedDate.setHours(0, 0, 0, 0);
+    return parsedDate;
+  }
+
+  private buildCreatedAtFilter(startDate?: string, endDate?: string) {
+    if (!startDate && !endDate) return undefined;
+
+    const parsedStartDate = startDate
+      ? this.parseDateFilter(startDate, 'La fecha de inicio')
+      : undefined;
+
+    const parsedEndDate = endDate
+      ? this.parseDateFilter(endDate, 'La fecha de fin', true)
+      : undefined;
+
+    if (parsedStartDate && parsedEndDate) {
+      if (parsedStartDate > parsedEndDate) {
+        throw new BadRequestException(
+          'La fecha de inicio no puede ser mayor a la fecha de fin',
+        );
+      }
+
+      return Between(parsedStartDate, parsedEndDate);
+    }
+
+    if (parsedStartDate) {
+      return Between(parsedStartDate, new Date());
+    }
+
+    if (parsedEndDate) {
+      return LessThanOrEqual(parsedEndDate);
+    }
+
+    return undefined;
+  }
 
   async create(
     createEvidenceDto: CreateEvidenceDto,
@@ -510,8 +571,15 @@ export class EvidencesService {
   async findAll(queryEvidenceDto: QueryEvidenceDto) {
     const { manufacturingPlants } = this.request['user'] as User;
 
-    const { manufacturingPlantId, mainTypeId, secondaryType, zone, status } =
-      queryEvidenceDto;
+    const {
+      manufacturingPlantId,
+      mainTypeId,
+      secondaryType,
+      zone,
+      status,
+      startDate,
+      endDate,
+    } = queryEvidenceDto;
 
     const manufacturingPlantsIds = manufacturingPlantId
       ? [manufacturingPlantId]
@@ -520,9 +588,11 @@ export class EvidencesService {
     if (!manufacturingPlantsIds.length)
       throw new BadRequestException('No se ha encontrado plantas asignadas');
 
+    const createdAtFilter = this.buildCreatedAtFilter(startDate, endDate);
+
     const evidences = await this.evidenceRepository.find({
       where: {
-        isActive: true,
+        //isActive: true,
         ...(manufacturingPlantId
           ? {
               manufacturingPlant: { id: manufacturingPlantId, isActive: true },
@@ -537,6 +607,7 @@ export class EvidencesService {
         ...(secondaryType && { secondaryType: { id: secondaryType } }),
         ...(zone && { zone: { id: zone } }),
         ...(status && { status }),
+        ...(createdAtFilter && { createdAt: createdAtFilter }),
       },
       relations: this.relations,
       order: {
@@ -563,6 +634,8 @@ export class EvidencesService {
       limit,
       page,
       status,
+      startDate,
+      endDate,
     } = paramsArgs;
 
     const user = await this.usersService.findOne(userId);
@@ -576,8 +649,10 @@ export class EvidencesService {
     if (!manufacturingPlantsIds.length)
       throw new BadRequestException('No se ha encontrado plantas asignadas');
 
+    const createdAtFilter = this.buildCreatedAtFilter(startDate, endDate);
+
     const where: FindOptionsWhere<Evidence> = {
-      isActive: true,
+      //isActive: true,
       ...(manufacturingPlantId
         ? {
             manufacturingPlant: { id: manufacturingPlantId, isActive: true },
@@ -593,6 +668,7 @@ export class EvidencesService {
       ...(zoneId && { zone: { id: zoneId } }),
       ...(processId && { process: { id: processId } }),
       ...(status && { status }),
+      ...(createdAtFilter && { createdAt: createdAtFilter }),
     };
 
     const numRows = await this.evidenceRepository.count({

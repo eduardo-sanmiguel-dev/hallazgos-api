@@ -1,5 +1,6 @@
 import { Controller, Post, Body, Res } from '@nestjs/common';
 
+import { parse } from 'cookie';
 import { Response } from 'express';
 
 import { AuthService } from './auth.service';
@@ -11,11 +12,12 @@ export class AuthController {
 
   @Post('/login')
   async login(@Body() loginAuthDto: LoginAuthDto, @Res() response: Response) {
-    const token = await this.authService.login(loginAuthDto);
+    const serializedCookie = await this.authService.login(loginAuthDto);
+    const token = parse(serializedCookie).token || '';
 
-    response.setHeader('Set-Cookie', token);
+    response.setHeader('Set-Cookie', serializedCookie);
 
-    return response.json({ message: 'Inicio de sesión correctamente.' });
+    return response.json({ message: 'Inicio de sesión correctamente.', token });
   }
 
   @Post('/login-restore-password')
@@ -23,11 +25,13 @@ export class AuthController {
     @Body() loginAuthDto: LoginAuthDto,
     @Res() response: Response,
   ) {
-    const token = await this.authService.loginRestorePassword(loginAuthDto);
+    const serializedCookie =
+      await this.authService.loginRestorePassword(loginAuthDto);
+    const token = parse(serializedCookie).token || '';
 
-    response.setHeader('Set-Cookie', token);
+    response.setHeader('Set-Cookie', serializedCookie);
 
-    return response.json({ message: 'Inicio de sesión correctamente.' });
+    return response.json({ message: 'Inicio de sesión correctamente.', token });
   }
 
   @Post('/forgot-password')
