@@ -32,7 +32,7 @@ export class CreateUserDto {
   @ArrayMinSize(1)
   manufacturingPlantNames: string[];
 
-  @IsNotEmpty()
+  @IsOptional()
   @Transform(parseStringArrayQueryByKey('zoneNames'))
   @IsArray()
   @IsString({ each: true })

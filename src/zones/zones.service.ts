@@ -94,6 +94,8 @@ export class ZonesService {
   async findAllByManufacturingPlantNames(names: string[]): Promise<Zone[]> {
     const zones = [];
 
+    if (!names?.length) return zones;
+
     for (let i = 0; i < names.length; i++) {
       const [manufacturingPlantName, ...rest] = names[i].split(' - ');
       const zone = await this.zoneRepository.findOne({

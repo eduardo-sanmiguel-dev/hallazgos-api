@@ -31,8 +31,8 @@ export class UsersService {
       password,
       rule,
       manufacturingPlantNames,
-      zoneNames,
-      processNames,
+      zoneNames = [],
+      processNames = [],
     } = createUserDto;
 
     const manufacturingPlants =
@@ -48,6 +48,8 @@ export class UsersService {
         processNames,
       );
 
+    console.log({ zones, processes });
+
     const user = await this.userRepository.save(
       this.userRepository.create({
         name,
@@ -55,8 +57,8 @@ export class UsersService {
         ...(password && { password }),
         role: rule,
         manufacturingPlants,
-        zones,
-        processes,
+        ...(zones.length && { zones }),
+        ...(processes.length && { processes }),
       }),
     );
 
