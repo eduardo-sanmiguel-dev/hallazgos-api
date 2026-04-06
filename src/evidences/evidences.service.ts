@@ -307,8 +307,14 @@ export class EvidencesService {
   ) {
     const evidence = await this.findOne(id);
 
+    const colombianIds =
+      await this.manufacturingPlantsService.getColombianPlantsIds();
+
     evidence.imgSolution = file?.originalname || '';
-    evidence.solutionDate = new Date();
+    evidence.solutionDate = getColombiaNow(
+      colombianIds,
+      evidence.manufacturingPlant.id,
+    );
     evidence.descriptionSolution = descriptionSolution || '';
     evidence.status = STATUS_CLOSE;
 
