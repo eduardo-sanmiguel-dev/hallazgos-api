@@ -81,8 +81,22 @@ export class EppsController {
       .then((workbook) => {
         const sheet = workbook.sheet('EPP Personas');
 
-        sheet.cell('B4').value('NOMBRE DEL EMPLEADO: ' + epp.employee.name);
-        sheet.cell('E4').value('CÉDULA: ' + epp.employee.code);
+        const name = epp.employee.name;
+        const code = epp.employee.code;
+
+        sheet.cell('B4').value('NOMBRE DEL EMPLEADO: ' + name);
+        sheet.cell('E4').value('CÉDULA: ' + code);
+
+        const legalTextCell = sheet.cell('B34');
+        const legalTextTemplate = legalTextCell.value();
+
+        if (typeof legalTextTemplate === 'string') {
+          const legalTextWithEmployeeData = legalTextTemplate
+            .replace(/El Sr\. \(a\)\s*_+/i, `El Sr. (a) ${name}`)
+            .replace(/No:\s*_+/i, `No: ${code}`);
+
+          legalTextCell.value(legalTextWithEmployeeData);
+        }
 
         sheet.cell('B5').value('CARGO: ' + epp.employee.position.name);
         sheet.cell('E5').value('ÁREA: ' + epp.employee.area.name);
