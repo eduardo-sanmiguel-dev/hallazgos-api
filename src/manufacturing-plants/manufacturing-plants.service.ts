@@ -3,12 +3,12 @@ import { InjectRepository } from '@nestjs/typeorm';
 
 import { ILike, In, Repository } from 'typeorm';
 
+import { ManufacturingPlant } from './entities/manufacturing-plant.entity';
 import {
   CreateManufacturingPlantDto,
   QueryManufacturingPlantDto,
   UpdateManufacturingPlantDto,
 } from './dto';
-import { ManufacturingPlant } from './entities/manufacturing-plant.entity';
 
 @Injectable()
 export class ManufacturingPlantsService {

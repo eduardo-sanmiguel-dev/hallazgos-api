@@ -26,6 +26,7 @@ import { ConfigsTg } from 'configs-tg/entities';
 import { Equipment } from 'equipments/entities';
 import { Employee } from 'employees/entities';
 import { Ics } from 'ics/entities/ics.entity';
+import { EmergencyTeam } from 'emergency-teams/entities/emergency-team.entity';
 @Entity()
 @ObjectType()
 export class ManufacturingPlant {
@@ -131,4 +132,7 @@ export class ManufacturingPlant {
 
   @OneToMany(() => Equipment, (equipment) => equipment.manufacturingPlant)
   equipments: Equipment[];
+
+  @ManyToOne(() => EmergencyTeam)
+  emergencyTeams: EmergencyTeam;
 }

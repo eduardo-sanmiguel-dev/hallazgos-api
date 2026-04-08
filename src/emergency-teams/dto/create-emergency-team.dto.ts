@@ -27,4 +27,8 @@ export class CreateEmergencyTeamDto {
   @Min(1)
   @Max(9999999999.99)
   capacity: number;
+
+  @IsInt()
+  @IsPositive()
+  manufacturingPlantId: number;
 }

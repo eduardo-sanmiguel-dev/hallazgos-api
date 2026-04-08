@@ -2,7 +2,6 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { REQUEST } from '@nestjs/core';
 
-import * as QRCode from 'qrcode';
 import { Brackets, Repository } from 'typeorm';
 
 import {
@@ -15,7 +14,7 @@ import { User } from 'users/entities/user.entity';
 
 @Injectable()
 export class EmergencyTeamsService {
-  private readonly relations = ['createdBy', 'updatedBy'];
+  private readonly relations = ['createdBy', 'updatedBy', 'manufacturingPlant'];
 
   constructor(
     @InjectRepository(EmergencyTeam)
@@ -28,27 +27,27 @@ export class EmergencyTeamsService {
 
     const emergencyTeam = this.emergencyTeamRepository.create({
       ...createEmergencyTeamDto,
-      qrCode: '',
+      manufacturingPlant: {
+        id: createEmergencyTeamDto.manufacturingPlantId,
+      },
       createdBy: { id: createdBy } as User,
       createdAt: new Date(),
     });
 
-    const savedEmergencyTeam =
-      await this.emergencyTeamRepository.save(emergencyTeam);
-
-    const qrCode = await QRCode.toDataURL(savedEmergencyTeam.id.toString());
-    savedEmergencyTeam.qrCode = qrCode;
-
-    return this.emergencyTeamRepository.save(savedEmergencyTeam);
+    return this.emergencyTeamRepository.save(emergencyTeam);
   }
 
   findAll(queryEmergencyTeamDto: QueryEmergencyTeamDto) {
-    const { search } = queryEmergencyTeamDto;
+    const { search, manufacturingPlantId } = queryEmergencyTeamDto;
 
     const queryBuilder = this.emergencyTeamRepository
       .createQueryBuilder('emergencyTeam')
       .leftJoinAndSelect('emergencyTeam.createdBy', 'createdBy')
       .leftJoinAndSelect('emergencyTeam.updatedBy', 'updatedBy')
+      .leftJoinAndSelect(
+        'emergencyTeam.manufacturingPlant',
+        'manufacturingPlant',
+      )
       .where('emergencyTeam.isActive = :isActive', { isActive: true })
       .orderBy('emergencyTeam.id', 'DESC');
 
@@ -65,6 +64,12 @@ export class EmergencyTeamsService {
           );
         }),
       );
+    }
+
+    if (manufacturingPlantId) {
+      queryBuilder.andWhere('manufacturingPlant.id = :manufacturingPlantId', {
+        manufacturingPlantId,
+      });
     }
 
     return queryBuilder.getMany();
@@ -84,12 +89,21 @@ export class EmergencyTeamsService {
 
   async update(id: number, updateEmergencyTeamDto: UpdateEmergencyTeamDto) {
     const { id: updatedBy } = this.request['user'] as User;
+    const { manufacturingPlantId, ...restUpdateEmergencyTeamDto } =
+      updateEmergencyTeamDto;
 
     const emergencyTeam = await this.findOne(id);
 
     const updatedEmergencyTeam = this.emergencyTeamRepository.merge(
       emergencyTeam,
-      updateEmergencyTeamDto,
+      restUpdateEmergencyTeamDto,
+      manufacturingPlantId
+        ? {
+            manufacturingPlant: {
+              id: manufacturingPlantId,
+            },
+          }
+        : {},
       { updatedBy: { id: updatedBy } as User },
       { updatedAt: new Date() },
     );

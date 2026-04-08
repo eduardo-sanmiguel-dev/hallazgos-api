@@ -1,3 +1,4 @@
+import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
 import {
   Entity,
   Column,
@@ -43,9 +44,6 @@ export class EmergencyTeam {
   })
   capacity: number;
 
-  @Column({ type: 'text' })
-  qrCode: string;
-
   @Column({ default: true })
   isActive: boolean;
 
@@ -60,4 +58,10 @@ export class EmergencyTeam {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @ManyToOne(
+    () => ManufacturingPlant,
+    (manufacturingPlant) => manufacturingPlant.emergencyTeams,
+  )
+  manufacturingPlant: ManufacturingPlant;
 }
