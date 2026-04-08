@@ -79,9 +79,6 @@ class CreateExtinguisherInspectionEvaluationDto {
 }
 
 export class CreateExtinguisherInspectionDto {
-  @IsDateString()
-  inspectionDate: string;
-
   @IsInt()
   @IsPositive()
   manufacturingPlantId: number;

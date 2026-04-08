@@ -1,10 +1,4 @@
-import {
-  IsDateString,
-  IsInt,
-  IsOptional,
-  IsPositive,
-  IsString,
-} from 'class-validator';
+import { IsInt, IsOptional, IsPositive, IsString } from 'class-validator';
 
 export class QueryExtinguisherInspectionDto {
   @IsOptional()
@@ -20,8 +14,4 @@ export class QueryExtinguisherInspectionDto {
   @IsInt()
   @IsPositive()
   responsibleId?: number;
-
-  @IsOptional()
-  @IsDateString()
-  inspectionDate?: string;
 }

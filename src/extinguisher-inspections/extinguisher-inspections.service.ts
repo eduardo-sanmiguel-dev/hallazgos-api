@@ -35,6 +35,7 @@ export class ExtinguisherInspectionsService {
     createExtinguisherInspectionDto: CreateExtinguisherInspectionDto,
   ) {
     const { id: createdBy } = this.request['user'] as User;
+    const now = new Date();
 
     const {
       manufacturingPlantId,
@@ -45,10 +46,11 @@ export class ExtinguisherInspectionsService {
     const extinguisherInspection = this.extinguisherInspectionRepository.create(
       {
         ...rest,
+        inspectionDate: now,
         responsible: { id: createdBy },
         manufacturingPlant: { id: manufacturingPlantId },
         createdBy: { id: createdBy } as User,
-        createdAt: new Date(),
+        createdAt: now,
       },
     );
 
@@ -60,7 +62,7 @@ export class ExtinguisherInspectionsService {
         ...evaluation,
         extinguisherInspection: { id: savedExtinguisherInspection.id },
         createdBy: { id: createdBy } as User,
-        createdAt: new Date(),
+        createdAt: now,
       }),
     );
 
@@ -72,7 +74,7 @@ export class ExtinguisherInspectionsService {
   }
 
   findAll(queryExtinguisherInspectionDto: QueryExtinguisherInspectionDto) {
-    const { search, manufacturingPlantId, responsibleId, inspectionDate } =
+    const { search, manufacturingPlantId, responsibleId } =
       queryExtinguisherInspectionDto;
 
     const queryBuilder = this.extinguisherInspectionRepository
@@ -115,15 +117,6 @@ export class ExtinguisherInspectionsService {
       queryBuilder.andWhere('responsible.id = :responsibleId', {
         responsibleId,
       });
-    }
-
-    if (inspectionDate) {
-      queryBuilder.andWhere(
-        'extinguisherInspection.inspectionDate = :inspectionDate',
-        {
-          inspectionDate,
-        },
-      );
     }
 
     return queryBuilder.getMany();
