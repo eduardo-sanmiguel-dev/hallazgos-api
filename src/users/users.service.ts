@@ -48,8 +48,6 @@ export class UsersService {
         processNames,
       );
 
-    console.log({ zones, processes });
-
     const user = await this.userRepository.save(
       this.userRepository.create({
         name,

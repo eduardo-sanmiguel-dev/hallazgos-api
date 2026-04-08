@@ -51,6 +51,7 @@ import { TopicsModule } from './topics/topics.module';
 import { ConfigsTgModule } from './configs-tg/configs-tg.module';
 import { TrainingGuidesModule } from './training-guides/training-guides.module';
 import { SafetyDataFilesModule } from './safety-data-files/safety-data-files.module';
+import { EmergencyTeamsModule } from './emergency-teams/emergency-teams.module';
 
 @Module({
   imports: [
@@ -154,6 +155,7 @@ import { SafetyDataFilesModule } from './safety-data-files/safety-data-files.mod
     ConfigsTgModule,
     TrainingGuidesModule,
     SafetyDataFilesModule,
+    EmergencyTeamsModule,
   ],
   controllers: [],
   providers: [JwtService],
