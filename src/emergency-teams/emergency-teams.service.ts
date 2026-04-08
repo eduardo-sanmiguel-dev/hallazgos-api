@@ -3,14 +3,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { REQUEST } from '@nestjs/core';
 
 import { Brackets, Repository } from 'typeorm';
+import { Request } from 'express';
 
+import { EmergencyTeam } from './entities/emergency-team.entity';
+import { User } from 'users/entities/user.entity';
 import {
   CreateEmergencyTeamDto,
   QueryEmergencyTeamDto,
   UpdateEmergencyTeamDto,
 } from './dto';
-import { EmergencyTeam } from './entities/emergency-team.entity';
-import { User } from 'users/entities/user.entity';
 
 @Injectable()
 export class EmergencyTeamsService {
@@ -22,7 +23,7 @@ export class EmergencyTeamsService {
     @Inject(REQUEST) private readonly request: Request,
   ) {}
 
-  async create(createEmergencyTeamDto: CreateEmergencyTeamDto) {
+  create(createEmergencyTeamDto: CreateEmergencyTeamDto) {
     const { id: createdBy } = this.request['user'] as User;
 
     const emergencyTeam = this.emergencyTeamRepository.create({

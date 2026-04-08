@@ -1,4 +1,3 @@
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
 import {
   Entity,
   Column,
@@ -9,6 +8,7 @@ import {
   ManyToOne,
 } from 'typeorm';
 
+import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
 import { User } from 'users/entities/user.entity';
 
 export enum ExtinguisherType {

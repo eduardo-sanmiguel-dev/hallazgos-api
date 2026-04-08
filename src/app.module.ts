@@ -52,6 +52,7 @@ import { ConfigsTgModule } from './configs-tg/configs-tg.module';
 import { TrainingGuidesModule } from './training-guides/training-guides.module';
 import { SafetyDataFilesModule } from './safety-data-files/safety-data-files.module';
 import { EmergencyTeamsModule } from './emergency-teams/emergency-teams.module';
+import { ExtinguisherInspectionsModule } from './extinguisher-inspections/extinguisher-inspections.module';
 
 @Module({
   imports: [
@@ -156,6 +157,7 @@ import { EmergencyTeamsModule } from './emergency-teams/emergency-teams.module';
     TrainingGuidesModule,
     SafetyDataFilesModule,
     EmergencyTeamsModule,
+    ExtinguisherInspectionsModule,
   ],
   controllers: [],
   providers: [JwtService],

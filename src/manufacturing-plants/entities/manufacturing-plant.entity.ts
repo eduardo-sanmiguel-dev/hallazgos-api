@@ -12,8 +12,10 @@ import {
   JoinTable,
 } from 'typeorm';
 
+import { ExtinguisherInspection } from 'extinguisher-inspections/entities/extinguisher-inspection.entity';
 import { AccidentPosition } from 'accident-positions/entities/accident-position.entity';
 import { AssociatedTask } from 'associated-tasks/entities/associated-task.entity';
+import { EmergencyTeam } from 'emergency-teams/entities/emergency-team.entity';
 import { Processes } from 'processes/entities/processes.entity';
 import { Evidence } from 'evidences/entities/evidence.entity';
 import { Country } from 'countries/entities/country.entity';
@@ -26,7 +28,6 @@ import { ConfigsTg } from 'configs-tg/entities';
 import { Equipment } from 'equipments/entities';
 import { Employee } from 'employees/entities';
 import { Ics } from 'ics/entities/ics.entity';
-import { EmergencyTeam } from 'emergency-teams/entities/emergency-team.entity';
 @Entity()
 @ObjectType()
 export class ManufacturingPlant {
@@ -135,4 +136,7 @@ export class ManufacturingPlant {
 
   @ManyToOne(() => EmergencyTeam)
   emergencyTeams: EmergencyTeam;
+
+  @ManyToOne(() => ExtinguisherInspection)
+  extinguisherInspections: ExtinguisherInspection;
 }
