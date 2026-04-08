@@ -42,6 +42,11 @@ export const formatDateToYYYYMMDD = (dateString: string) => {
   return `${date[0]}-${date[1]}-${date[2]}`;
 };
 
+export const formatDateToDDMMYYYY = (dateString: string) => {
+  const date = dateString.split('T')[0].split('-');
+  return `${date[2]}/${date[1]}/${date[0]}`;
+};
+
 export function uploadStaticImage(img: string): string {
   if (!img) {
     return null;
