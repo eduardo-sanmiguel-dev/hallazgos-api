@@ -1,4 +1,9 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { REQUEST } from '@nestjs/core';
 
@@ -36,12 +41,25 @@ export class ExtinguisherInspectionsService {
   ) {
     const { id: createdBy } = this.request['user'] as User;
     const now = new Date();
+    const todayString = now.toISOString().split('T')[0];
 
     const {
       manufacturingPlantId,
       evaluations = [],
       ...rest
     } = createExtinguisherInspectionDto;
+
+    const hasPastDates = evaluations.some(
+      (evaluation) =>
+        evaluation.nextRechargeDate < todayString ||
+        evaluation.maintenanceDate < todayString,
+    );
+
+    if (hasPastDates) {
+      throw new BadRequestException(
+        'No se permiten fechas de próxima recarga o mantenimiento anteriores a la fecha actual.',
+      );
+    }
 
     const extinguisherInspection = this.extinguisherInspectionRepository.create(
       {
