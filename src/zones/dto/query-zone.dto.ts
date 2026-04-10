@@ -20,6 +20,10 @@ export class QueryZoneDto {
   manufacturingPlantId: number;
 
   @IsOptional()
+  @IsPositive()
+  areaId?: number;
+
+  @IsOptional()
   @Transform(parseStringArrayQueryByKey('manufacturingPlantNames'))
   @IsArray()
   @IsString({ each: true })

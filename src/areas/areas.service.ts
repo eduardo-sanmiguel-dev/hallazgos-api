@@ -1,9 +1,13 @@
 import { InjectRepository } from '@nestjs/typeorm';
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
-import { Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 
-import { CreateAreaDto, UpdateAreaDto } from './dto';
+import { CreateAreaDto, QueryAreaDto, UpdateAreaDto } from './dto';
 import { Area } from './entities/area.entity';
 
 @Injectable()
@@ -13,23 +17,109 @@ export class AreasService {
     private readonly areaRepository: Repository<Area>,
   ) {}
 
-  create(createAreaDto: CreateAreaDto) {
-    return this.areaRepository.save(createAreaDto);
+  private async validateUniqueActiveName(name: string, excludeId?: number) {
+    const normalizedName = name.trim();
+
+    const qb = this.areaRepository
+      .createQueryBuilder('area')
+      .where('LOWER(area.name) = LOWER(:name)', { name: normalizedName })
+      .andWhere('area.isActive = :isActive', { isActive: true });
+
+    if (excludeId) {
+      qb.andWhere('area.id <> :excludeId', { excludeId });
+    }
+
+    const existing = await qb.getOne();
+
+    if (existing) {
+      throw new BadRequestException('Ya existe un area activa con ese nombre');
+    }
+
+    const inactiveQb = this.areaRepository
+      .createQueryBuilder('area')
+      .where('LOWER(area.name) = LOWER(:name)', { name: normalizedName })
+      .andWhere('area.isActive = :isActive', { isActive: false });
+
+    if (excludeId) {
+      inactiveQb.andWhere('area.id <> :excludeId', { excludeId });
+    }
+
+    const existingInactive = await inactiveQb.getOne();
+
+    if (existingInactive) {
+      throw new BadRequestException(
+        'Ya existe un area inactiva con ese nombre. Reactivela o use otro nombre',
+      );
+    }
   }
 
-  findAll() {
-    return `This action returns all areas`;
+  async create(createAreaDto: CreateAreaDto): Promise<Area> {
+    const name = createAreaDto.name.trim();
+
+    await this.validateUniqueActiveName(name);
+
+    const area = this.areaRepository.create({
+      name,
+    });
+
+    return this.areaRepository.save(area);
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} area`;
+  async findAll(queryAreaDto: QueryAreaDto): Promise<Area[]> {
+    const { name } = queryAreaDto;
+
+    return this.areaRepository.find({
+      where: {
+        isActive: true,
+        ...(name && { name: ILike(`%${name}%`) }),
+      },
+      order: {
+        id: 'DESC',
+      },
+    });
   }
 
-  update(id: number, updateAreaDto: UpdateAreaDto) {
-    return { id, updateAreaDto };
+  async findOne(id: number, isActive = true): Promise<Area> {
+    const area = await this.areaRepository.findOne({ where: { id } });
+
+    if (!area) {
+      throw new NotFoundException(`Area con ID ${id} no encontrado`);
+    }
+
+    if (isActive && !area.isActive) {
+      throw new BadRequestException(`El area con ID ${id} esta inactiva`);
+    }
+
+    return area;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} area`;
+  async update(id: number, updateAreaDto: UpdateAreaDto): Promise<Area> {
+    await this.findOne(id);
+
+    if (updateAreaDto.name) {
+      await this.validateUniqueActiveName(updateAreaDto.name.trim(), id);
+    }
+
+    const area = await this.areaRepository.preload({
+      id,
+      ...(updateAreaDto.name && { name: updateAreaDto.name.trim() }),
+    });
+
+    return this.areaRepository.save(area);
+  }
+
+  async remove(id: number): Promise<Area> {
+    await this.findOne(id);
+
+    await this.areaRepository.update(id, {
+      isActive: false,
+    });
+
+    return this.areaRepository.findOne({
+      where: {
+        id,
+        isActive: false,
+      },
+    });
   }
 }

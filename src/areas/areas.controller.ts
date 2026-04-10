@@ -6,9 +6,10 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 
-import { CreateAreaDto, UpdateAreaDto } from './dto';
+import { CreateAreaDto, QueryAreaDto, UpdateAreaDto } from './dto';
 import { AreasService } from './areas.service';
 
 @Controller('areas')
@@ -21,8 +22,8 @@ export class AreasController {
   }
 
   @Get()
-  findAll() {
-    return this.areasService.findAll();
+  findAll(@Query() queryAreaDto: QueryAreaDto) {
+    return this.areasService.findAll(queryAreaDto);
   }
 
   @Get(':id')

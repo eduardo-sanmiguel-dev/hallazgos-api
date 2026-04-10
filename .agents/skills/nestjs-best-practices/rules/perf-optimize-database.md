@@ -24,12 +24,7 @@ export class UsersService {
   async getUserSummary(id: string): Promise<UserSummary> {
     const user = await this.repo.findOne({
       where: { id },
-      relations: [
-        'posts',
-        'posts.comments',
-        'posts.comments.author',
-        'followers',
-      ],
+      relations: ['posts', 'posts.comments', 'posts.comments.author', 'followers'],
     });
     // Over-fetches massive relation tree
     return { name: user.name, postCount: user.posts.length };

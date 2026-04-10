@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsPositive, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsPositive, IsString } from 'class-validator';
 
 export class CreateZoneDto {
   @IsNotEmpty()
@@ -8,4 +8,8 @@ export class CreateZoneDto {
   @IsNotEmpty()
   @IsPositive()
   manufacturingPlantId: number;
+
+  @IsOptional()
+  @IsPositive()
+  areaId?: number;
 }

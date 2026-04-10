@@ -6,6 +6,7 @@ import { ILike, In, Repository } from 'typeorm';
 import { Zone } from 'zones/entities/zone.entity';
 import { CreateZoneDto, QueryZoneDto, UpdateZoneDto } from './dto';
 import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
+import { AreasService } from 'areas/areas.service';
 
 @Injectable()
 export class ZonesService {
@@ -13,6 +14,7 @@ export class ZonesService {
     @InjectRepository(Zone)
     private readonly zoneRepository: Repository<Zone>,
     private readonly manufacturingPlantsService: ManufacturingPlantsService,
+    private readonly areasService: AreasService,
   ) {}
 
   async create(createZoneDto: CreateZoneDto): Promise<Zone> {
@@ -20,17 +22,27 @@ export class ZonesService {
       createZoneDto.manufacturingPlantId,
     );
 
+    const area = createZoneDto.areaId
+      ? await this.areasService.findOne(createZoneDto.areaId)
+      : null;
+
     const zone = await this.zoneRepository.create({
       ...createZoneDto,
       manufacturingPlant,
+      area,
     });
 
     return this.zoneRepository.save(zone);
   }
 
   async findAll(queryZoneDto: QueryZoneDto): Promise<Zone[]> {
-    const { name, manufacturingPlantId, manufacturingPlantNames, withArea } =
-      queryZoneDto;
+    const {
+      name,
+      manufacturingPlantId,
+      manufacturingPlantNames,
+      withArea,
+      areaId,
+    } = queryZoneDto;
 
     const manufacturingPlantIds = [];
 
@@ -54,7 +66,12 @@ export class ZonesService {
     return this.zoneRepository.find({
       where: {
         isActive: true,
-        ...(withArea && { area: { isActive: true } }),
+        ...((withArea || areaId) && {
+          area: {
+            isActive: true,
+            ...(areaId && { id: areaId }),
+          },
+        }),
         ...(name && { name: ILike(`%${name}%`) }),
         ...(manufacturingPlantIds.length
           ? {
@@ -67,7 +84,7 @@ export class ZonesService {
               manufacturingPlant: { isActive: true },
             }),
       },
-      relations: ['manufacturingPlant'],
+      relations: ['manufacturingPlant', 'area'],
       order: {
         id: 'DESC',
       },
@@ -81,7 +98,7 @@ export class ZonesService {
         ...(isActive && { isActive }),
         manufacturingPlant: { isActive: true },
       },
-      relations: ['manufacturingPlant'],
+      relations: ['manufacturingPlant', 'area'],
     });
 
     if (!zone) {
@@ -124,10 +141,15 @@ export class ZonesService {
       updateZoneDto.manufacturingPlantId,
     );
 
+    const area = updateZoneDto.areaId
+      ? await this.areasService.findOne(updateZoneDto.areaId)
+      : null;
+
     const zone = await this.zoneRepository.preload({
       id,
       ...updateZoneDto,
       manufacturingPlant,
+      area,
     });
 
     return this.zoneRepository.save(zone);
