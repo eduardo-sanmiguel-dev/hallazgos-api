@@ -1,23 +1,42 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { REQUEST } from '@nestjs/core';
 
 import { ILike, In, Repository } from 'typeorm';
+import { Request } from 'express';
 
 import { Zone } from 'zones/entities/zone.entity';
 import { CreateZoneDto, QueryZoneDto, UpdateZoneDto } from './dto';
 import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
 import { AreasService } from 'areas/areas.service';
+import { User } from 'users/entities/user.entity';
 
 @Injectable()
 export class ZonesService {
+  private readonly relations = [
+    'createdBy',
+    'updatedBy',
+    'manufacturingPlant',
+    'area',
+  ];
+
   constructor(
     @InjectRepository(Zone)
     private readonly zoneRepository: Repository<Zone>,
     private readonly manufacturingPlantsService: ManufacturingPlantsService,
     private readonly areasService: AreasService,
+    @Inject(REQUEST)
+    private readonly request: Request,
   ) {}
 
   async create(createZoneDto: CreateZoneDto): Promise<Zone> {
+    const { id: createdBy } = this.request['user'] as User;
+
     const manufacturingPlant = await this.manufacturingPlantsService.findOne(
       createZoneDto.manufacturingPlantId,
     );
@@ -30,9 +49,22 @@ export class ZonesService {
       ...createZoneDto,
       manufacturingPlant,
       area,
+      createdBy: { id: createdBy } as User,
+      createdAt: new Date(),
     });
 
-    return this.zoneRepository.save(zone);
+    try {
+      const zoneSaved = await this.zoneRepository.save(zone);
+      return this.findOne(zoneSaved.id);
+    } catch (error) {
+      if (error.code === '23505') {
+        throw new ConflictException(
+          'Ya existe una zona con ese nombre en la planta seleccionada',
+        );
+      }
+
+      throw error;
+    }
   }
 
   async findAll(queryZoneDto: QueryZoneDto): Promise<Zone[]> {
@@ -84,7 +116,7 @@ export class ZonesService {
               manufacturingPlant: { isActive: true },
             }),
       },
-      relations: ['manufacturingPlant', 'area'],
+      relations: this.relations,
       order: {
         id: 'DESC',
       },
@@ -98,7 +130,7 @@ export class ZonesService {
         ...(isActive && { isActive }),
         manufacturingPlant: { isActive: true },
       },
-      relations: ['manufacturingPlant', 'area'],
+      relations: this.relations,
     });
 
     if (!zone) {
@@ -135,6 +167,8 @@ export class ZonesService {
   }
 
   async update(id: number, updateZoneDto: UpdateZoneDto): Promise<Zone> {
+    const { id: updatedBy } = this.request['user'] as User;
+
     await this.findOne(id);
 
     const manufacturingPlant = await this.manufacturingPlantsService.findOne(
@@ -150,23 +184,32 @@ export class ZonesService {
       ...updateZoneDto,
       manufacturingPlant,
       area,
+      updatedBy: { id: updatedBy } as User,
+      updatedAt: new Date(),
     });
 
-    return this.zoneRepository.save(zone);
+    try {
+      const zoneSaved = await this.zoneRepository.save(zone);
+      return this.findOne(zoneSaved.id);
+    } catch (error) {
+      if (error.code === '23505') {
+        throw new ConflictException(
+          'Ya existe una zona con ese nombre en la planta seleccionada',
+        );
+      }
+
+      throw error;
+    }
   }
 
   async remove(id: number): Promise<Zone> {
-    await this.findOne(id);
+    const { id: updatedBy } = this.request['user'] as User;
+    const zone = await this.findOne(id);
 
-    await this.zoneRepository.update(id, {
-      isActive: false,
-    });
+    zone.isActive = false;
+    zone.updatedBy = { id: updatedBy } as User;
+    zone.updatedAt = new Date();
 
-    return this.zoneRepository.findOne({
-      where: {
-        id,
-        isActive: false,
-      },
-    });
+    return this.zoneRepository.save(zone);
   }
 }

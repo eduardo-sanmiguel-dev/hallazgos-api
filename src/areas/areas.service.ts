@@ -1,20 +1,28 @@
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { REQUEST } from '@nestjs/core';
 
 import { ILike, Repository } from 'typeorm';
+import { Request } from 'express';
 
 import { CreateAreaDto, QueryAreaDto, UpdateAreaDto } from './dto';
 import { Area } from './entities/area.entity';
+import { User } from 'users/entities/user.entity';
 
 @Injectable()
 export class AreasService {
+  private readonly relations = ['createdBy', 'updatedBy'];
+
   constructor(
     @InjectRepository(Area)
     private readonly areaRepository: Repository<Area>,
+    @Inject(REQUEST)
+    private readonly request: Request,
   ) {}
 
   private async validateUniqueActiveName(name: string, excludeId?: number) {
@@ -54,15 +62,20 @@ export class AreasService {
   }
 
   async create(createAreaDto: CreateAreaDto): Promise<Area> {
+    const { id: createdBy } = this.request['user'] as User;
     const name = createAreaDto.name.trim();
 
     await this.validateUniqueActiveName(name);
 
     const area = this.areaRepository.create({
       name,
+      createdBy: { id: createdBy } as User,
+      createdAt: new Date(),
     });
 
-    return this.areaRepository.save(area);
+    const areaSaved = await this.areaRepository.save(area);
+
+    return this.findOne(areaSaved.id);
   }
 
   async findAll(queryAreaDto: QueryAreaDto): Promise<Area[]> {
@@ -73,6 +86,7 @@ export class AreasService {
         isActive: true,
         ...(name && { name: ILike(`%${name}%`) }),
       },
+      relations: this.relations,
       order: {
         id: 'DESC',
       },
@@ -80,7 +94,10 @@ export class AreasService {
   }
 
   async findOne(id: number, isActive = true): Promise<Area> {
-    const area = await this.areaRepository.findOne({ where: { id } });
+    const area = await this.areaRepository.findOne({
+      where: { id },
+      relations: this.relations,
+    });
 
     if (!area) {
       throw new NotFoundException(`Area con ID ${id} no encontrado`);
@@ -94,6 +111,7 @@ export class AreasService {
   }
 
   async update(id: number, updateAreaDto: UpdateAreaDto): Promise<Area> {
+    const { id: updatedBy } = this.request['user'] as User;
     await this.findOne(id);
 
     if (updateAreaDto.name) {
@@ -103,23 +121,23 @@ export class AreasService {
     const area = await this.areaRepository.preload({
       id,
       ...(updateAreaDto.name && { name: updateAreaDto.name.trim() }),
+      updatedBy: { id: updatedBy } as User,
+      updatedAt: new Date(),
     });
 
-    return this.areaRepository.save(area);
+    const areaSaved = await this.areaRepository.save(area);
+
+    return this.findOne(areaSaved.id);
   }
 
   async remove(id: number): Promise<Area> {
-    await this.findOne(id);
+    const { id: updatedBy } = this.request['user'] as User;
+    const area = await this.findOne(id);
 
-    await this.areaRepository.update(id, {
-      isActive: false,
-    });
+    area.isActive = false;
+    area.updatedBy = { id: updatedBy } as User;
+    area.updatedAt = new Date();
 
-    return this.areaRepository.findOne({
-      where: {
-        id,
-        isActive: false,
-      },
-    });
+    return this.areaRepository.save(area);
   }
 }

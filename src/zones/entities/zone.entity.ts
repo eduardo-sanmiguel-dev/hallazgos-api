@@ -45,6 +45,12 @@ export class Zone {
   //@Field(() => [Evidence])
   evidences: Evidence[];
 
+  @ManyToOne(() => User)
+  createdBy: User;
+
+  @ManyToOne(() => User, { nullable: true })
+  updatedBy?: User;
+
   @ManyToOne(() => User, (user) => user.zones)
   //@Field(() => User)
   user: User;

@@ -5,9 +5,11 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  ManyToOne,
 } from 'typeorm';
 
 import { Zone } from 'zones/entities/zone.entity';
+import { User } from 'users/entities/user.entity';
 
 @Entity({ name: 'areas' })
 export class Area {
@@ -25,8 +27,14 @@ export class Area {
   @CreateDateColumn()
   createdAt: Date;
 
+  @ManyToOne(() => User)
+  createdBy: User;
+
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @ManyToOne(() => User, { nullable: true })
+  updatedBy?: User;
 
   @OneToMany(() => Zone, (zone) => zone.area)
   zones: Zone[];
