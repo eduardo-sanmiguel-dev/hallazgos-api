@@ -13,6 +13,33 @@ const pathImage =
     ? __dirname + '../../../public/static/images/evidences/'
     : 'https://api.comportarte.com/static/images/evidences/';
 
+const PRIORITY_OPTIONS = [
+  { name: 'Corto plazo', days: 2 },
+  { name: 'Inmediato', days: 8 },
+  { name: 'Mediano plazo', days: 15 },
+  { name: 'Largo plazo', days: 30 },
+];
+
+const getPriorityLabel = (priorityDays?: number | null) => {
+  if (!priorityDays) return '';
+  const option = PRIORITY_OPTIONS.find((item) => item.days === priorityDays);
+  return option
+    ? `${option.name} (${option.days} dias)`
+    : `${priorityDays} dias`;
+};
+
+const getRemainingDays = (
+  createdAt?: Date | null,
+  priorityDays?: number | null,
+) => {
+  if (!createdAt || !priorityDays) return '';
+  const dueDate = new Date(createdAt);
+  dueDate.setDate(dueDate.getDate() + priorityDays);
+  const now = new Date();
+  const diffMs = dueDate.getTime() - now.getTime();
+  return `${Math.ceil(diffMs / (1000 * 60 * 60 * 24))}`;
+};
+
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
@@ -66,6 +93,11 @@ export class MailService {
           supervisor: evidenceCurrent.supervisors
             .map((supervisor) => supervisor.name)
             .join(' / '),
+          priorityLabel: getPriorityLabel(evidenceCurrent.priorityDays),
+          remainingDays: getRemainingDays(
+            evidenceCurrent.createdAt,
+            evidenceCurrent.priorityDays,
+          ),
         },
         ...(imgEvidence && {
           attachments: [
@@ -131,6 +163,11 @@ export class MailService {
         supervisor: evidenceCurrent.supervisors
           .map((supervisor) => supervisor.name)
           .join(' / '),
+        priorityLabel: getPriorityLabel(evidenceCurrent.priorityDays),
+        remainingDays: getRemainingDays(
+          evidenceCurrent.createdAt,
+          evidenceCurrent.priorityDays,
+        ),
         solutionDate: stringToDateWithTime(evidenceCurrent.solutionDate),
         durantionToTime: durantionToTime(
           evidenceCurrent.createdAt,
@@ -171,6 +208,11 @@ export class MailService {
         supervisor: evidenceCurrent.supervisors
           .map((supervisor) => supervisor.name)
           .join(' / '),
+        priorityLabel: getPriorityLabel(evidenceCurrent.priorityDays),
+        remainingDays: getRemainingDays(
+          evidenceCurrent.createdAt,
+          evidenceCurrent.priorityDays,
+        ),
       },
       ...(imgEvidence && {
         attachments: [

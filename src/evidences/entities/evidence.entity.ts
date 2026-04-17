@@ -1,4 +1,4 @@
-import { Field, ID, ObjectType } from '@nestjs/graphql';
+import { Field, ID, Int, ObjectType } from '@nestjs/graphql';
 
 import {
   Entity,
@@ -37,6 +37,28 @@ export class Evidence {
     defaultValue: '',
   })
   imgSolution: string;
+
+  @Column({ type: 'int', nullable: true, default: null })
+  @Field(() => Int, {
+    defaultValue: null,
+    nullable: true,
+  })
+  priorityDays?: number;
+
+  @Column({ default: '' })
+  @Field(() => String, {
+    defaultValue: '',
+    nullable: true,
+  })
+  imgProcess: string;
+
+  @Column({ default: null })
+  @Field(() => Date, {
+    defaultValue: null,
+    nullable: true,
+  })
+  @Index()
+  startProcessDate: Date;
 
   @Column({ default: null })
   @Field(() => Date, {

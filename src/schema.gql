@@ -47,6 +47,9 @@ type Evidence {
   id: ID!
   imgEvidence: String!
   imgSolution: String!
+  priorityDays: Int
+  imgProcess: String
+  startProcessDate: DateTime
   solutionDate: DateTime
   description: String
   descriptionSolution: String

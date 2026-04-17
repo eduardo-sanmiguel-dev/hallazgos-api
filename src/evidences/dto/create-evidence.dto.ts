@@ -1,4 +1,5 @@
 import { IsNotEmpty, IsOptional, IsPositive, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateEvidenceDto {
   @IsNotEmpty()
@@ -28,4 +29,9 @@ export class CreateEvidenceDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsPositive()
+  priorityDays?: number;
 }

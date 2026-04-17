@@ -73,9 +73,36 @@ export class EvidencesController {
     return this.evidencesService.saveSolution(+id, file, descriptionSolution);
   }
 
+  @Post('/process/:id')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './public/static/images/evidences',
+        filename(req, file, callback) {
+          req;
+          callback(null, file.originalname);
+        },
+      }),
+      limits: {
+        fileSize: 2097152, //2 Megabytes
+      },
+    }),
+  )
+  saveProcessStart(
+    @UploadedFile() file: Express.Multer.File,
+    @Param('id') id: string,
+  ) {
+    return this.evidencesService.saveProcessStart(+id, file);
+  }
+
   @Post('/add/comment/:id')
   addComment(@Param('id') id: string, @Body() comment: CommentEvidenceDto) {
     return this.evidencesService.addComment(+id, comment);
+  }
+
+  @Get('/permissions/config')
+  getPermissionsConfig() {
+    return this.evidencesService.getPermissionsConfig();
   }
 
   @Get(':id')

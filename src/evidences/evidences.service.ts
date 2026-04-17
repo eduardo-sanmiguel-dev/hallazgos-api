@@ -2,6 +2,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { REQUEST } from '@nestjs/core';
 import {
   BadRequestException,
+  ForbiddenException,
   Inject,
   Injectable,
   Logger,
@@ -18,15 +19,16 @@ import {
 import { StyleDictionary, TDocumentDefinitions } from 'pdfmake/interfaces';
 import * as XlsxPopulate from 'xlsx-populate';
 import { Request, Response } from 'express';
-import * as moment from 'moment';
 
 import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
 import { SecondaryTypesService } from 'secondary-types/secondary-types.service';
 import {
   ENV_DEVELOPMENT,
+  ROLE_ADMINISTRADOR,
   STATUS_CANCEL,
   STATUS_CLOSE,
+  STATUS_IN_PROGRESS,
   STATUS_OPEN,
 } from '@shared/constants';
 import { MainTypesService } from 'main-types/main-types.service';
@@ -59,6 +61,30 @@ pdfMake.vfs = pdfFonts.vfs;
 export class EvidencesService {
   private readonly logger = new Logger(EvidencesService.name);
 
+  private readonly supervisorOverrideEmails = [
+    'sst@hadamexico.com',
+    'klarios@hadamexico.com',
+    'gsalgado@hadamexico.com',
+    'auxsistemadegestion@hadainternational.com',
+    'glora@hadainternational.com',
+    'mruiz@hadamexico.com',
+    'arodriguez@hadamexico.com',
+    'esanchez@hadamexico.com',
+    'cseguridad@hadainternational.com',
+    'gsanchez@hadamexico.com',
+    'bproyectos@hadamexico.com',
+    'eduardo-266@hotmail.com',
+  ];
+
+  private readonly cancelEvidenceEmails = [
+    'glora@hadainternational.com',
+    'sst@hadamexico.com',
+    'dtrujillo@hadamexico.com',
+    'gsanchez@hadamexico.com',
+    'cseguridad@hadainternational.com',
+    'eduardo-266@hotmail.com',
+  ];
+
   private readonly relations = [
     'manufacturingPlant',
     'mainType',
@@ -70,6 +96,33 @@ export class EvidencesService {
     'comments',
     'process',
   ];
+
+  getPermissionsConfig() {
+    return {
+      supervisorOverrideEmails: this.supervisorOverrideEmails,
+      cancelEvidenceEmails: this.cancelEvidenceEmails,
+    };
+  }
+
+  private canManageEvidence(user: User, evidence: Evidence): boolean {
+    return (
+      user.role === ROLE_ADMINISTRADOR ||
+      this.supervisorOverrideEmails.includes(user.email) ||
+      evidence.supervisors.some(
+        (supervisor) => Number(supervisor.id) === user.id,
+      ) ||
+      evidence.responsibles.some(
+        (responsible) => Number(responsible.id) === user.id,
+      )
+    );
+  }
+
+  private canCancelEvidence(user: User): boolean {
+    return (
+      user.role === ROLE_ADMINISTRADOR ||
+      this.cancelEvidenceEmails.includes(user.email)
+    );
+  }
 
   constructor(
     @InjectRepository(Evidence)
@@ -91,9 +144,18 @@ export class EvidencesService {
     label: string,
     isEndDate = false,
   ): Date {
-    const parsedDate = new Date(moment(date, 'DD/MM/YYYY', true).toDate());
+    const [day, month, year] = date.split('/').map(Number);
+    const parsedDate = new Date(year || 0, (month || 1) - 1, day || 0);
 
-    if (Number.isNaN(parsedDate.getTime())) {
+    const hasValidShape =
+      !!day &&
+      !!month &&
+      !!year &&
+      parsedDate.getFullYear() === year &&
+      parsedDate.getMonth() === month - 1 &&
+      parsedDate.getDate() === day;
+
+    if (!hasValidShape || Number.isNaN(parsedDate.getTime())) {
       throw new BadRequestException(
         `${label} debe tener el formato DD/MM/YYYY`,
       );
@@ -160,6 +222,7 @@ export class EvidencesService {
       supervisor,
       process,
       description,
+      priorityDays,
     } = createEvidenceDto;
 
     const manufacturingPlant =
@@ -212,6 +275,7 @@ export class EvidencesService {
         createdAt,
         updatedAt: createdAt,
         description: description || '',
+        priorityDays: priorityDays || null,
       }),
     );
 
@@ -306,6 +370,13 @@ export class EvidencesService {
     descriptionSolution: string,
   ) {
     const evidence = await this.findOne(id);
+    const requestUser = this.request['user'] as User;
+
+    if (!this.canManageEvidence(requestUser, evidence)) {
+      throw new ForbiddenException(
+        'No tiene permisos para cerrar este hallazgo',
+      );
+    }
 
     const colombianIds =
       await this.manufacturingPlantsService.getColombianPlantsIds();
@@ -331,6 +402,48 @@ export class EvidencesService {
     });
 
     return evidenceSolution;
+  }
+
+  async saveProcessStart(id: number, file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException(
+        'Debe capturar o adjuntar evidencia para iniciar el proceso',
+      );
+    }
+
+    const evidence = await this.findOne(id);
+    const requestUser = this.request['user'] as User;
+
+    if (!this.canManageEvidence(requestUser, evidence)) {
+      throw new ForbiddenException(
+        'No tiene permisos para iniciar el estatus en progreso',
+      );
+    }
+
+    if (evidence.imgProcess) {
+      throw new BadRequestException(
+        'El estatus en progreso ya fue registrado para este hallazgo',
+      );
+    }
+
+    if (evidence.status !== STATUS_OPEN) {
+      throw new BadRequestException(
+        'Solo se puede iniciar en progreso cuando el hallazgo esta abierto',
+      );
+    }
+
+    const colombianIds =
+      await this.manufacturingPlantsService.getColombianPlantsIds();
+
+    evidence.imgProcess = file.originalname;
+    evidence.startProcessDate = getColombiaNow(
+      colombianIds,
+      evidence.manufacturingPlant.id,
+    );
+    evidence.status = STATUS_IN_PROGRESS;
+    evidence.updatedAt = evidence.startProcessDate;
+
+    return this.evidenceRepository.save(evidence);
   }
 
   async addComment(id: number, comment: CommentEvidenceDto) {
@@ -719,6 +832,14 @@ export class EvidencesService {
   }
 
   async remove(id: number) {
+    const requestUser = this.request['user'] as User;
+
+    if (!this.canCancelEvidence(requestUser)) {
+      throw new ForbiddenException(
+        'No tiene permisos para cancelar este hallazgo',
+      );
+    }
+
     const evidence = await this.findOne(id);
     await this.evidenceRepository.update(id, {
       isActive: false,
