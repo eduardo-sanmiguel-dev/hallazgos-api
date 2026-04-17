@@ -2,7 +2,7 @@ import { REQUEST } from '@nestjs/core';
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
-import { In, MoreThan, Repository } from 'typeorm';
+import { In, MoreThan, Repository, SelectQueryBuilder } from 'typeorm';
 import { Request } from 'express';
 
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
@@ -1407,6 +1407,119 @@ export class DashboardService {
     };
   }
 
+  async findAreasByFilters(
+    manufacturingPlantId: number,
+    startDate: string,
+    endDate: string,
+    areaId?: number,
+    responsibleId?: number,
+  ) {
+    if (!manufacturingPlantId) {
+      throw new BadRequestException('manufacturingPlantId es obligatorio');
+    }
+
+    if (!startDate || !endDate) {
+      throw new BadRequestException(
+        'Las fechas de inicio y fin son obligatorias',
+      );
+    }
+
+    const parsedStartDate = this.parseDateFilter(
+      startDate,
+      'La fecha de inicio',
+    );
+    const parsedEndDate = this.parseDateFilter(
+      endDate,
+      'La fecha de fin',
+      true,
+    );
+
+    if (parsedStartDate > parsedEndDate) {
+      throw new BadRequestException(
+        'La fecha de inicio no puede ser mayor a la fecha de fin',
+      );
+    }
+
+    const buildBaseQuery = () =>
+      this.evidenceRepository
+        .createQueryBuilder('evidence')
+        .leftJoin('evidence.zone', 'zone')
+        .leftJoin('zone.area', 'area')
+        .select(`COALESCE(area.name, 'Sin área')`, 'name')
+        .addSelect('COUNT(*)', 'total')
+        .where('evidence."manufacturingPlantId" = :manufacturingPlantId', {
+          manufacturingPlantId,
+        })
+        .andWhere('evidence."createdAt" BETWEEN :startDate AND :endDate', {
+          startDate: parsedStartDate,
+          endDate: parsedEndDate,
+        });
+
+    const applyOptionalAreaFilter = (
+      query: ReturnType<typeof buildBaseQuery>,
+    ) => {
+      if (areaId) {
+        query.andWhere('zone."areaId" = :areaId', {
+          areaId,
+        });
+      }
+
+      return query;
+    };
+
+    let rows: { name: string; total: string }[] = [];
+
+    if (responsibleId) {
+      const rowsByResponsibles = await applyOptionalAreaFilter(buildBaseQuery())
+        .innerJoin(
+          'evidence_responsibles_user',
+          'eru',
+          'eru."evidenceId" = evidence.id',
+        )
+        .andWhere('eru."userId" = :responsibleId', {
+          responsibleId,
+        })
+        .groupBy('area.name')
+        .getRawMany<{ name: string; total: string }>();
+
+      if (rowsByResponsibles.length > 0) {
+        rows = rowsByResponsibles;
+      } else {
+        rows = await applyOptionalAreaFilter(buildBaseQuery())
+          .innerJoin(
+            'evidence_supervisors_user',
+            'esu',
+            'esu."evidenceId" = evidence.id',
+          )
+          .andWhere('esu."userId" = :responsibleId', {
+            responsibleId,
+          })
+          .groupBy('area.name')
+          .getRawMany<{ name: string; total: string }>();
+      }
+    } else {
+      rows = await applyOptionalAreaFilter(buildBaseQuery())
+        .groupBy('area.name')
+        .getRawMany<{ name: string; total: string }>();
+    }
+
+    const seriesData = rows
+      .map((row) => ({
+        name: row.name,
+        y: Number(row.total),
+      }))
+      .sort((a, b) => b.y - a.y);
+
+    const total = seriesData.reduce((acc, item) => acc + item.y, 0);
+
+    return {
+      total,
+      startDate,
+      endDate,
+      seriesData,
+    };
+  }
+
   async findResponsiblesByFilters(
     manufacturingPlantId: number,
     startDate: string,
@@ -1495,6 +1608,215 @@ export class DashboardService {
       id: Number(item.id),
       name: item.name,
     }));
+  }
+
+  async findAssignedResponsiblesByFilters(
+    manufacturingPlantId: number,
+    startDate: string,
+    endDate: string,
+    areaId?: number,
+    responsibleId?: number,
+  ) {
+    if (!manufacturingPlantId) {
+      throw new BadRequestException('manufacturingPlantId es obligatorio');
+    }
+
+    if (!startDate || !endDate) {
+      throw new BadRequestException(
+        'Las fechas de inicio y fin son obligatorias',
+      );
+    }
+
+    const parsedStartDate = this.parseDateFilter(
+      startDate,
+      'La fecha de inicio',
+    );
+    const parsedEndDate = this.parseDateFilter(
+      endDate,
+      'La fecha de fin',
+      true,
+    );
+
+    if (parsedStartDate > parsedEndDate) {
+      throw new BadRequestException(
+        'La fecha de inicio no puede ser mayor a la fecha de fin',
+      );
+    }
+
+    const statusOrder = ['Abierto', 'En progreso', 'Cerrado', 'Cancelado'];
+
+    const addBaseFilters = (
+      query: SelectQueryBuilder<Evidence>,
+      userTableAlias: 'eru' | 'esu',
+    ) => {
+      query
+        .where('evidence."manufacturingPlantId" = :manufacturingPlantId', {
+          manufacturingPlantId,
+        })
+        .andWhere('evidence."createdAt" BETWEEN :startDate AND :endDate', {
+          startDate: parsedStartDate,
+          endDate: parsedEndDate,
+        });
+
+      if (areaId) {
+        query
+          .leftJoin('evidence.zone', 'zone')
+          .andWhere('zone."areaId" = :areaId', {
+            areaId,
+          });
+      }
+
+      if (responsibleId) {
+        query.andWhere(`${userTableAlias}."userId" = :responsibleId`, {
+          responsibleId,
+        });
+      }
+    };
+
+    const buildResponsiblesQuery = () => {
+      const query = this.evidenceRepository
+        .createQueryBuilder('evidence')
+        .innerJoin(
+          'evidence_responsibles_user',
+          'eru',
+          'eru."evidenceId" = evidence.id',
+        )
+        .innerJoin(User, 'u', 'u.id = eru."userId" AND u."isActive" = true')
+        .select('u.id', 'responsibleId')
+        .addSelect('u.name', 'responsibleName')
+        .addSelect('evidence.status', 'status')
+        .addSelect('COUNT(DISTINCT evidence.id)', 'total');
+
+      addBaseFilters(query, 'eru');
+
+      return query
+        .groupBy('u.id')
+        .addGroupBy('u.name')
+        .addGroupBy('evidence.status');
+    };
+
+    const buildSupervisorsQuery = (fallbackOnlyWhenNoResponsibles: boolean) => {
+      const query = this.evidenceRepository
+        .createQueryBuilder('evidence')
+        .innerJoin(
+          'evidence_supervisors_user',
+          'esu',
+          'esu."evidenceId" = evidence.id',
+        )
+        .innerJoin(User, 'u', 'u.id = esu."userId" AND u."isActive" = true')
+        .select('u.id', 'responsibleId')
+        .addSelect('u.name', 'responsibleName')
+        .addSelect('evidence.status', 'status')
+        .addSelect('COUNT(DISTINCT evidence.id)', 'total');
+
+      addBaseFilters(query, 'esu');
+
+      if (fallbackOnlyWhenNoResponsibles) {
+        query.andWhere(
+          'NOT EXISTS (SELECT 1 FROM evidence_responsibles_user eru2 WHERE eru2."evidenceId" = evidence.id)',
+        );
+      }
+
+      return query
+        .groupBy('u.id')
+        .addGroupBy('u.name')
+        .addGroupBy('evidence.status');
+    };
+
+    type RawRow = {
+      responsibleId: string;
+      responsibleName: string;
+      status: string;
+      total: string;
+    };
+
+    let rows: RawRow[] = [];
+
+    if (responsibleId) {
+      const rowsByResponsibles =
+        await buildResponsiblesQuery().getRawMany<RawRow>();
+
+      rows =
+        rowsByResponsibles.length > 0
+          ? rowsByResponsibles
+          : await buildSupervisorsQuery(false).getRawMany<RawRow>();
+    } else {
+      const responsiblesRows =
+        await buildResponsiblesQuery().getRawMany<RawRow>();
+      const supervisorsRows =
+        await buildSupervisorsQuery(true).getRawMany<RawRow>();
+
+      rows = [...responsiblesRows, ...supervisorsRows];
+    }
+
+    const responsiblesById = new Map<
+      number,
+      {
+        name: string;
+        statusCounts: Record<string, number>;
+      }
+    >();
+
+    for (const row of rows) {
+      const userId = Number(row.responsibleId);
+      const status = row.status;
+      const total = Number(row.total);
+
+      if (!responsiblesById.has(userId)) {
+        responsiblesById.set(userId, {
+          name: row.responsibleName,
+          statusCounts: {
+            Abierto: 0,
+            'En progreso': 0,
+            Cerrado: 0,
+            Cancelado: 0,
+          },
+        });
+      }
+
+      const responsibleData = responsiblesById.get(userId);
+
+      if (!responsibleData) continue;
+
+      responsibleData.statusCounts[status] =
+        (responsibleData.statusCounts[status] || 0) + total;
+    }
+
+    const sortedResponsibles = Array.from(responsiblesById.entries())
+      .map(([id, data]) => ({
+        id,
+        ...data,
+      }))
+      .sort(
+        (a, b) =>
+          a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }) ||
+          a.id - b.id,
+      );
+
+    const categories = sortedResponsibles.map((item) => item.name);
+
+    const series = statusOrder
+      .map((status) => ({
+        name: status,
+        data: sortedResponsibles.map((responsible) =>
+          responsible ? responsible.statusCounts[status] || 0 : 0,
+        ),
+      }))
+      .filter((item) => item.data.some((value) => value > 0));
+
+    const total = series.reduce(
+      (acc, seriesItem) =>
+        acc + seriesItem.data.reduce((sum, value) => sum + value, 0),
+      0,
+    );
+
+    return {
+      total,
+      startDate,
+      endDate,
+      categories,
+      series,
+    };
   }
 
   async findAllZones() {
