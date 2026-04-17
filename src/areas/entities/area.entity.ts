@@ -8,6 +8,7 @@ import {
   ManyToOne,
 } from 'typeorm';
 
+import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
 import { Zone } from 'zones/entities/zone.entity';
 import { User } from 'users/entities/user.entity';
 
@@ -35,6 +36,12 @@ export class Area {
 
   @ManyToOne(() => User, { nullable: true })
   updatedBy?: User;
+
+  @ManyToOne(
+    () => ManufacturingPlant,
+    (manufacturingPlant) => manufacturingPlant.areas,
+  )
+  manufacturingPlant: ManufacturingPlant;
 
   @OneToMany(() => Zone, (zone) => zone.area)
   zones: Zone[];

@@ -13,24 +13,33 @@ import { Request } from 'express';
 import { CreateAreaDto, QueryAreaDto, UpdateAreaDto } from './dto';
 import { Area } from './entities/area.entity';
 import { User } from 'users/entities/user.entity';
+import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
 
 @Injectable()
 export class AreasService {
-  private readonly relations = ['createdBy', 'updatedBy'];
+  private readonly relations = ['createdBy', 'updatedBy', 'manufacturingPlant'];
 
   constructor(
     @InjectRepository(Area)
     private readonly areaRepository: Repository<Area>,
+    private readonly manufacturingPlantsService: ManufacturingPlantsService,
     @Inject(REQUEST)
     private readonly request: Request,
   ) {}
 
-  private async validateUniqueActiveName(name: string, excludeId?: number) {
+  private async validateUniqueActiveName(
+    name: string,
+    manufacturingPlantId: number,
+    excludeId?: number,
+  ) {
     const normalizedName = name.trim();
 
     const qb = this.areaRepository
       .createQueryBuilder('area')
       .where('LOWER(area.name) = LOWER(:name)', { name: normalizedName })
+      .andWhere('area.manufacturingPlantId = :manufacturingPlantId', {
+        manufacturingPlantId,
+      })
       .andWhere('area.isActive = :isActive', { isActive: true });
 
     if (excludeId) {
@@ -40,12 +49,17 @@ export class AreasService {
     const existing = await qb.getOne();
 
     if (existing) {
-      throw new BadRequestException('Ya existe un area activa con ese nombre');
+      throw new BadRequestException(
+        'Ya existe un area activa con ese nombre en la planta seleccionada',
+      );
     }
 
     const inactiveQb = this.areaRepository
       .createQueryBuilder('area')
       .where('LOWER(area.name) = LOWER(:name)', { name: normalizedName })
+      .andWhere('area.manufacturingPlantId = :manufacturingPlantId', {
+        manufacturingPlantId,
+      })
       .andWhere('area.isActive = :isActive', { isActive: false });
 
     if (excludeId) {
@@ -56,19 +70,23 @@ export class AreasService {
 
     if (existingInactive) {
       throw new BadRequestException(
-        'Ya existe un area inactiva con ese nombre. Reactivela o use otro nombre',
+        'Ya existe un area inactiva con ese nombre en la planta seleccionada. Reactivela o use otro nombre',
       );
     }
   }
 
   async create(createAreaDto: CreateAreaDto): Promise<Area> {
     const { id: createdBy } = this.request['user'] as User;
+    const { manufacturingPlantId } = createAreaDto;
     const name = createAreaDto.name.trim();
 
-    await this.validateUniqueActiveName(name);
+    await this.manufacturingPlantsService.findOne(manufacturingPlantId);
+
+    await this.validateUniqueActiveName(name, manufacturingPlantId);
 
     const area = this.areaRepository.create({
       name,
+      manufacturingPlant: { id: manufacturingPlantId },
       createdBy: { id: createdBy } as User,
       createdAt: new Date(),
     });
@@ -79,12 +97,16 @@ export class AreasService {
   }
 
   async findAll(queryAreaDto: QueryAreaDto): Promise<Area[]> {
-    const { name } = queryAreaDto;
+    const { name, manufacturingPlantId } = queryAreaDto;
 
     return this.areaRepository.find({
       where: {
         isActive: true,
         ...(name && { name: ILike(`%${name}%`) }),
+        manufacturingPlant: {
+          isActive: true,
+          ...(manufacturingPlantId && { id: manufacturingPlantId }),
+        },
       },
       relations: this.relations,
       order: {
@@ -112,15 +134,25 @@ export class AreasService {
 
   async update(id: number, updateAreaDto: UpdateAreaDto): Promise<Area> {
     const { id: updatedBy } = this.request['user'] as User;
-    await this.findOne(id);
+    const areaCurrent = await this.findOne(id);
+
+    const manufacturingPlantId =
+      updateAreaDto.manufacturingPlantId || areaCurrent.manufacturingPlant.id;
+
+    await this.manufacturingPlantsService.findOne(manufacturingPlantId);
 
     if (updateAreaDto.name) {
-      await this.validateUniqueActiveName(updateAreaDto.name.trim(), id);
+      await this.validateUniqueActiveName(
+        updateAreaDto.name.trim(),
+        manufacturingPlantId,
+        id,
+      );
     }
 
     const area = await this.areaRepository.preload({
       id,
       ...(updateAreaDto.name && { name: updateAreaDto.name.trim() }),
+      manufacturingPlant: { id: manufacturingPlantId },
       updatedBy: { id: updatedBy } as User,
       updatedAt: new Date(),
     });

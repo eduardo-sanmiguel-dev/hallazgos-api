@@ -24,6 +24,7 @@ import { TrainingGuide } from 'training-guides/entities';
 import { Topic } from 'topics/entities/topic.entity';
 import { Ciael } from 'ciaels/entities/ciael.entity';
 import { Zone } from 'zones/entities/zone.entity';
+import { Area } from 'areas/entities/area.entity';
 import { ConfigsTg } from 'configs-tg/entities';
 import { Equipment } from 'equipments/entities';
 import { Employee } from 'employees/entities';
@@ -72,6 +73,9 @@ export class ManufacturingPlant {
   @OneToMany(() => Zone, (zone) => zone.manufacturingPlant)
   @Field(() => [Zone])
   zones: Zone[];
+
+  @OneToMany(() => Area, (area) => area.manufacturingPlant)
+  areas: Area[];
 
   @OneToMany(() => Processes, (processes) => processes.manufacturingPlant)
   @Field(() => [Processes])

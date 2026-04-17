@@ -1,7 +1,11 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsPositive, IsString } from 'class-validator';
 
 export class QueryAreaDto {
   @IsOptional()
   @IsString()
   name?: string;
+
+  @IsOptional()
+  @IsPositive()
+  manufacturingPlantId?: number;
 }
