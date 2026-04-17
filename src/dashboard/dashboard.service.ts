@@ -1,5 +1,5 @@
 import { REQUEST } from '@nestjs/core';
-import { Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
 import { In, MoreThan, Repository } from 'typeorm';
@@ -8,6 +8,7 @@ import { Request } from 'express';
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
 import { AccidentRate } from './entities/accident-rate.entity';
 import { User } from 'users/entities/user.entity';
+import { Evidence } from 'evidences/entities/evidence.entity';
 import { groupBy } from '@shared/utils';
 
 import 'moment/locale/es';
@@ -19,8 +20,41 @@ export class DashboardService {
     private readonly manufacturingPlant: Repository<ManufacturingPlant>,
     @InjectRepository(AccidentRate)
     private readonly accidentRate: Repository<AccidentRate>,
+    @InjectRepository(Evidence)
+    private readonly evidenceRepository: Repository<Evidence>,
     @Inject(REQUEST) private readonly request: Request,
   ) {}
+
+  private parseDateFilter(
+    date: string,
+    label: string,
+    isEndDate = false,
+  ): Date {
+    const [day, month, year] = date.split('/').map(Number);
+    const parsedDate = new Date(year || 0, (month || 1) - 1, day || 0);
+
+    const hasValidShape =
+      !!day &&
+      !!month &&
+      !!year &&
+      parsedDate.getFullYear() === year &&
+      parsedDate.getMonth() === month - 1 &&
+      parsedDate.getDate() === day;
+
+    if (!hasValidShape || Number.isNaN(parsedDate.getTime())) {
+      throw new BadRequestException(
+        `${label} debe tener el formato DD/MM/YYYY`,
+      );
+    }
+
+    if (isEndDate) {
+      parsedDate.setHours(23, 59, 59, 999);
+      return parsedDate;
+    }
+
+    parsedDate.setHours(0, 0, 0, 0);
+    return parsedDate;
+  }
 
   executeQuery(query: string) {
     return this.manufacturingPlant.manager.query(query);
@@ -1258,6 +1292,209 @@ export class DashboardService {
       statusData,
       statusSeries,
     };
+  }
+
+  async findStatusByFilters(
+    manufacturingPlantId: number,
+    startDate: string,
+    endDate: string,
+    areaId?: number,
+    responsibleId?: number,
+  ) {
+    if (!manufacturingPlantId) {
+      throw new BadRequestException('manufacturingPlantId es obligatorio');
+    }
+
+    if (!startDate || !endDate) {
+      throw new BadRequestException(
+        'Las fechas de inicio y fin son obligatorias',
+      );
+    }
+
+    const parsedStartDate = this.parseDateFilter(
+      startDate,
+      'La fecha de inicio',
+    );
+    const parsedEndDate = this.parseDateFilter(
+      endDate,
+      'La fecha de fin',
+      true,
+    );
+
+    if (parsedStartDate > parsedEndDate) {
+      throw new BadRequestException(
+        'La fecha de inicio no puede ser mayor a la fecha de fin',
+      );
+    }
+
+    const buildBaseQuery = () => {
+      const query = this.evidenceRepository
+        .createQueryBuilder('evidence')
+        .leftJoin('evidence.zone', 'zone')
+        .select('evidence.status', 'status')
+        .addSelect('COUNT(*)', 'total')
+        .where('evidence."manufacturingPlantId" = :manufacturingPlantId', {
+          manufacturingPlantId,
+        })
+        .andWhere('evidence."createdAt" BETWEEN :startDate AND :endDate', {
+          startDate: parsedStartDate,
+          endDate: parsedEndDate,
+        });
+
+      if (areaId) {
+        query.andWhere('zone."areaId" = :areaId', {
+          areaId,
+        });
+      }
+
+      return query;
+    };
+
+    let rows: { status: string; total: string }[] = [];
+
+    if (responsibleId) {
+      const rowsByResponsibles = await buildBaseQuery()
+        .innerJoin(
+          'evidence_responsibles_user',
+          'eru',
+          'eru."evidenceId" = evidence.id',
+        )
+        .andWhere('eru."userId" = :responsibleId', {
+          responsibleId,
+        })
+        .groupBy('evidence.status')
+        .getRawMany<{ status: string; total: string }>();
+
+      if (rowsByResponsibles.length > 0) {
+        rows = rowsByResponsibles;
+      } else {
+        rows = await buildBaseQuery()
+          .innerJoin(
+            'evidence_supervisors_user',
+            'esu',
+            'esu."evidenceId" = evidence.id',
+          )
+          .andWhere('esu."userId" = :responsibleId', {
+            responsibleId,
+          })
+          .groupBy('evidence.status')
+          .getRawMany<{ status: string; total: string }>();
+      }
+    } else {
+      rows = await buildBaseQuery()
+        .groupBy('evidence.status')
+        .getRawMany<{ status: string; total: string }>();
+    }
+
+    const statusOrder = ['Abierto', 'En progreso', 'Cerrado', 'Cancelado'];
+    const totalsByStatus = rows.reduce<Record<string, number>>((acc, row) => {
+      acc[row.status] = Number(row.total);
+      return acc;
+    }, {});
+
+    const seriesData = statusOrder.map((status) => ({
+      name: status,
+      y: totalsByStatus[status] || 0,
+    }));
+
+    const total = seriesData.reduce((acc, item) => acc + item.y, 0);
+
+    return {
+      total,
+      startDate,
+      endDate,
+      seriesData,
+    };
+  }
+
+  async findResponsiblesByFilters(
+    manufacturingPlantId: number,
+    startDate: string,
+    endDate: string,
+    areaId: number,
+  ) {
+    if (!manufacturingPlantId) {
+      throw new BadRequestException('manufacturingPlantId es obligatorio');
+    }
+
+    if (!startDate || !endDate) {
+      throw new BadRequestException(
+        'Las fechas de inicio y fin son obligatorias',
+      );
+    }
+
+    if (!areaId) {
+      throw new BadRequestException('areaId es obligatorio');
+    }
+
+    const parsedStartDate = this.parseDateFilter(
+      startDate,
+      'La fecha de inicio',
+    );
+    const parsedEndDate = this.parseDateFilter(
+      endDate,
+      'La fecha de fin',
+      true,
+    );
+
+    if (parsedStartDate > parsedEndDate) {
+      throw new BadRequestException(
+        'La fecha de inicio no puede ser mayor a la fecha de fin',
+      );
+    }
+
+    const buildBaseQuery = () =>
+      this.evidenceRepository
+        .createQueryBuilder('evidence')
+        .leftJoin('evidence.zone', 'zone')
+        .select('u.id', 'id')
+        .addSelect('u.name', 'name')
+        .where('evidence."manufacturingPlantId" = :manufacturingPlantId', {
+          manufacturingPlantId,
+        })
+        .andWhere('evidence."createdAt" BETWEEN :startDate AND :endDate', {
+          startDate: parsedStartDate,
+          endDate: parsedEndDate,
+        })
+        .andWhere('zone."areaId" = :areaId', {
+          areaId,
+        });
+
+    const responsiblesRows = await buildBaseQuery()
+      .innerJoin(
+        'evidence_responsibles_user',
+        'eru',
+        'eru."evidenceId" = evidence.id',
+      )
+      .innerJoin(User, 'u', 'u.id = eru."userId" AND u."isActive" = true')
+      .groupBy('u.id')
+      .addGroupBy('u.name')
+      .orderBy('u.name', 'ASC')
+      .getRawMany<{ id: string; name: string }>();
+
+    if (responsiblesRows.length > 0) {
+      return responsiblesRows.map((item) => ({
+        id: Number(item.id),
+        name: item.name,
+      }));
+    }
+
+    const supervisorsRows = await buildBaseQuery()
+      .innerJoin(
+        'evidence_supervisors_user',
+        'esu',
+        'esu."evidenceId" = evidence.id',
+      )
+      .innerJoin(User, 'u', 'u.id = esu."userId" AND u."isActive" = true')
+      .groupBy('u.id')
+      .addGroupBy('u.name')
+      .orderBy('u.name', 'ASC')
+      .getRawMany<{ id: string; name: string }>();
+
+    return supervisorsRows.map((item) => ({
+      id: Number(item.id),
+      name: item.name,
+    }));
   }
 
   async findAllZones() {

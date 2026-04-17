@@ -140,6 +140,38 @@ export class DashboardController {
     return this.dashboardService.findAllStatus();
   }
 
+  @Get('status-by-filters')
+  findStatusByFilters(
+    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Query('areaId') areaId?: string,
+    @Query('responsibleId') responsibleId?: string,
+  ) {
+    return this.dashboardService.findStatusByFilters(
+      +manufacturingPlantId,
+      startDate,
+      endDate,
+      areaId ? +areaId : undefined,
+      responsibleId ? +responsibleId : undefined,
+    );
+  }
+
+  @Get('responsibles-by-filters')
+  findResponsiblesByFilters(
+    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Query('areaId') areaId: string,
+  ) {
+    return this.dashboardService.findResponsiblesByFilters(
+      +manufacturingPlantId,
+      startDate,
+      endDate,
+      +areaId,
+    );
+  }
+
   @Get('zones')
   findAllZones() {
     return this.dashboardService.findAllZones();
