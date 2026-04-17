@@ -191,6 +191,11 @@ export class DashboardController {
     );
   }
 
+  @Get('historical-by-month')
+  findHistoricalByMonth() {
+    return this.dashboardService.findHistoricalByMonth();
+  }
+
   @Get('responsibles-by-filters')
   findResponsiblesByFilters(
     @Query('manufacturingPlantId') manufacturingPlantId: string,

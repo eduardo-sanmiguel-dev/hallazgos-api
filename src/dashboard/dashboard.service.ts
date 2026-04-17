@@ -1819,6 +1819,123 @@ export class DashboardService {
     };
   }
 
+  async findHistoricalByMonth() {
+    const minEvidenceDateResult = await this.evidenceRepository
+      .createQueryBuilder('evidence')
+      .select('MIN(evidence."createdAt")', 'minDate')
+      .getRawOne<{ minDate: Date | string | null }>();
+
+    if (!minEvidenceDateResult?.minDate) {
+      return {
+        startMonth: '',
+        endMonth: '',
+        categories: [],
+        series: [],
+      };
+    }
+
+    const minDate = new Date(minEvidenceDateResult.minDate);
+    const currentDate = new Date();
+
+    const startMonthDate = new Date(
+      minDate.getFullYear(),
+      minDate.getMonth(),
+      1,
+    );
+    const endMonthDate = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth(),
+      1,
+    );
+
+    const categories: string[] = [];
+    const monthKeyByIndex = new Map<number, string>();
+    const monthIndexByKey = new Map<string, number>();
+
+    for (
+      let month = new Date(startMonthDate);
+      month <= endMonthDate;
+      month = new Date(month.getFullYear(), month.getMonth() + 1, 1)
+    ) {
+      const year = month.getFullYear();
+      const monthNumber = String(month.getMonth() + 1).padStart(2, '0');
+      const monthKey = `${year}-${monthNumber}`;
+      const index = categories.length;
+
+      categories.push(monthKey);
+      monthKeyByIndex.set(index, monthKey);
+      monthIndexByKey.set(monthKey, index);
+    }
+
+    const monthTruncExpression = `DATE_TRUNC('month', evidence."createdAt")`;
+
+    const rows = await this.evidenceRepository
+      .createQueryBuilder('evidence')
+      .leftJoin('evidence.manufacturingPlant', 'plant')
+      .select(`TO_CHAR(${monthTruncExpression}, 'YYYY-MM')`, 'monthKey')
+      .addSelect('plant.id', 'plantId')
+      .addSelect('plant.name', 'plantName')
+      .addSelect('COUNT(*)', 'total')
+      .where('evidence."createdAt" BETWEEN :startDate AND :endDate', {
+        startDate: startMonthDate,
+        endDate: new Date(
+          endMonthDate.getFullYear(),
+          endMonthDate.getMonth() + 1,
+          0,
+          23,
+          59,
+          59,
+          999,
+        ),
+      })
+      .groupBy(monthTruncExpression)
+      .addGroupBy('plant.id')
+      .addGroupBy('plant.name')
+      .orderBy(monthTruncExpression, 'ASC')
+      .addOrderBy('plant.name', 'ASC')
+      .getRawMany<{
+        monthKey: string;
+        plantId: string;
+        plantName: string;
+        total: string;
+      }>();
+
+    const seriesMap = new Map<
+      string,
+      {
+        name: string;
+        data: number[];
+      }
+    >();
+
+    for (const row of rows) {
+      const plantId = String(row.plantId);
+      const seriesItem = seriesMap.get(plantId) || {
+        name: row.plantName,
+        data: Array(categories.length).fill(0),
+      };
+
+      const monthIndex = monthIndexByKey.get(row.monthKey);
+
+      if (monthIndex !== undefined) {
+        seriesItem.data[monthIndex] = Number(row.total);
+      }
+
+      seriesMap.set(plantId, seriesItem);
+    }
+
+    const series = Array.from(seriesMap.values()).sort((a, b) =>
+      a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }),
+    );
+
+    return {
+      startMonth: monthKeyByIndex.get(0) || '',
+      endMonth: monthKeyByIndex.get(categories.length - 1) || '',
+      categories,
+      series,
+    };
+  }
+
   async findAllZones() {
     const manufacturingPlantsWithEvidences =
       await this.findManufacturingPlantsWithEvidences();
