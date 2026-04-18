@@ -196,6 +196,40 @@ export class DashboardController {
     return this.dashboardService.findHistoricalByMonth();
   }
 
+  @Get('sankey-by-filters')
+  findSankeyByFilters(
+    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Query('areaId') areaId?: string,
+    @Query('responsibleId') responsibleId?: string,
+  ) {
+    return this.dashboardService.findSankeyByFilters(
+      +manufacturingPlantId,
+      startDate,
+      endDate,
+      areaId ? +areaId : undefined,
+      responsibleId ? +responsibleId : undefined,
+    );
+  }
+
+  @Get('packed-bubble-by-filters')
+  findPackedBubbleByFilters(
+    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Query('areaId') areaId?: string,
+    @Query('responsibleId') responsibleId?: string,
+  ) {
+    return this.dashboardService.findPackedBubbleByFilters(
+      +manufacturingPlantId,
+      startDate,
+      endDate,
+      areaId ? +areaId : undefined,
+      responsibleId ? +responsibleId : undefined,
+    );
+  }
+
   @Get('responsibles-by-filters')
   findResponsiblesByFilters(
     @Query('manufacturingPlantId') manufacturingPlantId: string,

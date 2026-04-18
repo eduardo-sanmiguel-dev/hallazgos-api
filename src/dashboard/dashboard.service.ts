@@ -1936,6 +1936,326 @@ export class DashboardService {
     };
   }
 
+  async findSankeyByFilters(
+    manufacturingPlantId: number,
+    startDate: string,
+    endDate: string,
+    areaId?: number,
+    responsibleId?: number,
+  ) {
+    if (!manufacturingPlantId) {
+      throw new BadRequestException('manufacturingPlantId es obligatorio');
+    }
+
+    if (!startDate || !endDate) {
+      throw new BadRequestException(
+        'Las fechas de inicio y fin son obligatorias',
+      );
+    }
+
+    const parsedStartDate = this.parseDateFilter(
+      startDate,
+      'La fecha de inicio',
+    );
+    const parsedEndDate = this.parseDateFilter(
+      endDate,
+      'La fecha de fin',
+      true,
+    );
+
+    if (parsedStartDate > parsedEndDate) {
+      throw new BadRequestException(
+        'La fecha de inicio no puede ser mayor a la fecha de fin',
+      );
+    }
+
+    const buildBaseQuery = () => {
+      const query = this.evidenceRepository
+        .createQueryBuilder('evidence')
+        .leftJoin('evidence.zone', 'zone')
+        .leftJoin('zone.area', 'area')
+        .select(`COALESCE(area.name, 'Sin área')`, 'areaName')
+        .addSelect('evidence.status', 'status')
+        .addSelect('COUNT(*)', 'total')
+        .where('evidence."manufacturingPlantId" = :manufacturingPlantId', {
+          manufacturingPlantId,
+        })
+        .andWhere('evidence."createdAt" BETWEEN :startDate AND :endDate', {
+          startDate: parsedStartDate,
+          endDate: parsedEndDate,
+        });
+
+      if (areaId) {
+        query.andWhere('zone."areaId" = :areaId', {
+          areaId,
+        });
+      }
+
+      return query;
+    };
+
+    type RawRow = {
+      areaName: string;
+      status: string;
+      total: string;
+    };
+
+    let rows: RawRow[] = [];
+
+    if (responsibleId) {
+      const rowsByResponsibles = await buildBaseQuery()
+        .innerJoin(
+          'evidence_responsibles_user',
+          'eru',
+          'eru."evidenceId" = evidence.id',
+        )
+        .andWhere('eru."userId" = :responsibleId', {
+          responsibleId,
+        })
+        .groupBy('area.name')
+        .addGroupBy('evidence.status')
+        .getRawMany<RawRow>();
+
+      if (rowsByResponsibles.length > 0) {
+        rows = rowsByResponsibles;
+      } else {
+        rows = await buildBaseQuery()
+          .innerJoin(
+            'evidence_supervisors_user',
+            'esu',
+            'esu."evidenceId" = evidence.id',
+          )
+          .andWhere('esu."userId" = :responsibleId', {
+            responsibleId,
+          })
+          .groupBy('area.name')
+          .addGroupBy('evidence.status')
+          .getRawMany<RawRow>();
+      }
+    } else {
+      rows = await buildBaseQuery()
+        .groupBy('area.name')
+        .addGroupBy('evidence.status')
+        .getRawMany<RawRow>();
+    }
+
+    const statusOrder = ['Abierto', 'En progreso', 'Cerrado', 'Cancelado'];
+
+    const areaTotals = new Map<string, number>();
+
+    for (const row of rows) {
+      const current = areaTotals.get(row.areaName) || 0;
+      areaTotals.set(row.areaName, current + Number(row.total));
+    }
+
+    const orderedAreas = Array.from(areaTotals.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([name]) => name);
+
+    const areaNodeIds = new Map<string, string>();
+    orderedAreas.forEach((areaName) => {
+      areaNodeIds.set(areaName, `area:${areaName}`);
+    });
+
+    const statusNodeIds = new Map<string, string>();
+    statusOrder.forEach((statusName) => {
+      statusNodeIds.set(statusName, `status:${statusName}`);
+    });
+
+    const links = rows
+      .map((row) => ({
+        from: areaNodeIds.get(row.areaName) || `area:${row.areaName}`,
+        to: statusNodeIds.get(row.status) || `status:${row.status}`,
+        weight: Number(row.total),
+      }))
+      .filter((item) => item.weight > 0)
+      .sort((a, b) => b.weight - a.weight);
+
+    const usedAreaNodeIds = new Set(links.map((item) => item.from));
+    const usedStatusNodeIds = new Set(links.map((item) => item.to));
+
+    const nodes = [
+      ...orderedAreas
+        .filter((areaName) =>
+          usedAreaNodeIds.has(areaNodeIds.get(areaName) || `area:${areaName}`),
+        )
+        .map((areaName) => ({
+          id: areaNodeIds.get(areaName) || `area:${areaName}`,
+          name: areaName,
+          column: 0,
+        })),
+      ...statusOrder
+        .filter((statusName) =>
+          usedStatusNodeIds.has(
+            statusNodeIds.get(statusName) || `status:${statusName}`,
+          ),
+        )
+        .map((statusName) => ({
+          id: statusNodeIds.get(statusName) || `status:${statusName}`,
+          name: statusName,
+          column: 1,
+        })),
+    ];
+
+    const total = links.reduce((acc, item) => acc + item.weight, 0);
+
+    return {
+      total,
+      startDate,
+      endDate,
+      nodes,
+      links,
+    };
+  }
+
+  async findPackedBubbleByFilters(
+    manufacturingPlantId: number,
+    startDate: string,
+    endDate: string,
+    areaId?: number,
+    responsibleId?: number,
+  ) {
+    if (!manufacturingPlantId) {
+      throw new BadRequestException('manufacturingPlantId es obligatorio');
+    }
+
+    if (!startDate || !endDate) {
+      throw new BadRequestException(
+        'Las fechas de inicio y fin son obligatorias',
+      );
+    }
+
+    const parsedStartDate = this.parseDateFilter(
+      startDate,
+      'La fecha de inicio',
+    );
+    const parsedEndDate = this.parseDateFilter(
+      endDate,
+      'La fecha de fin',
+      true,
+    );
+
+    if (parsedStartDate > parsedEndDate) {
+      throw new BadRequestException(
+        'La fecha de inicio no puede ser mayor a la fecha de fin',
+      );
+    }
+
+    const buildBaseQuery = () => {
+      const query = this.evidenceRepository
+        .createQueryBuilder('evidence')
+        .leftJoin('evidence.zone', 'zone')
+        .leftJoin('zone.area', 'area')
+        .select('evidence.status', 'status')
+        .addSelect(`COALESCE(area.name, 'Sin área')`, 'areaName')
+        .addSelect('COUNT(*)', 'total')
+        .where('evidence."manufacturingPlantId" = :manufacturingPlantId', {
+          manufacturingPlantId,
+        })
+        .andWhere('evidence."createdAt" BETWEEN :startDate AND :endDate', {
+          startDate: parsedStartDate,
+          endDate: parsedEndDate,
+        });
+
+      if (areaId) {
+        query.andWhere('zone."areaId" = :areaId', {
+          areaId,
+        });
+      }
+
+      return query;
+    };
+
+    type RawRow = {
+      status: string;
+      areaName: string;
+      total: string;
+    };
+
+    let rows: RawRow[] = [];
+
+    if (responsibleId) {
+      const rowsByResponsibles = await buildBaseQuery()
+        .innerJoin(
+          'evidence_responsibles_user',
+          'eru',
+          'eru."evidenceId" = evidence.id',
+        )
+        .andWhere('eru."userId" = :responsibleId', {
+          responsibleId,
+        })
+        .groupBy('evidence.status')
+        .addGroupBy('area.name')
+        .getRawMany<RawRow>();
+
+      if (rowsByResponsibles.length > 0) {
+        rows = rowsByResponsibles;
+      } else {
+        rows = await buildBaseQuery()
+          .innerJoin(
+            'evidence_supervisors_user',
+            'esu',
+            'esu."evidenceId" = evidence.id',
+          )
+          .andWhere('esu."userId" = :responsibleId', {
+            responsibleId,
+          })
+          .groupBy('evidence.status')
+          .addGroupBy('area.name')
+          .getRawMany<RawRow>();
+      }
+    } else {
+      rows = await buildBaseQuery()
+        .groupBy('evidence.status')
+        .addGroupBy('area.name')
+        .getRawMany<RawRow>();
+    }
+
+    const statusOrder = ['Abierto', 'En progreso', 'Cerrado', 'Cancelado'];
+
+    const groupedByStatus = new Map<
+      string,
+      { name: string; value: number }[]
+    >();
+
+    for (const row of rows) {
+      const list = groupedByStatus.get(row.status) || [];
+
+      list.push({
+        name: row.areaName,
+        value: Number(row.total),
+      });
+
+      groupedByStatus.set(row.status, list);
+    }
+
+    const series = statusOrder
+      .map((statusName) => {
+        const data = (groupedByStatus.get(statusName) || [])
+          .filter((item) => item.value > 0)
+          .sort((a, b) => b.value - a.value);
+
+        return {
+          name: statusName,
+          data,
+        };
+      })
+      .filter((item) => item.data.length > 0);
+
+    const total = series.reduce(
+      (acc, item) =>
+        acc + item.data.reduce((partial, point) => partial + point.value, 0),
+      0,
+    );
+
+    return {
+      total,
+      startDate,
+      endDate,
+      series,
+    };
+  }
+
   async findAllZones() {
     const manufacturingPlantsWithEvidences =
       await this.findManufacturingPlantsWithEvidences();
