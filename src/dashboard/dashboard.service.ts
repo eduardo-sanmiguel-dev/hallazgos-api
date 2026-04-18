@@ -2256,6 +2256,131 @@ export class DashboardService {
     };
   }
 
+  async findSolidGaugeKpiByFilters(
+    manufacturingPlantId: number,
+    startDate: string,
+    endDate: string,
+    areaId?: number,
+    responsibleId?: number,
+  ) {
+    if (!manufacturingPlantId) {
+      throw new BadRequestException('manufacturingPlantId es obligatorio');
+    }
+
+    if (!startDate || !endDate) {
+      throw new BadRequestException(
+        'Las fechas de inicio y fin son obligatorias',
+      );
+    }
+
+    const parsedStartDate = this.parseDateFilter(
+      startDate,
+      'La fecha de inicio',
+    );
+    const parsedEndDate = this.parseDateFilter(
+      endDate,
+      'La fecha de fin',
+      true,
+    );
+
+    if (parsedStartDate > parsedEndDate) {
+      throw new BadRequestException(
+        'La fecha de inicio no puede ser mayor a la fecha de fin',
+      );
+    }
+
+    type KpiRawRow = {
+      total: string;
+      closed: string;
+      backlogActive: string;
+      avgResolutionDays: string | null;
+    };
+
+    const buildKpiQuery = () => {
+      const query = this.evidenceRepository
+        .createQueryBuilder('evidence')
+        .leftJoin('evidence.zone', 'zone')
+        .select('COUNT(*)', 'total')
+        .addSelect(
+          `COUNT(*) FILTER (WHERE evidence.status = 'Cerrado')`,
+          'closed',
+        )
+        .addSelect(
+          `COUNT(*) FILTER (WHERE evidence.status IN ('Abierto', 'En progreso'))`,
+          'backlogActive',
+        )
+        .addSelect(
+          `AVG(EXTRACT(EPOCH FROM (COALESCE(evidence."solutionDate", evidence."updatedAt") - evidence."createdAt")) / 86400.0) FILTER (WHERE evidence.status = 'Cerrado')`,
+          'avgResolutionDays',
+        )
+        .where('evidence."manufacturingPlantId" = :manufacturingPlantId', {
+          manufacturingPlantId,
+        })
+        .andWhere('evidence."createdAt" BETWEEN :startDate AND :endDate', {
+          startDate: parsedStartDate,
+          endDate: parsedEndDate,
+        });
+
+      if (areaId) {
+        query.andWhere('zone."areaId" = :areaId', {
+          areaId,
+        });
+      }
+
+      return query;
+    };
+
+    let rawRow: KpiRawRow | null = null;
+
+    if (responsibleId) {
+      const rawByResponsibles = await buildKpiQuery()
+        .innerJoin(
+          'evidence_responsibles_user',
+          'eru',
+          'eru."evidenceId" = evidence.id',
+        )
+        .andWhere('eru."userId" = :responsibleId', {
+          responsibleId,
+        })
+        .getRawOne<KpiRawRow>();
+
+      const hasDataInResponsibles = Number(rawByResponsibles?.total || 0) > 0;
+
+      if (hasDataInResponsibles) {
+        rawRow = rawByResponsibles;
+      } else {
+        rawRow = await buildKpiQuery()
+          .innerJoin(
+            'evidence_supervisors_user',
+            'esu',
+            'esu."evidenceId" = evidence.id',
+          )
+          .andWhere('esu."userId" = :responsibleId', {
+            responsibleId,
+          })
+          .getRawOne<KpiRawRow>();
+      }
+    } else {
+      rawRow = await buildKpiQuery().getRawOne<KpiRawRow>();
+    }
+
+    const total = Number(rawRow?.total || 0);
+    const closed = Number(rawRow?.closed || 0);
+    const backlogActive = Number(rawRow?.backlogActive || 0);
+    const avgResolutionDays = Number(rawRow?.avgResolutionDays || 0);
+    const closurePercentage =
+      total > 0 ? Number(((closed / total) * 100).toFixed(2)) : 0;
+
+    return {
+      total,
+      startDate,
+      endDate,
+      closurePercentage,
+      avgResolutionDays: Number(avgResolutionDays.toFixed(2)),
+      backlogActive,
+    };
+  }
+
   async findAllZones() {
     const manufacturingPlantsWithEvidences =
       await this.findManufacturingPlantsWithEvidences();

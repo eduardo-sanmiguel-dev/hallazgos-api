@@ -230,6 +230,23 @@ export class DashboardController {
     );
   }
 
+  @Get('solid-gauge-kpi-by-filters')
+  findSolidGaugeKpiByFilters(
+    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Query('areaId') areaId?: string,
+    @Query('responsibleId') responsibleId?: string,
+  ) {
+    return this.dashboardService.findSolidGaugeKpiByFilters(
+      +manufacturingPlantId,
+      startDate,
+      endDate,
+      areaId ? +areaId : undefined,
+      responsibleId ? +responsibleId : undefined,
+    );
+  }
+
   @Get('responsibles-by-filters')
   findResponsiblesByFilters(
     @Query('manufacturingPlantId') manufacturingPlantId: string,
