@@ -247,6 +247,23 @@ export class DashboardController {
     );
   }
 
+  @Get('area-range-line-by-filters')
+  findAreaRangeLineByFilters(
+    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Query('areaId') areaId?: string,
+    @Query('responsibleId') responsibleId?: string,
+  ) {
+    return this.dashboardService.findAreaRangeLineByFilters(
+      +manufacturingPlantId,
+      startDate,
+      endDate,
+      areaId ? +areaId : undefined,
+      responsibleId ? +responsibleId : undefined,
+    );
+  }
+
   @Get('responsibles-by-filters')
   findResponsiblesByFilters(
     @Query('manufacturingPlantId') manufacturingPlantId: string,

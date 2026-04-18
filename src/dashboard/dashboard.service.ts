@@ -2381,6 +2381,255 @@ export class DashboardService {
     };
   }
 
+  async findAreaRangeLineByFilters(
+    manufacturingPlantId: number,
+    startDate: string,
+    endDate: string,
+    areaId?: number,
+    responsibleId?: number,
+  ) {
+    if (!manufacturingPlantId) {
+      throw new BadRequestException('manufacturingPlantId es obligatorio');
+    }
+
+    if (!startDate || !endDate) {
+      throw new BadRequestException(
+        'Las fechas de inicio y fin son obligatorias',
+      );
+    }
+
+    const parsedStartDate = this.parseDateFilter(
+      startDate,
+      'La fecha de inicio',
+    );
+    const parsedEndDate = this.parseDateFilter(
+      endDate,
+      'La fecha de fin',
+      true,
+    );
+
+    if (parsedStartDate > parsedEndDate) {
+      throw new BadRequestException(
+        'La fecha de inicio no puede ser mayor a la fecha de fin',
+      );
+    }
+
+    type RawRow = {
+      monthKey: string;
+      total: string;
+    };
+
+    const monthTruncExpression = `DATE_TRUNC('month', evidence."createdAt")`;
+
+    const buildBaseQuery = () => {
+      const query = this.evidenceRepository
+        .createQueryBuilder('evidence')
+        .leftJoin('evidence.zone', 'zone')
+        .select(`TO_CHAR(${monthTruncExpression}, 'YYYY-MM')`, 'monthKey')
+        .addSelect('COUNT(*)', 'total')
+        .where('evidence."manufacturingPlantId" = :manufacturingPlantId', {
+          manufacturingPlantId,
+        })
+        .andWhere('evidence."createdAt" BETWEEN :startDate AND :endDate', {
+          startDate: parsedStartDate,
+          endDate: parsedEndDate,
+        });
+
+      if (areaId) {
+        query.andWhere('zone."areaId" = :areaId', {
+          areaId,
+        });
+      }
+
+      return query;
+    };
+
+    let rows: RawRow[] = [];
+
+    if (responsibleId) {
+      const rowsByResponsibles = await buildBaseQuery()
+        .innerJoin(
+          'evidence_responsibles_user',
+          'eru',
+          'eru."evidenceId" = evidence.id',
+        )
+        .andWhere('eru."userId" = :responsibleId', {
+          responsibleId,
+        })
+        .groupBy(monthTruncExpression)
+        .orderBy(monthTruncExpression, 'ASC')
+        .getRawMany<RawRow>();
+
+      if (rowsByResponsibles.length > 0) {
+        rows = rowsByResponsibles;
+      } else {
+        rows = await buildBaseQuery()
+          .innerJoin(
+            'evidence_supervisors_user',
+            'esu',
+            'esu."evidenceId" = evidence.id',
+          )
+          .andWhere('esu."userId" = :responsibleId', {
+            responsibleId,
+          })
+          .groupBy(monthTruncExpression)
+          .orderBy(monthTruncExpression, 'ASC')
+          .getRawMany<RawRow>();
+      }
+    } else {
+      rows = await buildBaseQuery()
+        .groupBy(monthTruncExpression)
+        .orderBy(monthTruncExpression, 'ASC')
+        .getRawMany<RawRow>();
+    }
+
+    const startMonthDate = new Date(
+      parsedStartDate.getFullYear(),
+      parsedStartDate.getMonth(),
+      1,
+    );
+    const endMonthDate = new Date(
+      parsedEndDate.getFullYear(),
+      parsedEndDate.getMonth(),
+      1,
+    );
+
+    const historicalCategories: string[] = [];
+
+    for (
+      let month = new Date(startMonthDate);
+      month <= endMonthDate;
+      month = new Date(month.getFullYear(), month.getMonth() + 1, 1)
+    ) {
+      const year = month.getFullYear();
+      const monthNumber = String(month.getMonth() + 1).padStart(2, '0');
+      historicalCategories.push(`${year}-${monthNumber}`);
+    }
+
+    const totalsByMonth = new Map<string, number>();
+    rows.forEach((row) => {
+      totalsByMonth.set(row.monthKey, Number(row.total));
+    });
+
+    const actualData = historicalCategories.map(
+      (monthKey) => totalsByMonth.get(monthKey) || 0,
+    );
+
+    const forecastHorizonMonths = 3;
+    const forecastCategories: string[] = [];
+    const forecastDataOnly: number[] = [];
+
+    const wmaWeightsNewestFirst = [0.4, 0.3, 0.2, 0.1];
+    const valuesForForecast = [...actualData];
+
+    const getNextWmaValue = () => {
+      const availablePoints = Math.min(
+        valuesForForecast.length,
+        wmaWeightsNewestFirst.length,
+      );
+
+      if (availablePoints === 0) {
+        return 0;
+      }
+
+      let weightedSum = 0;
+      let totalWeight = 0;
+
+      for (let i = 0; i < availablePoints; i++) {
+        const value = valuesForForecast[valuesForForecast.length - 1 - i];
+        const weight = wmaWeightsNewestFirst[i];
+        weightedSum += value * weight;
+        totalWeight += weight;
+      }
+
+      return totalWeight > 0 ? weightedSum / totalWeight : 0;
+    };
+
+    let monthCursor = new Date(endMonthDate);
+    for (let i = 1; i <= forecastHorizonMonths; i++) {
+      monthCursor = new Date(
+        monthCursor.getFullYear(),
+        monthCursor.getMonth() + 1,
+        1,
+      );
+
+      const year = monthCursor.getFullYear();
+      const monthNumber = String(monthCursor.getMonth() + 1).padStart(2, '0');
+      forecastCategories.push(`${year}-${monthNumber}`);
+
+      const projection = getNextWmaValue();
+      const roundedProjection = Math.max(0, Math.round(projection));
+
+      forecastDataOnly.push(roundedProjection);
+      valuesForForecast.push(roundedProjection);
+    }
+
+    const categories = [...historicalCategories, ...forecastCategories];
+
+    const actualSeries = [
+      ...actualData,
+      ...Array(forecastHorizonMonths).fill(null),
+    ];
+
+    const forecastSeries = [
+      ...Array(historicalCategories.length - 1).fill(null),
+      historicalCategories.length > 0
+        ? actualData[historicalCategories.length - 1]
+        : null,
+      ...forecastDataOnly,
+    ];
+
+    const windowForVolatility = actualData.slice(-6);
+    const mean =
+      windowForVolatility.length > 0
+        ? windowForVolatility.reduce((sum, value) => sum + value, 0) /
+          windowForVolatility.length
+        : 0;
+
+    const variance =
+      windowForVolatility.length > 1
+        ? windowForVolatility.reduce(
+            (sum, value) => sum + (value - mean) * (value - mean),
+            0,
+          ) /
+          (windowForVolatility.length - 1)
+        : 0;
+
+    const sigma = Math.max(1, Math.sqrt(variance));
+    const z80 = 1.2816;
+
+    const rangeSeries: Array<[number, number] | null> = [
+      ...Array(historicalCategories.length - 1).fill(null),
+      historicalCategories.length > 0
+        ? [
+            actualData[historicalCategories.length - 1],
+            actualData[historicalCategories.length - 1],
+          ]
+        : null,
+    ];
+
+    forecastDataOnly.forEach((value, index) => {
+      const horizon = index + 1;
+      const scale = Math.sqrt(horizon);
+      const margin = z80 * sigma * scale;
+
+      const low = Math.max(0, Math.round(value - margin));
+      const high = Math.max(0, Math.round(value + margin));
+
+      rangeSeries.push([low, high]);
+    });
+
+    return {
+      startDate,
+      endDate,
+      categories,
+      actualSeries,
+      forecastSeries,
+      rangeSeries,
+      forecastHorizonMonths,
+    };
+  }
+
   async findAllZones() {
     const manufacturingPlantsWithEvidences =
       await this.findManufacturingPlantsWithEvidences();
