@@ -6,6 +6,35 @@ import { DashboardService } from './dashboard.service';
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
+  private parseAreaIds(areaIds?: string, areaId?: string): number[] {
+    const source = areaIds || areaId || '';
+
+    return Array.from(
+      new Set(
+        source
+          .split(',')
+          .map((item) => Number(item.trim()))
+          .filter((item) => Number.isFinite(item) && item > 0),
+      ),
+    );
+  }
+
+  private parseResponsibleIds(
+    responsibleIds?: string,
+    responsibleId?: string,
+  ): number[] {
+    const source = responsibleIds || responsibleId || '';
+
+    return Array.from(
+      new Set(
+        source
+          .split(',')
+          .map((item) => Number(item.trim()))
+          .filter((item) => Number.isFinite(item) && item > 0),
+      ),
+    );
+  }
+
   @Get('business-intelligence/epp')
   findBusinessIntelligenceEpp(
     @Query('manufacturingPlantId') manufacturingPlantId: string,
@@ -145,15 +174,17 @@ export class DashboardController {
     @Query('manufacturingPlantId') manufacturingPlantId: string,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
+    @Query('areaIds') areaIds?: string,
     @Query('areaId') areaId?: string,
+    @Query('responsibleIds') responsibleIds?: string,
     @Query('responsibleId') responsibleId?: string,
   ) {
     return this.dashboardService.findStatusByFilters(
       +manufacturingPlantId,
       startDate,
       endDate,
-      areaId ? +areaId : undefined,
-      responsibleId ? +responsibleId : undefined,
+      this.parseAreaIds(areaIds, areaId),
+      this.parseResponsibleIds(responsibleIds, responsibleId),
     );
   }
 
@@ -162,15 +193,17 @@ export class DashboardController {
     @Query('manufacturingPlantId') manufacturingPlantId: string,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
+    @Query('areaIds') areaIds?: string,
     @Query('areaId') areaId?: string,
+    @Query('responsibleIds') responsibleIds?: string,
     @Query('responsibleId') responsibleId?: string,
   ) {
     return this.dashboardService.findAreasByFilters(
       +manufacturingPlantId,
       startDate,
       endDate,
-      areaId ? +areaId : undefined,
-      responsibleId ? +responsibleId : undefined,
+      this.parseAreaIds(areaIds, areaId),
+      this.parseResponsibleIds(responsibleIds, responsibleId),
     );
   }
 
@@ -179,15 +212,17 @@ export class DashboardController {
     @Query('manufacturingPlantId') manufacturingPlantId: string,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
+    @Query('areaIds') areaIds?: string,
     @Query('areaId') areaId?: string,
+    @Query('responsibleIds') responsibleIds?: string,
     @Query('responsibleId') responsibleId?: string,
   ) {
     return this.dashboardService.findAssignedResponsiblesByFilters(
       +manufacturingPlantId,
       startDate,
       endDate,
-      areaId ? +areaId : undefined,
-      responsibleId ? +responsibleId : undefined,
+      this.parseAreaIds(areaIds, areaId),
+      this.parseResponsibleIds(responsibleIds, responsibleId),
     );
   }
 
@@ -201,15 +236,17 @@ export class DashboardController {
     @Query('manufacturingPlantId') manufacturingPlantId: string,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
+    @Query('areaIds') areaIds?: string,
     @Query('areaId') areaId?: string,
+    @Query('responsibleIds') responsibleIds?: string,
     @Query('responsibleId') responsibleId?: string,
   ) {
     return this.dashboardService.findSankeyByFilters(
       +manufacturingPlantId,
       startDate,
       endDate,
-      areaId ? +areaId : undefined,
-      responsibleId ? +responsibleId : undefined,
+      this.parseAreaIds(areaIds, areaId),
+      this.parseResponsibleIds(responsibleIds, responsibleId),
     );
   }
 
@@ -218,15 +255,17 @@ export class DashboardController {
     @Query('manufacturingPlantId') manufacturingPlantId: string,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
+    @Query('areaIds') areaIds?: string,
     @Query('areaId') areaId?: string,
+    @Query('responsibleIds') responsibleIds?: string,
     @Query('responsibleId') responsibleId?: string,
   ) {
     return this.dashboardService.findPackedBubbleByFilters(
       +manufacturingPlantId,
       startDate,
       endDate,
-      areaId ? +areaId : undefined,
-      responsibleId ? +responsibleId : undefined,
+      this.parseAreaIds(areaIds, areaId),
+      this.parseResponsibleIds(responsibleIds, responsibleId),
     );
   }
 
@@ -235,15 +274,17 @@ export class DashboardController {
     @Query('manufacturingPlantId') manufacturingPlantId: string,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
+    @Query('areaIds') areaIds?: string,
     @Query('areaId') areaId?: string,
+    @Query('responsibleIds') responsibleIds?: string,
     @Query('responsibleId') responsibleId?: string,
   ) {
     return this.dashboardService.findSolidGaugeKpiByFilters(
       +manufacturingPlantId,
       startDate,
       endDate,
-      areaId ? +areaId : undefined,
-      responsibleId ? +responsibleId : undefined,
+      this.parseAreaIds(areaIds, areaId),
+      this.parseResponsibleIds(responsibleIds, responsibleId),
     );
   }
 
@@ -252,15 +293,17 @@ export class DashboardController {
     @Query('manufacturingPlantId') manufacturingPlantId: string,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
+    @Query('areaIds') areaIds?: string,
     @Query('areaId') areaId?: string,
+    @Query('responsibleIds') responsibleIds?: string,
     @Query('responsibleId') responsibleId?: string,
   ) {
     return this.dashboardService.findAreaRangeLineByFilters(
       +manufacturingPlantId,
       startDate,
       endDate,
-      areaId ? +areaId : undefined,
-      responsibleId ? +responsibleId : undefined,
+      this.parseAreaIds(areaIds, areaId),
+      this.parseResponsibleIds(responsibleIds, responsibleId),
     );
   }
 
@@ -269,13 +312,14 @@ export class DashboardController {
     @Query('manufacturingPlantId') manufacturingPlantId: string,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
-    @Query('areaId') areaId: string,
+    @Query('areaIds') areaIds?: string,
+    @Query('areaId') areaId?: string,
   ) {
     return this.dashboardService.findResponsiblesByFilters(
       +manufacturingPlantId,
       startDate,
       endDate,
-      +areaId,
+      this.parseAreaIds(areaIds, areaId),
     );
   }
 

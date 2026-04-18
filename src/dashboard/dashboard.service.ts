@@ -1298,8 +1298,8 @@ export class DashboardService {
     manufacturingPlantId: number,
     startDate: string,
     endDate: string,
-    areaId?: number,
-    responsibleId?: number,
+    areaIds?: number[],
+    responsibleIds?: number[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('manufacturingPlantId es obligatorio');
@@ -1341,9 +1341,9 @@ export class DashboardService {
           endDate: parsedEndDate,
         });
 
-      if (areaId) {
-        query.andWhere('zone."areaId" = :areaId', {
-          areaId,
+      if (areaIds && areaIds.length > 0) {
+        query.andWhere('zone."areaId" IN (:...areaIds)', {
+          areaIds,
         });
       }
 
@@ -1352,15 +1352,15 @@ export class DashboardService {
 
     let rows: { status: string; total: string }[] = [];
 
-    if (responsibleId) {
+    if (responsibleIds && responsibleIds.length > 0) {
       const rowsByResponsibles = await buildBaseQuery()
         .innerJoin(
           'evidence_responsibles_user',
           'eru',
           'eru."evidenceId" = evidence.id',
         )
-        .andWhere('eru."userId" = :responsibleId', {
-          responsibleId,
+        .andWhere('eru."userId" IN (:...responsibleIds)', {
+          responsibleIds,
         })
         .groupBy('evidence.status')
         .getRawMany<{ status: string; total: string }>();
@@ -1374,8 +1374,8 @@ export class DashboardService {
             'esu',
             'esu."evidenceId" = evidence.id',
           )
-          .andWhere('esu."userId" = :responsibleId', {
-            responsibleId,
+          .andWhere('esu."userId" IN (:...responsibleIds)', {
+            responsibleIds,
           })
           .groupBy('evidence.status')
           .getRawMany<{ status: string; total: string }>();
@@ -1411,8 +1411,8 @@ export class DashboardService {
     manufacturingPlantId: number,
     startDate: string,
     endDate: string,
-    areaId?: number,
-    responsibleId?: number,
+    areaIds?: number[],
+    responsibleIds?: number[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('manufacturingPlantId es obligatorio');
@@ -1458,9 +1458,9 @@ export class DashboardService {
     const applyOptionalAreaFilter = (
       query: ReturnType<typeof buildBaseQuery>,
     ) => {
-      if (areaId) {
-        query.andWhere('zone."areaId" = :areaId', {
-          areaId,
+      if (areaIds && areaIds.length > 0) {
+        query.andWhere('zone."areaId" IN (:...areaIds)', {
+          areaIds,
         });
       }
 
@@ -1469,15 +1469,15 @@ export class DashboardService {
 
     let rows: { name: string; total: string }[] = [];
 
-    if (responsibleId) {
+    if (responsibleIds && responsibleIds.length > 0) {
       const rowsByResponsibles = await applyOptionalAreaFilter(buildBaseQuery())
         .innerJoin(
           'evidence_responsibles_user',
           'eru',
           'eru."evidenceId" = evidence.id',
         )
-        .andWhere('eru."userId" = :responsibleId', {
-          responsibleId,
+        .andWhere('eru."userId" IN (:...responsibleIds)', {
+          responsibleIds,
         })
         .groupBy('area.name')
         .getRawMany<{ name: string; total: string }>();
@@ -1491,8 +1491,8 @@ export class DashboardService {
             'esu',
             'esu."evidenceId" = evidence.id',
           )
-          .andWhere('esu."userId" = :responsibleId', {
-            responsibleId,
+          .andWhere('esu."userId" IN (:...responsibleIds)', {
+            responsibleIds,
           })
           .groupBy('area.name')
           .getRawMany<{ name: string; total: string }>();
@@ -1524,7 +1524,7 @@ export class DashboardService {
     manufacturingPlantId: number,
     startDate: string,
     endDate: string,
-    areaId: number,
+    areaIds: number[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('manufacturingPlantId es obligatorio');
@@ -1536,8 +1536,8 @@ export class DashboardService {
       );
     }
 
-    if (!areaId) {
-      throw new BadRequestException('areaId es obligatorio');
+    if (!areaIds || areaIds.length === 0) {
+      throw new BadRequestException('areaIds es obligatorio');
     }
 
     const parsedStartDate = this.parseDateFilter(
@@ -1569,8 +1569,8 @@ export class DashboardService {
           startDate: parsedStartDate,
           endDate: parsedEndDate,
         })
-        .andWhere('zone."areaId" = :areaId', {
-          areaId,
+        .andWhere('zone."areaId" IN (:...areaIds)', {
+          areaIds,
         });
 
     const responsiblesRows = await buildBaseQuery()
@@ -1614,8 +1614,8 @@ export class DashboardService {
     manufacturingPlantId: number,
     startDate: string,
     endDate: string,
-    areaId?: number,
-    responsibleId?: number,
+    areaIds?: number[],
+    responsibleIds?: number[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('manufacturingPlantId es obligatorio');
@@ -1658,17 +1658,17 @@ export class DashboardService {
           endDate: parsedEndDate,
         });
 
-      if (areaId) {
+      if (areaIds && areaIds.length > 0) {
         query
           .leftJoin('evidence.zone', 'zone')
-          .andWhere('zone."areaId" = :areaId', {
-            areaId,
+          .andWhere('zone."areaId" IN (:...areaIds)', {
+            areaIds,
           });
       }
 
-      if (responsibleId) {
-        query.andWhere(`${userTableAlias}."userId" = :responsibleId`, {
-          responsibleId,
+      if (responsibleIds && responsibleIds.length > 0) {
+        query.andWhere(`${userTableAlias}."userId" IN (:...responsibleIds)`, {
+          responsibleIds,
         });
       }
     };
@@ -1732,7 +1732,7 @@ export class DashboardService {
 
     let rows: RawRow[] = [];
 
-    if (responsibleId) {
+    if (responsibleIds && responsibleIds.length > 0) {
       const rowsByResponsibles =
         await buildResponsiblesQuery().getRawMany<RawRow>();
 
@@ -1940,8 +1940,8 @@ export class DashboardService {
     manufacturingPlantId: number,
     startDate: string,
     endDate: string,
-    areaId?: number,
-    responsibleId?: number,
+    areaIds?: number[],
+    responsibleIds?: number[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('manufacturingPlantId es obligatorio');
@@ -1985,9 +1985,9 @@ export class DashboardService {
           endDate: parsedEndDate,
         });
 
-      if (areaId) {
-        query.andWhere('zone."areaId" = :areaId', {
-          areaId,
+      if (areaIds && areaIds.length > 0) {
+        query.andWhere('zone."areaId" IN (:...areaIds)', {
+          areaIds,
         });
       }
 
@@ -2002,15 +2002,15 @@ export class DashboardService {
 
     let rows: RawRow[] = [];
 
-    if (responsibleId) {
+    if (responsibleIds && responsibleIds.length > 0) {
       const rowsByResponsibles = await buildBaseQuery()
         .innerJoin(
           'evidence_responsibles_user',
           'eru',
           'eru."evidenceId" = evidence.id',
         )
-        .andWhere('eru."userId" = :responsibleId', {
-          responsibleId,
+        .andWhere('eru."userId" IN (:...responsibleIds)', {
+          responsibleIds,
         })
         .groupBy('area.name')
         .addGroupBy('evidence.status')
@@ -2025,8 +2025,8 @@ export class DashboardService {
             'esu',
             'esu."evidenceId" = evidence.id',
           )
-          .andWhere('esu."userId" = :responsibleId', {
-            responsibleId,
+          .andWhere('esu."userId" IN (:...responsibleIds)', {
+            responsibleIds,
           })
           .groupBy('area.name')
           .addGroupBy('evidence.status')
@@ -2112,8 +2112,8 @@ export class DashboardService {
     manufacturingPlantId: number,
     startDate: string,
     endDate: string,
-    areaId?: number,
-    responsibleId?: number,
+    areaIds?: number[],
+    responsibleIds?: number[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('manufacturingPlantId es obligatorio');
@@ -2157,9 +2157,9 @@ export class DashboardService {
           endDate: parsedEndDate,
         });
 
-      if (areaId) {
-        query.andWhere('zone."areaId" = :areaId', {
-          areaId,
+      if (areaIds && areaIds.length > 0) {
+        query.andWhere('zone."areaId" IN (:...areaIds)', {
+          areaIds,
         });
       }
 
@@ -2174,15 +2174,15 @@ export class DashboardService {
 
     let rows: RawRow[] = [];
 
-    if (responsibleId) {
+    if (responsibleIds && responsibleIds.length > 0) {
       const rowsByResponsibles = await buildBaseQuery()
         .innerJoin(
           'evidence_responsibles_user',
           'eru',
           'eru."evidenceId" = evidence.id',
         )
-        .andWhere('eru."userId" = :responsibleId', {
-          responsibleId,
+        .andWhere('eru."userId" IN (:...responsibleIds)', {
+          responsibleIds,
         })
         .groupBy('evidence.status')
         .addGroupBy('area.name')
@@ -2197,8 +2197,8 @@ export class DashboardService {
             'esu',
             'esu."evidenceId" = evidence.id',
           )
-          .andWhere('esu."userId" = :responsibleId', {
-            responsibleId,
+          .andWhere('esu."userId" IN (:...responsibleIds)', {
+            responsibleIds,
           })
           .groupBy('evidence.status')
           .addGroupBy('area.name')
@@ -2260,8 +2260,8 @@ export class DashboardService {
     manufacturingPlantId: number,
     startDate: string,
     endDate: string,
-    areaId?: number,
-    responsibleId?: number,
+    areaIds?: number[],
+    responsibleIds?: number[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('manufacturingPlantId es obligatorio');
@@ -2321,9 +2321,9 @@ export class DashboardService {
           endDate: parsedEndDate,
         });
 
-      if (areaId) {
-        query.andWhere('zone."areaId" = :areaId', {
-          areaId,
+      if (areaIds && areaIds.length > 0) {
+        query.andWhere('zone."areaId" IN (:...areaIds)', {
+          areaIds,
         });
       }
 
@@ -2332,15 +2332,15 @@ export class DashboardService {
 
     let rawRow: KpiRawRow | null = null;
 
-    if (responsibleId) {
+    if (responsibleIds && responsibleIds.length > 0) {
       const rawByResponsibles = await buildKpiQuery()
         .innerJoin(
           'evidence_responsibles_user',
           'eru',
           'eru."evidenceId" = evidence.id',
         )
-        .andWhere('eru."userId" = :responsibleId', {
-          responsibleId,
+        .andWhere('eru."userId" IN (:...responsibleIds)', {
+          responsibleIds,
         })
         .getRawOne<KpiRawRow>();
 
@@ -2355,8 +2355,8 @@ export class DashboardService {
             'esu',
             'esu."evidenceId" = evidence.id',
           )
-          .andWhere('esu."userId" = :responsibleId', {
-            responsibleId,
+          .andWhere('esu."userId" IN (:...responsibleIds)', {
+            responsibleIds,
           })
           .getRawOne<KpiRawRow>();
       }
@@ -2385,8 +2385,8 @@ export class DashboardService {
     manufacturingPlantId: number,
     startDate: string,
     endDate: string,
-    areaId?: number,
-    responsibleId?: number,
+    areaIds?: number[],
+    responsibleIds?: number[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('manufacturingPlantId es obligatorio');
@@ -2435,9 +2435,9 @@ export class DashboardService {
           endDate: parsedEndDate,
         });
 
-      if (areaId) {
-        query.andWhere('zone."areaId" = :areaId', {
-          areaId,
+      if (areaIds && areaIds.length > 0) {
+        query.andWhere('zone."areaId" IN (:...areaIds)', {
+          areaIds,
         });
       }
 
@@ -2446,15 +2446,15 @@ export class DashboardService {
 
     let rows: RawRow[] = [];
 
-    if (responsibleId) {
+    if (responsibleIds && responsibleIds.length > 0) {
       const rowsByResponsibles = await buildBaseQuery()
         .innerJoin(
           'evidence_responsibles_user',
           'eru',
           'eru."evidenceId" = evidence.id',
         )
-        .andWhere('eru."userId" = :responsibleId', {
-          responsibleId,
+        .andWhere('eru."userId" IN (:...responsibleIds)', {
+          responsibleIds,
         })
         .groupBy(monthTruncExpression)
         .orderBy(monthTruncExpression, 'ASC')
@@ -2469,8 +2469,8 @@ export class DashboardService {
             'esu',
             'esu."evidenceId" = evidence.id',
           )
-          .andWhere('esu."userId" = :responsibleId', {
-            responsibleId,
+          .andWhere('esu."userId" IN (:...responsibleIds)', {
+            responsibleIds,
           })
           .groupBy(monthTruncExpression)
           .orderBy(monthTruncExpression, 'ASC')
