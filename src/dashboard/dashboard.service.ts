@@ -1445,7 +1445,7 @@ export class DashboardService {
         .createQueryBuilder('evidence')
         .leftJoin('evidence.zone', 'zone')
         .leftJoin('zone.area', 'area')
-        .select(`COALESCE(area.name, 'Sin área')`, 'name')
+        .select(`COALESCE(area.name, 'Sin zona')`, 'name')
         .addSelect('COUNT(*)', 'total')
         .where('evidence."manufacturingPlantId" = :manufacturingPlantId', {
           manufacturingPlantId,
@@ -1517,6 +1517,198 @@ export class DashboardService {
       startDate,
       endDate,
       seriesData,
+    };
+  }
+
+  async findHeatmapByFilters(
+    manufacturingPlantId: number,
+    startDate: string,
+    endDate: string,
+    areaIds?: number[],
+    responsibleIds?: number[],
+  ) {
+    if (!manufacturingPlantId) {
+      throw new BadRequestException('manufacturingPlantId es obligatorio');
+    }
+
+    if (!startDate || !endDate) {
+      throw new BadRequestException(
+        'Las fechas de inicio y fin son obligatorias',
+      );
+    }
+
+    const parsedStartDate = this.parseDateFilter(
+      startDate,
+      'La fecha de inicio',
+    );
+    const parsedEndDate = this.parseDateFilter(
+      endDate,
+      'La fecha de fin',
+      true,
+    );
+
+    if (parsedStartDate > parsedEndDate) {
+      throw new BadRequestException(
+        'La fecha de inicio no puede ser mayor a la fecha de fin',
+      );
+    }
+
+    const buildBaseQuery = () => {
+      const query = this.evidenceRepository
+        .createQueryBuilder('evidence')
+        .leftJoin('evidence.zone', 'zone')
+        .leftJoin('zone.area', 'area')
+        .select('area.id', 'areaId')
+        .addSelect(`COALESCE(area.name, 'Sin nombre')`, 'areaName')
+        .addSelect('area."coordinateX"', 'x')
+        .addSelect('area."coordinateY"', 'y')
+        .addSelect('area."zoomLevel"', 'zoomLevel')
+        .addSelect('COUNT(DISTINCT evidence.id)', 'total')
+        .addSelect(
+          `COUNT(DISTINCT CASE WHEN evidence.status = 'Abierto' THEN evidence.id END)`,
+          'openCount',
+        )
+        .addSelect(
+          `COUNT(DISTINCT CASE WHEN evidence.status = 'En progreso' THEN evidence.id END)`,
+          'inProgressCount',
+        )
+        .addSelect(
+          `COUNT(DISTINCT CASE WHEN evidence.status = 'Cerrado' THEN evidence.id END)`,
+          'closedCount',
+        )
+        .addSelect(
+          `COUNT(DISTINCT CASE WHEN evidence.status = 'Cancelado' THEN evidence.id END)`,
+          'cancelledCount',
+        )
+        .where('evidence."manufacturingPlantId" = :manufacturingPlantId', {
+          manufacturingPlantId,
+        })
+        .andWhere('evidence."createdAt" BETWEEN :startDate AND :endDate', {
+          startDate: parsedStartDate,
+          endDate: parsedEndDate,
+        })
+        .andWhere('area."coordinateX" IS NOT NULL')
+        .andWhere('area."coordinateY" IS NOT NULL');
+
+      if (areaIds && areaIds.length > 0) {
+        query.andWhere('zone."areaId" IN (:...areaIds)', {
+          areaIds,
+        });
+      }
+
+      return query
+        .groupBy('area.id')
+        .addGroupBy('area.name')
+        .addGroupBy('area."coordinateX"')
+        .addGroupBy('area."coordinateY"')
+        .addGroupBy('area."zoomLevel"');
+    };
+
+    type RawPoint = {
+      areaId: string;
+      areaName: string;
+      x: string;
+      y: string;
+      zoomLevel: string | null;
+      total: string;
+      openCount: string;
+      inProgressCount: string;
+      closedCount: string;
+      cancelledCount: string;
+    };
+
+    let rows: RawPoint[] = [];
+
+    if (responsibleIds && responsibleIds.length > 0) {
+      const rowsByResponsibles = await buildBaseQuery()
+        .innerJoin(
+          'evidence_responsibles_user',
+          'eru',
+          'eru."evidenceId" = evidence.id',
+        )
+        .andWhere('eru."userId" IN (:...responsibleIds)', {
+          responsibleIds,
+        })
+        .getRawMany<RawPoint>();
+
+      if (rowsByResponsibles.length > 0) {
+        rows = rowsByResponsibles;
+      } else {
+        rows = await buildBaseQuery()
+          .innerJoin(
+            'evidence_supervisors_user',
+            'esu',
+            'esu."evidenceId" = evidence.id',
+          )
+          .andWhere('esu."userId" IN (:...responsibleIds)', {
+            responsibleIds,
+          })
+          .getRawMany<RawPoint>();
+      }
+    } else {
+      rows = await buildBaseQuery().getRawMany<RawPoint>();
+    }
+
+    const statusPriority = ['Abierto', 'En progreso', 'Cerrado', 'Cancelado'];
+
+    const points = rows
+      .map((row) => {
+        const statusCounts = {
+          Abierto: Number(row.openCount || 0),
+          'En progreso': Number(row.inProgressCount || 0),
+          Cerrado: Number(row.closedCount || 0),
+          Cancelado: Number(row.cancelledCount || 0),
+        };
+
+        const dominantStatus = statusPriority.reduce((current, candidate) =>
+          statusCounts[candidate] > statusCounts[current] ? candidate : current,
+        );
+
+        return {
+          areaId: Number(row.areaId),
+          areaName: row.areaName,
+          x: Number(row.x),
+          y: Number(row.y),
+          zoomLevel: row.zoomLevel ? Number(row.zoomLevel) : null,
+          value: Number(row.total),
+          dominantStatus,
+          statusCounts,
+        };
+      })
+      .filter((item) => item.value > 0);
+
+    const maxX = points.reduce((acc, item) => Math.max(acc, item.x), 0);
+    const maxY = points.reduce((acc, item) => Math.max(acc, item.y), 0);
+    const maxValue = points.reduce((acc, item) => Math.max(acc, item.value), 0);
+    const totalEvidences = points.reduce((acc, item) => acc + item.value, 0);
+    const totalOpenEvidencesWithCoordinates = points.reduce(
+      (acc, item) => acc + item.statusCounts.Abierto,
+      0,
+    );
+
+    const statusByFilters = await this.findStatusByFilters(
+      manufacturingPlantId,
+      startDate,
+      endDate,
+      areaIds,
+      responsibleIds,
+    );
+
+    const totalOpenEvidences =
+      statusByFilters.seriesData.find((item) => item.name === 'Abierto')?.y ||
+      0;
+
+    return {
+      startDate,
+      endDate,
+      totalAreas: points.length,
+      totalEvidences,
+      totalOpenEvidences,
+      totalOpenEvidencesWithCoordinates,
+      maxX,
+      maxY,
+      maxValue,
+      points,
     };
   }
 
@@ -1974,7 +2166,7 @@ export class DashboardService {
         .createQueryBuilder('evidence')
         .leftJoin('evidence.zone', 'zone')
         .leftJoin('zone.area', 'area')
-        .select(`COALESCE(area.name, 'Sin área')`, 'areaName')
+        .select(`COALESCE(area.name, 'Sin zona')`, 'areaName')
         .addSelect('evidence.status', 'status')
         .addSelect('COUNT(*)', 'total')
         .where('evidence."manufacturingPlantId" = :manufacturingPlantId', {
@@ -2147,7 +2339,7 @@ export class DashboardService {
         .leftJoin('evidence.zone', 'zone')
         .leftJoin('zone.area', 'area')
         .select('evidence.status', 'status')
-        .addSelect(`COALESCE(area.name, 'Sin área')`, 'areaName')
+        .addSelect(`COALESCE(area.name, 'Sin zona')`, 'areaName')
         .addSelect('COUNT(*)', 'total')
         .where('evidence."manufacturingPlantId" = :manufacturingPlantId', {
           manufacturingPlantId,

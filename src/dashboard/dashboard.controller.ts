@@ -207,6 +207,25 @@ export class DashboardController {
     );
   }
 
+  @Get('heatmap-by-filters')
+  findHeatmapByFilters(
+    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Query('areaIds') areaIds?: string,
+    @Query('areaId') areaId?: string,
+    @Query('responsibleIds') responsibleIds?: string,
+    @Query('responsibleId') responsibleId?: string,
+  ) {
+    return this.dashboardService.findHeatmapByFilters(
+      +manufacturingPlantId,
+      startDate,
+      endDate,
+      this.parseAreaIds(areaIds, areaId),
+      this.parseResponsibleIds(responsibleIds, responsibleId),
+    );
+  }
+
   @Get('assigned-responsibles-by-filters')
   findAssignedResponsiblesByFilters(
     @Query('manufacturingPlantId') manufacturingPlantId: string,

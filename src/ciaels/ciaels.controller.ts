@@ -87,7 +87,7 @@ export class CiaelsController {
           sheet.cell(`L${currentIdx}`).value(ciael.daysOfDisability);
           sheet
             .cell(`M${currentIdx}`)
-            .value(ciael.zone.area?.name || 'Sin área asignada');
+            .value(ciael.zone.area?.name || 'Sin zona asignada');
           sheet.cell(`N${currentIdx}`).value(ciael.accidentPosition.name);
           sheet.cell(`O${currentIdx}`).value(ciael.bodyPart.name);
           sheet.cell(`P${currentIdx}`).value(ciael.atAgent.name);

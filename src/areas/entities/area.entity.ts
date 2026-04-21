@@ -25,6 +25,15 @@ export class Area {
   @Column({ default: true })
   isActive: boolean;
 
+  @Column({ type: 'integer', nullable: true })
+  coordinateX?: number | null;
+
+  @Column({ type: 'integer', nullable: true })
+  coordinateY?: number | null;
+
+  @Column({ type: 'double precision', nullable: true })
+  zoomLevel?: number | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

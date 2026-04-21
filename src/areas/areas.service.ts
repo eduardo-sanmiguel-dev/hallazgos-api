@@ -77,7 +77,8 @@ export class AreasService {
 
   async create(createAreaDto: CreateAreaDto): Promise<Area> {
     const { id: createdBy } = this.request['user'] as User;
-    const { manufacturingPlantId } = createAreaDto;
+    const { manufacturingPlantId, coordinateX, coordinateY, zoomLevel } =
+      createAreaDto;
     const name = createAreaDto.name.trim();
 
     await this.manufacturingPlantsService.findOne(manufacturingPlantId);
@@ -87,6 +88,9 @@ export class AreasService {
     const area = this.areaRepository.create({
       name,
       manufacturingPlant: { id: manufacturingPlantId },
+      coordinateX,
+      coordinateY,
+      zoomLevel,
       createdBy: { id: createdBy } as User,
       createdAt: new Date(),
     });
@@ -152,6 +156,15 @@ export class AreasService {
     const area = await this.areaRepository.preload({
       id,
       ...(updateAreaDto.name && { name: updateAreaDto.name.trim() }),
+      ...(updateAreaDto.coordinateX !== undefined && {
+        coordinateX: updateAreaDto.coordinateX,
+      }),
+      ...(updateAreaDto.coordinateY !== undefined && {
+        coordinateY: updateAreaDto.coordinateY,
+      }),
+      ...(updateAreaDto.zoomLevel !== undefined && {
+        zoomLevel: updateAreaDto.zoomLevel,
+      }),
       manufacturingPlant: { id: manufacturingPlantId },
       updatedBy: { id: updatedBy } as User,
       updatedAt: new Date(),
