@@ -71,6 +71,33 @@ export class ExtinguisherInspectionsController {
       new Date(inspection.inspectionDate).toISOString(),
     );
 
+    const startRow = 9;
+    const templateEndRow = 34;
+    const footerTemplateRow = 35;
+    const templateCapacity = templateEndRow - startRow + 1;
+    const columnNameToNumber = (columnName: string) => {
+      let result = 0;
+
+      for (let i = 0; i < columnName.length; i++) {
+        result = result * 26 + (columnName.charCodeAt(i) - 64);
+      }
+
+      return result;
+    };
+
+    const columnNumberToName = (columnNumber: number) => {
+      let result = '';
+      let current = columnNumber;
+
+      while (current > 0) {
+        const remainder = (current - 1) % 26;
+        result = String.fromCharCode(65 + remainder) + result;
+        current = Math.floor((current - 1) / 26);
+      }
+
+      return result;
+    };
+
     for (const sheet of sheets) {
       sheet
         .cell('B4')
@@ -78,17 +105,122 @@ export class ExtinguisherInspectionsController {
       sheet.cell('I4').value(inspectionDate);
       sheet.cell('R4').value(inspection.manufacturingPlant?.name || '-');
 
-      for (let row = 9; row <= 34; row++) {
+      // La fila 35 del layout es el footer y debe mantenerse al final.
+      const footerRowHeight = sheet.row(footerTemplateRow).height();
+      const footerMergeRefs = Object.keys((sheet as any)._mergeCells || {})
+        .filter((ref) => {
+          const match = ref.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
+          if (!match) return false;
+
+          const startRowRef = Number(match[2]);
+          const endRowRef = Number(match[4]);
+          const startColRef = columnNameToNumber(match[1]);
+          const endColRef = columnNameToNumber(match[3]);
+
+          const isFooterRowMerge =
+            startRowRef <= footerTemplateRow && endRowRef >= footerTemplateRow;
+          const isWithinDataColumns = startColRef >= 2 && endColRef <= 19;
+
+          return isFooterRowMerge && isWithinDataColumns;
+        })
+        .map((ref) => {
+          const match = ref.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
+          if (!match) {
+            return null;
+          }
+
+          return {
+            ref,
+            startCol: columnNameToNumber(match[1]),
+            startRowRef: Number(match[2]),
+            endCol: columnNameToNumber(match[3]),
+            endRowRef: Number(match[4]),
+          };
+        })
+        .filter((item): item is NonNullable<typeof item> => item !== null);
+
+      const footerSnapshot = Array.from({ length: 18 }, (_, idx) => {
+        const col = 2 + idx;
+        const source = sheet.cell(footerTemplateRow, col);
+
+        return {
+          col,
+          value: source.value(),
+          styles: {
+            bold: source.style('bold'),
+            italic: source.style('italic'),
+            underline: source.style('underline'),
+            fontColor: source.style('fontColor'),
+            fontFamily: source.style('fontFamily'),
+            fontSize: source.style('fontSize'),
+            fill: source.style('fill'),
+            horizontalAlignment: source.style('horizontalAlignment'),
+            verticalAlignment: source.style('verticalAlignment'),
+            wrapText: source.style('wrapText'),
+            numberFormat: source.style('numberFormat'),
+            border: source.style('border'),
+          },
+        };
+      });
+
+      const dataBaseFontColorByColumn = Array.from({ length: 18 }, (_, idx) => {
+        const col = 2 + idx;
+        return {
+          col,
+          fontColor: sheet.cell(startRow, col).style('fontColor'),
+          bold: sheet.cell(startRow, col).style('bold'),
+        };
+      });
+
+      const rowsToPrepare = Math.max(templateCapacity, evaluations.length);
+      const endDynamicRow = startRow + rowsToPrepare - 1;
+
+      // xlsx-populate en este proyecto no expone insertAndCopyDown,
+      // por lo que replicamos formato de la fila plantilla hacia abajo.
+      if (endDynamicRow > templateEndRow) {
+        const templateRowHeight = sheet.row(templateEndRow).height();
+        const styleKeys = [
+          'bold',
+          'italic',
+          'underline',
+          'fontColor',
+          'fontFamily',
+          'fontSize',
+          'fill',
+          'horizontalAlignment',
+          'verticalAlignment',
+          'wrapText',
+          'numberFormat',
+          'border',
+        ] as const;
+
+        for (let row = templateEndRow + 1; row <= endDynamicRow; row++) {
+          if (templateRowHeight !== undefined) {
+            sheet.row(row).height(templateRowHeight);
+          }
+
+          for (let col = 2; col <= 19; col++) {
+            const sourceCell = sheet.cell(templateEndRow, col);
+            const targetCell = sheet.cell(row, col);
+
+            for (const styleKey of styleKeys) {
+              const styleValue = sourceCell.style(styleKey);
+              if (styleValue !== undefined) {
+                targetCell.style(styleKey, styleValue);
+              }
+            }
+          }
+        }
+      }
+
+      for (let row = startRow; row <= endDynamicRow; row++) {
         for (let col = 2; col <= 19; col++) {
           sheet.cell(row, col).value(null);
         }
       }
 
       evaluations.forEach((evaluation, idx) => {
-        const currentRow = 9 + idx;
-        if (currentRow > 34) {
-          return;
-        }
+        const currentRow = startRow + idx;
 
         sheet.cell(`B${currentRow}`).value(evaluation.location || '-');
         sheet
@@ -126,6 +258,71 @@ export class ExtinguisherInspectionsController {
           );
         sheet.cell(`R${currentRow}`).value(evaluation.observations || '');
       });
+
+      const footerTargetRow = Math.max(footerTemplateRow, endDynamicRow + 1);
+
+      if (footerTargetRow !== footerTemplateRow) {
+        for (const mergeInfo of footerMergeRefs) {
+          sheet.range(mergeInfo.ref).merged(false);
+
+          const rowOffset = mergeInfo.startRowRef - footerTemplateRow;
+          const endRowOffset = mergeInfo.endRowRef - footerTemplateRow;
+          const targetStartRow = footerTargetRow + rowOffset;
+          const targetEndRow = footerTargetRow + endRowOffset;
+          const targetRef = `${columnNumberToName(mergeInfo.startCol)}${targetStartRow}:${columnNumberToName(mergeInfo.endCol)}${targetEndRow}`;
+
+          sheet.range(targetRef).merged(true);
+        }
+      }
+
+      if (footerRowHeight !== undefined) {
+        sheet.row(footerTargetRow).height(footerRowHeight);
+      }
+
+      for (const cellData of footerSnapshot) {
+        const target = sheet.cell(footerTargetRow, cellData.col);
+
+        target.value(cellData.value);
+        target.style('bold', cellData.styles.bold);
+        target.style('italic', cellData.styles.italic);
+        target.style('underline', cellData.styles.underline);
+        target.style('fontColor', cellData.styles.fontColor);
+        target.style('fontFamily', cellData.styles.fontFamily);
+        target.style('fontSize', cellData.styles.fontSize);
+        target.style('fill', cellData.styles.fill);
+        target.style(
+          'horizontalAlignment',
+          cellData.styles.horizontalAlignment,
+        );
+        target.style('verticalAlignment', cellData.styles.verticalAlignment);
+        target.style('wrapText', cellData.styles.wrapText);
+        target.style('numberFormat', cellData.styles.numberFormat);
+        target.style('border', cellData.styles.border);
+      }
+
+      sheet.definedName(
+        '_xlnm.Print_Area',
+        sheet.range(`A1:S${footerTargetRow}`),
+      );
+
+      // Evita que queden colores heredados del footer (ej. rojo en fila 36).
+      for (let row = startRow; row <= endDynamicRow; row++) {
+        for (const colorByColumn of dataBaseFontColorByColumn) {
+          const target = sheet.cell(row, colorByColumn.col);
+
+          if (colorByColumn.fontColor !== undefined) {
+            target.style('fontColor', colorByColumn.fontColor);
+          } else {
+            target.style('fontColor', '000000');
+          }
+
+          if (colorByColumn.bold !== undefined) {
+            target.style('bold', colorByColumn.bold);
+          } else {
+            target.style('bold', false);
+          }
+        }
+      }
     }
 
     const fileBuffer = await workbook.outputAsync();
