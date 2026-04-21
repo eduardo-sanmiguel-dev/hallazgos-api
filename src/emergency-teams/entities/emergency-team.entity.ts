@@ -18,7 +18,7 @@ export enum ExtinguisherType {
 }
 
 @Entity({ name: 'emergency_teams' })
-@Check(`char_length("location") >= 5`)
+@Check(`char_length("location") >= 3`)
 export class EmergencyTeam {
   @PrimaryGeneratedColumn()
   id: number;
