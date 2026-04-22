@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   Check,
   ManyToOne,
+  Index,
 } from 'typeorm';
 
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
@@ -18,6 +19,16 @@ export enum ExtinguisherType {
 }
 
 @Entity({ name: 'emergency_teams' })
+@Index(
+  [
+    'location',
+    'extinguisherNumber',
+    'typeOfExtinguisher',
+    'capacity',
+    'manufacturingPlant',
+  ],
+  { unique: true },
+)
 @Check(`char_length("location") >= 3`)
 export class EmergencyTeam {
   @PrimaryGeneratedColumn()
