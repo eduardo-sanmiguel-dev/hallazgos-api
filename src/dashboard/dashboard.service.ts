@@ -1407,6 +1407,420 @@ export class DashboardService {
     };
   }
 
+  async findPriorityInterventionByFilters(
+    manufacturingPlantId: number,
+    startDate: string,
+    endDate: string,
+    areaIds?: number[],
+    responsibleIds?: number[],
+  ) {
+    if (!manufacturingPlantId) {
+      throw new BadRequestException('manufacturingPlantId es obligatorio');
+    }
+
+    if (!startDate || !endDate) {
+      throw new BadRequestException(
+        'Las fechas de inicio y fin son obligatorias',
+      );
+    }
+
+    const parsedStartDate = this.parseDateFilter(
+      startDate,
+      'La fecha de inicio',
+    );
+    const parsedEndDate = this.parseDateFilter(
+      endDate,
+      'La fecha de fin',
+      true,
+    );
+
+    if (parsedStartDate > parsedEndDate) {
+      throw new BadRequestException(
+        'La fecha de inicio no puede ser mayor a la fecha de fin',
+      );
+    }
+
+    const priorityDefinition = [
+      { name: 'Inmediato', days: 8, color: '#D32F2F' },
+      { name: 'Corto plazo', days: 2, color: '#F9A825' },
+      { name: 'Mediano plazo', days: 15, color: '#1565C0' },
+      { name: 'Largo plazo', days: 30, color: '#2E7D32' },
+    ];
+
+    const buildBaseQuery = () => {
+      const query = this.evidenceRepository
+        .createQueryBuilder('evidence')
+        .leftJoin('evidence.zone', 'zone')
+        .select('evidence."priorityDays"', 'priorityDays')
+        .addSelect('COUNT(DISTINCT evidence.id)', 'total')
+        .where('evidence."manufacturingPlantId" = :manufacturingPlantId', {
+          manufacturingPlantId,
+        })
+        .andWhere('evidence."createdAt" BETWEEN :startDate AND :endDate', {
+          startDate: parsedStartDate,
+          endDate: parsedEndDate,
+        })
+        .andWhere('COALESCE(evidence."priorityDays", 0) > 0');
+
+      if (areaIds && areaIds.length > 0) {
+        query.andWhere('zone."areaId" IN (:...areaIds)', {
+          areaIds,
+        });
+      }
+
+      return query;
+    };
+
+    const buildCountBaseQuery = (withPriority: boolean) => {
+      const query = this.evidenceRepository
+        .createQueryBuilder('evidence')
+        .leftJoin('evidence.zone', 'zone')
+        .select('COUNT(DISTINCT evidence.id)', 'total')
+        .where('evidence."manufacturingPlantId" = :manufacturingPlantId', {
+          manufacturingPlantId,
+        })
+        .andWhere('evidence."createdAt" BETWEEN :startDate AND :endDate', {
+          startDate: parsedStartDate,
+          endDate: parsedEndDate,
+        });
+
+      if (withPriority) {
+        query.andWhere('COALESCE(evidence."priorityDays", 0) > 0');
+      } else {
+        query.andWhere('COALESCE(evidence."priorityDays", 0) <= 0');
+      }
+
+      if (areaIds && areaIds.length > 0) {
+        query.andWhere('zone."areaId" IN (:...areaIds)', {
+          areaIds,
+        });
+      }
+
+      return query;
+    };
+
+    type RawPriority = {
+      priorityDays: string;
+      total: string;
+    };
+
+    let rows: RawPriority[] = [];
+
+    if (responsibleIds && responsibleIds.length > 0) {
+      const rowsByResponsibles = await buildBaseQuery()
+        .innerJoin(
+          'evidence_responsibles_user',
+          'eru',
+          'eru."evidenceId" = evidence.id',
+        )
+        .andWhere('eru."userId" IN (:...responsibleIds)', {
+          responsibleIds,
+        })
+        .groupBy('evidence."priorityDays"')
+        .getRawMany<RawPriority>();
+
+      if (rowsByResponsibles.length > 0) {
+        rows = rowsByResponsibles;
+      } else {
+        rows = await buildBaseQuery()
+          .innerJoin(
+            'evidence_supervisors_user',
+            'esu',
+            'esu."evidenceId" = evidence.id',
+          )
+          .andWhere('esu."userId" IN (:...responsibleIds)', {
+            responsibleIds,
+          })
+          .groupBy('evidence."priorityDays"')
+          .getRawMany<RawPriority>();
+      }
+    } else {
+      rows = await buildBaseQuery()
+        .groupBy('evidence."priorityDays"')
+        .getRawMany<RawPriority>();
+    }
+
+    const totalsByPriorityDays = rows.reduce<Record<number, number>>(
+      (acc, row) => {
+        const days = Number(row.priorityDays);
+
+        if (!Number.isFinite(days)) {
+          return acc;
+        }
+
+        acc[days] = Number(row.total || 0);
+        return acc;
+      },
+      {},
+    );
+
+    const seriesData = priorityDefinition.map((item) => ({
+      name: item.name,
+      days: item.days,
+      y: totalsByPriorityDays[item.days] || 0,
+      color: item.color,
+    }));
+
+    const totalWithPriority = seriesData.reduce((acc, item) => acc + item.y, 0);
+
+    type RawCount = {
+      total: string;
+    };
+
+    let totalWithoutPriority = 0;
+
+    if (responsibleIds && responsibleIds.length > 0) {
+      const rowsByResponsibles = await buildCountBaseQuery(false)
+        .innerJoin(
+          'evidence_responsibles_user',
+          'eru',
+          'eru."evidenceId" = evidence.id',
+        )
+        .andWhere('eru."userId" IN (:...responsibleIds)', {
+          responsibleIds,
+        })
+        .getRawOne<RawCount>();
+
+      const countByResponsibles = Number(rowsByResponsibles?.total || 0);
+
+      if (countByResponsibles > 0) {
+        totalWithoutPriority = countByResponsibles;
+      } else {
+        const rowsBySupervisors = await buildCountBaseQuery(false)
+          .innerJoin(
+            'evidence_supervisors_user',
+            'esu',
+            'esu."evidenceId" = evidence.id',
+          )
+          .andWhere('esu."userId" IN (:...responsibleIds)', {
+            responsibleIds,
+          })
+          .getRawOne<RawCount>();
+
+        totalWithoutPriority = Number(rowsBySupervisors?.total || 0);
+      }
+    } else {
+      const rows = await buildCountBaseQuery(false).getRawOne<RawCount>();
+      totalWithoutPriority = Number(rows?.total || 0);
+    }
+
+    return {
+      total: totalWithPriority,
+      totalWithPriority,
+      totalWithoutPriority,
+      startDate,
+      endDate,
+      seriesData,
+    };
+  }
+
+  async findRiskLevelByFilters(
+    manufacturingPlantId: number,
+    startDate: string,
+    endDate: string,
+    areaIds?: number[],
+    responsibleIds?: number[],
+  ) {
+    if (!manufacturingPlantId) {
+      throw new BadRequestException('manufacturingPlantId es obligatorio');
+    }
+
+    if (!startDate || !endDate) {
+      throw new BadRequestException(
+        'Las fechas de inicio y fin son obligatorias',
+      );
+    }
+
+    const parsedStartDate = this.parseDateFilter(
+      startDate,
+      'La fecha de inicio',
+    );
+    const parsedEndDate = this.parseDateFilter(
+      endDate,
+      'La fecha de fin',
+      true,
+    );
+
+    if (parsedStartDate > parsedEndDate) {
+      throw new BadRequestException(
+        'La fecha de inicio no puede ser mayor a la fecha de fin',
+      );
+    }
+
+    const riskDefinition = [
+      { name: 'Bajo', color: '#7CB342' },
+      { name: 'Medio', color: '#FFEB3B' },
+      { name: 'Alto', color: '#FF9800' },
+      { name: 'Critico', color: '#F44336' },
+    ];
+
+    const riskCase = `
+      CASE
+        WHEN COALESCE(evidence."priorityDays", 0) <= 0 THEN NULL
+        WHEN evidence."priorityDays" = 30 THEN 'Bajo'
+        WHEN evidence."priorityDays" = 15 THEN 'Medio'
+        WHEN evidence."priorityDays" = 2 THEN 'Alto'
+        WHEN evidence."priorityDays" = 8 THEN 'Critico'
+        WHEN evidence."priorityDays" > 30 THEN 'Bajo'
+        WHEN evidence."priorityDays" > 15 THEN 'Medio'
+        WHEN evidence."priorityDays" > 8 THEN 'Alto'
+        ELSE 'Critico'
+      END
+    `;
+
+    const buildBaseQuery = () => {
+      const query = this.evidenceRepository
+        .createQueryBuilder('evidence')
+        .leftJoin('evidence.zone', 'zone')
+        .select(riskCase, 'riskLevel')
+        .addSelect('COUNT(DISTINCT evidence.id)', 'total')
+        .where('evidence."manufacturingPlantId" = :manufacturingPlantId', {
+          manufacturingPlantId,
+        })
+        .andWhere('evidence."createdAt" BETWEEN :startDate AND :endDate', {
+          startDate: parsedStartDate,
+          endDate: parsedEndDate,
+        })
+        .andWhere('COALESCE(evidence."priorityDays", 0) > 0');
+
+      if (areaIds && areaIds.length > 0) {
+        query.andWhere('zone."areaId" IN (:...areaIds)', {
+          areaIds,
+        });
+      }
+
+      return query;
+    };
+
+    const buildCountBaseQuery = (withPriority: boolean) => {
+      const query = this.evidenceRepository
+        .createQueryBuilder('evidence')
+        .leftJoin('evidence.zone', 'zone')
+        .select('COUNT(DISTINCT evidence.id)', 'total')
+        .where('evidence."manufacturingPlantId" = :manufacturingPlantId', {
+          manufacturingPlantId,
+        })
+        .andWhere('evidence."createdAt" BETWEEN :startDate AND :endDate', {
+          startDate: parsedStartDate,
+          endDate: parsedEndDate,
+        });
+
+      if (withPriority) {
+        query.andWhere('COALESCE(evidence."priorityDays", 0) > 0');
+      } else {
+        query.andWhere('COALESCE(evidence."priorityDays", 0) <= 0');
+      }
+
+      if (areaIds && areaIds.length > 0) {
+        query.andWhere('zone."areaId" IN (:...areaIds)', {
+          areaIds,
+        });
+      }
+
+      return query;
+    };
+
+    type RawRisk = {
+      riskLevel: string | null;
+      total: string;
+    };
+
+    type RawCount = {
+      total: string;
+    };
+
+    let rows: RawRisk[] = [];
+    let totalWithoutPriority = 0;
+
+    if (responsibleIds && responsibleIds.length > 0) {
+      const rowsByResponsibles = await buildBaseQuery()
+        .innerJoin(
+          'evidence_responsibles_user',
+          'eru',
+          'eru."evidenceId" = evidence.id',
+        )
+        .andWhere('eru."userId" IN (:...responsibleIds)', {
+          responsibleIds,
+        })
+        .groupBy(riskCase)
+        .getRawMany<RawRisk>();
+
+      if (rowsByResponsibles.length > 0) {
+        rows = rowsByResponsibles;
+
+        const countByResponsibles = await buildCountBaseQuery(false)
+          .innerJoin(
+            'evidence_responsibles_user',
+            'eru',
+            'eru."evidenceId" = evidence.id',
+          )
+          .andWhere('eru."userId" IN (:...responsibleIds)', {
+            responsibleIds,
+          })
+          .getRawOne<RawCount>();
+
+        totalWithoutPriority = Number(countByResponsibles?.total || 0);
+      } else {
+        rows = await buildBaseQuery()
+          .innerJoin(
+            'evidence_supervisors_user',
+            'esu',
+            'esu."evidenceId" = evidence.id',
+          )
+          .andWhere('esu."userId" IN (:...responsibleIds)', {
+            responsibleIds,
+          })
+          .groupBy(riskCase)
+          .getRawMany<RawRisk>();
+
+        const countBySupervisors = await buildCountBaseQuery(false)
+          .innerJoin(
+            'evidence_supervisors_user',
+            'esu',
+            'esu."evidenceId" = evidence.id',
+          )
+          .andWhere('esu."userId" IN (:...responsibleIds)', {
+            responsibleIds,
+          })
+          .getRawOne<RawCount>();
+
+        totalWithoutPriority = Number(countBySupervisors?.total || 0);
+      }
+    } else {
+      rows = await buildBaseQuery().groupBy(riskCase).getRawMany<RawRisk>();
+
+      const countWithoutPriority =
+        await buildCountBaseQuery(false).getRawOne<RawCount>();
+      totalWithoutPriority = Number(countWithoutPriority?.total || 0);
+    }
+
+    const totalsByRisk = rows.reduce<Record<string, number>>((acc, row) => {
+      if (!row.riskLevel) {
+        return acc;
+      }
+
+      acc[row.riskLevel] = Number(row.total || 0);
+      return acc;
+    }, {});
+
+    const seriesData = riskDefinition.map((item) => ({
+      name: item.name,
+      y: totalsByRisk[item.name] || 0,
+      color: item.color,
+    }));
+
+    const totalWithPriority = seriesData.reduce((acc, item) => acc + item.y, 0);
+
+    return {
+      total: totalWithPriority,
+      totalWithPriority,
+      totalWithoutPriority,
+      startDate,
+      endDate,
+      seriesData,
+    };
+  }
+
   async findAreasByFilters(
     manufacturingPlantId: number,
     startDate: string,

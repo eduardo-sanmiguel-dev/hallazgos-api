@@ -188,6 +188,44 @@ export class DashboardController {
     );
   }
 
+  @Get('priority-intervention-by-filters')
+  findPriorityInterventionByFilters(
+    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Query('areaIds') areaIds?: string,
+    @Query('areaId') areaId?: string,
+    @Query('responsibleIds') responsibleIds?: string,
+    @Query('responsibleId') responsibleId?: string,
+  ) {
+    return this.dashboardService.findPriorityInterventionByFilters(
+      +manufacturingPlantId,
+      startDate,
+      endDate,
+      this.parseAreaIds(areaIds, areaId),
+      this.parseResponsibleIds(responsibleIds, responsibleId),
+    );
+  }
+
+  @Get('risk-level-by-filters')
+  findRiskLevelByFilters(
+    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Query('areaIds') areaIds?: string,
+    @Query('areaId') areaId?: string,
+    @Query('responsibleIds') responsibleIds?: string,
+    @Query('responsibleId') responsibleId?: string,
+  ) {
+    return this.dashboardService.findRiskLevelByFilters(
+      +manufacturingPlantId,
+      startDate,
+      endDate,
+      this.parseAreaIds(areaIds, areaId),
+      this.parseResponsibleIds(responsibleIds, responsibleId),
+    );
+  }
+
   @Get('areas-by-filters')
   findAreasByFilters(
     @Query('manufacturingPlantId') manufacturingPlantId: string,
