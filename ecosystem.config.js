@@ -6,7 +6,7 @@ module.exports = {
       instances: 1, // Usa una sola instancia en modo fork
       exec_mode: 'fork', // Modo de ejecución (fork o cluster)
       watch: false, // Desactiva watch en producción
-      max_memory_restart: '500M', // Reinicia si excede 500MB
+      max_memory_restart: '5G', // Reinicia si excede 5GB de RAM
       env: {
         NODE_ENV: 'production', // Variables de entorno para producción
         PORT: 4000,
