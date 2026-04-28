@@ -6,6 +6,7 @@ import { ZonesController } from './zones.controller';
 import { Zone } from './entities/zone.entity';
 import { ManufacturingPlantsModule } from '../manufacturing-plants/manufacturing-plants.module';
 import { AreasModule } from 'areas/areas.module';
+import { ZonesSeedService } from './zones-seed.service';
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { AreasModule } from 'areas/areas.module';
     AreasModule,
   ],
   controllers: [ZonesController],
-  providers: [ZonesService],
+  providers: [ZonesService, ZonesSeedService],
   exports: [TypeOrmModule, ZonesService],
 })
 export class ZonesModule {}

@@ -35,6 +35,22 @@ export class DashboardController {
     );
   }
 
+  private parseMainTypeIds(
+    mainTypeIds?: string,
+    mainTypeId?: string,
+  ): number[] {
+    const source = mainTypeIds || mainTypeId || '';
+
+    return Array.from(
+      new Set(
+        source
+          .split(',')
+          .map((item) => Number(item.trim()))
+          .filter((item) => Number.isFinite(item) && item > 0),
+      ),
+    );
+  }
+
   @Get('business-intelligence/epp')
   findBusinessIntelligenceEpp(
     @Query('manufacturingPlantId') manufacturingPlantId: string,
@@ -178,6 +194,8 @@ export class DashboardController {
     @Query('areaId') areaId?: string,
     @Query('responsibleIds') responsibleIds?: string,
     @Query('responsibleId') responsibleId?: string,
+    @Query('mainTypeIds') mainTypeIds?: string,
+    @Query('mainTypeId') mainTypeId?: string,
   ) {
     return this.dashboardService.findStatusByFilters(
       +manufacturingPlantId,
@@ -185,6 +203,7 @@ export class DashboardController {
       endDate,
       this.parseAreaIds(areaIds, areaId),
       this.parseResponsibleIds(responsibleIds, responsibleId),
+      this.parseMainTypeIds(mainTypeIds, mainTypeId),
     );
   }
 
@@ -197,6 +216,8 @@ export class DashboardController {
     @Query('areaId') areaId?: string,
     @Query('responsibleIds') responsibleIds?: string,
     @Query('responsibleId') responsibleId?: string,
+    @Query('mainTypeIds') mainTypeIds?: string,
+    @Query('mainTypeId') mainTypeId?: string,
   ) {
     return this.dashboardService.findPriorityInterventionByFilters(
       +manufacturingPlantId,
@@ -204,6 +225,7 @@ export class DashboardController {
       endDate,
       this.parseAreaIds(areaIds, areaId),
       this.parseResponsibleIds(responsibleIds, responsibleId),
+      this.parseMainTypeIds(mainTypeIds, mainTypeId),
     );
   }
 
@@ -216,6 +238,8 @@ export class DashboardController {
     @Query('areaId') areaId?: string,
     @Query('responsibleIds') responsibleIds?: string,
     @Query('responsibleId') responsibleId?: string,
+    @Query('mainTypeIds') mainTypeIds?: string,
+    @Query('mainTypeId') mainTypeId?: string,
   ) {
     return this.dashboardService.findRiskLevelByFilters(
       +manufacturingPlantId,
@@ -223,6 +247,7 @@ export class DashboardController {
       endDate,
       this.parseAreaIds(areaIds, areaId),
       this.parseResponsibleIds(responsibleIds, responsibleId),
+      this.parseMainTypeIds(mainTypeIds, mainTypeId),
     );
   }
 
@@ -235,6 +260,8 @@ export class DashboardController {
     @Query('areaId') areaId?: string,
     @Query('responsibleIds') responsibleIds?: string,
     @Query('responsibleId') responsibleId?: string,
+    @Query('mainTypeIds') mainTypeIds?: string,
+    @Query('mainTypeId') mainTypeId?: string,
   ) {
     return this.dashboardService.findAreasByFilters(
       +manufacturingPlantId,
@@ -242,6 +269,29 @@ export class DashboardController {
       endDate,
       this.parseAreaIds(areaIds, areaId),
       this.parseResponsibleIds(responsibleIds, responsibleId),
+      this.parseMainTypeIds(mainTypeIds, mainTypeId),
+    );
+  }
+
+  @Get('main-types-by-filters')
+  findMainTypesByFilters(
+    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Query('areaIds') areaIds?: string,
+    @Query('areaId') areaId?: string,
+    @Query('responsibleIds') responsibleIds?: string,
+    @Query('responsibleId') responsibleId?: string,
+    @Query('mainTypeIds') mainTypeIds?: string,
+    @Query('mainTypeId') mainTypeId?: string,
+  ) {
+    return this.dashboardService.findMainTypesByFilters(
+      +manufacturingPlantId,
+      startDate,
+      endDate,
+      this.parseAreaIds(areaIds, areaId),
+      this.parseResponsibleIds(responsibleIds, responsibleId),
+      this.parseMainTypeIds(mainTypeIds, mainTypeId),
     );
   }
 
@@ -254,6 +304,8 @@ export class DashboardController {
     @Query('areaId') areaId?: string,
     @Query('responsibleIds') responsibleIds?: string,
     @Query('responsibleId') responsibleId?: string,
+    @Query('mainTypeIds') mainTypeIds?: string,
+    @Query('mainTypeId') mainTypeId?: string,
   ) {
     return this.dashboardService.findHeatmapByFilters(
       +manufacturingPlantId,
@@ -261,6 +313,7 @@ export class DashboardController {
       endDate,
       this.parseAreaIds(areaIds, areaId),
       this.parseResponsibleIds(responsibleIds, responsibleId),
+      this.parseMainTypeIds(mainTypeIds, mainTypeId),
     );
   }
 
@@ -273,6 +326,8 @@ export class DashboardController {
     @Query('areaId') areaId?: string,
     @Query('responsibleIds') responsibleIds?: string,
     @Query('responsibleId') responsibleId?: string,
+    @Query('mainTypeIds') mainTypeIds?: string,
+    @Query('mainTypeId') mainTypeId?: string,
   ) {
     return this.dashboardService.findAssignedResponsiblesByFilters(
       +manufacturingPlantId,
@@ -280,6 +335,7 @@ export class DashboardController {
       endDate,
       this.parseAreaIds(areaIds, areaId),
       this.parseResponsibleIds(responsibleIds, responsibleId),
+      this.parseMainTypeIds(mainTypeIds, mainTypeId),
     );
   }
 
@@ -297,6 +353,8 @@ export class DashboardController {
     @Query('areaId') areaId?: string,
     @Query('responsibleIds') responsibleIds?: string,
     @Query('responsibleId') responsibleId?: string,
+    @Query('mainTypeIds') mainTypeIds?: string,
+    @Query('mainTypeId') mainTypeId?: string,
   ) {
     return this.dashboardService.findSankeyByFilters(
       +manufacturingPlantId,
@@ -304,6 +362,7 @@ export class DashboardController {
       endDate,
       this.parseAreaIds(areaIds, areaId),
       this.parseResponsibleIds(responsibleIds, responsibleId),
+      this.parseMainTypeIds(mainTypeIds, mainTypeId),
     );
   }
 
@@ -316,6 +375,8 @@ export class DashboardController {
     @Query('areaId') areaId?: string,
     @Query('responsibleIds') responsibleIds?: string,
     @Query('responsibleId') responsibleId?: string,
+    @Query('mainTypeIds') mainTypeIds?: string,
+    @Query('mainTypeId') mainTypeId?: string,
   ) {
     return this.dashboardService.findPackedBubbleByFilters(
       +manufacturingPlantId,
@@ -323,6 +384,7 @@ export class DashboardController {
       endDate,
       this.parseAreaIds(areaIds, areaId),
       this.parseResponsibleIds(responsibleIds, responsibleId),
+      this.parseMainTypeIds(mainTypeIds, mainTypeId),
     );
   }
 
@@ -335,6 +397,8 @@ export class DashboardController {
     @Query('areaId') areaId?: string,
     @Query('responsibleIds') responsibleIds?: string,
     @Query('responsibleId') responsibleId?: string,
+    @Query('mainTypeIds') mainTypeIds?: string,
+    @Query('mainTypeId') mainTypeId?: string,
   ) {
     return this.dashboardService.findSolidGaugeKpiByFilters(
       +manufacturingPlantId,
@@ -342,6 +406,7 @@ export class DashboardController {
       endDate,
       this.parseAreaIds(areaIds, areaId),
       this.parseResponsibleIds(responsibleIds, responsibleId),
+      this.parseMainTypeIds(mainTypeIds, mainTypeId),
     );
   }
 
@@ -354,6 +419,8 @@ export class DashboardController {
     @Query('areaId') areaId?: string,
     @Query('responsibleIds') responsibleIds?: string,
     @Query('responsibleId') responsibleId?: string,
+    @Query('mainTypeIds') mainTypeIds?: string,
+    @Query('mainTypeId') mainTypeId?: string,
   ) {
     return this.dashboardService.findAreaRangeLineByFilters(
       +manufacturingPlantId,
@@ -361,6 +428,7 @@ export class DashboardController {
       endDate,
       this.parseAreaIds(areaIds, areaId),
       this.parseResponsibleIds(responsibleIds, responsibleId),
+      this.parseMainTypeIds(mainTypeIds, mainTypeId),
     );
   }
 
@@ -371,12 +439,15 @@ export class DashboardController {
     @Query('endDate') endDate: string,
     @Query('areaIds') areaIds?: string,
     @Query('areaId') areaId?: string,
+    @Query('mainTypeIds') mainTypeIds?: string,
+    @Query('mainTypeId') mainTypeId?: string,
   ) {
     return this.dashboardService.findResponsiblesByFilters(
       +manufacturingPlantId,
       startDate,
       endDate,
       this.parseAreaIds(areaIds, areaId),
+      this.parseMainTypeIds(mainTypeIds, mainTypeId),
     );
   }
 

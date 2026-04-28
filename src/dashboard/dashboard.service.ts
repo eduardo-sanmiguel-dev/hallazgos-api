@@ -1300,6 +1300,7 @@ export class DashboardService {
     endDate: string,
     areaIds?: number[],
     responsibleIds?: number[],
+    mainTypeIds?: number[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('manufacturingPlantId es obligatorio');
@@ -1344,6 +1345,12 @@ export class DashboardService {
       if (areaIds && areaIds.length > 0) {
         query.andWhere('zone."areaId" IN (:...areaIds)', {
           areaIds,
+        });
+      }
+
+      if (mainTypeIds && mainTypeIds.length > 0) {
+        query.andWhere('evidence."mainTypeId" IN (:...mainTypeIds)', {
+          mainTypeIds,
         });
       }
 
@@ -1413,6 +1420,7 @@ export class DashboardService {
     endDate: string,
     areaIds?: number[],
     responsibleIds?: number[],
+    mainTypeIds?: number[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('manufacturingPlantId es obligatorio');
@@ -1468,6 +1476,12 @@ export class DashboardService {
         });
       }
 
+      if (mainTypeIds && mainTypeIds.length > 0) {
+        query.andWhere('evidence."mainTypeId" IN (:...mainTypeIds)', {
+          mainTypeIds,
+        });
+      }
+
       return query;
     };
 
@@ -1493,6 +1507,12 @@ export class DashboardService {
       if (areaIds && areaIds.length > 0) {
         query.andWhere('zone."areaId" IN (:...areaIds)', {
           areaIds,
+        });
+      }
+
+      if (mainTypeIds && mainTypeIds.length > 0) {
+        query.andWhere('evidence."mainTypeId" IN (:...mainTypeIds)', {
+          mainTypeIds,
         });
       }
 
@@ -1620,6 +1640,7 @@ export class DashboardService {
     endDate: string,
     areaIds?: number[],
     responsibleIds?: number[],
+    mainTypeIds?: number[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('manufacturingPlantId es obligatorio');
@@ -1689,6 +1710,12 @@ export class DashboardService {
         });
       }
 
+      if (mainTypeIds && mainTypeIds.length > 0) {
+        query.andWhere('evidence."mainTypeId" IN (:...mainTypeIds)', {
+          mainTypeIds,
+        });
+      }
+
       return query;
     };
 
@@ -1714,6 +1741,12 @@ export class DashboardService {
       if (areaIds && areaIds.length > 0) {
         query.andWhere('zone."areaId" IN (:...areaIds)', {
           areaIds,
+        });
+      }
+
+      if (mainTypeIds && mainTypeIds.length > 0) {
+        query.andWhere('evidence."mainTypeId" IN (:...mainTypeIds)', {
+          mainTypeIds,
         });
       }
 
@@ -1827,6 +1860,7 @@ export class DashboardService {
     endDate: string,
     areaIds?: number[],
     responsibleIds?: number[],
+    mainTypeIds?: number[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('manufacturingPlantId es obligatorio');
@@ -1875,6 +1909,12 @@ export class DashboardService {
       if (areaIds && areaIds.length > 0) {
         query.andWhere('zone."areaId" IN (:...areaIds)', {
           areaIds,
+        });
+      }
+
+      if (mainTypeIds && mainTypeIds.length > 0) {
+        query.andWhere('evidence."mainTypeId" IN (:...mainTypeIds)', {
+          mainTypeIds,
         });
       }
 
@@ -1934,12 +1974,131 @@ export class DashboardService {
     };
   }
 
+  async findMainTypesByFilters(
+    manufacturingPlantId: number,
+    startDate: string,
+    endDate: string,
+    areaIds?: number[],
+    responsibleIds?: number[],
+    mainTypeIds?: number[],
+  ) {
+    if (!manufacturingPlantId) {
+      throw new BadRequestException('manufacturingPlantId es obligatorio');
+    }
+
+    if (!startDate || !endDate) {
+      throw new BadRequestException(
+        'Las fechas de inicio y fin son obligatorias',
+      );
+    }
+
+    const parsedStartDate = this.parseDateFilter(
+      startDate,
+      'La fecha de inicio',
+    );
+    const parsedEndDate = this.parseDateFilter(
+      endDate,
+      'La fecha de fin',
+      true,
+    );
+
+    if (parsedStartDate > parsedEndDate) {
+      throw new BadRequestException(
+        'La fecha de inicio no puede ser mayor a la fecha de fin',
+      );
+    }
+
+    const buildBaseQuery = () =>
+      this.evidenceRepository
+        .createQueryBuilder('evidence')
+        .leftJoin('evidence.zone', 'zone')
+        .leftJoin('evidence.mainType', 'mainType')
+        .select(`COALESCE(mainType.name, 'Sin clasificacion')`, 'name')
+        .addSelect('COUNT(*)', 'total')
+        .where('evidence."manufacturingPlantId" = :manufacturingPlantId', {
+          manufacturingPlantId,
+        })
+        .andWhere('evidence."createdAt" BETWEEN :startDate AND :endDate', {
+          startDate: parsedStartDate,
+          endDate: parsedEndDate,
+        });
+
+    const applyOptionalFilters = (query: ReturnType<typeof buildBaseQuery>) => {
+      if (areaIds && areaIds.length > 0) {
+        query.andWhere('zone."areaId" IN (:...areaIds)', {
+          areaIds,
+        });
+      }
+
+      if (mainTypeIds && mainTypeIds.length > 0) {
+        query.andWhere('evidence."mainTypeId" IN (:...mainTypeIds)', {
+          mainTypeIds,
+        });
+      }
+
+      return query;
+    };
+
+    let rows: { name: string; total: string }[] = [];
+
+    if (responsibleIds && responsibleIds.length > 0) {
+      const rowsByResponsibles = await applyOptionalFilters(buildBaseQuery())
+        .innerJoin(
+          'evidence_responsibles_user',
+          'eru',
+          'eru."evidenceId" = evidence.id',
+        )
+        .andWhere('eru."userId" IN (:...responsibleIds)', {
+          responsibleIds,
+        })
+        .groupBy('mainType.name')
+        .getRawMany<{ name: string; total: string }>();
+
+      if (rowsByResponsibles.length > 0) {
+        rows = rowsByResponsibles;
+      } else {
+        rows = await applyOptionalFilters(buildBaseQuery())
+          .innerJoin(
+            'evidence_supervisors_user',
+            'esu',
+            'esu."evidenceId" = evidence.id',
+          )
+          .andWhere('esu."userId" IN (:...responsibleIds)', {
+            responsibleIds,
+          })
+          .groupBy('mainType.name')
+          .getRawMany<{ name: string; total: string }>();
+      }
+    } else {
+      rows = await applyOptionalFilters(buildBaseQuery())
+        .groupBy('mainType.name')
+        .getRawMany<{ name: string; total: string }>();
+    }
+
+    const seriesData = rows
+      .map((row) => ({
+        name: row.name,
+        y: Number(row.total),
+      }))
+      .sort((a, b) => b.y - a.y);
+
+    const total = seriesData.reduce((acc, item) => acc + item.y, 0);
+
+    return {
+      total,
+      startDate,
+      endDate,
+      seriesData,
+    };
+  }
+
   async findHeatmapByFilters(
     manufacturingPlantId: number,
     startDate: string,
     endDate: string,
     areaIds?: number[],
     responsibleIds?: number[],
+    mainTypeIds?: number[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('manufacturingPlantId es obligatorio');
@@ -2007,6 +2166,12 @@ export class DashboardService {
       if (areaIds && areaIds.length > 0) {
         query.andWhere('zone."areaId" IN (:...areaIds)', {
           areaIds,
+        });
+      }
+
+      if (mainTypeIds && mainTypeIds.length > 0) {
+        query.andWhere('evidence."mainTypeId" IN (:...mainTypeIds)', {
+          mainTypeIds,
         });
       }
 
@@ -2106,6 +2271,7 @@ export class DashboardService {
       endDate,
       areaIds,
       responsibleIds,
+      mainTypeIds,
     );
 
     const totalOpenEvidences =
@@ -2131,6 +2297,7 @@ export class DashboardService {
     startDate: string,
     endDate: string,
     areaIds: number[],
+    mainTypeIds?: number[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('manufacturingPlantId es obligatorio');
@@ -2162,8 +2329,8 @@ export class DashboardService {
       );
     }
 
-    const buildBaseQuery = () =>
-      this.evidenceRepository
+    const buildBaseQuery = () => {
+      const query = this.evidenceRepository
         .createQueryBuilder('evidence')
         .leftJoin('evidence.zone', 'zone')
         .select('u.id', 'id')
@@ -2178,6 +2345,15 @@ export class DashboardService {
         .andWhere('zone."areaId" IN (:...areaIds)', {
           areaIds,
         });
+
+      if (mainTypeIds && mainTypeIds.length > 0) {
+        query.andWhere('evidence."mainTypeId" IN (:...mainTypeIds)', {
+          mainTypeIds,
+        });
+      }
+
+      return query;
+    };
 
     const responsiblesRows = await buildBaseQuery()
       .innerJoin(
@@ -2222,6 +2398,7 @@ export class DashboardService {
     endDate: string,
     areaIds?: number[],
     responsibleIds?: number[],
+    mainTypeIds?: number[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('manufacturingPlantId es obligatorio');
@@ -2275,6 +2452,12 @@ export class DashboardService {
       if (responsibleIds && responsibleIds.length > 0) {
         query.andWhere(`${userTableAlias}."userId" IN (:...responsibleIds)`, {
           responsibleIds,
+        });
+      }
+
+      if (mainTypeIds && mainTypeIds.length > 0) {
+        query.andWhere('evidence."mainTypeId" IN (:...mainTypeIds)', {
+          mainTypeIds,
         });
       }
     };
@@ -2548,6 +2731,7 @@ export class DashboardService {
     endDate: string,
     areaIds?: number[],
     responsibleIds?: number[],
+    mainTypeIds?: number[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('manufacturingPlantId es obligatorio');
@@ -2594,6 +2778,12 @@ export class DashboardService {
       if (areaIds && areaIds.length > 0) {
         query.andWhere('zone."areaId" IN (:...areaIds)', {
           areaIds,
+        });
+      }
+
+      if (mainTypeIds && mainTypeIds.length > 0) {
+        query.andWhere('evidence."mainTypeId" IN (:...mainTypeIds)', {
+          mainTypeIds,
         });
       }
 
@@ -2720,6 +2910,7 @@ export class DashboardService {
     endDate: string,
     areaIds?: number[],
     responsibleIds?: number[],
+    mainTypeIds?: number[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('manufacturingPlantId es obligatorio');
@@ -2766,6 +2957,12 @@ export class DashboardService {
       if (areaIds && areaIds.length > 0) {
         query.andWhere('zone."areaId" IN (:...areaIds)', {
           areaIds,
+        });
+      }
+
+      if (mainTypeIds && mainTypeIds.length > 0) {
+        query.andWhere('evidence."mainTypeId" IN (:...mainTypeIds)', {
+          mainTypeIds,
         });
       }
 
@@ -2868,6 +3065,7 @@ export class DashboardService {
     endDate: string,
     areaIds?: number[],
     responsibleIds?: number[],
+    mainTypeIds?: number[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('manufacturingPlantId es obligatorio');
@@ -2933,6 +3131,12 @@ export class DashboardService {
         });
       }
 
+      if (mainTypeIds && mainTypeIds.length > 0) {
+        query.andWhere('evidence."mainTypeId" IN (:...mainTypeIds)', {
+          mainTypeIds,
+        });
+      }
+
       return query;
     };
 
@@ -2993,6 +3197,7 @@ export class DashboardService {
     endDate: string,
     areaIds?: number[],
     responsibleIds?: number[],
+    mainTypeIds?: number[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('manufacturingPlantId es obligatorio');
@@ -3044,6 +3249,12 @@ export class DashboardService {
       if (areaIds && areaIds.length > 0) {
         query.andWhere('zone."areaId" IN (:...areaIds)', {
           areaIds,
+        });
+      }
+
+      if (mainTypeIds && mainTypeIds.length > 0) {
+        query.andWhere('evidence."mainTypeId" IN (:...mainTypeIds)', {
+          mainTypeIds,
         });
       }
 
