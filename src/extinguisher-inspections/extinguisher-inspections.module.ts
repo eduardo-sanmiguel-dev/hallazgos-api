@@ -4,7 +4,6 @@ import { Module } from '@nestjs/common';
 import { ExtinguisherInspectionEvaluation } from './entities/extinguisher-inspection-evaluation.entity';
 import { ExtinguisherInspectionsController } from './extinguisher-inspections.controller';
 import { ExtinguisherInspectionsService } from './extinguisher-inspections.service';
-import { ExtinguisherInspectionsSeedService } from './extinguisher-inspections-seed.service';
 import { ExtinguisherInspection } from './entities/extinguisher-inspection.entity';
 import { EmergencyTeam } from 'emergency-teams/entities/emergency-team.entity';
 
@@ -17,10 +16,7 @@ import { EmergencyTeam } from 'emergency-teams/entities/emergency-team.entity';
     ]),
   ],
   controllers: [ExtinguisherInspectionsController],
-  providers: [
-    ExtinguisherInspectionsService,
-    ExtinguisherInspectionsSeedService,
-  ],
+  providers: [ExtinguisherInspectionsService],
   exports: [TypeOrmModule, ExtinguisherInspectionsService],
 })
 export class ExtinguisherInspectionsModule {}
