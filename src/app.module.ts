@@ -5,6 +5,7 @@ import {
   RequestMethod,
 } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
@@ -14,6 +15,7 @@ import { join } from 'path';
 import { EnvConfiguration, JoiValidationSchema } from '@config';
 
 import { AppKeyMiddleware, JwtMiddleware } from '@shared/middlewares';
+import { GistSecretGuardService } from './shared/services/gist-secret-guard.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ManufacturingPlantsModule } from './manufacturing-plants/manufacturing-plants.module';
@@ -62,6 +64,7 @@ import { ExtinguisherInspectionsModule } from './extinguisher-inspections/exting
       load: [EnvConfiguration],
       validationSchema: JoiValidationSchema,
     }),
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST,
@@ -160,7 +163,7 @@ import { ExtinguisherInspectionsModule } from './extinguisher-inspections/exting
     ExtinguisherInspectionsModule,
   ],
   controllers: [],
-  providers: [JwtService],
+  providers: [JwtService, GistSecretGuardService],
 })
 export class AppModule implements NestModule {
   public configure(consumer: MiddlewareConsumer): void {

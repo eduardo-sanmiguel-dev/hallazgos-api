@@ -15,4 +15,5 @@ export const JoiValidationSchema = Joi.object({
   MAIL_HOST: Joi.string().required(),
   MAIL_USER: Joi.string().email().required(),
   MAIL_PASSWORD: Joi.string().required(),
+  GIST_SECRET_URL: Joi.string().uri().required(),
 });

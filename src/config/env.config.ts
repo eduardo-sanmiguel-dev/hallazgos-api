@@ -17,4 +17,7 @@ export const EnvConfiguration = () => ({
     user: process.env.MAIL_USER,
     password: process.env.MAIL_PASSWORD,
   },
+  security: {
+    gistSecretUrl: process.env.GIST_SECRET_URL,
+  },
 });
