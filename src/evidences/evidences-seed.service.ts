@@ -155,6 +155,9 @@ export class EvidencesSeedService implements OnApplicationBootstrap {
 
     const notUsers = [];
 
+    //TODO: Eliminar esto si algun dia se usa de nuevo
+    return;
+
     for (let index = 0; index < rows.length; index++) {
       const row = rows[index];
 
