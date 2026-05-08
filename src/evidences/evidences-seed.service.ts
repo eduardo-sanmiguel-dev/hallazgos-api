@@ -276,6 +276,8 @@ export class EvidencesSeedService implements OnApplicationBootstrap {
         const status = this.resolveStatus(row.status);
         const now = new Date(2026, 4, 4, 9, 0, 0, 0);
 
+        //continue; // se crearon evidencias desde el id 3176 al 3496
+
         await this.evidenceRepository.save(
           this.evidenceRepository.create({
             imgEvidence: 'seed-evidence.png',
