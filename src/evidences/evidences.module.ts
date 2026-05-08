@@ -19,7 +19,6 @@ import { UsersModule } from 'users/users.module';
 import { Comment } from './entities/comments.entity';
 import { EvidencesResolver } from './evidences.resolver';
 import { ProcessesModule } from 'processes/processes.module';
-import { EvidencesSeedService } from './evidences-seed.service';
 
 @Module({
   imports: [
@@ -42,7 +41,7 @@ import { EvidencesSeedService } from './evidences-seed.service';
     ProcessesModule,
   ],
   controllers: [EvidencesController],
-  providers: [EvidencesService, EvidencesResolver, EvidencesSeedService],
+  providers: [EvidencesService, EvidencesResolver],
   exports: [TypeOrmModule, EvidencesService],
 })
 export class EvidencesModule {}
