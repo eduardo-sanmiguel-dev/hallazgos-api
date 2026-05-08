@@ -3,7 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 
 import { ILike, Repository } from 'typeorm';
 import * as XlsxPopulate from 'xlsx-populate';
-import * as path from 'path';
 
 import {
   STATUS_CANCEL,
@@ -18,6 +17,7 @@ import { SecondaryType } from 'secondary-types/entities/secondary-type.entity';
 import { User } from 'users/entities/user.entity';
 import { Zone } from 'zones/entities/zone.entity';
 import { Evidence } from './entities/evidence.entity';
+import { join } from 'path';
 
 type RawRow = {
   manufacturingPlant: string;
@@ -35,11 +35,12 @@ type RawRow = {
 export class EvidencesSeedService implements OnApplicationBootstrap {
   private readonly logger = new Logger(EvidencesSeedService.name);
 
-  private readonly defaultExcelPath = path.resolve(
+  private readonly defaultExcelPath = join(
     process.cwd(),
-    'files',
+    'src/files',
     'victoria2.xlsx',
   );
+
   private readonly fallbackUserId = 1;
 
   private readonly priorityByLabel: Record<string, number> = {
