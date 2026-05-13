@@ -89,12 +89,20 @@ export class TrainingGuidesController {
 
         sheet
           .cell(`A${currentIdxInitial}`)
-          .value(
-            `${trainingGuide.employee.code} - ${trainingGuide.employee.name}`,
-          );
+          .value(`${trainingGuide.employee.name}`);
+        sheet
+          .cell(`B${currentIdxInitial}`)
+          .value(`${trainingGuide.employee.code}`);
         sheet
           .cell(`C${currentIdxInitial}`)
-          .value(trainingGuide.startDate.toISOString().split('T')[0]);
+          .value(
+            trainingGuide.startDate
+              .toISOString()
+              .split('T')[0]
+              .split('-')
+              .reverse()
+              .join('/'),
+          );
         sheet.cell(`E${currentIdxInitial}`).value(trainingGuide.position.name);
         sheet.cell(`G${currentIdxInitial}`).value(trainingGuide.area.name);
 
@@ -110,8 +118,12 @@ export class TrainingGuidesController {
           sheet
             .cell(`C${currentIdx}`)
             .value(
-              currentEvaluation?.evaluationDate?.toISOString().split('T')[0] ||
-                '',
+              currentEvaluation?.evaluationDate
+                ?.toISOString()
+                .split('T')[0]
+                .split('-')
+                .reverse()
+                .join('/') || '',
             );
           sheet.cell(`D${currentIdx}`).value(evaluation.topic.duration);
 
@@ -152,7 +164,7 @@ export class TrainingGuidesController {
           (evaluationSum / trainingGuide.evaluations.length || 0).toFixed(2),
         );
 
-        sheet.cell(`F25`).value(average);
+        sheet.cell(`F16`).value(average);
 
         return workbook.toFileAsync(this.filePathNewFile);
       })
@@ -197,7 +209,7 @@ export class TrainingGuidesController {
             }
 
             worksheet.addImage(imageId, {
-              tl: { col: 1, row: 27 },
+              tl: { col: 0, row: 20 },
               ext: dimensions,
             });
           }
@@ -222,7 +234,7 @@ export class TrainingGuidesController {
             });
 
             worksheet.addImage(imageId, {
-              tl: { col: 4, row: 27 },
+              tl: { col: 4, row: 20 },
               ext: dimensions,
             });
           }
@@ -247,7 +259,7 @@ export class TrainingGuidesController {
             });
 
             worksheet.addImage(imageId, {
-              tl: { col: 7, row: 27 },
+              tl: { col: 7, row: 20 },
               ext: dimensions,
             });
           }
