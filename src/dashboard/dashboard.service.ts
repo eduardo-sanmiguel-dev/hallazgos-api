@@ -9,12 +9,19 @@ import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-
 import { AccidentRate } from './entities/accident-rate.entity';
 import { User } from 'users/entities/user.entity';
 import { Evidence } from 'evidences/entities/evidence.entity';
+import { MainType } from 'main-types/entities/main-type.entity';
 import { groupBy } from '@shared/utils';
 
 import 'moment/locale/es';
 
 @Injectable()
 export class DashboardService {
+  private readonly restrictedDashboardEmail = 'glora@hadainternational.com';
+  private readonly excludedMainTypesForRestrictedEmail = [
+    'Comportamiento inseguro',
+    'Condición insegura',
+  ];
+
   constructor(
     @InjectRepository(ManufacturingPlant)
     private readonly manufacturingPlant: Repository<ManufacturingPlant>,
@@ -22,8 +29,69 @@ export class DashboardService {
     private readonly accidentRate: Repository<AccidentRate>,
     @InjectRepository(Evidence)
     private readonly evidenceRepository: Repository<Evidence>,
+    @InjectRepository(MainType)
+    private readonly mainTypeRepository: Repository<MainType>,
     @Inject(REQUEST) private readonly request: Request,
   ) {}
+
+  private normalizeForComparison(value: string) {
+    return String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+  }
+
+  private isRestrictedDashboardUser() {
+    const user = this.request['user'] as User | undefined;
+    const currentEmail = this.normalizeForComparison(user?.email || '');
+
+    return (
+      currentEmail ===
+      this.normalizeForComparison(this.restrictedDashboardEmail)
+    );
+  }
+
+  private async resolveScopedMainTypeIds(mainTypeIds?: number[]) {
+    const providedMainTypeIds = Array.from(
+      new Set(
+        (mainTypeIds || []).filter(
+          (id) => Number.isInteger(id) && Number(id) > 0,
+        ),
+      ),
+    );
+
+    if (!this.isRestrictedDashboardUser()) {
+      return providedMainTypeIds.length > 0 ? providedMainTypeIds : undefined;
+    }
+
+    const excluded = new Set(
+      this.excludedMainTypesForRestrictedEmail.map((name) =>
+        this.normalizeForComparison(name),
+      ),
+    );
+
+    const activeMainTypes = await this.mainTypeRepository.find({
+      where: { isActive: true },
+    });
+
+    const allowedMainTypeIds = activeMainTypes
+      .filter(
+        (item) => !excluded.has(this.normalizeForComparison(item.name || '')),
+      )
+      .map((item) => item.id);
+
+    if (providedMainTypeIds.length > 0) {
+      const allowedIdsSet = new Set(allowedMainTypeIds);
+      const intersection = providedMainTypeIds.filter((id) =>
+        allowedIdsSet.has(id),
+      );
+
+      return intersection.length > 0 ? intersection : [-1];
+    }
+
+    return allowedMainTypeIds.length > 0 ? allowedMainTypeIds : [-1];
+  }
 
   private parseDateFilter(
     date: string,
@@ -1328,6 +1396,8 @@ export class DashboardService {
       );
     }
 
+    mainTypeIds = await this.resolveScopedMainTypeIds(mainTypeIds);
+
     const buildBaseQuery = () => {
       const query = this.evidenceRepository
         .createQueryBuilder('evidence')
@@ -1447,6 +1517,8 @@ export class DashboardService {
         'La fecha de inicio no puede ser mayor a la fecha de fin',
       );
     }
+
+    mainTypeIds = await this.resolveScopedMainTypeIds(mainTypeIds);
 
     const priorityDefinition = [
       { name: 'Inmediato', days: 8, color: '#D32F2F' },
@@ -1668,6 +1740,8 @@ export class DashboardService {
       );
     }
 
+    mainTypeIds = await this.resolveScopedMainTypeIds(mainTypeIds);
+
     const riskDefinition = [
       { name: 'Bajo', color: '#7CB342' },
       { name: 'Medio', color: '#FFEB3B' },
@@ -1888,6 +1962,8 @@ export class DashboardService {
       );
     }
 
+    mainTypeIds = await this.resolveScopedMainTypeIds(mainTypeIds);
+
     const buildBaseQuery = () =>
       this.evidenceRepository
         .createQueryBuilder('evidence')
@@ -2008,6 +2084,8 @@ export class DashboardService {
       );
     }
 
+    mainTypeIds = await this.resolveScopedMainTypeIds(mainTypeIds);
+
     const buildBaseQuery = () =>
       this.evidenceRepository
         .createQueryBuilder('evidence')
@@ -2125,6 +2203,8 @@ export class DashboardService {
         'La fecha de inicio no puede ser mayor a la fecha de fin',
       );
     }
+
+    mainTypeIds = await this.resolveScopedMainTypeIds(mainTypeIds);
 
     const buildBaseQuery = () => {
       const query = this.evidenceRepository
@@ -2329,6 +2409,8 @@ export class DashboardService {
       );
     }
 
+    mainTypeIds = await this.resolveScopedMainTypeIds(mainTypeIds);
+
     const buildBaseQuery = () => {
       const query = this.evidenceRepository
         .createQueryBuilder('evidence')
@@ -2425,6 +2507,8 @@ export class DashboardService {
         'La fecha de inicio no puede ser mayor a la fecha de fin',
       );
     }
+
+    mainTypeIds = await this.resolveScopedMainTypeIds(mainTypeIds);
 
     const statusOrder = ['Abierto', 'En progreso', 'Cerrado', 'Cancelado'];
 
@@ -2759,6 +2843,8 @@ export class DashboardService {
       );
     }
 
+    mainTypeIds = await this.resolveScopedMainTypeIds(mainTypeIds);
+
     const buildBaseQuery = () => {
       const query = this.evidenceRepository
         .createQueryBuilder('evidence')
@@ -2938,6 +3024,8 @@ export class DashboardService {
       );
     }
 
+    mainTypeIds = await this.resolveScopedMainTypeIds(mainTypeIds);
+
     const buildBaseQuery = () => {
       const query = this.evidenceRepository
         .createQueryBuilder('evidence')
@@ -3093,6 +3181,8 @@ export class DashboardService {
       );
     }
 
+    mainTypeIds = await this.resolveScopedMainTypeIds(mainTypeIds);
+
     type KpiRawRow = {
       total: string;
       closed: string;
@@ -3224,6 +3314,8 @@ export class DashboardService {
         'La fecha de inicio no puede ser mayor a la fecha de fin',
       );
     }
+
+    mainTypeIds = await this.resolveScopedMainTypeIds(mainTypeIds);
 
     type RawRow = {
       monthKey: string;
