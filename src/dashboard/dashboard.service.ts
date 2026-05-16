@@ -12,8 +12,6 @@ import { Evidence } from 'evidences/entities/evidence.entity';
 import { MainType } from 'main-types/entities/main-type.entity';
 import { groupBy } from '@shared/utils';
 
-import 'moment/locale/es';
-
 @Injectable()
 export class DashboardService {
   private readonly restrictedDashboardEmail = 'glora@hadainternational.com';

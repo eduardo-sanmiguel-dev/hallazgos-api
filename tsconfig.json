@@ -20,6 +20,7 @@
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
     "baseUrl": "./src",
+    "ignoreDeprecations": "6.0",
     "paths": {
       "@config": ["config"],
       "@shared/*": ["shared/*"]
