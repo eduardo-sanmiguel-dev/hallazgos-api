@@ -1,7 +1,7 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
-import * as cookieParser from 'cookie-parser';
+import cookieParser = require('cookie-parser');
 
 //import { GlobalExceptionFilter } from '@shared/filters';
 //import { ClusterService } from 'cluster.service';

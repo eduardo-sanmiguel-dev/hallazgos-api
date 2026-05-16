@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-import * as moment from 'moment';
+import moment = require('moment');
 import 'moment/locale/es';
 
 export const expireTime = 60 * 60 * 24 * 30; // 30 days in seconds
