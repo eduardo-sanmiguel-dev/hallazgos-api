@@ -1,6 +1,7 @@
 import { ArgsType, Field, Int } from '@nestjs/graphql';
 
 import {
+  IsArray,
   IsNumber,
   IsOptional,
   IsPositive,
@@ -29,9 +30,21 @@ export class ParamsArgs {
   mainTypeId?: number;
 
   @IsOptional()
+  @IsArray()
+  @IsPositive({ each: true })
+  @Field(() => [Int], { nullable: true })
+  mainTypeIds?: number[];
+
+  @IsOptional()
   @IsPositive()
   @Field(() => Number, { nullable: true })
   secondaryTypeId?: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsPositive({ each: true })
+  @Field(() => [Int], { nullable: true })
+  secondaryTypeIds?: number[];
 
   @IsOptional()
   @IsPositive()
@@ -39,14 +52,32 @@ export class ParamsArgs {
   zoneId?: number;
 
   @IsOptional()
+  @IsArray()
+  @IsPositive({ each: true })
+  @Field(() => [Int], { nullable: true })
+  zoneIds?: number[];
+
+  @IsOptional()
   @IsPositive()
   @Field(() => Number, { nullable: true })
   processId?: number;
 
   @IsOptional()
+  @IsArray()
+  @IsPositive({ each: true })
+  @Field(() => [Int], { nullable: true })
+  processIds?: number[];
+
+  @IsOptional()
   @IsString()
   @Field(() => String, { nullable: true })
   status?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Field(() => [String], { nullable: true })
+  statuses?: string[];
 
   @IsOptional()
   @IsString()

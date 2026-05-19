@@ -10,8 +10,18 @@ export class QueryEvidenceDto {
   mainTypeId: number;
 
   @IsOptional()
+  @IsString()
+  @Matches(/^\d+(,\d+)*$/)
+  mainTypeIds: string;
+
+  @IsOptional()
   @IsPositive()
   secondaryType: number;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d+(,\d+)*$/)
+  secondaryTypeIds: string;
 
   @IsOptional()
   @IsPositive()
@@ -19,7 +29,25 @@ export class QueryEvidenceDto {
 
   @IsOptional()
   @IsString()
+  @Matches(/^\d+(,\d+)*$/)
+  zoneIds: string;
+
+  @IsOptional()
+  @IsPositive()
+  process: number;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d+(,\d+)*$/)
+  processIds: string;
+
+  @IsOptional()
+  @IsString()
   status: string;
+
+  @IsOptional()
+  @IsString()
+  statuses: string;
 
   @IsOptional()
   @IsString()

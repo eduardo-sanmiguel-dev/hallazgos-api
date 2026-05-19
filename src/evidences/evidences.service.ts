@@ -202,6 +202,61 @@ export class EvidencesService {
     return undefined;
   }
 
+  private parseMainTypeIds(mainTypeIds?: string): number[] {
+    if (!mainTypeIds) {
+      return [];
+    }
+
+    return mainTypeIds
+      .split(',')
+      .map((id) => Number(id.trim()))
+      .filter((id) => Number.isInteger(id) && id > 0);
+  }
+
+  private parseSecondaryTypeIds(secondaryTypeIds?: string): number[] {
+    if (!secondaryTypeIds) {
+      return [];
+    }
+
+    return secondaryTypeIds
+      .split(',')
+      .map((id) => Number(id.trim()))
+      .filter((id) => Number.isInteger(id) && id > 0);
+  }
+
+  private parseProcessIds(processIds?: string): number[] {
+    if (!processIds) {
+      return [];
+    }
+
+    return processIds
+      .split(',')
+      .map((id) => Number(id.trim()))
+      .filter((id) => Number.isInteger(id) && id > 0);
+  }
+
+  private parseZoneIds(zoneIds?: string): number[] {
+    if (!zoneIds) {
+      return [];
+    }
+
+    return zoneIds
+      .split(',')
+      .map((id) => Number(id.trim()))
+      .filter((id) => Number.isInteger(id) && id > 0);
+  }
+
+  private parseStatuses(statuses?: string): string[] {
+    if (!statuses) {
+      return [];
+    }
+
+    return statuses
+      .split(',')
+      .map((status) => status.trim())
+      .filter((status) => status.length > 0);
+  }
+
   async create(
     createEvidenceDto: CreateEvidenceDto,
     file: Express.Multer.File,
@@ -693,12 +748,58 @@ export class EvidencesService {
     const {
       manufacturingPlantId,
       mainTypeId,
+      mainTypeIds,
       secondaryType,
+      secondaryTypeIds,
       zone,
+      zoneIds,
+      process,
+      processIds,
       status,
+      statuses,
       startDate,
       endDate,
     } = queryEvidenceDto;
+
+    const scopedMainTypeIds = this.parseMainTypeIds(mainTypeIds);
+
+    if (mainTypeId) {
+      scopedMainTypeIds.push(mainTypeId);
+    }
+
+    const uniqueMainTypeIds = Array.from(new Set(scopedMainTypeIds));
+
+    const scopedSecondaryTypeIds = this.parseSecondaryTypeIds(secondaryTypeIds);
+
+    if (secondaryType) {
+      scopedSecondaryTypeIds.push(secondaryType);
+    }
+
+    const uniqueSecondaryTypeIds = Array.from(new Set(scopedSecondaryTypeIds));
+
+    const scopedZoneIds = this.parseZoneIds(zoneIds);
+
+    if (zone) {
+      scopedZoneIds.push(zone);
+    }
+
+    const uniqueZoneIds = Array.from(new Set(scopedZoneIds));
+
+    const scopedProcessIds = this.parseProcessIds(processIds);
+
+    if (process) {
+      scopedProcessIds.push(process);
+    }
+
+    const uniqueProcessIds = Array.from(new Set(scopedProcessIds));
+
+    const scopedStatuses = this.parseStatuses(statuses);
+
+    if (status) {
+      scopedStatuses.push(status);
+    }
+
+    const uniqueStatuses = Array.from(new Set(scopedStatuses));
 
     const manufacturingPlantsIds = manufacturingPlantId
       ? [manufacturingPlantId]
@@ -722,10 +823,19 @@ export class EvidencesService {
                 isActive: true,
               },
             }),
-        ...(mainTypeId && { mainType: { id: mainTypeId } }),
-        ...(secondaryType && { secondaryType: { id: secondaryType } }),
-        ...(zone && { zone: { id: zone } }),
-        ...(status && { status }),
+        ...(uniqueMainTypeIds.length > 0 && {
+          mainType: { id: In(uniqueMainTypeIds) },
+        }),
+        ...(uniqueSecondaryTypeIds.length > 0 && {
+          secondaryType: { id: In(uniqueSecondaryTypeIds) },
+        }),
+        ...(uniqueZoneIds.length > 0 && {
+          zone: { id: In(uniqueZoneIds) },
+        }),
+        ...(uniqueProcessIds.length > 0 && {
+          process: { id: In(uniqueProcessIds) },
+        }),
+        ...(uniqueStatuses.length > 0 && { status: In(uniqueStatuses) }),
         ...(createdAtFilter && { createdAt: createdAtFilter }),
       },
       relations: this.relations,
@@ -747,15 +857,47 @@ export class EvidencesService {
     const {
       manufacturingPlantId,
       mainTypeId,
+      mainTypeIds,
       secondaryTypeId,
+      secondaryTypeIds,
       zoneId,
+      zoneIds,
       processId,
+      processIds,
       limit,
       page,
       status,
+      statuses,
       startDate,
       endDate,
     } = paramsArgs;
+
+    const scopedMainTypeIds =
+      mainTypeIds && mainTypeIds.length > 0
+        ? mainTypeIds
+        : mainTypeId
+          ? [mainTypeId]
+          : [];
+
+    const scopedSecondaryTypeIds =
+      secondaryTypeIds && secondaryTypeIds.length > 0
+        ? secondaryTypeIds
+        : secondaryTypeId
+          ? [secondaryTypeId]
+          : [];
+
+    const scopedZoneIds =
+      zoneIds && zoneIds.length > 0 ? zoneIds : zoneId ? [zoneId] : [];
+
+    const scopedProcessIds =
+      processIds && processIds.length > 0
+        ? processIds
+        : processId
+          ? [processId]
+          : [];
+
+    const scopedStatuses =
+      statuses && statuses.length > 0 ? statuses : status ? [status] : [];
 
     const user = await this.usersService.findOne(userId);
 
@@ -782,11 +924,19 @@ export class EvidencesService {
               isActive: true,
             },
           }),
-      ...(mainTypeId && { mainType: { id: mainTypeId } }),
-      ...(secondaryTypeId && { secondaryType: { id: secondaryTypeId } }),
-      ...(zoneId && { zone: { id: zoneId } }),
-      ...(processId && { process: { id: processId } }),
-      ...(status && { status }),
+      ...(scopedMainTypeIds.length > 0 && {
+        mainType: { id: In(scopedMainTypeIds) },
+      }),
+      ...(scopedSecondaryTypeIds.length > 0 && {
+        secondaryType: { id: In(scopedSecondaryTypeIds) },
+      }),
+      ...(scopedZoneIds.length > 0 && {
+        zone: { id: In(scopedZoneIds) },
+      }),
+      ...(scopedProcessIds.length > 0 && {
+        process: { id: In(scopedProcessIds) },
+      }),
+      ...(scopedStatuses.length > 0 && { status: In(scopedStatuses) }),
       ...(createdAtFilter && { createdAt: createdAtFilter }),
     };
 
