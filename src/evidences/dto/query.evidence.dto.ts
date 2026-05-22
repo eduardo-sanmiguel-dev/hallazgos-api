@@ -3,6 +3,15 @@ import { IsOptional, IsPositive, IsString, Matches } from 'class-validator';
 export class QueryEvidenceDto {
   @IsOptional()
   @IsPositive()
+  id: number;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d+(,\d+)*$/)
+  ids: string;
+
+  @IsOptional()
+  @IsPositive()
   manufacturingPlantId: number;
 
   @IsOptional()
