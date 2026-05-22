@@ -21,6 +21,17 @@ export class ParamsArgs {
 
   @IsOptional()
   @IsPositive()
+  @Field(() => Int, { nullable: true })
+  id?: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsPositive({ each: true })
+  @Field(() => [Int], { nullable: true })
+  ids?: number[];
+
+  @IsOptional()
+  @IsPositive()
   @Field(() => Number, { nullable: true })
   manufacturingPlantId?: number;
 

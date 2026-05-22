@@ -214,6 +214,17 @@ export class EvidencesService {
       .filter((id) => Number.isInteger(id) && id > 0);
   }
 
+  private parseEvidenceIds(ids?: string): number[] {
+    if (!ids) {
+      return [];
+    }
+
+    return ids
+      .split(',')
+      .map((id) => Number(id.trim()))
+      .filter((id) => Number.isInteger(id) && id > 0);
+  }
+
   private parseSecondaryTypeIds(secondaryTypeIds?: string): number[] {
     if (!secondaryTypeIds) {
       return [];
@@ -769,6 +780,8 @@ export class EvidencesService {
     const { manufacturingPlants } = this.request['user'] as User;
 
     const {
+      id,
+      ids,
       manufacturingPlantId,
       mainTypeId,
       mainTypeIds,
@@ -787,6 +800,14 @@ export class EvidencesService {
       startDate,
       endDate,
     } = queryEvidenceDto;
+
+    const scopedEvidenceIds = this.parseEvidenceIds(ids);
+
+    if (id) {
+      scopedEvidenceIds.push(id);
+    }
+
+    const uniqueEvidenceIds = Array.from(new Set(scopedEvidenceIds));
 
     const scopedMainTypeIds = this.parseMainTypeIds(mainTypeIds);
 
@@ -860,6 +881,7 @@ export class EvidencesService {
     const evidences = await this.evidenceRepository.find({
       where: {
         //isActive: true,
+        ...(uniqueEvidenceIds.length > 0 && { id: In(uniqueEvidenceIds) }),
         ...(manufacturingPlantId
           ? {
               manufacturingPlant: { id: manufacturingPlantId, isActive: true },
@@ -905,6 +927,8 @@ export class EvidencesService {
     count: number;
   }> {
     const {
+      id,
+      ids,
       manufacturingPlantId,
       mainTypeId,
       mainTypeIds,
@@ -925,6 +949,14 @@ export class EvidencesService {
       startDate,
       endDate,
     } = paramsArgs;
+
+    const scopedEvidenceIds = ids && ids.length > 0 ? ids : [];
+
+    if (id) {
+      scopedEvidenceIds.push(id);
+    }
+
+    const uniqueEvidenceIds = Array.from(new Set(scopedEvidenceIds));
 
     const scopedMainTypeIds =
       mainTypeIds && mainTypeIds.length > 0
@@ -982,6 +1014,7 @@ export class EvidencesService {
 
     const where: FindOptionsWhere<Evidence> = {
       //isActive: true,
+      ...(uniqueEvidenceIds.length > 0 && { id: In(uniqueEvidenceIds) }),
       ...(manufacturingPlantId
         ? {
             manufacturingPlant: { id: manufacturingPlantId, isActive: true },
