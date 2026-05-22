@@ -63,6 +63,7 @@ export class Zone {
   manufacturingPlant: ManufacturingPlant;
 
   @ManyToOne(() => Area, (area) => area.zones)
+  @Field(() => Area, { nullable: true })
   area: Area;
 
   @OneToMany(() => Ciael, (ciael) => ciael.zone)
