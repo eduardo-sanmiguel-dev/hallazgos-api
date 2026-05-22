@@ -28,6 +28,15 @@ export class QueryEvidenceDto {
   zone: number;
 
   @IsOptional()
+  @IsPositive()
+  area: number;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d+(,\d+)*$/)
+  areaIds: string;
+
+  @IsOptional()
   @IsString()
   @Matches(/^\d+(,\d+)*$/)
   zoneIds: string;
@@ -40,6 +49,15 @@ export class QueryEvidenceDto {
   @IsString()
   @Matches(/^\d+(,\d+)*$/)
   processIds: string;
+
+  @IsOptional()
+  @IsPositive()
+  responsible: number;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d+(,\d+)*$/)
+  responsibleIds: string;
 
   @IsOptional()
   @IsString()

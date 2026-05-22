@@ -8,6 +8,7 @@ import {
   ManyToOne,
   Index,
 } from 'typeorm';
+import { Field, ID, ObjectType } from '@nestjs/graphql';
 
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
 import { Zone } from 'zones/entities/zone.entity';
@@ -15,14 +16,18 @@ import { User } from 'users/entities/user.entity';
 
 @Index(['name', 'manufacturingPlant'], { unique: true })
 @Entity({ name: 'areas' })
+@ObjectType()
 export class Area {
   @PrimaryGeneratedColumn()
+  @Field(() => ID)
   id: number;
 
   @Column()
+  @Field(() => String)
   name: string;
 
   @Column({ default: true })
+  @Field(() => Boolean)
   isActive: boolean;
 
   @Column({ type: 'integer', nullable: true })

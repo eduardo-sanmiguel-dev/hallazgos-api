@@ -90,6 +90,7 @@ export class EvidencesService {
     'mainType',
     'secondaryType',
     'zone',
+    'zone.area',
     'user',
     'supervisors',
     'responsibles',
@@ -246,6 +247,17 @@ export class EvidencesService {
       .filter((id) => Number.isInteger(id) && id > 0);
   }
 
+  private parseAreaIds(areaIds?: string): number[] {
+    if (!areaIds) {
+      return [];
+    }
+
+    return areaIds
+      .split(',')
+      .map((id) => Number(id.trim()))
+      .filter((id) => Number.isInteger(id) && id > 0);
+  }
+
   private parseStatuses(statuses?: string): string[] {
     if (!statuses) {
       return [];
@@ -255,6 +267,17 @@ export class EvidencesService {
       .split(',')
       .map((status) => status.trim())
       .filter((status) => status.length > 0);
+  }
+
+  private parseResponsibleIds(responsibleIds?: string): number[] {
+    if (!responsibleIds) {
+      return [];
+    }
+
+    return responsibleIds
+      .split(',')
+      .map((id) => Number(id.trim()))
+      .filter((id) => Number.isInteger(id) && id > 0);
   }
 
   async create(
@@ -751,10 +774,14 @@ export class EvidencesService {
       mainTypeIds,
       secondaryType,
       secondaryTypeIds,
+      area,
+      areaIds,
       zone,
       zoneIds,
       process,
       processIds,
+      responsible,
+      responsibleIds,
       status,
       statuses,
       startDate,
@@ -777,6 +804,14 @@ export class EvidencesService {
 
     const uniqueSecondaryTypeIds = Array.from(new Set(scopedSecondaryTypeIds));
 
+    const scopedAreaIds = this.parseAreaIds(areaIds);
+
+    if (area) {
+      scopedAreaIds.push(area);
+    }
+
+    const uniqueAreaIds = Array.from(new Set(scopedAreaIds));
+
     const scopedZoneIds = this.parseZoneIds(zoneIds);
 
     if (zone) {
@@ -792,6 +827,14 @@ export class EvidencesService {
     }
 
     const uniqueProcessIds = Array.from(new Set(scopedProcessIds));
+
+    const scopedResponsibleIds = this.parseResponsibleIds(responsibleIds);
+
+    if (responsible) {
+      scopedResponsibleIds.push(responsible);
+    }
+
+    const uniqueResponsibleIds = Array.from(new Set(scopedResponsibleIds));
 
     const scopedStatuses = this.parseStatuses(statuses);
 
@@ -809,6 +852,10 @@ export class EvidencesService {
       throw new BadRequestException('No se ha encontrado plantas asignadas');
 
     const createdAtFilter = this.buildCreatedAtFilter(startDate, endDate);
+    const scopedZoneFilter = {
+      ...(uniqueZoneIds.length > 0 && { id: In(uniqueZoneIds) }),
+      ...(uniqueAreaIds.length > 0 && { area: { id: In(uniqueAreaIds) } }),
+    };
 
     const evidences = await this.evidenceRepository.find({
       where: {
@@ -829,11 +876,14 @@ export class EvidencesService {
         ...(uniqueSecondaryTypeIds.length > 0 && {
           secondaryType: { id: In(uniqueSecondaryTypeIds) },
         }),
-        ...(uniqueZoneIds.length > 0 && {
-          zone: { id: In(uniqueZoneIds) },
+        ...(Object.keys(scopedZoneFilter).length > 0 && {
+          zone: scopedZoneFilter,
         }),
         ...(uniqueProcessIds.length > 0 && {
           process: { id: In(uniqueProcessIds) },
+        }),
+        ...(uniqueResponsibleIds.length > 0 && {
+          responsibles: { id: In(uniqueResponsibleIds) },
         }),
         ...(uniqueStatuses.length > 0 && { status: In(uniqueStatuses) }),
         ...(createdAtFilter && { createdAt: createdAtFilter }),
@@ -860,10 +910,14 @@ export class EvidencesService {
       mainTypeIds,
       secondaryTypeId,
       secondaryTypeIds,
+      areaId,
+      areaIds,
       zoneId,
       zoneIds,
       processId,
       processIds,
+      responsibleId,
+      responsibleIds,
       limit,
       page,
       status,
@@ -886,6 +940,9 @@ export class EvidencesService {
           ? [secondaryTypeId]
           : [];
 
+    const scopedAreaIds =
+      areaIds && areaIds.length > 0 ? areaIds : areaId ? [areaId] : [];
+
     const scopedZoneIds =
       zoneIds && zoneIds.length > 0 ? zoneIds : zoneId ? [zoneId] : [];
 
@@ -894,6 +951,13 @@ export class EvidencesService {
         ? processIds
         : processId
           ? [processId]
+          : [];
+
+    const scopedResponsibleIds =
+      responsibleIds && responsibleIds.length > 0
+        ? responsibleIds
+        : responsibleId
+          ? [responsibleId]
           : [];
 
     const scopedStatuses =
@@ -911,6 +975,10 @@ export class EvidencesService {
       throw new BadRequestException('No se ha encontrado plantas asignadas');
 
     const createdAtFilter = this.buildCreatedAtFilter(startDate, endDate);
+    const scopedZoneFilter = {
+      ...(scopedZoneIds.length > 0 && { id: In(scopedZoneIds) }),
+      ...(scopedAreaIds.length > 0 && { area: { id: In(scopedAreaIds) } }),
+    };
 
     const where: FindOptionsWhere<Evidence> = {
       //isActive: true,
@@ -930,11 +998,14 @@ export class EvidencesService {
       ...(scopedSecondaryTypeIds.length > 0 && {
         secondaryType: { id: In(scopedSecondaryTypeIds) },
       }),
-      ...(scopedZoneIds.length > 0 && {
-        zone: { id: In(scopedZoneIds) },
+      ...(Object.keys(scopedZoneFilter).length > 0 && {
+        zone: scopedZoneFilter,
       }),
       ...(scopedProcessIds.length > 0 && {
         process: { id: In(scopedProcessIds) },
+      }),
+      ...(scopedResponsibleIds.length > 0 && {
+        responsibles: { id: In(scopedResponsibleIds) },
       }),
       ...(scopedStatuses.length > 0 && { status: In(scopedStatuses) }),
       ...(createdAtFilter && { createdAt: createdAtFilter }),

@@ -52,6 +52,17 @@ export class ParamsArgs {
   zoneId?: number;
 
   @IsOptional()
+  @IsPositive()
+  @Field(() => Number, { nullable: true })
+  areaId?: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsPositive({ each: true })
+  @Field(() => [Int], { nullable: true })
+  areaIds?: number[];
+
+  @IsOptional()
   @IsArray()
   @IsPositive({ each: true })
   @Field(() => [Int], { nullable: true })
@@ -67,6 +78,17 @@ export class ParamsArgs {
   @IsPositive({ each: true })
   @Field(() => [Int], { nullable: true })
   processIds?: number[];
+
+  @IsOptional()
+  @IsPositive()
+  @Field(() => Number, { nullable: true })
+  responsibleId?: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsPositive({ each: true })
+  @Field(() => [Int], { nullable: true })
+  responsibleIds?: number[];
 
   @IsOptional()
   @IsString()
