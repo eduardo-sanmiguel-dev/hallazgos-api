@@ -14,7 +14,7 @@ import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-
 import { Zone } from 'zones/entities/zone.entity';
 import { User } from 'users/entities/user.entity';
 
-@Index(['name'], { unique: true })
+@Index(['name', 'manufacturingPlant'], { unique: true })
 @Entity({ name: 'areas' })
 @ObjectType()
 export class Area {
