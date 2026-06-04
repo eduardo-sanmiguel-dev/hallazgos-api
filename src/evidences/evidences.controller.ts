@@ -21,6 +21,7 @@ import {
   CommentEvidenceDto,
   CreateEvidenceDto,
   QueryEvidenceDto,
+  ReassignResponsiblesDto,
   UpdateEvidenceDto,
 } from './dto';
 
@@ -125,6 +126,17 @@ export class EvidencesController {
     @Body() updateEvidenceDto: UpdateEvidenceDto,
   ) {
     return this.evidencesService.update(+id, updateEvidenceDto);
+  }
+
+  @Patch('reassign/:id')
+  reassignResponsibles(
+    @Param('id') id: string,
+    @Body() reassignResponsiblesDto: ReassignResponsiblesDto,
+  ) {
+    return this.evidencesService.reassignResponsibles(
+      +id,
+      reassignResponsiblesDto,
+    );
   }
 
   @Delete(':id')
