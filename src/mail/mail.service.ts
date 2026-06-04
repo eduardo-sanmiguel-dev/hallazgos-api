@@ -116,6 +116,67 @@ export class MailService {
       });
   }
 
+  async sendReassign({
+    user,
+    reassignedBy,
+    evidenceCurrent,
+    previousResponsibles,
+    currentResponsibles,
+  }: {
+    user: User;
+    reassignedBy: User;
+    evidenceCurrent: Evidence;
+    previousResponsibles: User[];
+    currentResponsibles: User[];
+  }) {
+    const { imgEvidence, manufacturingPlant, mainType } = evidenceCurrent;
+
+    await this.mailerService.sendMail({
+      to: this.emailTest || user.email,
+      from: `"Hada app (hallazgo reasignado)" <${this.MAIL_USER_APP}>`,
+      subject: manufacturingPlant.name + ' - ' + mainType.name,
+      template: './reassign',
+      context: {
+        id: evidenceCurrent.id,
+        manufacturingPlant: evidenceCurrent.manufacturingPlant.name,
+        mainType: evidenceCurrent.mainType.name,
+        secondaryType: evidenceCurrent.secondaryType.name,
+        zone: evidenceCurrent.zone.name,
+        descripcion: evidenceCurrent.description,
+        userWhoCreated: evidenceCurrent.user.name,
+        reassignedBy: reassignedBy.name,
+        previousResponsibles:
+          previousResponsibles.length > 0
+            ? previousResponsibles
+                .map((responsible) => responsible.name)
+                .join(' / ')
+            : 'Sin responsables previos',
+        currentResponsibles:
+          currentResponsibles.length > 0
+            ? currentResponsibles
+                .map((responsible) => responsible.name)
+                .join(' / ')
+            : 'Sin responsables asignados',
+        createdAt: stringToDateWithTime(evidenceCurrent.createdAt),
+        reassignedAt: stringToDateWithTime(new Date()),
+        priorityLabel: getPriorityLabel(evidenceCurrent.priorityDays),
+        remainingDays: getRemainingDays(
+          evidenceCurrent.createdAt,
+          evidenceCurrent.priorityDays,
+        ),
+      },
+      ...(imgEvidence && {
+        attachments: [
+          {
+            filename: imgEvidence,
+            path: pathImage + imgEvidence,
+            cid: 'imgEvidence',
+          },
+        ],
+      }),
+    });
+  }
+
   async sendSolution({
     user,
     evidenceCurrent,
@@ -173,6 +234,59 @@ export class MailService {
           evidenceCurrent.createdAt,
           evidenceCurrent.solutionDate,
         ),
+      },
+      attachments,
+    });
+  }
+
+  async sendInProgress({
+    user,
+    startedBy,
+    evidenceCurrent,
+  }: {
+    user: User;
+    startedBy: User;
+    evidenceCurrent: Evidence;
+  }) {
+    const { imgEvidence, manufacturingPlant, mainType, imgProcess } =
+      evidenceCurrent;
+
+    const attachments = [];
+
+    if (imgEvidence) {
+      attachments.push({
+        filename: imgEvidence,
+        path: pathImage + imgEvidence,
+        cid: 'imgEvidence',
+      });
+    }
+
+    if (imgProcess) {
+      attachments.push({
+        filename: imgProcess,
+        path: pathImage + imgProcess,
+        cid: 'imgProcess',
+      });
+    }
+
+    await this.mailerService.sendMail({
+      to: this.emailTest || user.email,
+      from: `"Hada app (hallazgo en progreso)" <${this.MAIL_USER_APP}>`,
+      subject: manufacturingPlant.name + ' - ' + mainType.name,
+      template: './in-progress',
+      context: {
+        id: evidenceCurrent.id,
+        manufacturingPlant: evidenceCurrent.manufacturingPlant.name,
+        mainType: evidenceCurrent.mainType.name,
+        secondaryType: evidenceCurrent.secondaryType.name,
+        zone: evidenceCurrent.zone.name,
+        descripcion: evidenceCurrent.description,
+        userWhoCreated: evidenceCurrent.user.name,
+        startedBy: startedBy.name,
+        startProcessDate: stringToDateWithTime(
+          evidenceCurrent.startProcessDate,
+        ),
+        createdAt: stringToDateWithTime(evidenceCurrent.createdAt),
       },
       attachments,
     });

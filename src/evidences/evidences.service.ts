@@ -44,6 +44,7 @@ import {
   CommentEvidenceDto,
   CreateEvidenceDto,
   QueryEvidenceDto,
+  ReassignResponsiblesDto,
   UpdateEvidenceDto,
 } from './dto';
 import {
@@ -383,7 +384,16 @@ export class EvidencesService {
     return 'ok';
   }
 
-  async sendEmailUsers(users: User[], evidenceCurrent: Evidence, type: string) {
+  async sendEmailUsers(
+    users: User[],
+    evidenceCurrent: Evidence,
+    type: string,
+    extra?: {
+      reassignedBy?: User;
+      previousResponsibles?: User[];
+      currentResponsibles?: User[];
+    },
+  ) {
     const requestUser = this.request['user'] as User;
 
     if (process.env.NODE_ENV === ENV_DEVELOPMENT) {
@@ -416,6 +426,15 @@ export class EvidencesService {
           await this.mailService.sendSolution({
             user: userToSendEmail,
             evidenceCurrent,
+          });
+          break;
+        case 'reassign':
+          await this.mailService.sendReassign({
+            user: userToSendEmail,
+            reassignedBy: extra?.reassignedBy || requestUser,
+            evidenceCurrent,
+            previousResponsibles: extra?.previousResponsibles || [],
+            currentResponsibles: extra?.currentResponsibles || [],
           });
           break;
       }
@@ -532,7 +551,15 @@ export class EvidencesService {
     evidence.status = STATUS_IN_PROGRESS;
     evidence.updatedAt = evidence.startProcessDate;
 
-    return this.evidenceRepository.save(evidence);
+    const evidenceUpdated = await this.evidenceRepository.save(evidence);
+
+    await this.mailService.sendInProgress({
+      user: evidence.user,
+      startedBy: requestUser,
+      evidenceCurrent: evidenceUpdated,
+    });
+
+    return evidenceUpdated;
   }
 
   async addComment(id: number, comment: CommentEvidenceDto) {
@@ -1083,6 +1110,87 @@ export class EvidencesService {
 
   update(id: number, updateEvidenceDto: UpdateEvidenceDto) {
     return { id, updateEvidenceDto };
+  }
+
+  async reassignResponsibles(
+    id: number,
+    reassignResponsiblesDto: ReassignResponsiblesDto,
+  ) {
+    const requestUser = this.request['user'] as User;
+    const evidence = await this.findOne(id);
+    const previousResponsibles = evidence.responsibles || [];
+
+    if (!this.canManageEvidence(requestUser, evidence)) {
+      throw new ForbiddenException(
+        'No tiene permisos para reasignar responsables en este hallazgo',
+      );
+    }
+
+    const responsibleIds = Array.from(
+      new Set(
+        (reassignResponsiblesDto.responsibleIds || [])
+          .map((responsibleId) => Number(responsibleId))
+          .filter(
+            (responsibleId) =>
+              Number.isInteger(responsibleId) && responsibleId > 0,
+          ),
+      ),
+    );
+
+    let nextResponsibles: User[] = [];
+
+    if (responsibleIds.length > 0) {
+      nextResponsibles = await Promise.all(
+        responsibleIds.map((responsibleId) =>
+          this.usersService.findOne(responsibleId),
+        ),
+      );
+
+      const invalidResponsibleIds = nextResponsibles
+        .filter(
+          (responsible) =>
+            !responsible.manufacturingPlants.some(
+              (manufacturingPlant) =>
+                Number(manufacturingPlant.id) ===
+                Number(evidence.manufacturingPlant.id),
+            ),
+        )
+        .map((responsible) => responsible.id);
+
+      if (invalidResponsibleIds.length > 0) {
+        throw new BadRequestException(
+          `Los usuarios ${invalidResponsibleIds.join(', ')} no pertenecen a la planta del hallazgo`,
+        );
+      }
+    }
+
+    evidence.responsibles = nextResponsibles;
+
+    evidence.updatedAt = new Date();
+
+    await this.evidenceRepository.save(evidence);
+
+    const evidenceUpdated = await this.findOne(evidence.id);
+
+    const usersToNotifyMap = new Map<number, User>();
+
+    [...previousResponsibles, ...evidenceUpdated.responsibles].forEach(
+      (user) => {
+        usersToNotifyMap.set(Number(user.id), user);
+      },
+    );
+
+    const usersToNotify = Array.from(usersToNotifyMap.values());
+
+    if (usersToNotify.length > 0) {
+      await this.sendEmailUsers(usersToNotify, evidenceUpdated, 'reassign', {
+        reassignedBy: requestUser,
+        previousResponsibles,
+        currentResponsibles: evidenceUpdated.responsibles,
+      });
+    }
+
+    return evidenceUpdated;
   }
 
   async remove(id: number) {
