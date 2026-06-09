@@ -496,6 +496,7 @@ export class EvidencesService {
     );
     evidence.descriptionSolution = descriptionSolution || '';
     evidence.status = STATUS_CLOSE;
+    evidence.updatedAt = evidence.solutionDate;
 
     const evidenceSolution = await this.evidenceRepository.save(evidence);
 
