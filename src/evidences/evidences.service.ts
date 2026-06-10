@@ -74,7 +74,9 @@ export class EvidencesService {
     'cseguridad@hadainternational.com',
     'gsanchez@hadamexico.com',
     'bproyectos@hadamexico.com',
-    //'eduardo-266@hotmail.com',
+    'eduardo-266@hotmail.com',
+    'carrellin@hadamexico.com',
+    'mfaneite@hadamexico.com',
   ];
 
   private readonly cancelEvidenceEmails = [
