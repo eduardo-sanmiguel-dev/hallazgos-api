@@ -44,8 +44,8 @@ export class EvidencesSeedService implements OnApplicationBootstrap {
   private readonly fallbackUserId = 1;
 
   private readonly priorityByLabel: Record<string, number> = {
-    'corto plazo': 2,
-    inmediato: 8,
+    inmediato: 2,
+    'corto plazo': 8,
     'mediano plazo': 15,
     'largo plazo': 30,
   };

@@ -14,8 +14,8 @@ const pathImage =
     : 'https://api.comportarte.com/static/images/evidences/';
 
 const PRIORITY_OPTIONS = [
-  { name: 'Corto plazo', days: 2 },
-  { name: 'Inmediato', days: 8 },
+  { name: 'Inmediato', days: 2 },
+  { name: 'Corto plazo', days: 8 },
   { name: 'Mediano plazo', days: 15 },
   { name: 'Largo plazo', days: 30 },
 ];
