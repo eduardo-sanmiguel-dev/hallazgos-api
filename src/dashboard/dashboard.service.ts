@@ -1519,8 +1519,8 @@ export class DashboardService {
     mainTypeIds = await this.resolveScopedMainTypeIds(mainTypeIds);
 
     const priorityDefinition = [
-      { name: 'Inmediato', days: 8, color: '#D32F2F' },
       { name: 'Corto plazo', days: 2, color: '#F9A825' },
+      { name: 'Inmediato', days: 8, color: '#D32F2F' },
       { name: 'Mediano plazo', days: 15, color: '#1565C0' },
       { name: 'Largo plazo', days: 30, color: '#2E7D32' },
     ];
