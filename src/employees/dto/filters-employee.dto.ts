@@ -1,4 +1,9 @@
-import { IsOptional, IsPositive, IsString } from 'class-validator';
+import {
+  IsBooleanString,
+  IsOptional,
+  IsPositive,
+  IsString,
+} from 'class-validator';
 
 export class FiltersEmployeeDto {
   @IsOptional()
@@ -15,5 +20,13 @@ export class FiltersEmployeeDto {
 
   @IsOptional()
   @IsPositive()
+  readonly areaId?: number;
+
+  @IsOptional()
+  @IsPositive()
   readonly assignedUserId?: number;
+
+  @IsOptional()
+  @IsBooleanString()
+  readonly isActive?: string;
 }

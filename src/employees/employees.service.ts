@@ -127,19 +127,32 @@ export class EmployeesService {
   findAll(filtersEmployeeDto: FiltersEmployeeDto) {
     const { manufacturingPlants } = this.request['user'] as User;
 
-    const where: FindOptionsWhere<Employee> = {
-      isActive: true,
-      manufacturingPlants: {
-        id: In(manufacturingPlants.map((mp) => mp.id)),
-      },
-    };
+    const rawIsActive = filtersEmployeeDto.isActive as
+      | boolean
+      | string
+      | undefined;
+
+    const parsedIsActive =
+      rawIsActive === true || rawIsActive === 'true'
+        ? true
+        : rawIsActive === false || rawIsActive === 'false'
+          ? false
+          : undefined;
 
     const {
       manufacturingPlantId = 0,
       name = '',
       positionId = 0,
+      areaId = 0,
       assignedUserId = 0,
     } = filtersEmployeeDto;
+
+    const where: FindOptionsWhere<Employee> = {
+      isActive: parsedIsActive ?? true,
+      manufacturingPlants: {
+        id: In(manufacturingPlants.map((mp) => mp.id)),
+      },
+    };
 
     if (manufacturingPlantId) {
       where.manufacturingPlants = {
@@ -150,6 +163,12 @@ export class EmployeesService {
     if (positionId) {
       where.position = {
         id: positionId,
+      };
+    }
+
+    if (areaId) {
+      where.area = {
+        id: areaId,
       };
     }
 
