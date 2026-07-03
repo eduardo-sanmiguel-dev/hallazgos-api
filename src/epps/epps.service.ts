@@ -34,6 +34,33 @@ export class EppsService {
     private readonly equipmentRepository: Repository<Equipment>,
   ) {}
 
+  private mapActiveHistory<T extends { epps: Epp[] }>(items: T[]): T[] {
+    return items
+      .map((item) => ({
+        ...item,
+        epps: item.epps
+          .filter((epp) => epp.isActive)
+          .map((epp) => ({
+            ...epp,
+            equipments: epp.equipments.filter(
+              (equipment) => equipment.isActive,
+            ),
+          }))
+          .filter((epp) => epp.equipments.length > 0),
+      }))
+      .filter((item) => item.epps.length > 0);
+  }
+
+  private mapActiveEquipments(epps: Epp[]): Epp[] {
+    return epps
+      .filter((epp) => epp.isActive)
+      .map((epp) => ({
+        ...epp,
+        equipments: epp.equipments.filter((equipment) => equipment.isActive),
+      }))
+      .filter((epp) => epp.equipments.length > 0);
+  }
+
   async validateDeliveryFrequency(equipmentId: number, employeeId: number) {
     const equipment = await this.equipmentRepository.findOne({
       where: { id: equipmentId, isActive: true },
@@ -152,7 +179,7 @@ export class EppsService {
   }
 
   async findEppsByEmployeeId(employeeId: number) {
-    return this.eppRepository.find({
+    const epps = await this.eppRepository.find({
       where: {
         employee: {
           id: employeeId,
@@ -164,10 +191,12 @@ export class EppsService {
         createdAt: 'ASC',
       },
     });
+
+    return this.mapActiveEquipments(epps);
   }
 
-  findAll(manufacturingPlantId: number) {
-    return this.employeeRepository.find({
+  async findAll(manufacturingPlantId: number) {
+    const employees = await this.employeeRepository.find({
       where: {
         isActive: true,
         manufacturingPlants: {
@@ -189,6 +218,8 @@ export class EppsService {
         name: 'ASC',
       },
     });
+
+    return this.mapActiveHistory(employees);
   }
 
   async findOne(id: number) {
@@ -210,5 +241,34 @@ export class EppsService {
 
   remove(id: number) {
     return `This action removes a #${id} epp`;
+  }
+
+  async removeHistory(equipmentHistoryId: number) {
+    const equipmentHistory = await this.eppEquipmentRepository.findOne({
+      where: { id: equipmentHistoryId },
+      relations: ['epp'],
+    });
+
+    if (!equipmentHistory) {
+      throw new NotFoundException(
+        `Registro de historial con ID ${equipmentHistoryId} no encontrado.`,
+      );
+    }
+
+    const eppId = equipmentHistory.epp.id;
+
+    await this.eppEquipmentRepository
+      .createQueryBuilder()
+      .delete()
+      .from(EppEquipment)
+      .where('"eppId" = :eppId', { eppId })
+      .execute();
+
+    await this.eppRepository.delete(eppId);
+
+    return {
+      message:
+        'Registro eliminado correctamente. Se borraron el EPP y su historial relacionado.',
+    };
   }
 }

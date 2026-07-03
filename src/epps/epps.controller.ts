@@ -189,4 +189,9 @@ export class EppsController {
   remove(@Param('id') id: string) {
     return this.eppsService.remove(+id);
   }
+
+  @Delete('history/:equipmentHistoryId')
+  removeHistory(@Param('equipmentHistoryId') equipmentHistoryId: string) {
+    return this.eppsService.removeHistory(+equipmentHistoryId);
+  }
 }
