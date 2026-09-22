@@ -16,6 +16,8 @@ export enum ExtinguisherType {
   PQS = 'PQS',
   CO2 = 'CO2',
   AFFF = 'AFFF',
+  EXTINTOR_TIPO_D = 'Extintor tipo D',
+  EXTINTOR_DE_SOLKAFLAN = 'Extintor de Solkaflan',
 }
 
 @Entity({ name: 'emergency_teams' })
@@ -39,8 +41,8 @@ export class EmergencyTeam {
   })
   location: string;
 
-  @Column({ type: 'integer' })
-  extinguisherNumber: number;
+  @Column({ length: 50 })
+  extinguisherNumber: string;
 
   @Column({
     type: 'enum',

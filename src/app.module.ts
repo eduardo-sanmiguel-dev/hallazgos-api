@@ -73,7 +73,9 @@ import { ExtinguisherInspectionsModule } from './extinguisher-inspections/exting
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
       autoLoadEntities: true,
-      synchronize: true,
+      synchronize: false,
+      migrationsRun: true,
+      migrations: [join(__dirname, 'migrations', '*{.ts,.js}')],
     }),
     GraphQLModule.forRootAsync<ApolloDriverConfig>({
       driver: ApolloDriver,
