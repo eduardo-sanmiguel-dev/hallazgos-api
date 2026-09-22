@@ -5,6 +5,7 @@ import {
   IsPositive,
   IsString,
   Length,
+  Matches,
   Max,
   Min,
 } from 'class-validator';
@@ -16,9 +17,12 @@ export class CreateEmergencyTeamDto {
   @Length(5, 150)
   location: string;
 
-  @IsInt()
-  @IsPositive()
-  extinguisherNumber: number;
+  @IsString()
+  @Length(1, 50)
+  @Matches(/^[a-zA-Z0-9]+$/, {
+    message: 'extinguisherNumber must be alphanumeric',
+  })
+  extinguisherNumber: string;
 
   @IsEnum(ExtinguisherType)
   typeOfExtinguisher: ExtinguisherType;

@@ -57,12 +57,9 @@ export class EmergencyTeamsService {
         new Brackets((qb) => {
           qb.where('emergencyTeam.location ILIKE :search', {
             search: `%${search}%`,
-          }).orWhere(
-            'CAST(emergencyTeam.extinguisherNumber AS TEXT) ILIKE :search',
-            {
-              search: `%${search}%`,
-            },
-          );
+          }).orWhere('emergencyTeam.extinguisherNumber ILIKE :search', {
+            search: `%${search}%`,
+          });
         }),
       );
     }

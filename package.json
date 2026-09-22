@@ -30,7 +30,7 @@
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.1.14",
     "@nestjs/graphql": "^13.0.0",
-    "@nestjs/mapped-types": "*",
+    "@nestjs/mapped-types": "^2.0.6",
     "@nestjs/platform-express": "^11.1.14",
     "@nestjs/schedule": "^5.0.0",
     "@nestjs/serve-static": "^5.0.0",
