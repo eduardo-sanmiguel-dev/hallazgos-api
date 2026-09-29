@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddSolkaflanToExtinguisherEnums1790711000000
-  implements MigrationInterface
-{
+export class AddSolkaflanToExtinguisherEnums1790711000000 implements MigrationInterface {
   name = 'AddSolkaflanToExtinguisherEnums1790711000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
