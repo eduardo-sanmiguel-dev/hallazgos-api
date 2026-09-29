@@ -19,8 +19,8 @@ export class CreateEmergencyTeamDto {
 
   @IsString()
   @Length(1, 50)
-  @Matches(/^[a-zA-Z0-9]+$/, {
-    message: 'extinguisherNumber must be alphanumeric',
+  @Matches(/^[a-zA-Z0-9-]+$/, {
+    message: 'extinguisherNumber must be alphanumeric and may include hyphens',
   })
   extinguisherNumber: string;
 
