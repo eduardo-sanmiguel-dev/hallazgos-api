@@ -77,6 +77,7 @@ export class EvidencesService {
     'eduardo-266@hotmail.com',
     'carrellin@hadamexico.com',
     'mfaneite@hadamexico.com',
+    'esolorio@hadamexico.com',
   ];
 
   private readonly cancelEvidenceEmails = [
