@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from 'auth/jwt.service';
 
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 
 import { UsersService } from 'users/users.service';
 

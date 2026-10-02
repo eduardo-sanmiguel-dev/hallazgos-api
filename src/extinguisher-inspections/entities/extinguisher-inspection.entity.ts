@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   OneToMany,
+  Relation,
 } from 'typeorm';
 
 import { ExtinguisherInspectionEvaluation } from './extinguisher-inspection-evaluation.entity';
@@ -18,7 +19,7 @@ export class ExtinguisherInspection {
   id: number;
 
   @ManyToOne(() => User)
-  responsible: User;
+  responsible: Relation<User>;
 
   @Column({ type: 'date' })
   inspectionDate: Date;
@@ -27,13 +28,13 @@ export class ExtinguisherInspection {
   isActive: boolean;
 
   @ManyToOne(() => User)
-  createdBy: User;
+  createdBy: Relation<User>;
 
   @CreateDateColumn()
   createdAt: Date;
 
   @ManyToOne(() => User)
-  updatedBy?: User;
+  updatedBy?: Relation<User>;
 
   @UpdateDateColumn()
   updatedAt: Date;
@@ -42,12 +43,12 @@ export class ExtinguisherInspection {
     () => ManufacturingPlant,
     (manufacturingPlant) => manufacturingPlant.extinguisherInspections,
   )
-  manufacturingPlant: ManufacturingPlant;
+  manufacturingPlant: Relation<ManufacturingPlant>;
 
   @OneToMany(
     () => ExtinguisherInspectionEvaluation,
     (extinguisherInspectionEvaluation) =>
       extinguisherInspectionEvaluation.extinguisherInspection,
   )
-  evaluations: ExtinguisherInspectionEvaluation[];
+  evaluations: Relation<ExtinguisherInspectionEvaluation[]>;
 }

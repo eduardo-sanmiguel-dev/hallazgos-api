@@ -8,6 +8,7 @@ import {
   JoinTable,
   ManyToMany,
   OneToMany,
+  Relation,
 } from 'typeorm';
 
 import { RulesOfLife } from './rules-of-life.entity';
@@ -34,7 +35,7 @@ export class StandardOfBehavior {
   updatedAt: Date;
 
   @ManyToOne(() => RulesOfLife, (rulesOfLife) => rulesOfLife.standards)
-  rulesOfLife: RulesOfLife;
+  rulesOfLife: Relation<RulesOfLife>;
 
   @ManyToMany(
     () => AreaOfBehavior,
@@ -43,8 +44,8 @@ export class StandardOfBehavior {
   @JoinTable({
     name: 'standard_area_of_behavior',
   })
-  areas: AreaOfBehavior[];
+  areas: Relation<AreaOfBehavior[]>;
 
   @OneToMany(() => Ics, (ics) => ics.standardOfBehavior)
-  ics: Ics[];
+  ics: Relation<Ics[]>;
 }

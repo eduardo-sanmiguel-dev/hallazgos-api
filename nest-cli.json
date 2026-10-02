@@ -5,6 +5,11 @@
   "compilerOptions": {
     "deleteOutDir": true,
     "assets": ["mail/templates/**/*"],
-    "watchAssets": true
+    "watchAssets": true,
+    "builder": {
+      "type": "swc",
+      "options": { "swcrcPath": ".swcrc" }
+    },
+    "typeCheck": true
   }
 }

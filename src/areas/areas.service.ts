@@ -8,7 +8,7 @@ import {
 import { REQUEST } from '@nestjs/core';
 
 import { ILike, Repository } from 'typeorm';
-import { Request } from 'express';
+import type { Request } from 'express';
 
 import { CreateAreaDto, QueryAreaDto, UpdateAreaDto } from './dto';
 import { Area } from './entities/area.entity';

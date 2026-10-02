@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { REQUEST } from '@nestjs/core';
 
 import { ILike, In, Repository } from 'typeorm';
-import { Request } from 'express';
+import type { Request } from 'express';
 
 import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
 import { CreateEquipmentDto, UpdateEquipmentDto } from './dto';

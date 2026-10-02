@@ -13,7 +13,7 @@ import {
 
 import * as XlsxPopulate from 'xlsx-populate';
 import { writeFile } from 'fs/promises';
-import { Response } from 'express';
+import type { Response } from 'express';
 import * as ExcelJS from 'exceljs';
 
 import { TrainingGuidesService } from './training-guides.service';

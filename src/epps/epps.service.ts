@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { REQUEST } from '@nestjs/core';
 
 import { Repository } from 'typeorm';
-import { Request } from 'express';
+import type { Request } from 'express';
 
 import { CreateEppDto, UpdateEppDto } from './dto';
 import { User } from 'users/entities/user.entity';

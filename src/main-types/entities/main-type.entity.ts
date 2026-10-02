@@ -7,6 +7,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  Relation,
 } from 'typeorm';
 
 import { SecondaryType } from 'secondary-types/entities/secondary-type.entity';
@@ -39,9 +40,9 @@ export class MainType {
 
   @OneToMany(() => SecondaryType, (secondaryType) => secondaryType.mainType)
   @Field(() => [SecondaryType])
-  secondaryTypes: SecondaryType[];
+  secondaryTypes: Relation<SecondaryType[]>;
 
   @OneToMany(() => Evidence, (evidence) => evidence.mainType)
   @Field(() => [Evidence])
-  evidences: Evidence[];
+  evidences: Relation<Evidence[]>;
 }

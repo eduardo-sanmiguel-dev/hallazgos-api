@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   OneToMany,
   ManyToMany,
+  Relation,
 } from 'typeorm';
 
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
@@ -33,8 +34,8 @@ export class AccidentPosition {
     () => ManufacturingPlant,
     (manufacturingPlant) => manufacturingPlant.accidentPositions,
   )
-  manufacturingPlants: ManufacturingPlant[];
+  manufacturingPlants: Relation<ManufacturingPlant[]>;
 
   @OneToMany(() => Ciael, (ciael) => ciael.accidentPosition)
-  ciaels: Ciael[];
+  ciaels: Relation<Ciael[]>;
 }

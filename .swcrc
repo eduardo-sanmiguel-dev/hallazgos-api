@@ -1,0 +1,16 @@
+{
+  "$schema": "https://swc.rs/schema.json",
+  "jsc": {
+    "parser": { "syntax": "typescript", "decorators": true },
+    "transform": { "legacyDecorator": true, "decoratorMetadata": true },
+    "target": "es2021",
+    "baseUrl": "./",
+    "paths": {
+      "*": ["./src/*"],
+      "@config": ["./src/config"],
+      "@shared/*": ["./src/shared/*"]
+    }
+  },
+  "module": { "type": "commonjs" },
+  "sourceMaps": true
+}

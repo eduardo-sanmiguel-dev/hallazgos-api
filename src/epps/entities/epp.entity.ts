@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   OneToMany,
+  Relation,
 } from 'typeorm';
 
 import { EppEquipment } from './epp-equipment.entity';
@@ -33,11 +34,11 @@ export class Epp {
   updatedAt: Date;
 
   @ManyToOne(() => Employee, (employee) => employee.epps)
-  employee: Employee;
+  employee: Relation<Employee>;
 
   @ManyToOne(() => User, (user) => user.epps)
-  createBy: User;
+  createBy: Relation<User>;
 
   @OneToMany(() => EppEquipment, (eppEquipment) => eppEquipment.epp)
-  equipments: EppEquipment[];
+  equipments: Relation<EppEquipment[]>;
 }

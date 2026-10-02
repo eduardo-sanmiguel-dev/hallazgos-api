@@ -8,7 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { REQUEST } from '@nestjs/core';
 
 import { ILike, In, Repository } from 'typeorm';
-import { Request } from 'express';
+import type { Request } from 'express';
 
 import { Zone } from 'zones/entities/zone.entity';
 import { CreateZoneDto, QueryZoneDto, UpdateZoneDto } from './dto';

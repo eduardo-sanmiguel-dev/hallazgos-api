@@ -11,7 +11,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { Response } from 'express';
+import type { Response } from 'express';
 import { existsSync } from 'fs';
 
 import { CreateSafetyDataFileDto, UpdateSafetyDataFileDto } from './dto';

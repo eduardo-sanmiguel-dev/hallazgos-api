@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  Relation,
 } from 'typeorm';
 
 import { ExtinguisherType } from 'emergency-teams/entities/emergency-team.entity';
@@ -126,13 +127,13 @@ export class ExtinguisherInspectionEvaluation {
   isActive: boolean;
 
   @ManyToOne(() => User)
-  createdBy: User;
+  createdBy: Relation<User>;
 
   @CreateDateColumn()
   createdAt: Date;
 
   @ManyToOne(() => User)
-  updatedBy?: User;
+  updatedBy?: Relation<User>;
 
   @UpdateDateColumn()
   updatedAt: Date;
@@ -141,5 +142,5 @@ export class ExtinguisherInspectionEvaluation {
     () => ExtinguisherInspection,
     (extinguisherInspection) => extinguisherInspection.evaluations,
   )
-  extinguisherInspection: ExtinguisherInspection;
+  extinguisherInspection: Relation<ExtinguisherInspection>;
 }

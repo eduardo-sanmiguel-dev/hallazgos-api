@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  Relation,
 } from 'typeorm';
 
 import { Employee } from './employee.entity';
@@ -28,8 +29,8 @@ export class EmployeeArea {
   updatedAt: Date;
 
   @OneToMany(() => Employee, (employee) => employee.area)
-  employees: Employee[];
+  employees: Relation<Employee[]>;
 
   @OneToMany(() => TrainingGuide, (trainingGuide) => trainingGuide.area)
-  trainingGuides: TrainingGuide[];
+  trainingGuides: Relation<TrainingGuide[]>;
 }

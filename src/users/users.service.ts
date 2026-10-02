@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { REQUEST } from '@nestjs/core';
 
 import { ILike, In, Not, Repository } from 'typeorm';
-import { Request } from 'express';
+import type { Request } from 'express';
 import * as argon2 from 'argon2';
 
 import { CreateUserDto, QueryUserDto, UpdateUserDto } from './dto';

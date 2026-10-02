@@ -9,6 +9,7 @@ import {
   OneToMany,
   ManyToOne,
   Index,
+  Relation,
 } from 'typeorm';
 
 import { Evidence } from 'evidences/entities/evidence.entity';
@@ -41,16 +42,16 @@ export class Processes {
 
   @OneToMany(() => Evidence, (evidence) => evidence.zone)
   //@Field(() => [Evidence])
-  evidences: Evidence[];
+  evidences: Relation<Evidence[]>;
 
   @ManyToOne(() => User, (user) => user.processes)
   //@Field(() => User)
-  user: User;
+  user: Relation<User>;
 
   @ManyToOne(
     () => ManufacturingPlant,
     (manufacturingPlant) => manufacturingPlant.zones,
   )
   //@Field(() => ManufacturingPlant)
-  manufacturingPlant: ManufacturingPlant;
+  manufacturingPlant: Relation<ManufacturingPlant>;
 }

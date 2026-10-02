@@ -7,6 +7,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  Relation,
 } from 'typeorm';
 
 import { Evidence } from './evidence.entity';
@@ -37,11 +38,11 @@ export class Comment {
 
   @ManyToOne(() => Evidence, (evidence) => evidence.comments)
   @Field(() => Evidence)
-  evidence: Evidence;
+  evidence: Relation<Evidence>;
 
   @ManyToOne(() => User, (user) => user.comments, {
     eager: true,
   })
   @Field(() => User)
-  user: User;
+  user: Relation<User>;
 }

@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 
 import { Repository } from 'typeorm';
-import { Request } from 'express';
+import type { Request } from 'express';
 
 import { TrainingGuide, TrainingGuideEvaluation } from './entities';
 import { ConfigsTgService } from 'configs-tg/configs-tg.service';

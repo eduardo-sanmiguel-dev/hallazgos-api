@@ -5,6 +5,7 @@ import {
   ManyToOne,
   ManyToMany,
   JoinTable,
+  Relation,
 } from 'typeorm';
 
 import { Topic } from 'topics/entities/topic.entity';
@@ -20,14 +21,14 @@ export class ConfigsTopicTg {
   order: number;
 
   @ManyToOne(() => Topic, (topic) => topic.configs)
-  topic: Topic;
+  topic: Relation<Topic>;
 
   @ManyToMany(() => User, (employee) => employee.configsTopicTg)
   @JoinTable({
     name: 'configs_topic_tg_responsibles',
   })
-  responsibles: User[];
+  responsibles: Relation<User[]>;
 
   @ManyToOne(() => ConfigsTg, (configsTg) => configsTg.topics)
-  configTg: ConfigsTg;
+  configTg: Relation<ConfigsTg>;
 }

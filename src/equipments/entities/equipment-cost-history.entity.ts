@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  Relation,
 } from 'typeorm';
 
 import { Equipment } from './equipment.entity';
@@ -42,5 +43,5 @@ export class EquipmentCostHistory {
   updatedAt: Date;
 
   @ManyToOne(() => Equipment, (equipment) => equipment.costHistory)
-  equipment: Equipment;
+  equipment: Relation<Equipment>;
 }

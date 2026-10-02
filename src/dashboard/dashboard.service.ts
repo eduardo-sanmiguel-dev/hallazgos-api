@@ -3,7 +3,7 @@ import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
 import { In, MoreThan, Repository, SelectQueryBuilder } from 'typeorm';
-import { Request } from 'express';
+import type { Request } from 'express';
 
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
 import { AccidentRate } from './entities/accident-rate.entity';

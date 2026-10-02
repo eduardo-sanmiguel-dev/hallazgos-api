@@ -8,6 +8,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   OneToMany,
+  Relation,
 } from 'typeorm';
 
 import { MainType } from 'main-types/entities/main-type.entity';
@@ -40,9 +41,9 @@ export class SecondaryType {
 
   @ManyToOne(() => MainType, (mainType) => mainType.secondaryTypes)
   @Field(() => MainType)
-  mainType: MainType;
+  mainType: Relation<MainType>;
 
   @OneToMany(() => Evidence, (evidence) => evidence.secondaryType)
   @Field(() => [Evidence])
-  evidences: Evidence[];
+  evidences: Relation<Evidence[]>;
 }
