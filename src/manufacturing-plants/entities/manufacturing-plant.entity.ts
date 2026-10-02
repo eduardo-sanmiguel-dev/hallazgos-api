@@ -10,6 +10,7 @@ import {
   ManyToOne,
   ManyToMany,
   JoinTable,
+  Relation,
 } from 'typeorm';
 
 import { ExtinguisherInspection } from 'extinguisher-inspections/entities/extinguisher-inspection.entity';
@@ -68,33 +69,33 @@ export class ManufacturingPlant {
 
   @OneToMany(() => Evidence, (evidence) => evidence.manufacturingPlant)
   @Field(() => [Evidence])
-  evidences: Evidence[];
+  evidences: Relation<Evidence[]>;
 
   @OneToMany(() => Zone, (zone) => zone.manufacturingPlant)
   @Field(() => [Zone])
-  zones: Zone[];
+  zones: Relation<Zone[]>;
 
   @OneToMany(() => Area, (area) => area.manufacturingPlant)
-  areas: Area[];
+  areas: Relation<Area[]>;
 
   @OneToMany(() => Processes, (processes) => processes.manufacturingPlant)
   @Field(() => [Processes])
-  processes: Processes[];
+  processes: Relation<Processes[]>;
 
   @ManyToOne(() => Country, (country) => country.manufacturingPlants)
-  country: Country;
+  country: Relation<Country>;
 
   @ManyToMany(() => Employee, (employee) => employee.manufacturingPlants)
   @JoinTable({
     name: 'employees_manufacturing_plants',
   })
-  employees: Employee[];
+  employees: Relation<Employee[]>;
 
   @ManyToMany(() => Topic, (topic) => topic.manufacturingPlants)
   @JoinTable({
     name: 'topics_manufacturing_plants',
   })
-  topics: Topic[];
+  topics: Relation<Topic[]>;
 
   @ManyToMany(
     () => AccidentPosition,
@@ -103,19 +104,19 @@ export class ManufacturingPlant {
   @JoinTable({
     name: 'accident_positions_manufacturing_plants',
   })
-  accidentPositions: AccidentPosition[];
+  accidentPositions: Relation<AccidentPosition[]>;
 
   @ManyToMany(() => Machine, (machine) => machine.manufacturingPlants)
   @JoinTable({
     name: 'machines_manufacturing_plants',
   })
-  machines: Machine[];
+  machines: Relation<Machine[]>;
 
   @OneToMany(() => Ciael, (ciael) => ciael.manufacturingPlant)
-  ciaels: Ciael[];
+  ciaels: Relation<Ciael[]>;
 
   @OneToMany(() => Ics, (ics) => ics.manufacturingPlant)
-  ics: Ics[];
+  ics: Relation<Ics[]>;
 
   @ManyToMany(
     () => AssociatedTask,
@@ -124,23 +125,23 @@ export class ManufacturingPlant {
   @JoinTable({
     name: 'associated_tasks_manufacturing_plants',
   })
-  associatedTasks: AssociatedTask[];
+  associatedTasks: Relation<AssociatedTask[]>;
 
   @OneToMany(() => ConfigsTg, (ciael) => ciael.manufacturingPlant)
-  configsTg: ConfigsTg[];
+  configsTg: Relation<ConfigsTg[]>;
 
   @OneToMany(
     () => TrainingGuide,
     (trainingGuide) => trainingGuide.manufacturingPlant,
   )
-  trainingGuides: TrainingGuide[];
+  trainingGuides: Relation<TrainingGuide[]>;
 
   @OneToMany(() => Equipment, (equipment) => equipment.manufacturingPlant)
-  equipments: Equipment[];
+  equipments: Relation<Equipment[]>;
 
   @ManyToOne(() => EmergencyTeam)
-  emergencyTeams: EmergencyTeam;
+  emergencyTeams: Relation<EmergencyTeam>;
 
   @ManyToOne(() => ExtinguisherInspection)
-  extinguisherInspections: ExtinguisherInspection;
+  extinguisherInspections: Relation<ExtinguisherInspection>;
 }

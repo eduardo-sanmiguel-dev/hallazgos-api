@@ -11,7 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import { serialize } from 'cookie';
 import { Repository } from 'typeorm';
 import * as argon2 from 'argon2';
-import { Request } from 'express';
+import type { Request } from 'express';
 
 import { ENV_DEVELOPMENT, ENV_PRODUCTION } from '@shared/constants';
 import { User } from 'users/entities/user.entity';

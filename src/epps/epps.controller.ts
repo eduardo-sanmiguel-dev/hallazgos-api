@@ -14,7 +14,7 @@ import {
 
 import * as XlsxPopulate from 'xlsx-populate';
 import * as ExcelJS from 'exceljs';
-import { Response } from 'express';
+import type { Response } from 'express';
 
 import { formatDateToYYYYMMDD } from '@shared/utils';
 import { CreateEppDto, UpdateEppDto } from './dto';

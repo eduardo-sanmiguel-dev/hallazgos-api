@@ -8,7 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { REQUEST } from '@nestjs/core';
 
 import { Brackets, Repository } from 'typeorm';
-import { Request } from 'express';
+import type { Request } from 'express';
 
 import { ExtinguisherInspection } from './entities/extinguisher-inspection.entity';
 import { ExtinguisherInspectionEvaluation } from './entities/extinguisher-inspection-evaluation.entity';

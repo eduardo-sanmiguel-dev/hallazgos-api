@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   OneToMany,
   ManyToOne,
+  Relation,
 } from 'typeorm';
 
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
@@ -31,23 +32,23 @@ export class Equipment {
   createdAt: Date;
 
   @ManyToOne(() => User, (user) => user.equipmentCreated)
-  createdBy: User;
+  createdBy: Relation<User>;
 
   @UpdateDateColumn()
   updatedAt: Date;
 
   @ManyToOne(() => User, (user) => user.equipmentUpdated)
-  updatedBy: User;
+  updatedBy: Relation<User>;
 
   @OneToMany(() => EquipmentCostHistory, (costHistory) => costHistory.equipment)
-  costHistory: EquipmentCostHistory[];
+  costHistory: Relation<EquipmentCostHistory[]>;
 
   @OneToMany(() => EppEquipment, (eppEquipment) => eppEquipment.equipment)
-  eppEquipments: EppEquipment[];
+  eppEquipments: Relation<EppEquipment[]>;
 
   @ManyToOne(
     () => ManufacturingPlant,
     (manufacturingPlant) => manufacturingPlant.equipments,
   )
-  manufacturingPlant: ManufacturingPlant;
+  manufacturingPlant: Relation<ManufacturingPlant>;
 }

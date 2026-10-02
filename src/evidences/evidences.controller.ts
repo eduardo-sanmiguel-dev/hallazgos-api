@@ -14,7 +14,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 
 import { diskStorage } from 'multer';
-import { Response } from 'express';
+import type { Response } from 'express';
 
 import { EvidencesService } from './evidences.service';
 import {

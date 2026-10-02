@@ -11,6 +11,7 @@ import {
   ManyToMany,
   JoinTable,
   Index,
+  Relation,
 } from 'typeorm';
 
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
@@ -107,46 +108,46 @@ export class Evidence {
   )
   @Field(() => ManufacturingPlant)
   @Index()
-  manufacturingPlant: ManufacturingPlant;
+  manufacturingPlant: Relation<ManufacturingPlant>;
 
   @ManyToOne(() => MainType, (mainType) => mainType.evidences)
   @Field(() => MainType)
   @Index()
-  mainType: MainType;
+  mainType: Relation<MainType>;
 
   @ManyToOne(() => SecondaryType, (secondaryType) => secondaryType.evidences)
   @Field(() => SecondaryType)
   @Index()
-  secondaryType: SecondaryType;
+  secondaryType: Relation<SecondaryType>;
 
   @ManyToOne(() => Zone, (zone) => zone.evidences)
   @Field(() => Zone)
   @Index()
-  zone: Zone;
+  zone: Relation<Zone>;
 
   @ManyToOne(() => Processes, (process) => process.evidences)
   @Field(() => Processes, {
     nullable: true,
   })
   @Index()
-  process?: Processes;
+  process?: Relation<Processes>;
 
   @ManyToOne(() => User, (user) => user.evidences)
   @Field(() => User)
   @Index()
-  user: User;
+  user: Relation<User>;
 
   @ManyToMany(() => User)
   @JoinTable()
   @Field(() => [User])
-  supervisors: User[];
+  supervisors: Relation<User[]>;
 
   @ManyToMany(() => User)
   @JoinTable()
   @Field(() => [User])
-  responsibles: User[];
+  responsibles: Relation<User[]>;
 
   @OneToMany(() => Comment, (comment) => comment.evidence)
   @Field(() => [Comment])
-  comments: Comment[];
+  comments: Relation<Comment[]>;
 }

@@ -7,6 +7,7 @@ import {
   ManyToMany,
   ManyToOne,
   OneToMany,
+  Relation,
 } from 'typeorm';
 
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
@@ -42,13 +43,13 @@ export class Topic {
   isActive: boolean;
 
   @ManyToOne(() => User, (user) => user.topicsCreated)
-  createdBy: User;
+  createdBy: Relation<User>;
 
   @CreateDateColumn()
   createdAt: Date;
 
   @ManyToOne(() => User, (user) => user.topicsUpdated)
-  updatedBy: User;
+  updatedBy: Relation<User>;
 
   @UpdateDateColumn()
   updatedAt: Date;
@@ -58,14 +59,14 @@ export class Topic {
     (manufacturingPlant) => manufacturingPlant.topics,
     { cascade: true },
   )
-  manufacturingPlants: ManufacturingPlant[];
+  manufacturingPlants: Relation<ManufacturingPlant[]>;
 
   @OneToMany(() => ConfigsTopicTg, (configsTopicTg) => configsTopicTg.topic)
-  configs: ConfigsTopicTg[];
+  configs: Relation<ConfigsTopicTg[]>;
 
   @OneToMany(
     () => TrainingGuideEvaluation,
     (trainingGuideEvaluation) => trainingGuideEvaluation.topic,
   )
-  evaluations: TrainingGuideEvaluation[];
+  evaluations: Relation<TrainingGuideEvaluation[]>;
 }

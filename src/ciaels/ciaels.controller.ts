@@ -13,7 +13,7 @@ import {
 
 import * as XlsxPopulate from 'xlsx-populate';
 //import * as ExcelJS from 'exceljs';
-import { Response } from 'express';
+import type { Response } from 'express';
 
 import { calculateAge } from '@shared/utils';
 import { CreateCiaelDto, UpdateCiaelDto } from './dto';

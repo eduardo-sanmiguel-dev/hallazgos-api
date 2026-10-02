@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 
 import { FindOptionsSelect, FindOptionsWhere, Repository } from 'typeorm';
-import { Request } from 'express';
+import type { Request } from 'express';
 
 import { ConfigsTg } from './entities/configs-tg.entity';
 import { User } from 'users/entities/user.entity';

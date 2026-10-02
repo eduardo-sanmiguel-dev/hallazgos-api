@@ -7,6 +7,7 @@ import {
   ManyToOne,
   ManyToMany,
   JoinTable,
+  Relation,
 } from 'typeorm';
 
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
@@ -46,7 +47,7 @@ export class Ics {
   icsPercentage: number;
 
   @ManyToOne(() => User, (user) => user.ics)
-  createdBy: User;
+  createdBy: Relation<User>;
 
   @Column({ default: true })
   isActive: boolean;
@@ -61,23 +62,23 @@ export class Ics {
     () => ManufacturingPlant,
     (manufacturingPlant) => manufacturingPlant.ics,
   )
-  manufacturingPlant: ManufacturingPlant;
+  manufacturingPlant: Relation<ManufacturingPlant>;
 
   @ManyToOne(() => RulesOfLife, (rulesOfLife) => rulesOfLife.ics)
-  ruleOfLife: RulesOfLife;
+  ruleOfLife: Relation<RulesOfLife>;
 
   @ManyToOne(
     () => StandardOfBehavior,
     (standardOfBehavior) => standardOfBehavior.ics,
   )
-  standardOfBehavior: StandardOfBehavior;
+  standardOfBehavior: Relation<StandardOfBehavior>;
 
   @ManyToOne(() => AreaOfBehavior, (areaOfBehavior) => areaOfBehavior.ics)
-  areaOfBehavior: AreaOfBehavior;
+  areaOfBehavior: Relation<AreaOfBehavior>;
 
   @ManyToMany(() => Employee, (employee) => employee.ics)
   @JoinTable({
     name: 'employees_ics',
   })
-  employees: Employee[];
+  employees: Relation<Employee[]>;
 }

@@ -7,6 +7,7 @@ import {
   ManyToOne,
   OneToMany,
   ManyToMany,
+  Relation,
 } from 'typeorm';
 
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
@@ -64,29 +65,29 @@ export class Employee {
   updatedAt: Date;
 
   @ManyToOne(() => EmployeeArea, (area) => area.employees)
-  area: EmployeeArea;
+  area: Relation<EmployeeArea>;
 
   @ManyToOne(() => EmployeePosition, (position) => position.employees)
-  position: EmployeePosition;
+  position: Relation<EmployeePosition>;
 
   @OneToMany(() => Epp, (epp) => epp.employee)
-  epps: Epp[];
+  epps: Relation<Epp[]>;
 
   @ManyToMany(
     () => ManufacturingPlant,
     (manufacturingPlant) => manufacturingPlant.employees,
   )
-  manufacturingPlants: ManufacturingPlant[];
+  manufacturingPlants: Relation<ManufacturingPlant[]>;
 
   @OneToMany(() => Ciael, (ciael) => ciael.employee)
-  ciaels: Ciael[];
+  ciaels: Relation<Ciael[]>;
 
   @ManyToOne(() => Genre, (genre) => genre.employees)
-  gender: Genre;
+  gender: Relation<Genre>;
 
   @ManyToMany(() => Ics, (ics) => ics.employees)
-  ics: Ics[];
+  ics: Relation<Ics[]>;
 
   @OneToMany(() => TrainingGuide, (trainingGuide) => trainingGuide.employee)
-  trainingGuides: TrainingGuide[];
+  trainingGuides: Relation<TrainingGuide[]>;
 }

@@ -5,6 +5,7 @@ import {
   UpdateDateColumn,
   Entity,
   ManyToOne,
+  Relation,
 } from 'typeorm';
 
 import { TrainingGuide } from './training-guide.entity';
@@ -41,8 +42,8 @@ export class TrainingGuideEvaluation {
   updatedAt: Date;
 
   @ManyToOne(() => TrainingGuide, (trainingGuide) => trainingGuide.evaluations)
-  trainingGuideEvaluation: TrainingGuide;
+  trainingGuideEvaluation: Relation<TrainingGuide>;
 
   @ManyToOne(() => Topic, (topic) => topic.evaluations)
-  topic: Topic;
+  topic: Relation<Topic>;
 }

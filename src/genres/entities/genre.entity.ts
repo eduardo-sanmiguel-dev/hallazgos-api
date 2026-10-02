@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  Relation,
 } from 'typeorm';
 
 import { Employee } from 'employees/entities';
@@ -29,5 +30,5 @@ export class Genre {
   updatedAt: Date;
 
   @OneToMany(() => Employee, (employee) => employee.gender)
-  employees: Employee[];
+  employees: Relation<Employee[]>;
 }

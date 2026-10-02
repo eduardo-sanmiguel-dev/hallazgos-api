@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  Relation,
 } from 'typeorm';
 
 import { StandardOfBehavior } from './standard-of-behavior';
@@ -36,8 +37,8 @@ export class RulesOfLife {
     () => StandardOfBehavior,
     (standardOfBehavior) => standardOfBehavior.rulesOfLife,
   )
-  standards: StandardOfBehavior[];
+  standards: Relation<StandardOfBehavior[]>;
 
   @OneToMany(() => Ics, (ics) => ics.ruleOfLife)
-  ics: Ics[];
+  ics: Relation<Ics[]>;
 }

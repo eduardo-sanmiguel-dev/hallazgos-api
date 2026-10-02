@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  Relation,
 } from 'typeorm';
 
 import { Ciael } from 'ciaels/entities/ciael.entity';
@@ -29,5 +30,5 @@ export class RiskFactor {
   updatedAt: Date;
 
   @OneToMany(() => Ciael, (ciael) => ciael.riskFactor)
-  ciaels: Ciael[];
+  ciaels: Relation<Ciael[]>;
 }

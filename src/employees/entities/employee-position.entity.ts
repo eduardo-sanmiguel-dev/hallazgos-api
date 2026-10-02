@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  Relation,
 } from 'typeorm';
 
 import { ConfigsTg } from 'configs-tg/entities/configs-tg.entity';
@@ -29,11 +30,11 @@ export class EmployeePosition {
   updatedAt: Date;
 
   @OneToMany(() => Employee, (employee) => employee.position)
-  employees: Employee[];
+  employees: Relation<Employee[]>;
 
   @OneToMany(() => ConfigsTg, (configsTg) => configsTg.position)
-  configsTg: ConfigsTg[];
+  configsTg: Relation<ConfigsTg[]>;
 
   @OneToMany(() => TrainingGuide, (trainingGuide) => trainingGuide.employee)
-  trainingGuides: TrainingGuide[];
+  trainingGuides: Relation<TrainingGuide[]>;
 }

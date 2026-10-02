@@ -7,6 +7,7 @@ import {
   OneToMany,
   ManyToOne,
   Index,
+  Relation,
 } from 'typeorm';
 import { Field, ID, ObjectType } from '@nestjs/graphql';
 
@@ -43,20 +44,20 @@ export class Area {
   createdAt: Date;
 
   @ManyToOne(() => User)
-  createdBy: User;
+  createdBy: Relation<User>;
 
   @UpdateDateColumn()
   updatedAt: Date;
 
   @ManyToOne(() => User, { nullable: true })
-  updatedBy?: User;
+  updatedBy?: Relation<User>;
 
   @ManyToOne(
     () => ManufacturingPlant,
     (manufacturingPlant) => manufacturingPlant.areas,
   )
-  manufacturingPlant: ManufacturingPlant;
+  manufacturingPlant: Relation<ManufacturingPlant>;
 
   @OneToMany(() => Zone, (zone) => zone.area)
-  zones: Zone[];
+  zones: Relation<Zone[]>;
 }

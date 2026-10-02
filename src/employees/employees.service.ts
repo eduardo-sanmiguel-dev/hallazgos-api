@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { REQUEST } from '@nestjs/core';
 
 import { Repository, FindOptionsWhere, In, ILike } from 'typeorm';
-import { Request } from 'express';
+import type { Request } from 'express';
 
 import { Employee, EmployeeArea, EmployeePosition } from './entities';
 import { Genre } from 'genres/entities/genre.entity';

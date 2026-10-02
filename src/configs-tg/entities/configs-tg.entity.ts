@@ -8,6 +8,7 @@ import {
   JoinColumn,
   OneToMany,
   Index,
+  Relation,
 } from 'typeorm';
 
 import { ConfigsTopicTg } from './configs-topic-tg.entity';
@@ -25,13 +26,13 @@ export class ConfigsTg {
   isActive: boolean;
 
   @ManyToOne(() => User, (user) => user.configTgCreated)
-  createdBy: User;
+  createdBy: Relation<User>;
 
   @CreateDateColumn()
   createdAt: Date;
 
   @ManyToOne(() => User, (user) => user.configTgUpdated)
-  updatedBy: User;
+  updatedBy: Relation<User>;
 
   @UpdateDateColumn()
   updatedAt: Date;
@@ -41,25 +42,25 @@ export class ConfigsTg {
     (employeePosition) => employeePosition.configsTg,
   )
   @JoinColumn({ name: 'employee_position_id' })
-  position: EmployeePosition;
+  position: Relation<EmployeePosition>;
 
   @ManyToOne(
     () => ManufacturingPlant,
     (manufacturingPlant) => manufacturingPlant.configsTg,
   )
   @JoinColumn({ name: 'manufacturing_plant_id' })
-  manufacturingPlant: ManufacturingPlant;
+  manufacturingPlant: Relation<ManufacturingPlant>;
 
   @ManyToOne(() => User, (user) => user.areaTg)
-  areaManager: User;
+  areaManager: Relation<User>;
 
   @ManyToOne(() => User, (user) => user.humanResourceTg)
-  humanResourceManager: User;
+  humanResourceManager: Relation<User>;
 
   @OneToMany(
     () => ConfigsTopicTg,
     (configsTopicTg) => configsTopicTg.configTg,
     { cascade: true },
   )
-  topics: ConfigsTopicTg[];
+  topics: Relation<ConfigsTopicTg[]>;
 }

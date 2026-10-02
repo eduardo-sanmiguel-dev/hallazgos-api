@@ -11,6 +11,7 @@ import {
   ManyToMany,
   JoinTable,
   OneToMany,
+  Relation,
 } from 'typeorm';
 
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
@@ -67,83 +68,83 @@ export class User {
     name: 'user_manufacturing_plants',
   })
   @Field(() => [ManufacturingPlant])
-  manufacturingPlants: ManufacturingPlant[];
+  manufacturingPlants: Relation<ManufacturingPlant[]>;
 
   @ManyToMany(() => Zone)
   @JoinTable({
     name: 'user_zones',
   })
   @Field(() => [Zone])
-  zones: Zone[];
+  zones: Relation<Zone[]>;
 
   @ManyToMany(() => Processes)
   @JoinTable({
     name: 'user_processes',
   })
   @Field(() => [Processes])
-  processes: Processes[];
+  processes: Relation<Processes[]>;
 
   @OneToMany(() => Evidence, (evidence) => evidence.user)
   @Field(() => [Evidence])
-  evidences: Evidence[];
+  evidences: Relation<Evidence[]>;
 
   @OneToMany(() => Comment, (evidence) => evidence.user)
   @Field(() => [Comment])
-  comments: Comment[];
+  comments: Relation<Comment[]>;
 
   @OneToMany(() => Ics, (ics) => ics.createdBy)
-  ics: Ics[];
+  ics: Relation<Ics[]>;
 
   @OneToMany(() => Epp, (epp) => epp.createBy)
-  epps: Epp[];
+  epps: Relation<Epp[]>;
 
   @OneToMany(() => Topic, (topic) => topic.createdBy)
-  topicsCreated: Topic[];
+  topicsCreated: Relation<Topic[]>;
 
   @OneToMany(() => Topic, (topic) => topic.updatedBy)
-  topicsUpdated: Topic[];
+  topicsUpdated: Relation<Topic[]>;
 
   @OneToMany(() => ConfigsTg, (configsTg) => configsTg.createdBy)
-  configTgCreated: ConfigsTg[];
+  configTgCreated: Relation<ConfigsTg[]>;
 
   @OneToMany(() => ConfigsTg, (configsTg) => configsTg.updatedBy)
-  configTgUpdated: ConfigsTg[];
+  configTgUpdated: Relation<ConfigsTg[]>;
 
   @OneToMany(() => Equipment, (equipment) => equipment.createdBy)
-  equipmentCreated: Equipment[];
+  equipmentCreated: Relation<Equipment[]>;
 
   @OneToMany(() => Equipment, (equipment) => equipment.updatedBy)
-  equipmentUpdated: Equipment[];
+  equipmentUpdated: Relation<Equipment[]>;
 
   @OneToMany(() => ConfigsTg, (configsTg) => configsTg.areaManager)
-  areaTg: ConfigsTg[];
+  areaTg: Relation<ConfigsTg[]>;
 
   @OneToMany(() => ConfigsTg, (configsTg) => configsTg.humanResourceManager)
-  humanResourceTg: ConfigsTg[];
+  humanResourceTg: Relation<ConfigsTg[]>;
 
   @OneToMany(() => Ciael, (ciael) => ciael.createdBy)
-  ciaels: Ciael[];
+  ciaels: Relation<Ciael[]>;
 
   @OneToMany(() => Ciael, (ciael) => ciael.areaLeader)
-  ciaelsAreaLeader: Ciael[];
+  ciaelsAreaLeader: Relation<Ciael[]>;
 
   @OneToMany(() => Ciael, (ciael) => ciael.areaLeader)
-  ciaelsAreaManager: Ciael[];
+  ciaelsAreaManager: Relation<Ciael[]>;
 
   @OneToMany(() => TrainingGuide, (trainingGuide) => trainingGuide.areaManager)
-  trainingGuidesAreaManager: TrainingGuide[];
+  trainingGuidesAreaManager: Relation<TrainingGuide[]>;
 
   @OneToMany(
     () => TrainingGuide,
     (trainingGuide) => trainingGuide.humanResourceManager,
   )
-  trainingGuidesHumanResourceManager: TrainingGuide[];
+  trainingGuidesHumanResourceManager: Relation<TrainingGuide[]>;
 
   @ManyToMany(
     () => ConfigsTopicTg,
     (configsTopicTg) => configsTopicTg.responsibles,
   )
-  configsTopicTg: ConfigsTopicTg[];
+  configsTopicTg: Relation<ConfigsTopicTg[]>;
 
   @BeforeInsert()
   async hashPassword() {

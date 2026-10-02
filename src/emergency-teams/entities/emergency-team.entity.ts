@@ -7,6 +7,7 @@ import {
   Check,
   ManyToOne,
   Index,
+  Relation,
 } from 'typeorm';
 
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
@@ -61,13 +62,13 @@ export class EmergencyTeam {
   isActive: boolean;
 
   @ManyToOne(() => User)
-  createdBy: User;
+  createdBy: Relation<User>;
 
   @CreateDateColumn()
   createdAt: Date;
 
   @ManyToOne(() => User)
-  updatedBy?: User;
+  updatedBy?: Relation<User>;
 
   @UpdateDateColumn()
   updatedAt: Date;
@@ -76,5 +77,5 @@ export class EmergencyTeam {
     () => ManufacturingPlant,
     (manufacturingPlant) => manufacturingPlant.emergencyTeams,
   )
-  manufacturingPlant: ManufacturingPlant;
+  manufacturingPlant: Relation<ManufacturingPlant>;
 }

@@ -9,6 +9,7 @@ import {
   OneToMany,
   ManyToOne,
   Index,
+  Relation,
 } from 'typeorm';
 
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
@@ -43,29 +44,29 @@ export class Zone {
 
   @OneToMany(() => Evidence, (evidence) => evidence.zone)
   //@Field(() => [Evidence])
-  evidences: Evidence[];
+  evidences: Relation<Evidence[]>;
 
   @ManyToOne(() => User)
-  createdBy: User;
+  createdBy: Relation<User>;
 
   @ManyToOne(() => User, { nullable: true })
-  updatedBy?: User;
+  updatedBy?: Relation<User>;
 
   @ManyToOne(() => User, (user) => user.zones)
   //@Field(() => User)
-  user: User;
+  user: Relation<User>;
 
   @ManyToOne(
     () => ManufacturingPlant,
     (manufacturingPlant) => manufacturingPlant.zones,
   )
   //@Field(() => ManufacturingPlant)
-  manufacturingPlant: ManufacturingPlant;
+  manufacturingPlant: Relation<ManufacturingPlant>;
 
   @ManyToOne(() => Area, (area) => area.zones)
   @Field(() => Area, { nullable: true })
-  area: Area;
+  area: Relation<Area>;
 
   @OneToMany(() => Ciael, (ciael) => ciael.zone)
-  ciaels: Ciael[];
+  ciaels: Relation<Ciael[]>;
 }

@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   ManyToMany,
   OneToMany,
+  Relation,
 } from 'typeorm';
 
 import { StandardOfBehavior } from './standard-of-behavior';
@@ -34,8 +35,8 @@ export class AreaOfBehavior {
     () => StandardOfBehavior,
     (standardOfBehavior) => standardOfBehavior.areas,
   )
-  standards: StandardOfBehavior[];
+  standards: Relation<StandardOfBehavior[]>;
 
   @OneToMany(() => Ics, (ics) => ics.areaOfBehavior)
-  ics: Ics[];
+  ics: Relation<Ics[]>;
 }

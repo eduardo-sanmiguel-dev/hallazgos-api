@@ -7,6 +7,7 @@ import {
   Entity,
   Index,
   OneToMany,
+  Relation,
 } from 'typeorm';
 
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
@@ -60,25 +61,25 @@ export class TrainingGuide {
   isActive: boolean;
 
   @ManyToOne(() => User, (user) => user.configTgCreated)
-  createdBy: User;
+  createdBy: Relation<User>;
 
   @CreateDateColumn()
   createdAt: Date;
 
   @ManyToOne(() => User, (user) => user.configTgUpdated)
-  updatedBy: User;
+  updatedBy: Relation<User>;
 
   @UpdateDateColumn()
   updatedAt: Date;
 
   @ManyToOne(() => Employee, (employee) => employee.trainingGuides)
-  employee: Employee;
+  employee: Relation<Employee>;
 
   @ManyToOne(
     () => EmployeePosition,
     (employeePosition) => employeePosition.trainingGuides,
   )
-  position: EmployeePosition;
+  position: Relation<EmployeePosition>;
 
   @OneToMany(
     () => TrainingGuideEvaluation,
@@ -88,20 +89,20 @@ export class TrainingGuide {
       cascade: true,
     },
   )
-  evaluations: TrainingGuideEvaluation[];
+  evaluations: Relation<TrainingGuideEvaluation[]>;
 
   @ManyToOne(() => User, (user) => user.trainingGuidesAreaManager)
-  areaManager: User;
+  areaManager: Relation<User>;
 
   @ManyToOne(() => User, (user) => user.trainingGuidesHumanResourceManager)
-  humanResourceManager: User;
+  humanResourceManager: Relation<User>;
 
   @ManyToOne(
     () => ManufacturingPlant,
     (manufacturingPlant) => manufacturingPlant.trainingGuides,
   )
-  manufacturingPlant: ManufacturingPlant;
+  manufacturingPlant: Relation<ManufacturingPlant>;
 
   @ManyToOne(() => EmployeeArea, (area) => area.trainingGuides)
-  area: EmployeeArea;
+  area: Relation<EmployeeArea>;
 }

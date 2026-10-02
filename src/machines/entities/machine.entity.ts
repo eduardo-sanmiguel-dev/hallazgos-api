@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   OneToMany,
   ManyToMany,
+  Relation,
 } from 'typeorm';
 
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
@@ -31,11 +32,11 @@ export class Machine {
   updatedAt: Date;
 
   @OneToMany(() => Ciael, (ciael) => ciael.machine)
-  ciaels: Ciael[];
+  ciaels: Relation<Ciael[]>;
 
   @ManyToMany(
     () => ManufacturingPlant,
     (manufacturingPlant) => manufacturingPlant.machines,
   )
-  manufacturingPlants: ManufacturingPlant[];
+  manufacturingPlants: Relation<ManufacturingPlant[]>;
 }

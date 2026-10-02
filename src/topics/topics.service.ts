@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 
 import { FindOptionsWhere, ILike, In, Repository } from 'typeorm';
-import { Request } from 'express';
+import type { Request } from 'express';
 
 import { CreateTopicDto, QueryTopicDto, UpdateTopicDto } from './dto';
 import { User } from 'users/entities/user.entity';

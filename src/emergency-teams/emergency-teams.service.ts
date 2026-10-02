@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { REQUEST } from '@nestjs/core';
 
 import { Brackets, Repository } from 'typeorm';
-import { Request } from 'express';
+import type { Request } from 'express';
 
 import { EmergencyTeam } from './entities/emergency-team.entity';
 import { User } from 'users/entities/user.entity';

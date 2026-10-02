@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  Relation,
 } from 'typeorm';
 
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
@@ -79,62 +80,62 @@ export class Ciael {
     () => ManufacturingPlant,
     (manufacturingPlant) => manufacturingPlant.zones,
   )
-  manufacturingPlant: ManufacturingPlant;
+  manufacturingPlant: Relation<ManufacturingPlant>;
 
   @ManyToOne(() => TypesOfEvent, (typesOfEvent) => typesOfEvent.ciaels)
-  typeOfEvent: TypesOfEvent;
+  typeOfEvent: Relation<TypesOfEvent>;
 
   @ManyToOne(() => User, (user) => user.ciaels)
-  createdBy: User;
+  createdBy: Relation<User>;
 
   @ManyToOne(() => Employee, (employee) => employee.ciaels)
-  employee: Employee;
+  employee: Relation<Employee>;
 
   @ManyToOne(() => CieDiagnosis, (cieDiagnosis) => cieDiagnosis.ciaels)
-  cieDiagnosis: CieDiagnosis;
+  cieDiagnosis: Relation<CieDiagnosis>;
 
   @ManyToOne(
     () => AccidentPosition,
     (accidentPosition) => accidentPosition.ciaels,
   )
-  accidentPosition: AccidentPosition;
+  accidentPosition: Relation<AccidentPosition>;
 
   @ManyToOne(() => Zone, (zone) => zone.ciaels)
-  zone: Zone;
+  zone: Relation<Zone>;
 
   @ManyToOne(() => BodyPart, (bodyPart) => bodyPart.ciaels)
-  bodyPart: BodyPart;
+  bodyPart: Relation<BodyPart>;
 
   @ManyToOne(() => AtAgent, (atAgent) => atAgent.ciaels)
-  atAgent: AtAgent;
+  atAgent: Relation<AtAgent>;
 
   @ManyToOne(() => TypeOfInjury, (typeOfInjury) => typeOfInjury.ciaels)
-  typeOfInjury: TypeOfInjury;
+  typeOfInjury: Relation<TypeOfInjury>;
 
   @ManyToOne(() => AtMechanism, (atMechanism) => atMechanism.ciaels)
-  atMechanism: AtMechanism;
+  atMechanism: Relation<AtMechanism>;
 
   @ManyToOne(() => WorkingDay, (workingDay) => workingDay.ciaels)
-  workingDay: WorkingDay;
+  workingDay: Relation<WorkingDay>;
 
   @ManyToOne(() => TypeOfLink, (typeOfLink) => typeOfLink.ciaels)
-  typeOfLink: TypeOfLink;
+  typeOfLink: Relation<TypeOfLink>;
 
   @ManyToOne(() => Machine, (machine) => machine.ciaels)
-  machine: Machine;
+  machine: Relation<Machine>;
 
   @ManyToOne(() => AssociatedTask, (associatedTask) => associatedTask.ciaels)
-  associatedTask: AssociatedTask;
+  associatedTask: Relation<AssociatedTask>;
 
   @ManyToOne(() => User, (user) => user.ciaelsAreaLeader)
-  areaLeader: User;
+  areaLeader: Relation<User>;
 
   @ManyToOne(() => RiskFactor, (riskFactor) => riskFactor.ciaels)
-  riskFactor: RiskFactor;
+  riskFactor: Relation<RiskFactor>;
 
   @ManyToOne(() => NatureOfEvent, (riskFactor) => riskFactor.ciaels)
-  natureOfEvent: NatureOfEvent;
+  natureOfEvent: Relation<NatureOfEvent>;
 
   @ManyToOne(() => User, (user) => user.ciaelsAreaManager)
-  manager?: User;
+  manager?: Relation<User>;
 }

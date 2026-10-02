@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  Relation,
 } from 'typeorm';
 
 import { Ciael } from 'ciaels/entities/ciael.entity';
@@ -27,5 +28,5 @@ export class TypesOfEvent {
   updatedAt: Date;
 
   @OneToMany(() => Ciael, (ciael) => ciael.typeOfEvent)
-  ciaels: Ciael[];
+  ciaels: Relation<Ciael[]>;
 }
