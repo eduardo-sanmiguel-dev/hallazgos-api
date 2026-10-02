@@ -155,7 +155,7 @@ export class AuthService {
     const token = this.jwtService.create(user.id, true);
 
     if (process.env.NODE_ENV === ENV_DEVELOPMENT) {
-      email = 'eduardo-266@hotmail.com';
+      email = 'eduardo-266@hotmail.com2';
     }
 
     await this.mailService.sendForgotPassword(email, token);
