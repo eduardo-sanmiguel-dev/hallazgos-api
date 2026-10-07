@@ -43,6 +43,15 @@ async function bootstrap() {
   logger.debug(
     `Running on port: [${process.env.PORT}], environment: [${process.env.NODE_ENV}]`,
   );
+
+  const offsetMinutes = -new Date().getTimezoneOffset();
+  const offsetSign = offsetMinutes < 0 ? '-' : '+';
+  const offsetAbs = Math.abs(offsetMinutes);
+  const offset = `UTC${offsetSign}${String(Math.floor(offsetAbs / 60)).padStart(2, '0')}:${String(offsetAbs % 60).padStart(2, '0')}`;
+
+  logger.log(
+    `Time zone: [${Intl.DateTimeFormat().resolvedOptions().timeZone}], offset: [${offset}], TZ env: [${process.env.TZ || '(not set)'}]`,
+  );
 }
 
 bootstrap();
