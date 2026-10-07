@@ -9,6 +9,7 @@ import {
   IsPositive,
   IsString,
   Length,
+  Matches,
   Max,
   Min,
   ValidateNested,
@@ -23,9 +24,12 @@ class CreateExtinguisherInspectionEvaluationDto {
   @Length(5, 150)
   location: string;
 
-  @IsInt()
-  @IsPositive()
-  extinguisherNumber: number;
+  @IsString()
+  @Length(1, 50)
+  @Matches(/^[a-zA-Z0-9-]+$/, {
+    message: 'extinguisherNumber must be alphanumeric and may include hyphens',
+  })
+  extinguisherNumber: string;
 
   @IsEnum(ExtinguisherType)
   typeOfExtinguisher: ExtinguisherType;

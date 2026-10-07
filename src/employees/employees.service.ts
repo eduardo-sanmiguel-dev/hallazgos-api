@@ -1,8 +1,13 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { REQUEST } from '@nestjs/core';
 
-import { Repository, FindOptionsWhere, In, ILike } from 'typeorm';
+import { Repository, FindOptionsWhere, In, ILike, Raw } from 'typeorm';
 import type { Request } from 'express';
 
 import { Employee, EmployeeArea, EmployeePosition } from './entities';
@@ -107,8 +112,23 @@ export class EmployeesService {
         manufacturingPlantsIds.includes(mp.id),
       ),
     });
-    await this.employeeRepository.save(employee);
+    try {
+      await this.employeeRepository.save(employee);
+    } catch (error) {
+      this.handleDuplicateCode(error, code);
+    }
+
     return employee;
+  }
+
+  private handleDuplicateCode(error: any, code: number | string): never {
+    if (error.code === '23505') {
+      throw new ConflictException(
+        `Ya existe un empleado con el código ${code}. Si no aparece en la lista, puede estar inactivo.`,
+      );
+    }
+
+    throw error;
   }
 
   async findCatalogs() {
@@ -172,10 +192,6 @@ export class EmployeesService {
       };
     }
 
-    if (name) {
-      where.name = ILike(`%${name}%`);
-    }
-
     if (assignedUserId) {
       where.trainingGuides = [
         {
@@ -191,8 +207,23 @@ export class EmployeesService {
       ];
     }
 
+    // `name` searches by employee name or by employee code (partial match).
+    const search = name.trim();
+
+    const whereWithSearch: FindOptionsWhere<Employee>[] = search
+      ? [
+          { ...where, name: ILike(`%${search}%`) },
+          {
+            ...where,
+            code: Raw((alias) => `CAST(${alias} AS TEXT) ILIKE :code`, {
+              code: `%${search}%`,
+            }),
+          },
+        ]
+      : [where];
+
     return this.employeeRepository.find({
-      where,
+      where: whereWithSearch,
       relations: this.relations,
       order: {
         name: 'ASC',
@@ -267,7 +298,11 @@ export class EmployeesService {
       ),
     });
 
-    return this.employeeRepository.save({ ...employee });
+    try {
+      return await this.employeeRepository.save({ ...employee });
+    } catch (error) {
+      this.handleDuplicateCode(error, code);
+    }
   }
 
   async remove(id: number) {
