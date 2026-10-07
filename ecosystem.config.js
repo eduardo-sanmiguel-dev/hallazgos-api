@@ -10,6 +10,7 @@ module.exports = {
       env: {
         NODE_ENV: 'production', // Variables de entorno para producción
         PORT: 4000,
+        TZ: 'America/Mexico_City', // Zona del proceso: las columnas "timestamp without time zone" se guardan en esta hora de pared
       },
       out_file: './logs/out.log', // Log de salida estándar
       error_file: './logs/error.log', // Log de errores

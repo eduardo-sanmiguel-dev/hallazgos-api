@@ -9,8 +9,8 @@ services:
     ports:
       - '5432:5432'
     environment:
-      - TZ:America/Mexico_City
-      - PGTZ:America/Mexico_City
+      - TZ=America/Mexico_City
+      - PGTZ=America/Mexico_City
       - POSTGRES_USER=${DB_USERNAME}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
       - POSTGRES_DB=${DB_NAME}
