@@ -1,4 +1,10 @@
-import { IsOptional, IsPositive, IsString, Matches } from 'class-validator';
+import {
+  IsOptional,
+  IsPositive,
+  IsString,
+  Matches,
+  MaxLength,
+} from 'class-validator';
 
 export class QueryEvidenceDto {
   @IsOptional()
@@ -85,4 +91,11 @@ export class QueryEvidenceDto {
   @IsString()
   @Matches(/^\d{2}\/\d{2}\/\d{4}$/)
   endDate: string;
+
+  // Zona IANA del navegador (ej. America/Bogota). Solo afecta el formato del
+  // Excel; si no llega o no es válida se usa America/Mexico_City.
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  timeZone: string;
 }
