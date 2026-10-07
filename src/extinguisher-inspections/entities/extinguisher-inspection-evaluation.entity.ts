@@ -28,8 +28,8 @@ export class ExtinguisherInspectionEvaluation {
   })
   location: string;
 
-  @Column({ type: 'integer' })
-  extinguisherNumber: number;
+  @Column({ length: 50 })
+  extinguisherNumber: string;
 
   @Column({
     type: 'enum',

@@ -12,7 +12,7 @@ import {
   Res,
 } from '@nestjs/common';
 
-import * as XlsxPopulate from 'xlsx-populate';
+import XlsxPopulate from 'xlsx-populate';
 import type { Response } from 'express';
 
 import { formatDateToDDMMYYYY } from '@shared/utils';

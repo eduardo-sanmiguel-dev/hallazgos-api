@@ -2,7 +2,7 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
 import { ILike, Repository } from 'typeorm';
-import * as XlsxPopulate from 'xlsx-populate';
+import XlsxPopulate from 'xlsx-populate';
 
 import {
   STATUS_CANCEL,

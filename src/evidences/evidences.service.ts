@@ -17,7 +17,7 @@ import {
   Repository,
 } from 'typeorm';
 import { StyleDictionary, TDocumentDefinitions } from 'pdfmake/interfaces';
-import * as XlsxPopulate from 'xlsx-populate';
+import XlsxPopulate from 'xlsx-populate';
 import type { Request, Response } from 'express';
 
 import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';

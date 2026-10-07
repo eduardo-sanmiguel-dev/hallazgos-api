@@ -12,7 +12,7 @@ import {
   Query,
 } from '@nestjs/common';
 
-import * as XlsxPopulate from 'xlsx-populate';
+import XlsxPopulate from 'xlsx-populate';
 import * as ExcelJS from 'exceljs';
 import type { Response } from 'express';
 

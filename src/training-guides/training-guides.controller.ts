@@ -11,7 +11,7 @@ import {
   Res,
 } from '@nestjs/common';
 
-import * as XlsxPopulate from 'xlsx-populate';
+import XlsxPopulate from 'xlsx-populate';
 import { writeFile } from 'fs/promises';
 import type { Response } from 'express';
 import * as ExcelJS from 'exceljs';
