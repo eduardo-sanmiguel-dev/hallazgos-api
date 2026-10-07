@@ -19,6 +19,8 @@ async function bootstrap() {
     cors: {
       origin: process.env.FRONTEND_URL || 'http://localhost:3000',
       credentials: true,
+      // El front lee el nombre del archivo de las descargas desde este header.
+      exposedHeaders: ['Content-Disposition'],
     },
   });
 

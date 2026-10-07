@@ -11,6 +11,7 @@ import {
 
 import {
   Between,
+  EntityTarget,
   FindOptionsWhere,
   In,
   LessThanOrEqual,
@@ -51,7 +52,28 @@ import {
   uploadStaticImage,
   stringToDateWithTime,
   getColombiaNow,
+  formatUtcOffsetLong,
+  formatUtcOffsetShort,
+  formatWallClock,
+  formatWallClockDate,
+  getOffsetMinutes,
+  resolveTimeZone,
+  sanitizeFileNamePart,
+  toWallClock,
+  wallClockToExcelSerial,
 } from '@shared/utils';
+import { MainType } from 'main-types/entities/main-type.entity';
+import { SecondaryType } from 'secondary-types/entities/secondary-type.entity';
+import { Area } from 'areas/entities/area.entity';
+import { Zone } from 'zones/entities/zone.entity';
+import { Processes } from 'processes/entities/processes.entity';
+import {
+  EvidenceCountry,
+  StoredDateColumn,
+  assertStoredDateColumn,
+  storedWallClockToInstant,
+  toEvidenceCountry,
+} from './evidence-storage-timezones';
 
 const pdfMake = require('pdfmake/build/pdfmake');
 const pdfFonts = require('pdfmake/build/vfs_fonts');
@@ -590,6 +612,181 @@ export class EvidencesService {
     return this.findOne(id);
   }
 
+  /**
+   * Fechas tal como están guardadas (texto de la hora de pared, sin pasar por
+   * el Date de node-postgres) y el país de la planta de cada hallazgo.
+   */
+  private async findStoredDates(ids: number[]) {
+    const storedDates = new Map<
+      number,
+      { country: EvidenceCountry } & Record<StoredDateColumn, string | null>
+    >();
+
+    if (!ids.length) return storedDates;
+
+    const rows: Array<{
+      id: number;
+      country: string | null;
+      createdAt: string | null;
+      solutionDate: string | null;
+    }> = await this.evidenceRepository.query(
+      `SELECT e.id,
+              c.name AS country,
+              e."createdAt"::text AS "createdAt",
+              e."solutionDate"::text AS "solutionDate"
+         FROM evidence e
+         JOIN manufacturing_plant mp ON mp.id = e."manufacturingPlantId"
+         LEFT JOIN countries c ON c.id = mp."countryId"
+        WHERE e.id = ANY($1)`,
+      [ids],
+    );
+
+    rows.forEach(({ id, country, createdAt, solutionDate }) =>
+      storedDates.set(Number(id), {
+        country: toEvidenceCountry(country),
+        createdAt,
+        solutionDate,
+      }),
+    );
+
+    return storedDates;
+  }
+
+  /**
+   * Filtros que realmente se aplicaron (los del DTO, con la misma lógica de
+   * findAll), con nombres legibles y en el mismo orden y textos de la pantalla.
+   */
+  private async buildExcelFilters(queryEvidenceDto: QueryEvidenceDto) {
+    const {
+      id,
+      ids,
+      manufacturingPlantId,
+      mainTypeId,
+      mainTypeIds,
+      secondaryType,
+      secondaryTypeIds,
+      area,
+      areaIds,
+      zone,
+      zoneIds,
+      process: processId,
+      processIds,
+      responsible,
+      responsibleIds,
+      status,
+      statuses,
+      startDate,
+      endDate,
+    } = queryEvidenceDto;
+
+    const withSingle = <T>(values: T[], single?: T) =>
+      Array.from(new Set(single ? [...values, single] : values));
+
+    const namesByIds = async (
+      entity: EntityTarget<{ id: number; name: string }>,
+      entityIds: number[],
+    ) => {
+      if (!entityIds.length) return [];
+
+      const rows = await this.evidenceRepository.manager
+        .getRepository(entity)
+        .findBy({ id: In(entityIds) });
+      const namesById = new Map(rows.map((row) => [Number(row.id), row.name]));
+
+      return entityIds.map(
+        (entityId) => namesById.get(entityId) ?? `ID ${entityId}`,
+      );
+    };
+
+    const plantName = manufacturingPlantId
+      ? ((
+          await namesByIds(ManufacturingPlant, [Number(manufacturingPlantId)])
+        )[0] ?? null)
+      : null;
+
+    const rows: Array<{ field: string; values: string[] }> = [
+      {
+        field: 'ID(s)',
+        values: withSingle(this.parseEvidenceIds(ids), id && Number(id)).map(
+          String,
+        ),
+      },
+      { field: 'Planta', values: plantName ? [plantName] : [] },
+      {
+        field: 'Clasificación',
+        values: await namesByIds(
+          MainType,
+          withSingle(
+            this.parseMainTypeIds(mainTypeIds),
+            mainTypeId && Number(mainTypeId),
+          ),
+        ),
+      },
+      {
+        field: 'Tipo',
+        values: await namesByIds(
+          SecondaryType,
+          withSingle(
+            this.parseSecondaryTypeIds(secondaryTypeIds),
+            secondaryType && Number(secondaryType),
+          ),
+        ),
+      },
+      {
+        field: 'Zonas',
+        values: await namesByIds(
+          Area,
+          withSingle(this.parseAreaIds(areaIds), area && Number(area)),
+        ),
+      },
+      {
+        field: 'Lugar',
+        values: await namesByIds(
+          Zone,
+          withSingle(this.parseZoneIds(zoneIds), zone && Number(zone)),
+        ),
+      },
+      {
+        field: 'Responsables',
+        values: await namesByIds(
+          User,
+          withSingle(
+            this.parseResponsibleIds(responsibleIds),
+            responsible && Number(responsible),
+          ),
+        ),
+      },
+      {
+        field: 'Estatus',
+        values: withSingle(this.parseStatuses(statuses), status),
+      },
+      { field: 'Fecha inicio', values: startDate ? [startDate] : [] },
+      { field: 'Fecha fin', values: endDate ? [endDate] : [] },
+    ];
+
+    // La pantalla no tiene filtro de proceso, pero el endpoint sí lo aplica:
+    // si llega, se documenta al final para no ocultar un filtro aplicado.
+    const processFilterIds = withSingle(
+      this.parseProcessIds(processIds),
+      processId && Number(processId),
+    );
+
+    if (processFilterIds.length) {
+      rows.push({
+        field: 'Proceso',
+        values: await namesByIds(Processes, processFilterIds),
+      });
+    }
+
+    return {
+      rows,
+      plantName,
+      extraFiltersCount: rows.filter(
+        ({ field, values }) => field !== 'Planta' && values.length > 0,
+      ).length,
+    };
+  }
+
   async downloadFile(
     type: string,
     queryEvidenceDto: QueryEvidenceDto,
@@ -598,6 +795,12 @@ export class EvidencesService {
     const datos = await this.findAll(queryEvidenceDto);
 
     if (type === 'xlsx') {
+      const timeZone = resolveTimeZone(queryEvidenceDto.timeZone);
+      const downloadedAt = new Date();
+      const offsetMinutes = getOffsetMinutes(downloadedAt, timeZone);
+      const offsetLabel = formatUtcOffsetShort(offsetMinutes);
+      const downloadedAtWall = toWallClock(downloadedAt, timeZone);
+
       const workbook = await XlsxPopulate.fromBlankAsync();
       const sheet = workbook.sheet(0);
       sheet.name('Hallazgos');
@@ -610,13 +813,28 @@ export class EvidencesService {
         { key: 'mainType', header: 'Evento', isRelations: true },
         { key: 'secondaryType', header: 'Tipo de evento', isRelations: true },
         { key: 'zone', header: 'Lugar', isRelations: true },
-        { key: 'user', header: 'Usuario que creo', isRelations: true },
-        { key: 'createdAt', header: 'Fecha de creacion', isDate: true },
-        { key: 'solutionDate', header: 'Fecha de solución', isDate: true },
+        { key: 'user', header: 'Usuario que creó', isRelations: true },
+        {
+          key: 'createdAt',
+          header: `Fecha de creación (${offsetLabel})`,
+          isDate: true,
+        },
+        {
+          key: 'solutionDate',
+          header: `Fecha de solución (${offsetLabel})`,
+          isDate: true,
+        },
         { key: 'supervisors', header: 'Supervisores', isMultiRelations: true },
         { key: 'responsibles', header: 'Responsables', isMultiRelations: true },
         { key: 'process', header: 'Proceso', isRelations: true },
       ];
+
+      headers
+        .filter(({ isDate }) => isDate)
+        .forEach(({ key }) => assertStoredDateColumn(key));
+
+      const storedDates = await this.findStoredDates(datos.map(({ id }) => id));
+      const excelFilters = await this.buildExcelFilters(queryEvidenceDto);
 
       headers.forEach(({ header: key }, i) => {
         sheet
@@ -631,19 +849,6 @@ export class EvidencesService {
           });
       });
 
-      function formatearFecha(fecha = new Date()) {
-        const pad = (n) => n.toString().padStart(2, '0');
-
-        const año = fecha.getFullYear();
-        const mes = pad(fecha.getMonth() + 1); // getMonth() es 0-indexado
-        const día = pad(fecha.getDate());
-        const hora = pad(fecha.getHours());
-        const minutos = pad(fecha.getMinutes());
-        const segundos = pad(fecha.getSeconds());
-
-        return `${año}-${mes}-${día} ${hora}:${minutos}:${segundos}`;
-      }
-
       datos.forEach((obj, rowIndex) => {
         headers.forEach(
           (
@@ -656,6 +861,32 @@ export class EvidencesService {
             },
             colIndex,
           ) => {
+            const cell = sheet.cell(rowIndex + 2, colIndex + 1);
+
+            if (isDate) {
+              // Se usa el texto guardado (hora de pared), no el Date de node-postgres,
+              // para no aplicar dos veces el desfase.
+              const stored = storedDates.get(obj.id);
+              const storedValue = stored?.[key];
+
+              if (storedValue) {
+                const instant = storedWallClockToInstant(
+                  key,
+                  stored.country,
+                  storedValue,
+                );
+
+                cell
+                  .value(wallClockToExcelSerial(toWallClock(instant, timeZone)))
+                  .style({
+                    numberFormat: 'yyyy-mm-dd hh:mm:ss',
+                    horizontalAlignment: 'right',
+                  });
+              }
+
+              return;
+            }
+
             let value = obj[key] || '';
 
             if (isRelations) {
@@ -666,27 +897,75 @@ export class EvidencesService {
               value = obj[key] ? 1 : 0;
             }
 
-            if (isDate && value) {
-              value = formatearFecha(value);
-            }
-
             if (isMultiRelations) {
               value = obj[key].map((item) => item?.name || '').join(', ');
             }
 
-            //console.log(obj);
-
-            sheet
-              .cell(rowIndex + 2, colIndex + 1)
-              .value(isNumber ? value : `${value}`)
-              .style({
-                horizontalAlignment: 'right',
-              });
+            cell.value(isNumber ? value : `${value}`).style({
+              horizontalAlignment: 'right',
+            });
           },
         );
       });
 
-      headers.forEach((_, i) => sheet.column(i + 1).width(20));
+      headers.forEach(({ header }, i) =>
+        sheet.column(i + 1).width(Math.max(20, header.length + 4)),
+      );
+
+      const user = this.request['user'] as User;
+      const filtersSheet = workbook.addSheet('Filtros');
+      const filtersRows: Array<[string, string | number]> = [
+        ['Campo', 'Valor'],
+        ['Descargado por', user?.name || ''],
+        [
+          'Fecha descarga (local)',
+          `${formatWallClock(downloadedAtWall)} (${formatUtcOffsetLong(offsetMinutes)}, ${timeZone})`,
+        ],
+        [
+          'Fecha descarga (UTC)',
+          downloadedAt.toISOString().replace(/\.\d{3}Z$/, 'Z'),
+        ],
+        ['Total de registros', datos.length],
+        ...excelFilters.rows.map(({ field, values }): [string, string] => [
+          field,
+          values.length ? values.join(', ') : '(todos)',
+        ]),
+      ];
+
+      filtersRows.forEach(([field, value], i) => {
+        filtersSheet
+          .cell(i + 1, 1)
+          .value(field)
+          .style({ bold: true });
+        filtersSheet
+          .cell(i + 1, 2)
+          .value(value)
+          .style({ bold: i === 0, horizontalAlignment: 'left' });
+      });
+
+      [0, 1].forEach((col) =>
+        filtersSheet
+          .column(col + 1)
+          .width(
+            Math.max(...filtersRows.map((row) => String(row[col]).length)) + 2,
+          ),
+      );
+
+      filtersSheet.freezePanes(0, 1);
+
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      const fileName = `${[
+        'Hallazgos',
+        excelFilters.plantName
+          ? sanitizeFileNamePart(excelFilters.plantName, 'Planta')
+          : 'Todas',
+        ...(excelFilters.extraFiltersCount > 0
+          ? [`+${excelFilters.extraFiltersCount}filtros`]
+          : []),
+        formatWallClockDate(downloadedAtWall),
+        `${pad(downloadedAtWall.hour)}${pad(downloadedAtWall.minute)}`,
+        offsetLabel,
+      ].join('_')}.xlsx`;
 
       const buffer = await workbook.outputAsync();
       res.setHeader(
@@ -695,7 +974,7 @@ export class EvidencesService {
       );
       res.setHeader(
         'Content-Disposition',
-        'attachment; filename=Hallazgos.xlsx',
+        `attachment; filename="${fileName}"; filename*=UTF-8''${encodeURIComponent(fileName)}`,
       );
       res.send(buffer);
     }
