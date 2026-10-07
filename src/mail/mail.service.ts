@@ -40,6 +40,40 @@ const getRemainingDays = (
   return `${Math.ceil(diffMs / (1000 * 60 * 60 * 24))}`;
 };
 
+const formatDayLabel = (days: number) =>
+  `${days} ${Math.abs(days) === 1 ? 'dia' : 'dias'}`;
+
+// Same rule as the UI: partial days count as a full day, and it is on time
+// when it was closed within createdAt + priorityDays.
+const getResolution = (
+  createdAt?: Date | null,
+  solutionDate?: Date | null,
+  priorityDays?: number | null,
+) => {
+  if (!createdAt || !solutionDate) return null;
+
+  const diffMs =
+    new Date(solutionDate).getTime() - new Date(createdAt).getTime();
+
+  if (Number.isNaN(diffMs)) return null;
+
+  const days = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+
+  if (!priorityDays) {
+    return { daysLabel: formatDayLabel(days), statusLabel: '', isOnTime: true };
+  }
+
+  const isOnTime = days <= priorityDays;
+
+  return {
+    daysLabel: formatDayLabel(days),
+    statusLabel: isOnTime
+      ? 'En tiempo'
+      : `Fuera de tiempo (${formatDayLabel(days - priorityDays)})`,
+    isOnTime,
+  };
+};
+
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
@@ -206,6 +240,12 @@ export class MailService {
       });
     }
 
+    const resolution = getResolution(
+      evidenceCurrent.createdAt,
+      evidenceCurrent.solutionDate,
+      evidenceCurrent.priorityDays,
+    );
+
     await this.mailerService.sendMail({
       to: this.emailTest || user.email,
       from: `"Hada app (hallazgo solucionado)" <${this.MAIL_USER_APP}>`,
@@ -234,6 +274,9 @@ export class MailService {
           evidenceCurrent.createdAt,
           evidenceCurrent.solutionDate,
         ),
+        resolutionDays: resolution?.daysLabel || '',
+        resolutionStatus: resolution?.statusLabel || '',
+        resolutionOnTime: resolution?.isOnTime ?? true,
       },
       attachments,
     });
