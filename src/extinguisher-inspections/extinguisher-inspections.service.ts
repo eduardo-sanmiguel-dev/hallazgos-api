@@ -18,6 +18,7 @@ import {
   QueryExtinguisherInspectionDto,
   UpdateExtinguisherInspectionDto,
 } from './dto';
+import { buildInspectionFileName } from './extinguisher-inspection-file-name';
 
 @Injectable()
 export class ExtinguisherInspectionsService {
@@ -138,6 +139,29 @@ export class ExtinguisherInspectionsService {
     }
 
     return queryBuilder.getMany();
+  }
+
+  /**
+   * Nombre del archivo descargado. createdAt se lee como texto (hora de pared
+   * guardada) para no pasar por el Date de node-postgres.
+   */
+  async getDownloadFileName(id: number) {
+    const [row]: Array<{
+      plantName: string | null;
+      countryName: string | null;
+      storedCreatedAt: string | null;
+    }> = await this.extinguisherInspectionRepository.query(
+      `SELECT mp.name AS "plantName",
+              c.name AS "countryName",
+              i."createdAt"::text AS "storedCreatedAt"
+         FROM extinguisher_inspections i
+         LEFT JOIN manufacturing_plant mp ON mp.id = i."manufacturingPlantId"
+         LEFT JOIN countries c ON c.id = mp."countryId"
+        WHERE i.id = $1`,
+      [id],
+    );
+
+    return buildInspectionFileName({ id, ...row });
   }
 
   async findOne(id: number) {
