@@ -10,6 +10,8 @@ import { User } from 'users/entities/user.entity';
 import { Equipment } from 'equipments/entities';
 import { Epp, EppEquipment } from './entities';
 import { Employee } from 'employees/entities';
+import { buildFileNameTimestamp } from '@shared/utils';
+import { buildEppFileName } from './epp-file-name';
 
 @Injectable()
 export class EppsService {
@@ -176,6 +178,24 @@ export class EppsService {
     }
 
     return { message: 'EPP created successfully' };
+  }
+
+  /** Nombre del archivo con los datos actuales del empleado y la hora del usuario. */
+  async getDownloadFileName(employeeId: number, timeZone?: string) {
+    const employee = await this.employeeRepository.findOne({
+      where: { id: employeeId },
+      relations: ['position', 'manufacturingPlants'],
+    });
+
+    return buildEppFileName({
+      plants: (employee?.manufacturingPlants ?? [])
+        .sort((a, b) => a.id - b.id)
+        .map(({ name }) => name),
+      code: employee?.code,
+      employeeName: employee?.name,
+      position: employee?.position?.name,
+      timestamp: buildFileNameTimestamp(timeZone),
+    });
   }
 
   async findEppsByEmployeeId(employeeId: number) {

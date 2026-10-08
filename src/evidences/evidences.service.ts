@@ -55,8 +55,9 @@ import {
   formatUtcOffsetLong,
   formatUtcOffsetShort,
   formatWallClock,
-  formatWallClockDate,
   getOffsetMinutes,
+  buildAttachmentContentDisposition,
+  buildFileNameTimestamp,
   resolveTimeZone,
   sanitizeFileNamePart,
   toWallClock,
@@ -953,7 +954,6 @@ export class EvidencesService {
 
       filtersSheet.freezePanes(0, 1);
 
-      const pad = (n: number) => n.toString().padStart(2, '0');
       const fileName = `${[
         'Hallazgos',
         excelFilters.plantName
@@ -962,9 +962,7 @@ export class EvidencesService {
         ...(excelFilters.extraFiltersCount > 0
           ? [`+${excelFilters.extraFiltersCount}filtros`]
           : []),
-        formatWallClockDate(downloadedAtWall),
-        `${pad(downloadedAtWall.hour)}${pad(downloadedAtWall.minute)}`,
-        offsetLabel,
+        buildFileNameTimestamp(timeZone, downloadedAt),
       ].join('_')}.xlsx`;
 
       const buffer = await workbook.outputAsync();
@@ -974,7 +972,7 @@ export class EvidencesService {
       );
       res.setHeader(
         'Content-Disposition',
-        `attachment; filename="${fileName}"; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+        buildAttachmentContentDisposition(fileName),
       );
       res.send(buffer);
     }
