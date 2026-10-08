@@ -78,18 +78,7 @@ export function calculateAge(birthDate: string | Date): number {
 
 export * from './query-string-array-transformer.util';
 export * from './timezone';
-
-/** Parte de nombre de archivo segura en Windows/macOS: sin acentos, espacios ni / \ : * ? " < > | */
-export const sanitizeFileNamePart = (value: string, fallback = 'Archivo') =>
-  value
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[/\\:*?"<>|]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/[^A-Za-z0-9._+-]/g, '')
-    .replace(/-{2,}/g, '-')
-    .replace(/^[-.]+|[-.]+$/g, '') || fallback;
+export * from './file-name';
 
 export const getColombiaNow = (
   colombianIds: number[],
