@@ -19,6 +19,10 @@ import {
   buildAttachmentContentDisposition,
   formatDateToDDMMYYYY,
 } from '@shared/utils';
+import {
+  countWrappedLines,
+  wrappedTextHeight,
+} from '@shared/utils/excel-row-height';
 
 import { ExtinguisherInspectionsService } from './extinguisher-inspections.service';
 import {
@@ -78,6 +82,10 @@ export class ExtinguisherInspectionsController {
     const templateEndRow = 34;
     const footerTemplateRow = 35;
     const templateCapacity = templateEndRow - startRow + 1;
+    // Columna EXTINTOR Nº: en la plantilla mide 7.43 y códigos como "F4E-321"
+    // se partían en dos líneas. La hoja imprime "ajustada a 1 página de ancho",
+    // así que ensancharla solo reduce un poco la escala de impresión.
+    const extinguisherNumberColumnWidth = 10;
     const columnNameToNumber = (columnName: string) => {
       let result = 0;
 
@@ -107,6 +115,7 @@ export class ExtinguisherInspectionsController {
         .value(`RESPONSABLE: ${inspection.responsible?.name || '-'}`);
       sheet.cell('I4').value(inspectionDate);
       sheet.cell('R4').value(inspection.manufacturingPlant?.name || '-');
+      sheet.column('C').width(extinguisherNumberColumnWidth);
 
       // La fila 35 del layout es el footer y debe mantenerse al final.
       const footerRowHeight = sheet.row(footerTemplateRow).height();
@@ -141,6 +150,34 @@ export class ExtinguisherInspectionsController {
           };
         })
         .filter((item): item is NonNullable<typeof item> => item !== null);
+
+      // Combinaciones horizontales de las filas de datos de la plantilla (ej.
+      // observaciones en R:S). Se replican en las filas agregadas y se usan
+      // para medir el ancho real de la celda al calcular su altura.
+      const dataRowMerges = Object.keys((sheet as any)._mergeCells || {})
+        .map((ref) => ref.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/))
+        .filter(
+          (match) =>
+            match &&
+            Number(match[2]) === templateEndRow &&
+            Number(match[4]) === templateEndRow,
+        )
+        .map((match) => ({
+          startCol: columnNameToNumber(match[1]),
+          endCol: columnNameToNumber(match[3]),
+        }));
+
+      const dataCellWidth = (col: number) => {
+        const merge = dataRowMerges.find(({ startCol }) => startCol === col);
+        const endCol = merge?.endCol ?? col;
+        let width = 0;
+
+        for (let current = col; current <= endCol; current++) {
+          width += sheet.column(current).width() ?? 8.43;
+        }
+
+        return width;
+      };
 
       const footerSnapshot = Array.from({ length: 18 }, (_, idx) => {
         const col = 2 + idx;
@@ -260,6 +297,46 @@ export class ExtinguisherInspectionsController {
             ),
           );
         sheet.cell(`R${currentRow}`).value(evaluation.observations || '');
+
+        // EXTINTOR Nº y observaciones siempre centrados, sin depender de la
+        // plantilla (en las filas agregadas el formato es una copia).
+        for (const column of ['C', 'R']) {
+          sheet.cell(`${column}${currentRow}`).style({
+            horizontalAlignment: 'center',
+            verticalAlignment: 'center',
+            wrapText: true,
+          });
+        }
+
+        // La plantilla tiene filas de altura fija (una línea) y Excel no las
+        // reajusta al abrir: textos largos con "ajustar texto" (ej. tipo
+        // "Extintor de Solkaflan" u observaciones) quedaban cortados.
+        // Solo se aumenta la altura cuando el contenido lo necesita.
+        const neededHeight = Math.max(
+          0,
+          ...Array.from({ length: 18 }, (_, idx) => {
+            const cell = sheet.cell(currentRow, 2 + idx);
+            const value = cell.value();
+
+            if (!cell.style('wrapText') || value == null || value === '') {
+              return 0;
+            }
+
+            const text = String(value);
+            const width = dataCellWidth(2 + idx);
+            const fontSize = cell.style('fontSize') ?? 10;
+
+            // Una sola línea ya cabe en la altura de la plantilla.
+            return countWrappedLines(text, width, fontSize) > 1
+              ? wrappedTextHeight(text, width, fontSize)
+              : 0;
+          }),
+        );
+        const currentHeight = sheet.row(currentRow).height() ?? 15;
+
+        if (neededHeight > currentHeight) {
+          sheet.row(currentRow).height(neededHeight);
+        }
       });
 
       const footerTargetRow = Math.max(footerTemplateRow, endDynamicRow + 1);
@@ -275,6 +352,16 @@ export class ExtinguisherInspectionsController {
           const targetRef = `${columnNumberToName(mergeInfo.startCol)}${targetStartRow}:${columnNumberToName(mergeInfo.endCol)}${targetEndRow}`;
 
           sheet.range(targetRef).merged(true);
+        }
+      }
+
+      // Las filas agregadas deben tener las mismas combinaciones que las de la
+      // plantilla; sin ellas las observaciones se centraban solo en R y se veían
+      // corridas a la izquierda. Va después de mover el footer para no encimar
+      // sus combinaciones originales de la fila 35.
+      for (let row = templateEndRow + 1; row <= endDynamicRow; row++) {
+        for (const { startCol, endCol } of dataRowMerges) {
+          sheet.range(row, startCol, row, endCol).merged(true);
         }
       }
 
