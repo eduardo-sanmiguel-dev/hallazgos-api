@@ -2,10 +2,15 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { REQUEST } from '@nestjs/core';
 
-import { Repository } from 'typeorm';
+import { Brackets, In, Repository } from 'typeorm';
 import type { Request } from 'express';
 
-import { CreateEppDto, UpdateEppDto } from './dto';
+import {
+  CreateEppDto,
+  EppSortableColumn,
+  QueryEppDto,
+  UpdateEppDto,
+} from './dto';
 import { User } from 'users/entities/user.entity';
 import { Equipment } from 'equipments/entities';
 import { Epp, EppEquipment } from './entities';
@@ -213,6 +218,108 @@ export class EppsService {
     });
 
     return this.mapActiveEquipments(epps);
+  }
+
+  /**
+   * Empleados de la planta con historial de EPP activo, paginados en la BD.
+   * Mismo criterio que findAll/mapActiveHistory, pero el filtro de "tiene al
+   * menos un equipo activo" va en SQL para que el total y las páginas cuadren.
+   */
+  async findPaginated({
+    manufacturingPlantId,
+    page = 1,
+    limit = 10,
+    search,
+    orderBy = 'name',
+    order = 'asc',
+  }: QueryEppDto) {
+    const sortColumns: Record<EppSortableColumn, string> = {
+      name: 'employee.name',
+      code: 'employee.code',
+      position: 'position.name',
+      area: 'area.name',
+    };
+
+    const query = this.employeeRepository
+      .createQueryBuilder('employee')
+      .innerJoin(
+        'employee.manufacturingPlants',
+        'manufacturingPlant',
+        'manufacturingPlant.id = :manufacturingPlantId',
+        { manufacturingPlantId },
+      )
+      .leftJoinAndSelect('employee.position', 'position')
+      .leftJoinAndSelect('employee.area', 'area')
+      .where('employee.isActive = :isActive', { isActive: true })
+      .andWhere(
+        `EXISTS (
+          SELECT 1
+            FROM epp
+            JOIN epp_equipment ON epp_equipment."eppId" = epp.id
+           WHERE epp."employeeId" = employee.id
+             AND epp."isActive"
+             AND epp_equipment."isActive"
+        )`,
+      );
+
+    const term = search?.trim();
+
+    if (term) {
+      query.andWhere(
+        new Brackets((qb) =>
+          qb
+            .where('employee.name ILIKE :term')
+            .orWhere('CAST(employee.code AS TEXT) ILIKE :term')
+            .orWhere('position.name ILIKE :term')
+            .orWhere('area.name ILIKE :term'),
+        ),
+        { term: `%${term.replace(/[\\%_]/g, '\\$&')}%` },
+      );
+    }
+
+    const [employees, count] = await query
+      .orderBy(
+        sortColumns[orderBy],
+        order === 'desc' ? 'DESC' : 'ASC',
+        'NULLS LAST',
+      )
+      // Desempate estable para que una fila no salte entre páginas.
+      .addOrderBy('employee.id', 'ASC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    // Historial solo de los empleados de esta página.
+    const epps = employees.length
+      ? await this.eppRepository.find({
+          where: {
+            employee: { id: In(employees.map(({ id }) => id)) },
+            isActive: true,
+          },
+          relations: [
+            'employee',
+            'createBy',
+            'equipments',
+            'equipments.equipment',
+          ],
+          order: { createdAt: 'ASC' },
+        })
+      : [];
+
+    const eppsByEmployee = new Map<number, Epp[]>();
+
+    for (const { employee, ...epp } of epps) {
+      const list = eppsByEmployee.get(employee.id) ?? [];
+      list.push(epp as Epp);
+      eppsByEmployee.set(employee.id, list);
+    }
+
+    const data = employees.map((employee) => ({
+      ...employee,
+      epps: this.mapActiveEquipments(eppsByEmployee.get(employee.id) ?? []),
+    }));
+
+    return { data, count, page, limit };
   }
 
   async findAll(manufacturingPlantId: number) {
