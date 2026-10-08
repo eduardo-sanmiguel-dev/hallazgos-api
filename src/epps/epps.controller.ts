@@ -16,7 +16,10 @@ import XlsxPopulate from 'xlsx-populate';
 import * as ExcelJS from 'exceljs';
 import type { Response } from 'express';
 
-import { formatDateToYYYYMMDD } from '@shared/utils';
+import {
+  buildAttachmentContentDisposition,
+  formatDateToYYYYMMDD,
+} from '@shared/utils';
 import { CreateEppDto, UpdateEppDto } from './dto';
 import { EppsService } from './epps.service';
 //import { writeFileSync } from 'fs';
@@ -68,8 +71,13 @@ export class EppsController {
   @Get('download/file/:employeeId')
   async downloadFile(
     @Param('employeeId') employeeId: string,
+    @Query('timeZone') timeZone: string,
     @Res() res: Response,
   ) {
+    const fileName = await this.eppsService.getDownloadFileName(
+      +employeeId,
+      timeZone,
+    );
     const epps = await this.eppsService.findEppsByEmployeeId(+employeeId);
     const epp = epps[0];
 
@@ -163,7 +171,13 @@ export class EppsController {
           return workbook.xlsx.writeFile(this.filePathNewFile);
         });
 
-        res.download(this.filePathNewFile, (err) => {
+        // sendFile en lugar de download: download reemplazaría Content-Disposition
+        // y no incluiría filename*.
+        res.setHeader(
+          'Content-Disposition',
+          buildAttachmentContentDisposition(fileName),
+        );
+        res.sendFile(this.filePathNewFile, (err) => {
           if (err) {
             res.status(500).send('Error al descargar el archivo');
           }
