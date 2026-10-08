@@ -20,7 +20,7 @@ import {
   buildAttachmentContentDisposition,
   formatDateToYYYYMMDD,
 } from '@shared/utils';
-import { CreateEppDto, UpdateEppDto } from './dto';
+import { CreateEppDto, QueryEppDto, UpdateEppDto } from './dto';
 import { EppsService } from './epps.service';
 //import { writeFileSync } from 'fs';
 import { writeFile } from 'fs/promises';
@@ -53,8 +53,12 @@ export class EppsController {
   }
 
   @Get()
-  findAll(@Query('manufacturingPlantId') manufacturingPlantId: string) {
-    return this.eppsService.findAll(+manufacturingPlantId);
+  findAll(@Query() query: QueryEppDto) {
+    // Con `page` responde paginado ({ data, count, page, limit }); sin él, la
+    // lista completa como antes (compatibilidad durante el despliegue).
+    return query.page
+      ? this.eppsService.findPaginated(query)
+      : this.eppsService.findAll(+query.manufacturingPlantId);
   }
 
   @Get('validate-delivery-frequency')
