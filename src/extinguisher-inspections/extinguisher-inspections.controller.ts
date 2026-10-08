@@ -15,7 +15,10 @@ import {
 import XlsxPopulate from 'xlsx-populate';
 import type { Response } from 'express';
 
-import { formatDateToDDMMYYYY } from '@shared/utils';
+import {
+  buildAttachmentContentDisposition,
+  formatDateToDDMMYYYY,
+} from '@shared/utils';
 
 import { ExtinguisherInspectionsService } from './extinguisher-inspections.service';
 import {
@@ -326,10 +329,14 @@ export class ExtinguisherInspectionsController {
     }
 
     const fileBuffer = await workbook.outputAsync();
+    const fileName =
+      await this.extinguisherInspectionsService.getDownloadFileName(
+        inspection.id,
+      );
 
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="RGOSGSST49_Inspeccion_${inspection.id}.xlsx"`,
+      buildAttachmentContentDisposition(fileName),
     );
     res.setHeader(
       'Content-Type',
