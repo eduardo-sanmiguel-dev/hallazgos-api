@@ -79,6 +79,7 @@ export function calculateAge(birthDate: string | Date): number {
 export * from './query-string-array-transformer.util';
 export * from './timezone';
 export * from './file-name';
+export * from './storage-timezones';
 
 export const getColombiaNow = (
   colombianIds: number[],

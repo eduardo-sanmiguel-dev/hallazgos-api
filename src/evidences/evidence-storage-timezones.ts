@@ -1,8 +1,13 @@
 import {
-  WallClock,
-  parseWallClock,
-  wallClockToInstant,
-} from '../shared/utils/timezone';
+  PLANT_TIME_ZONES,
+  PlantCountry,
+  SERVER_TZ_TO_MEXICO_CUT,
+  StorageTimeZoneRules,
+  assertStorageRuleColumn,
+  resolveStorageTimeZone,
+  resolveStoredInstant,
+  toPlantCountry,
+} from '../shared/utils/storage-timezones';
 
 /*
  * Zona en la que quedó guardada la hora de pared de las columnas
@@ -48,67 +53,49 @@ import {
  *   now() de Postgres, probablemente al crear la columna): no es una hora real.
  */
 
-export type EvidenceCountry = 'MX' | 'CO';
+export type EvidenceCountry = PlantCountry;
 
 export type StoredDateColumn = 'createdAt' | 'solutionDate';
 
-interface StorageTimeZoneCut {
-  /** Hora de pared guardada (exclusiva) hasta la que aplica el tramo; null = vigente. */
-  until: string | null;
-  zones: Record<EvidenceCountry, string>;
-}
-
 const UTC = 'UTC';
-const MEXICO = 'America/Mexico_City';
-const BOGOTA = 'America/Bogota';
+const MEXICO = PLANT_TIME_ZONES.MX;
+const BOGOTA = PLANT_TIME_ZONES.CO;
 
-/** Hueco sin registros entre la última fila en UTC y la primera en hora de México. */
-const SERVER_TZ_CUT = '2026-02-25 00:00:00';
+const SERVER_TZ_CUT = SERVER_TZ_TO_MEXICO_CUT;
 
-export const EVIDENCE_STORAGE_TIME_ZONES: Record<
-  StoredDateColumn,
-  StorageTimeZoneCut[]
-> = {
-  createdAt: [
-    // Node en UTC y new Date() para todas las plantas.
-    // Última fila de Colombia en UTC: 2026-01-30 01:19; primera en Bogotá: 2026-02-18 10:29.
-    { until: '2026-02-05 10:28:00', zones: { MX: UTC, CO: UTC } },
-    // dde2a17: Colombia pasa a getColombiaNow() (hora de Bogotá). Node sigue en UTC.
-    // Última fila de México en UTC: 2026-02-11 00:42; siguiente: id 2879 (2026-02-25 18:32).
-    { until: SERVER_TZ_CUT, zones: { MX: UTC, CO: BOGOTA } },
-    // Node en America/Mexico_City.
-    { until: null, zones: { MX: MEXICO, CO: BOGOTA } },
-  ],
-  solutionDate: [
-    // Node en UTC y new Date() para todas las plantas.
-    // Última fila en UTC: 2026-02-23 19:45; primera en hora de México: 2026-02-26 06:34.
-    { until: SERVER_TZ_CUT, zones: { MX: UTC, CO: UTC } },
-    // Node en America/Mexico_City y todavía new Date() también para Colombia.
-    // Última fila de Colombia así: 2026-04-01 09:01; primera en Bogotá: 2026-04-07 07:56.
-    { until: '2026-04-06 09:36:00', zones: { MX: MEXICO, CO: MEXICO } },
-    // c0e5006: Colombia pasa a getColombiaNow().
-    { until: null, zones: { MX: MEXICO, CO: BOGOTA } },
-  ],
-};
+export const EVIDENCE_STORAGE_TIME_ZONES: StorageTimeZoneRules<StoredDateColumn> =
+  {
+    createdAt: [
+      // Node en UTC y new Date() para todas las plantas.
+      // Última fila de Colombia en UTC: 2026-01-30 01:19; primera en Bogotá: 2026-02-18 10:29.
+      { until: '2026-02-05 10:28:00', zones: { MX: UTC, CO: UTC } },
+      // dde2a17: Colombia pasa a getColombiaNow() (hora de Bogotá). Node sigue en UTC.
+      // Última fila de México en UTC: 2026-02-11 00:42; siguiente: id 2879 (2026-02-25 18:32).
+      { until: SERVER_TZ_CUT, zones: { MX: UTC, CO: BOGOTA } },
+      // Node en America/Mexico_City.
+      { until: null, zones: { MX: MEXICO, CO: BOGOTA } },
+    ],
+    solutionDate: [
+      // Node en UTC y new Date() para todas las plantas.
+      // Última fila en UTC: 2026-02-23 19:45; primera en hora de México: 2026-02-26 06:34.
+      { until: SERVER_TZ_CUT, zones: { MX: UTC, CO: UTC } },
+      // Node en America/Mexico_City y todavía new Date() también para Colombia.
+      // Última fila de Colombia así: 2026-04-01 09:01; primera en Bogotá: 2026-04-07 07:56.
+      { until: '2026-04-06 09:36:00', zones: { MX: MEXICO, CO: MEXICO } },
+      // c0e5006: Colombia pasa a getColombiaNow().
+      { until: null, zones: { MX: MEXICO, CO: BOGOTA } },
+    ],
+  };
 
-export const COLOMBIA_COUNTRY_NAME = 'Colombia';
+const RULES_NAME = 'EVIDENCE_STORAGE_TIME_ZONES';
 
-export const toEvidenceCountry = (
-  countryName?: string | null,
-): EvidenceCountry => (countryName === COLOMBIA_COUNTRY_NAME ? 'CO' : 'MX');
+export const toEvidenceCountry = toPlantCountry;
 
 /** Falla si la columna no está en la tabla: nunca se asume una zona. */
 export function assertStoredDateColumn(
   column: string,
 ): asserts column is StoredDateColumn {
-  if (
-    !Object.prototype.hasOwnProperty.call(EVIDENCE_STORAGE_TIME_ZONES, column)
-  ) {
-    throw new Error(
-      `No hay regla de zona de almacenamiento para la columna "${column}". ` +
-        'Agrégala a EVIDENCE_STORAGE_TIME_ZONES antes de exportarla.',
-    );
-  }
+  assertStorageRuleColumn(EVIDENCE_STORAGE_TIME_ZONES, RULES_NAME, column);
 }
 
 /** Zona en la que está guardada `storedValue` (texto "YYYY-MM-DD HH:mm:ss[.f]"). */
@@ -116,26 +103,25 @@ export const getStorageTimeZone = (
   column: string,
   country: EvidenceCountry,
   storedValue: string,
-): string => {
-  assertStoredDateColumn(column);
-
-  const wallText = storedValue.trim().slice(0, 19);
-  const cut = EVIDENCE_STORAGE_TIME_ZONES[column].find(
-    ({ until }) => until === null || wallText < until,
+): string =>
+  resolveStorageTimeZone(
+    EVIDENCE_STORAGE_TIME_ZONES,
+    RULES_NAME,
+    column,
+    country,
+    storedValue,
   );
-
-  return cut.zones[country];
-};
 
 /** Convierte el texto guardado al instante real según la tabla de cortes. */
 export const storedWallClockToInstant = (
   column: string,
   country: EvidenceCountry,
   storedValue: string,
-): Date => {
-  const wall: WallClock = parseWallClock(storedValue);
-  return wallClockToInstant(
-    wall,
-    getStorageTimeZone(column, country, storedValue),
+): Date =>
+  resolveStoredInstant(
+    EVIDENCE_STORAGE_TIME_ZONES,
+    RULES_NAME,
+    column,
+    country,
+    storedValue,
   );
-};
