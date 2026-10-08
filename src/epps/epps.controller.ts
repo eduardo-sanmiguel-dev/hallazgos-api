@@ -58,7 +58,7 @@ export class EppsController {
     // lista completa como antes (compatibilidad durante el despliegue).
     return query.page
       ? this.eppsService.findPaginated(query)
-      : this.eppsService.findAll(query.manufacturingPlantId);
+      : this.eppsService.findAll(+query.manufacturingPlantId);
   }
 
   @Get('validate-delivery-frequency')

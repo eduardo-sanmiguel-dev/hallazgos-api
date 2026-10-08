@@ -227,12 +227,16 @@ export class EppsService {
    */
   async findPaginated({
     manufacturingPlantId,
-    page = 1,
-    limit = 10,
+    page: rawPage,
+    limit: rawLimit,
     search,
     orderBy = 'name',
     order = 'asc',
   }: QueryEppDto) {
+    // El ValidationPipe global no transforma: los query params llegan como texto.
+    const page = Math.max(1, Number(rawPage) || 1);
+    const limit = Math.min(100, Math.max(1, Number(rawLimit) || 10));
+
     const sortColumns: Record<EppSortableColumn, string> = {
       name: 'employee.name',
       code: 'employee.code',
@@ -246,7 +250,7 @@ export class EppsService {
         'employee.manufacturingPlants',
         'manufacturingPlant',
         'manufacturingPlant.id = :manufacturingPlantId',
-        { manufacturingPlantId },
+        { manufacturingPlantId: Number(manufacturingPlantId) },
       )
       .leftJoinAndSelect('employee.position', 'position')
       .leftJoinAndSelect('employee.area', 'area')
