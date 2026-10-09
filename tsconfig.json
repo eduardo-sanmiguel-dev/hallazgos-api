@@ -10,6 +10,8 @@
     "target": "ES2021",
     "sourceMap": true,
     "outDir": "./dist",
+    "types": ["node", "jest"],
+    "noUncheckedSideEffectImports": false,
     "incremental": true,
     "skipLibCheck": true,
     "strict": false,
