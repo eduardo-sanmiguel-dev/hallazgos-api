@@ -5,6 +5,7 @@
 
 # enviroments
 .env.development
+.env.local
 .env.production
 
 # compiled output
