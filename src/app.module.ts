@@ -55,6 +55,11 @@ import { TrainingGuidesModule } from './training-guides/training-guides.module';
 import { SafetyDataFilesModule } from './safety-data-files/safety-data-files.module';
 import { EmergencyTeamsModule } from './emergency-teams/emergency-teams.module';
 import { ExtinguisherInspectionsModule } from './extinguisher-inspections/extinguisher-inspections.module';
+import { GembaWalkZonesModule } from './gemba-walk-zones/gemba-walk-zones.module';
+import { GembaWalkObserversModule } from './gemba-walk-observers/gemba-walk-observers.module';
+import { GembaWalkCalendarModule } from './gemba-walk-calendar/gemba-walk-calendar.module';
+import { GembaWalkEvaluationsModule } from './gemba-walk-evaluations/gemba-walk-evaluations.module';
+import { GembaWalksModule } from './gemba-walks/gemba-walks.module';
 
 @Module({
   imports: [
@@ -163,6 +168,11 @@ import { ExtinguisherInspectionsModule } from './extinguisher-inspections/exting
     SafetyDataFilesModule,
     EmergencyTeamsModule,
     ExtinguisherInspectionsModule,
+    GembaWalkZonesModule,
+    GembaWalkObserversModule,
+    GembaWalkCalendarModule,
+    GembaWalkEvaluationsModule,
+    GembaWalksModule,
   ],
   controllers: [],
   providers: [JwtService, GistSecretGuardService],
