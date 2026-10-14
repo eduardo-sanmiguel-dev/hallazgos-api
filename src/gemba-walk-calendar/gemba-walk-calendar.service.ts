@@ -295,6 +295,12 @@ export class GembaWalkCalendarService {
     const { id: updatedBy } = this.request['user'] as User;
     const gembaWalkCalendar = await this.findOne(id);
 
+    if (gembaWalkCalendar.scheduledAt.getTime() <= Date.now()) {
+      throw new BadRequestException(
+        `No se pueden eliminar eventos pasados (ID ${id})`,
+      );
+    }
+
     gembaWalkCalendar.isActive = false;
     gembaWalkCalendar.updatedBy = { id: updatedBy } as User;
     gembaWalkCalendar.updatedAt = new Date();
