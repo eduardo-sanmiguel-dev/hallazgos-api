@@ -41,6 +41,7 @@ import {
   toWallClock,
   wallClockToInstant,
 } from '@shared/utils';
+import { ROLE_ADMINISTRADOR } from '@shared/constants';
 
 const UNIQUE_VIOLATION = '23505';
 
@@ -92,12 +93,19 @@ export class GembaWalksService {
     return this.request['user'] as User;
   }
 
+  private get isAdmin(): boolean {
+    return this.currentUser.role === ROLE_ADMINISTRADOR;
+  }
+
   private userPlantIds(): number[] {
     return (this.currentUser.manufacturingPlants || []).map(({ id }) => id);
   }
 
   // Solo los usuarios registrados como observadores activos usan el módulo.
+  // El administrador tiene acceso completo aunque no esté registrado.
   async isObserver(): Promise<boolean> {
+    if (this.isAdmin) return true;
+
     const count = await this.gembaWalkObserverRepository.count({
       where: {
         isActive: true,
@@ -382,6 +390,7 @@ export class GembaWalksService {
   // - MISSED: no lo realizó él (lo registró otro observador o ya venció la
   //   tolerancia para iniciarlo sin que nadie lo hiciera).
   // - PENDING: aún se puede iniciar.
+  // El administrador ve como DONE cualquier recorrido registrado.
   async findCalendar({
     manufacturingPlantId,
     startDate,
@@ -442,7 +451,7 @@ export class GembaWalksService {
     gembaWalkId: number | null;
   } {
     if (walk) {
-      return walk.createdBy?.id === this.currentUser.id
+      return this.isAdmin || walk.createdBy?.id === this.currentUser.id
         ? { status: 'DONE', gembaWalkId: walk.id }
         : { status: 'MISSED', gembaWalkId: null };
     }
@@ -487,10 +496,11 @@ export class GembaWalksService {
     }
 
     return this.gembaWalkRepository.find({
-      // Cada observador solo ve los recorridos que él registró.
+      // Cada observador solo ve los recorridos que él registró; el
+      // administrador ve todos.
       where: {
         isActive: true,
-        createdBy: { id: this.currentUser.id },
+        ...(!this.isAdmin && { createdBy: { id: this.currentUser.id } }),
         gembaWalkCalendar: calendarWhere,
       },
       relations: [...this.relations, 'results'],
@@ -502,8 +512,12 @@ export class GembaWalksService {
     await this.assertObserver();
 
     const gembaWalk = await this.gembaWalkRepository.findOne({
-      // Solo el observador que lo registró puede ver el detalle.
-      where: { id, isActive: true, createdBy: { id: this.currentUser.id } },
+      // Solo el observador que lo registró (o el administrador) ve el detalle.
+      where: {
+        id,
+        isActive: true,
+        ...(!this.isAdmin && { createdBy: { id: this.currentUser.id } }),
+      },
       relations: [...this.relations, 'results'],
       order: { results: { id: 'ASC' } },
     });
