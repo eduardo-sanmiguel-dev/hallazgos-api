@@ -17,6 +17,7 @@ import { Epp, EppEquipment } from './entities';
 import { Employee } from 'employees/entities';
 import { buildFileNameTimestamp } from '@shared/utils';
 import { buildEppFileName } from './epp-file-name';
+import { plantDeliveryDate } from './epp-delivery-date';
 
 @Injectable()
 export class EppsService {
@@ -159,9 +160,14 @@ export class EppsService {
       updatedAt: new Date(),
     });
 
+    // Un solo instante para todo el registro; el día se calcula en la zona de
+    // la planta de cada equipo.
+    const deliveredAt = new Date();
+
     for (const equipment of equipments) {
       const currentEquipment = await this.equipmentRepository.findOne({
         where: { id: equipment.id, isActive: true },
+        relations: ['manufacturingPlant', 'manufacturingPlant.country'],
       });
 
       if (!currentEquipment) {
@@ -171,7 +177,10 @@ export class EppsService {
       }
 
       await this.eppEquipmentRepository.save({
-        deliveryDate: new Date(),
+        deliveryDate: plantDeliveryDate(
+          deliveredAt,
+          currentEquipment.manufacturingPlant?.country?.name,
+        ),
         quantity: equipment.quantity,
         observations: equipment.observations,
         equipment: currentEquipment,
