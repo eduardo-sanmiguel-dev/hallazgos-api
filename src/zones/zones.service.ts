@@ -7,7 +7,8 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { REQUEST } from '@nestjs/core';
 
-import { ILike, In, Repository } from 'typeorm';
+import { FindManyOptions, ILike, In, Repository } from 'typeorm';
+import { findPaginated } from 'shared/utils';
 import type { Request } from 'express';
 
 import { Zone } from 'zones/entities/zone.entity';
@@ -67,13 +68,15 @@ export class ZonesService {
     }
   }
 
-  async findAll(queryZoneDto: QueryZoneDto): Promise<Zone[]> {
+  async findAll(queryZoneDto: QueryZoneDto) {
     const {
       name,
       manufacturingPlantId,
       manufacturingPlantNames,
       withArea,
       areaId,
+      page,
+      limit,
     } = queryZoneDto;
 
     const manufacturingPlantIds = [];
@@ -95,7 +98,7 @@ export class ZonesService {
       }
     }
 
-    return this.zoneRepository.find({
+    const options: FindManyOptions<Zone> = {
       where: {
         isActive: true,
         ...((withArea || areaId) && {
@@ -120,7 +123,11 @@ export class ZonesService {
       order: {
         id: 'DESC',
       },
-    });
+    };
+
+    return page && limit
+      ? findPaginated(this.zoneRepository, options, page, limit)
+      : this.zoneRepository.find(options);
   }
 
   async findOne(id: number, isActive = true): Promise<Zone> {

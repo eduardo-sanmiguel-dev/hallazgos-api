@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
-import { ILike, In, Repository } from 'typeorm';
+import { FindManyOptions, ILike, In, Repository } from 'typeorm';
+import { findPaginated } from 'shared/utils';
 
 import { ManufacturingPlant } from './entities/manufacturing-plant.entity';
 import {
@@ -27,12 +28,10 @@ export class ManufacturingPlantsService {
     return this.manufacturingPlantRepository.save(manufacturingPlant);
   }
 
-  findAll(
-    queryManufacturingPlantDto: QueryManufacturingPlantDto,
-  ): Promise<ManufacturingPlant[]> {
-    const { name } = queryManufacturingPlantDto;
+  findAll(queryManufacturingPlantDto: QueryManufacturingPlantDto) {
+    const { name, page, limit } = queryManufacturingPlantDto;
 
-    return this.manufacturingPlantRepository.find({
+    const options: FindManyOptions<ManufacturingPlant> = {
       where: {
         isActive: true,
         ...(name && { name: ILike(`%${name}%`) }),
@@ -40,7 +39,11 @@ export class ManufacturingPlantsService {
       order: {
         id: 'DESC',
       },
-    });
+    };
+
+    return page && limit
+      ? findPaginated(this.manufacturingPlantRepository, options, page, limit)
+      : this.manufacturingPlantRepository.find(options);
   }
 
   async findOne(id: number, isActive = true): Promise<ManufacturingPlant> {

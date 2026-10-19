@@ -7,7 +7,8 @@ import {
 } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 
-import { ILike, In, Not, Repository } from 'typeorm';
+import { FindManyOptions, ILike, In, Not, Repository } from 'typeorm';
+import { findPaginated } from 'shared/utils';
 import type { Request } from 'express';
 
 import {
@@ -145,13 +146,12 @@ export class GembaWalkObserversService {
     });
   }
 
-  async findAll(
-    queryGembaWalkObserverDto: QueryGembaWalkObserverDto,
-  ): Promise<GembaWalkObserver[]> {
+  async findAll(queryGembaWalkObserverDto: QueryGembaWalkObserverDto) {
+    const { page, limit } = queryGembaWalkObserverDto;
     const { manufacturingPlantId, gembaWalkZoneId, userName } =
       queryGembaWalkObserverDto;
 
-    return this.gembaWalkObserverRepository.find({
+    const options: FindManyOptions<GembaWalkObserver> = {
       where: {
         isActive: true,
         manufacturingPlant: {
@@ -167,7 +167,11 @@ export class GembaWalkObserversService {
       order: {
         id: 'DESC',
       },
-    });
+    };
+
+    return page && limit
+      ? findPaginated(this.gembaWalkObserverRepository, options, page, limit)
+      : this.gembaWalkObserverRepository.find(options);
   }
 
   async findOne(id: number, isActive = true): Promise<GembaWalkObserver> {

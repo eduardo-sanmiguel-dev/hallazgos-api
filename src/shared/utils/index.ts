@@ -80,6 +80,7 @@ export * from './query-string-array-transformer.util';
 export * from './timezone';
 export * from './file-name';
 export * from './storage-timezones';
+export * from './paginate';
 
 export const getColombiaNow = (
   colombianIds: number[],

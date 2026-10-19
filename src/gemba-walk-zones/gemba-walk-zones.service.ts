@@ -7,7 +7,8 @@ import {
 } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 
-import { ILike, Repository } from 'typeorm';
+import { FindManyOptions, ILike, Repository } from 'typeorm';
+import { findPaginated } from 'shared/utils';
 import type { Request } from 'express';
 
 import {
@@ -91,13 +92,12 @@ export class GembaWalkZonesService {
     return this.findOne(gembaWalkZoneSaved.id);
   }
 
-  async findAll(
-    queryGembaWalkZoneDto: QueryGembaWalkZoneDto,
-  ): Promise<GembaWalkZone[]> {
+  async findAll(queryGembaWalkZoneDto: QueryGembaWalkZoneDto) {
+    const { page, limit } = queryGembaWalkZoneDto;
     const { nameZone, nameLocation, manufacturingPlantId } =
       queryGembaWalkZoneDto;
 
-    return this.gembaWalkZoneRepository.find({
+    const options: FindManyOptions<GembaWalkZone> = {
       where: {
         isActive: true,
         ...(nameZone && { nameZone: ILike(`%${nameZone}%`) }),
@@ -111,7 +111,11 @@ export class GembaWalkZonesService {
       order: {
         id: 'DESC',
       },
-    });
+    };
+
+    return page && limit
+      ? findPaginated(this.gembaWalkZoneRepository, options, page, limit)
+      : this.gembaWalkZoneRepository.find(options);
   }
 
   async findOne(id: number, isActive = true): Promise<GembaWalkZone> {

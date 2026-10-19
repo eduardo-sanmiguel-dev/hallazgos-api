@@ -7,7 +7,8 @@ import {
 } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 
-import { ILike, Repository } from 'typeorm';
+import { FindManyOptions, ILike, Repository } from 'typeorm';
+import { findPaginated } from 'shared/utils';
 import type { Request } from 'express';
 
 import { CreateAreaDto, QueryAreaDto, UpdateAreaDto } from './dto';
@@ -100,10 +101,10 @@ export class AreasService {
     return this.findOne(areaSaved.id);
   }
 
-  async findAll(queryAreaDto: QueryAreaDto): Promise<Area[]> {
-    const { name, manufacturingPlantId } = queryAreaDto;
+  async findAll(queryAreaDto: QueryAreaDto) {
+    const { name, manufacturingPlantId, page, limit } = queryAreaDto;
 
-    return this.areaRepository.find({
+    const options: FindManyOptions<Area> = {
       where: {
         isActive: true,
         ...(name && { name: ILike(`%${name}%`) }),
@@ -116,7 +117,11 @@ export class AreasService {
       order: {
         id: 'DESC',
       },
-    });
+    };
+
+    return page && limit
+      ? findPaginated(this.areaRepository, options, page, limit)
+      : this.areaRepository.find(options);
   }
 
   async findOne(id: number, isActive = true): Promise<Area> {

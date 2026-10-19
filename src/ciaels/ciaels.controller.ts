@@ -8,6 +8,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
   Res,
 } from '@nestjs/common';
 
@@ -16,7 +17,7 @@ import XlsxPopulate from 'xlsx-populate';
 import type { Response } from 'express';
 
 import { calculateAge } from '@shared/utils';
-import { CreateCiaelDto, UpdateCiaelDto } from './dto';
+import { CreateCiaelDto, FiltersCiaelDto, UpdateCiaelDto } from './dto';
 import { CiaelsService } from './ciaels.service';
 
 @Controller('ciaels')
@@ -126,8 +127,12 @@ export class CiaelsController {
   }
 
   @Get()
-  findAll() {
-    return this.ciaelsService.findAll();
+  findAll(@Query() filtersCiaelDto: FiltersCiaelDto) {
+    const { page, limit } = filtersCiaelDto;
+
+    return page !== undefined && limit !== undefined
+      ? this.ciaelsService.findAllPaginated(filtersCiaelDto)
+      : this.ciaelsService.findAll(filtersCiaelDto);
   }
 
   @Get(':id')

@@ -16,6 +16,7 @@ import { User } from 'users/entities/user.entity';
 import {
   CreateEmployeeDto,
   FiltersEmployeeDto,
+  SignatureStatus,
   UpdateEmployeeDto,
 } from './dto';
 import { Zone } from 'zones/entities/zone.entity';
@@ -164,7 +165,9 @@ export class EmployeesService {
       name = '',
       positionId = 0,
       areaId = 0,
+      genreId = 0,
       assignedUserId = 0,
+      signatureStatus,
     } = filtersEmployeeDto;
 
     const where: FindOptionsWhere<Employee> = {
@@ -192,6 +195,10 @@ export class EmployeesService {
       };
     }
 
+    if (genreId) {
+      where.gender = { id: genreId };
+    }
+
     if (assignedUserId) {
       where.trainingGuides = [
         {
@@ -205,6 +212,10 @@ export class EmployeesService {
           },
         },
       ];
+    }
+
+    if (signatureStatus) {
+      where.id = this.signatureStatusFilter(signatureStatus);
     }
 
     // `name` searches by employee name or by employee code (partial match).
@@ -222,13 +233,66 @@ export class EmployeesService {
         ]
       : [where];
 
-    return this.employeeRepository.find({
-      where: whereWithSearch,
+    const { page, limit } = filtersEmployeeDto;
+
+    if (page === undefined || limit === undefined) {
+      return this.employeeRepository.find({
+        where: whereWithSearch,
+        relations: this.relations,
+        order: {
+          name: 'ASC',
+        },
+      });
+    }
+
+    return this.findAllPaginated(whereWithSearch, Number(page), Number(limit));
+  }
+
+  /**
+   * Mismo criterio que la tabla de guías: se evalúa la guía del puesto actual
+   * del colaborador (única por empleado + puesto).
+   */
+  private signatureStatusFilter(signatureStatus: SignatureStatus) {
+    const allSigned = `NULLIF(tg.signature_employee, '') IS NOT NULL
+      AND NULLIF(tg.signature_area_manager, '') IS NOT NULL
+      AND NULLIF(tg.signature_human_resource_manager, '') IS NOT NULL`;
+
+    const conditions: Record<SignatureStatus, string> = {
+      complete: `tg.id IS NOT NULL AND ${allSigned}`,
+      pending: `tg.id IS NOT NULL AND NOT (${allSigned})`,
+      'no-guide': 'tg.id IS NULL',
+    };
+
+    return Raw(
+      (alias) => `${alias} IN (
+        SELECT e.id
+          FROM employee e
+          LEFT JOIN training_guide tg
+            ON tg."employeeId" = e.id
+           AND tg."positionId" = e."positionId"
+         WHERE ${conditions[signatureStatus]}
+      )`,
+    );
+  }
+
+  private async findAllPaginated(
+    where: FindOptionsWhere<Employee>[],
+    page: number,
+    limit: number,
+  ) {
+    const isUnlimited = limit === -1;
+
+    const [data, count] = await this.employeeRepository.findAndCount({
+      where,
       relations: this.relations,
       order: {
         name: 'ASC',
+        id: 'ASC',
       },
+      ...(!isUnlimited && { take: limit, skip: (page - 1) * limit }),
     });
+
+    return { data, count };
   }
 
   async findOne(id: number) {

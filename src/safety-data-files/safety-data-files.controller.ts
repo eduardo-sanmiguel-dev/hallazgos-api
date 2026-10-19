@@ -14,7 +14,11 @@ import {
 import type { Response } from 'express';
 import { existsSync } from 'fs';
 
-import { CreateSafetyDataFileDto, UpdateSafetyDataFileDto } from './dto';
+import {
+  CreateSafetyDataFileDto,
+  QuerySafetyDataFileDto,
+  UpdateSafetyDataFileDto,
+} from './dto';
 import { SafetyDataFilesService } from './safety-data-files.service';
 
 @Controller('safety-data-files')
@@ -29,8 +33,8 @@ export class SafetyDataFilesController {
   }
 
   @Get()
-  findAll(@Query('name') name: string) {
-    return this.safetyDataFilesService.findAll(name);
+  findAll(@Query() querySafetyDataFileDto: QuerySafetyDataFileDto) {
+    return this.safetyDataFilesService.findAll(querySafetyDataFileDto);
   }
 
   @Get('download')

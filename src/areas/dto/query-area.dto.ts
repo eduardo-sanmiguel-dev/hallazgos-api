@@ -1,4 +1,4 @@
-import { IsOptional, IsPositive, IsString } from 'class-validator';
+import { IsOptional, IsPositive, IsString, IsInt } from 'class-validator';
 
 export class QueryAreaDto {
   @IsOptional()
@@ -8,4 +8,13 @@ export class QueryAreaDto {
   @IsOptional()
   @IsPositive()
   manufacturingPlantId?: number;
+
+  @IsOptional()
+  @IsPositive()
+  page?: number;
+
+  // -1 = sin límite (todos los registros)
+  @IsOptional()
+  @IsInt()
+  limit?: number;
 }

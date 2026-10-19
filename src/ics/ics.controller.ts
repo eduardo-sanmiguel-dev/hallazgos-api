@@ -7,13 +7,14 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
 
 import { diskStorage } from 'multer';
 
-import { CreateIcsDto, UpdateIcsDto } from './dto';
+import { CreateIcsDto, FiltersIcsDto, UpdateIcsDto } from './dto';
 import { IcsService } from './ics.service';
 
 @Controller('ics')
@@ -43,8 +44,8 @@ export class IcsController {
   }
 
   @Get()
-  findAll() {
-    return this.icsService.findAll();
+  findAll(@Query() filtersIcsDto: FiltersIcsDto) {
+    return this.icsService.findAll(filtersIcsDto);
   }
 
   @Get('catalogs')

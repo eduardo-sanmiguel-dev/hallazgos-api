@@ -2,14 +2,14 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { REQUEST } from '@nestjs/core';
 
-import { ILike, In, Repository } from 'typeorm';
+import { FindOptionsWhere, ILike, In, Repository } from 'typeorm';
 import type { Request } from 'express';
 
 import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
 import { CreateEquipmentDto, UpdateEquipmentDto } from './dto';
 import { Equipment, EquipmentCostHistory } from './entities';
 import { User } from 'users/entities/user.entity';
-import { getColombiaNow } from '@shared/utils';
+import { findPaginated, getColombiaNow } from '@shared/utils';
 
 @Injectable()
 export class EquipmentsService {
@@ -77,7 +77,10 @@ export class EquipmentsService {
     };
   }
 
-  findAll(manufacturingPlantId: number, name: string) {
+  private listWhere(
+    manufacturingPlantId: number,
+    name: string,
+  ): FindOptionsWhere<Equipment> {
     const user = this.request['user'] as User;
     let manufacturingPlantsIds = user.manufacturingPlants.map((mp) => mp.id);
 
@@ -87,14 +90,18 @@ export class EquipmentsService {
       );
     }
 
-    return this.equipmentRepository.find({
-      where: {
-        isActive: true,
-        ...(name && { name: ILike(`%${name}%`) }),
-        manufacturingPlant: {
-          id: In(manufacturingPlantsIds),
-        },
+    return {
+      isActive: true,
+      ...(name && { name: ILike(`%${name}%`) }),
+      manufacturingPlant: {
+        id: In(manufacturingPlantsIds),
       },
+    };
+  }
+
+  findAll(manufacturingPlantId: number, name: string) {
+    return this.equipmentRepository.find({
+      where: this.listWhere(manufacturingPlantId, name),
       relations: this.relations,
       order: {
         name: 'ASC',
@@ -103,6 +110,35 @@ export class EquipmentsService {
         },
       },
     });
+  }
+
+  // Con skip/take solo se ordena por la entidad principal; el historial de
+  // costos se ordena en memoria (el más reciente primero, como en findAll).
+  async findAllPaginated(
+    manufacturingPlantId: number,
+    name: string,
+    page: string,
+    limit: string,
+  ) {
+    const result = await findPaginated(
+      this.equipmentRepository,
+      {
+        where: this.listWhere(manufacturingPlantId, name),
+        relations: this.relations,
+        order: { name: 'ASC', id: 'ASC' },
+      },
+      page,
+      limit,
+    );
+
+    for (const equipment of result.data) {
+      equipment.costHistory?.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
+    }
+
+    return result;
   }
 
   async findOne(id: number) {

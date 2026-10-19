@@ -2,7 +2,7 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { REQUEST } from '@nestjs/core';
 
-import { ILike, In, Not, Repository } from 'typeorm';
+import { FindOptionsWhere, ILike, In, Not, Repository } from 'typeorm';
 import type { Request } from 'express';
 import * as argon2 from 'argon2';
 
@@ -63,8 +63,11 @@ export class UsersService {
     return this.findOne(user.id);
   }
 
-  findAll(queryUserDto: QueryUserDto): Promise<User[]> {
-    const { name, manufacturingPlantId, rule, zoneId, orderBy } = queryUserDto;
+  findAll(queryUserDto: QueryUserDto) {
+    const { name, manufacturingPlantId, rule, zoneId, processId, orderBy } =
+      queryUserDto;
+    const { page, limit } = queryUserDto;
+    const search = queryUserDto.search?.trim();
 
     let order;
 
@@ -73,23 +76,31 @@ export class UsersService {
       order = { [key]: direction.toUpperCase() };
     }
 
+    const base: FindOptionsWhere<User> = {
+      isActive: true,
+      ...(name && { name: ILike(`%${name}%`) }),
+      ...(manufacturingPlantId && {
+        manufacturingPlants: { id: In([manufacturingPlantId]) },
+      }),
+      ...(rule && { role: rule }),
+      ...(zoneId && { zones: { id: In([zoneId]) }, role: ROLE_SUPERVISOR }),
+      ...(processId && { processes: { id: In([processId]) } }),
+    };
+
+    const where: FindOptionsWhere<User>[] = search
+      ? [
+          { ...base, name: ILike(`%${search}%`) },
+          { ...base, email: ILike(`%${search}%`) },
+        ]
+      : [base];
+
+    if (page !== undefined && limit !== undefined) {
+      return this.findAllPaginated(where, Number(page), Number(limit));
+    }
+
     return this.userRepository.find({
-      where: {
-        isActive: true,
-        ...(name && { name: ILike(`%${name}%`) }),
-        ...(manufacturingPlantId && {
-          manufacturingPlants: { id: In([manufacturingPlantId]) },
-        }),
-        ...(rule && { role: rule }),
-        ...(zoneId && { zones: { id: In([zoneId]) }, role: ROLE_SUPERVISOR }),
-      },
-      relations: [
-        'manufacturingPlants',
-        'zones',
-        'zones.manufacturingPlant',
-        'processes',
-        'processes.manufacturingPlant',
-      ],
+      where,
+      relations: this.listRelations,
       order: {
         ...(order
           ? {
@@ -104,6 +115,39 @@ export class UsersService {
         },
       },
     });
+  }
+
+  private readonly listRelations = [
+    'manufacturingPlants',
+    'zones',
+    'zones.manufacturingPlant',
+    'processes',
+    'processes.manufacturingPlant',
+  ];
+
+  private async findAllPaginated(
+    where: FindOptionsWhere<User>[],
+    page: number,
+    limit: number,
+  ) {
+    // Con skip/take solo se ordena por la entidad principal; plantas y zonas
+    // se ordenan después en memoria (mismo resultado que el listado completo).
+    const [data, count] = await this.userRepository.findAndCount({
+      where,
+      relations: this.listRelations,
+      order: { id: 'DESC' },
+      ...(limit !== -1 && { take: limit, skip: (page - 1) * limit }),
+    });
+
+    const byName = (a: { name: string }, b: { name: string }) =>
+      a.name.localeCompare(b.name);
+
+    for (const user of data) {
+      user.manufacturingPlants?.sort(byName);
+      user.zones?.sort(byName);
+    }
+
+    return { data, count };
   }
 
   findAllByPlant(plantId: number): Promise<User[]> {

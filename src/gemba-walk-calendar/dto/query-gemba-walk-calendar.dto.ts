@@ -1,4 +1,11 @@
-import { IsISO8601, IsOptional, IsPositive, Matches } from 'class-validator';
+import {
+  IsISO8601,
+  IsOptional,
+  IsPositive,
+  Matches,
+  IsInt,
+  IsBooleanString,
+} from 'class-validator';
 
 import { ISO_WITH_OFFSET } from './iso-with-offset';
 
@@ -21,4 +28,17 @@ export class QueryGembaWalkCalendarDto {
   @IsISO8601({ strict: true })
   @Matches(ISO_WITH_OFFSET, { message: 'endDate debe incluir zona horaria' })
   endDate?: string;
+
+  @IsOptional()
+  @IsBooleanString()
+  readonly isAdditional?: string;
+
+  @IsOptional()
+  @IsPositive()
+  readonly page?: number;
+
+  // -1 = sin límite (todos los registros)
+  @IsOptional()
+  @IsInt()
+  readonly limit?: number;
 }

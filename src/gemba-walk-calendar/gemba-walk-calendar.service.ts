@@ -8,6 +8,7 @@ import {
 import { REQUEST } from '@nestjs/core';
 
 import {
+  FindManyOptions,
   And,
   FindOptionsWhere,
   In,
@@ -16,6 +17,7 @@ import {
   Not,
   Repository,
 } from 'typeorm';
+import { findPaginated } from 'shared/utils';
 import type { Request } from 'express';
 
 import {
@@ -164,14 +166,16 @@ export class GembaWalkCalendarService {
     return this.findByIds(saved.map(({ id }) => id));
   }
 
-  async findAll(
-    queryGembaWalkCalendarDto: QueryGembaWalkCalendarDto,
-  ): Promise<GembaWalkCalendar[]> {
+  async findAll(queryGembaWalkCalendarDto: QueryGembaWalkCalendarDto) {
+    const { page, limit, isAdditional } = queryGembaWalkCalendarDto;
     const { manufacturingPlantId, gembaWalkZoneId, startDate, endDate } =
       queryGembaWalkCalendarDto;
 
     const where: FindOptionsWhere<GembaWalkCalendar> = {
       isActive: true,
+      ...(isAdditional !== undefined && {
+        isAdditional: String(isAdditional) === 'true',
+      }),
       gembaWalkZone: {
         isActive: true,
         ...(gembaWalkZoneId && { id: gembaWalkZoneId }),
@@ -193,13 +197,17 @@ export class GembaWalkCalendarService {
       where.scheduledAt = LessThan(new Date(endDate));
     }
 
-    return this.gembaWalkCalendarRepository.find({
+    const options: FindManyOptions<GembaWalkCalendar> = {
       where,
       relations: this.relations,
       order: {
         scheduledAt: 'ASC',
       },
-    });
+    };
+
+    return page && limit
+      ? findPaginated(this.gembaWalkCalendarRepository, options, page, limit)
+      : this.gembaWalkCalendarRepository.find(options);
   }
 
   async findOne(id: number, isActive = true): Promise<GembaWalkCalendar> {

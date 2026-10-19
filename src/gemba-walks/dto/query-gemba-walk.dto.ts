@@ -1,4 +1,12 @@
-import { IsISO8601, IsOptional, IsPositive, Matches } from 'class-validator';
+import {
+  IsBooleanString,
+  IsInt,
+  IsISO8601,
+  IsOptional,
+  IsPositive,
+  IsString,
+  Matches,
+} from 'class-validator';
 
 import { ISO_WITH_OFFSET } from 'gemba-walk-calendar/dto/iso-with-offset';
 
@@ -21,6 +29,28 @@ export class QueryGembaWalkDto {
   @IsISO8601({ strict: true })
   @Matches(ISO_WITH_OFFSET, { message: 'endDate debe incluir zona horaria' })
   endDate?: string;
+
+  // Coincidencia exacta con el nombre de zona / ubicación.
+  @IsOptional()
+  @IsString()
+  nameZone?: string;
+
+  @IsOptional()
+  @IsString()
+  nameLocation?: string;
+
+  @IsOptional()
+  @IsBooleanString()
+  isAdditional?: string;
+
+  @IsOptional()
+  @IsPositive()
+  page?: number;
+
+  // -1 = sin límite (todos los registros)
+  @IsOptional()
+  @IsInt()
+  limit?: number;
 }
 
 export class QueryAvailableEventsDto {

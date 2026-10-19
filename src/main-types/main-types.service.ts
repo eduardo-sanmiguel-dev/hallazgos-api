@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
-import { ILike, Repository } from 'typeorm';
+import { FindManyOptions, ILike, Repository } from 'typeorm';
+import { findPaginated } from 'shared/utils';
 
 import { CreateMainTypeDto, QueryMainTypeDto, UpdateMainTypeDto } from './dto';
 import { MainType } from './entities/main-type.entity';
@@ -19,10 +20,11 @@ export class MainTypesService {
     return this.mainTypeRepository.save(mainType);
   }
 
-  findAll(queryMainTypeDto: QueryMainTypeDto): Promise<MainType[]> {
+  findAll(queryMainTypeDto: QueryMainTypeDto) {
+    const { page, limit } = queryMainTypeDto;
     const { name } = queryMainTypeDto;
 
-    return this.mainTypeRepository.find({
+    const options: FindManyOptions<MainType> = {
       where: {
         isActive: true,
         ...(name && { name: ILike(`%${name}%`) }),
@@ -31,7 +33,11 @@ export class MainTypesService {
       order: {
         id: 'DESC',
       },
-    });
+    };
+
+    return page && limit
+      ? findPaginated(this.mainTypeRepository, options, page, limit)
+      : this.mainTypeRepository.find(options);
   }
 
   async findOne(id: number, isActive = true): Promise<MainType> {
