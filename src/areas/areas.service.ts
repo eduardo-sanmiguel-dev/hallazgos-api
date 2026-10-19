@@ -9,10 +9,10 @@ import { RequestContextService } from 'shared/services/request-context.service';
 import { FindManyOptions, ILike, Repository } from 'typeorm';
 import { findPaginated } from 'shared/utils';
 
-import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
 import { CreateAreaDto, QueryAreaDto, UpdateAreaDto } from './dto';
 import { Area } from './entities/area.entity';
 import { User } from 'users/entities/user.entity';
+import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
 
 @Injectable()
 export class AreasService {
