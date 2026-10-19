@@ -7,7 +7,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { FindOptionsWhere, ILike, In, Repository } from 'typeorm';
+import {
+  FindManyOptions,
+  FindOptionsWhere,
+  ILike,
+  In,
+  Repository,
+} from 'typeorm';
+import { findPaginated } from 'shared/utils';
 import type { Request } from 'express';
 
 import { CreateTopicDto, QueryTopicDto, UpdateTopicDto } from './dto';
@@ -68,9 +75,15 @@ export class TopicsService {
   }
 
   findAll(queryTopicDto: QueryTopicDto) {
+    const { page, limit, typeOfEvaluation } = queryTopicDto;
     const { manufacturingPlantId, name } = queryTopicDto;
 
-    const where: FindOptionsWhere<Topic> = { isActive: true };
+    const where: FindOptionsWhere<Topic> = {
+      isActive: true,
+      ...(typeOfEvaluation && {
+        typeOfEvaluation: typeOfEvaluation as Topic['typeOfEvaluation'],
+      }),
+    };
 
     if (name) {
       where.name = ILike(`%${name}%`);
@@ -82,7 +95,7 @@ export class TopicsService {
       };
     }
 
-    return this.topicRepository.find({
+    const options: FindManyOptions<Topic> = {
       where,
       relations: this.relations,
       select: {
@@ -92,7 +105,11 @@ export class TopicsService {
         },
       },
       order: { name: 'ASC' },
-    });
+    };
+
+    return page && limit
+      ? findPaginated(this.topicRepository, options, page, limit)
+      : this.topicRepository.find(options);
   }
 
   async findOne(id: number) {

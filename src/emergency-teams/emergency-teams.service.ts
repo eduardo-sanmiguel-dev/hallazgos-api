@@ -38,8 +38,9 @@ export class EmergencyTeamsService {
     return this.emergencyTeamRepository.save(emergencyTeam);
   }
 
-  findAll(queryEmergencyTeamDto: QueryEmergencyTeamDto) {
-    const { search, manufacturingPlantId } = queryEmergencyTeamDto;
+  async findAll(queryEmergencyTeamDto: QueryEmergencyTeamDto) {
+    const { search, manufacturingPlantId, typeOfExtinguisher, page, limit } =
+      queryEmergencyTeamDto;
 
     const queryBuilder = this.emergencyTeamRepository
       .createQueryBuilder('emergencyTeam')
@@ -70,7 +71,26 @@ export class EmergencyTeamsService {
       });
     }
 
-    return queryBuilder.getMany();
+    if (typeOfExtinguisher) {
+      queryBuilder.andWhere(
+        'emergencyTeam.typeOfExtinguisher = :typeOfExtinguisher',
+        { typeOfExtinguisher },
+      );
+    }
+
+    if (!page || !limit) {
+      return queryBuilder.getMany();
+    }
+
+    const limitNumber = Number(limit);
+
+    if (limitNumber > 0) {
+      queryBuilder.skip((Number(page) - 1) * limitNumber).take(limitNumber);
+    }
+
+    const [data, count] = await queryBuilder.getManyAndCount();
+
+    return { data, count };
   }
 
   async findOne(id: number) {

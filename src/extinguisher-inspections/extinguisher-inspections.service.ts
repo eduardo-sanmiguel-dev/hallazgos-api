@@ -92,9 +92,18 @@ export class ExtinguisherInspectionsService {
     return this.findOne(savedExtinguisherInspection.id);
   }
 
-  findAll(queryExtinguisherInspectionDto: QueryExtinguisherInspectionDto) {
-    const { search, manufacturingPlantId, responsibleId } =
-      queryExtinguisherInspectionDto;
+  async findAll(
+    queryExtinguisherInspectionDto: QueryExtinguisherInspectionDto,
+  ) {
+    const {
+      search,
+      manufacturingPlantId,
+      responsibleId,
+      startDate,
+      endDate,
+      page,
+      limit,
+    } = queryExtinguisherInspectionDto;
 
     const queryBuilder = this.extinguisherInspectionRepository
       .createQueryBuilder('extinguisherInspection')
@@ -138,7 +147,37 @@ export class ExtinguisherInspectionsService {
       });
     }
 
-    return queryBuilder.getMany();
+    if (startDate) {
+      queryBuilder.andWhere(
+        'extinguisherInspection.inspectionDate >= :startDate',
+        {
+          startDate,
+        },
+      );
+    }
+
+    if (endDate) {
+      queryBuilder.andWhere(
+        'extinguisherInspection.inspectionDate <= :endDate',
+        {
+          endDate,
+        },
+      );
+    }
+
+    if (page === undefined || limit === undefined) {
+      return queryBuilder.getMany();
+    }
+
+    const limitNumber = Number(limit);
+
+    if (limitNumber !== -1) {
+      queryBuilder.skip((Number(page) - 1) * limitNumber).take(limitNumber);
+    }
+
+    const [data, count] = await queryBuilder.getManyAndCount();
+
+    return { data, count };
   }
 
   /**

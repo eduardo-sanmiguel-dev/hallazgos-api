@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { REQUEST } from '@nestjs/core';
 
 import type { Request } from 'express';
-import { Repository } from 'typeorm';
+import { FindOptionsWhere, ILike, Raw, Repository } from 'typeorm';
 
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
 import { AccidentPosition } from 'accident-positions/entities/accident-position.entity';
@@ -20,7 +20,7 @@ import { BodyPart } from 'body-parts/entities/body-part.entity';
 import { AtAgent } from 'at-agents/entities/at-agent.entity';
 import { Country } from 'countries/entities/country.entity';
 import { Machine } from 'machines/entities/machine.entity';
-import { CreateCiaelDto, UpdateCiaelDto } from './dto';
+import { CreateCiaelDto, FiltersCiaelDto, UpdateCiaelDto } from './dto';
 import { Genre } from 'genres/entities/genre.entity';
 import { Zone } from 'zones/entities/zone.entity';
 import { Area } from 'areas/entities/area.entity';
@@ -422,12 +422,74 @@ export class CiaelsService {
     return ciael;
   }
 
-  findAll() {
+  private buildWhere(
+    filtersCiaelDto: FiltersCiaelDto,
+  ): FindOptionsWhere<Ciael>[] {
+    const { manufacturingPlantId, typeOfEventId, zoneId, startDate, endDate } =
+      filtersCiaelDto;
+    const employee = (filtersCiaelDto.employee ?? '').trim();
+
+    const base: FindOptionsWhere<Ciael> = {
+      ...(manufacturingPlantId && {
+        manufacturingPlant: { id: Number(manufacturingPlantId) },
+      }),
+      ...(typeOfEventId && { typeOfEvent: { id: Number(typeOfEventId) } }),
+      ...(zoneId && { zone: { id: Number(zoneId) } }),
+      // Raw evita el transformer de eventDate; compara contra la columna date.
+      ...((startDate || endDate) && {
+        eventDate: Raw(
+          (alias) =>
+            [
+              startDate && `${alias} >= :startDate`,
+              endDate && `${alias} <= :endDate`,
+            ]
+              .filter(Boolean)
+              .join(' AND '),
+          { ...(startDate && { startDate }), ...(endDate && { endDate }) },
+        ),
+      }),
+    };
+
+    return employee
+      ? [
+          { ...base, employee: { name: ILike(`%${employee}%`) } },
+          {
+            ...base,
+            employee: {
+              code: Raw((alias) => `CAST(${alias} AS TEXT) ILIKE :code`, {
+                code: `%${employee}%`,
+              }),
+            },
+          },
+        ]
+      : [base];
+  }
+
+  findAll(filtersCiaelDto: FiltersCiaelDto = {}) {
     return this.ciaelRepository.find({
+      where: this.buildWhere(filtersCiaelDto),
       select: this.select,
       relations: this.relations,
-      order: { createdAt: 'DESC' },
+      order: { createdAt: 'DESC', id: 'DESC' },
     });
+  }
+
+  async findAllPaginated(filtersCiaelDto: FiltersCiaelDto) {
+    const { page = 1, limit = -1 } = filtersCiaelDto;
+    const limitNumber = Number(limit);
+
+    const [data, count] = await this.ciaelRepository.findAndCount({
+      where: this.buildWhere(filtersCiaelDto),
+      select: this.select,
+      relations: this.relations,
+      order: { createdAt: 'DESC', id: 'DESC' },
+      ...(limitNumber !== -1 && {
+        take: limitNumber,
+        skip: (Number(page) - 1) * limitNumber,
+      }),
+    });
+
+    return { data, count };
   }
 
   findOne(id: number) {

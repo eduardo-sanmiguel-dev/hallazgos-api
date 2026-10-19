@@ -2,10 +2,10 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { REQUEST } from '@nestjs/core';
 
-import { Repository } from 'typeorm';
+import { FindOptionsWhere, ILike, Repository } from 'typeorm';
 
 import { RulesOfLife } from 'rules-of-life/entities';
-import { CreateIcsDto, UpdateIcsDto } from './dto';
+import { CreateIcsDto, FiltersIcsDto, UpdateIcsDto } from './dto';
 import { User } from 'users/entities/user.entity';
 import { Ics } from './entities/ics.entity';
 
@@ -85,12 +85,51 @@ export class IcsService {
     });
   }
 
-  findAll() {
-    return this.icsRepository.find({
-      where: { isActive: true },
+  async findAll(filtersIcsDto: FiltersIcsDto) {
+    const { manufacturingPlantId, areaOfBehaviorId, page, limit } =
+      filtersIcsDto;
+    const search = (filtersIcsDto.name ?? '').trim();
+
+    const base: FindOptionsWhere<Ics> = {
+      isActive: true,
+      ...(manufacturingPlantId && {
+        manufacturingPlant: { id: Number(manufacturingPlantId) },
+      }),
+      ...(areaOfBehaviorId && {
+        areaOfBehavior: { id: Number(areaOfBehaviorId) },
+      }),
+    };
+
+    // `name` busca por regla de vida o estándar de comportamiento (coincidencia parcial).
+    const where: FindOptionsWhere<Ics>[] = search
+      ? [
+          { ...base, ruleOfLife: { name: ILike(`%${search}%`) } },
+          { ...base, standardOfBehavior: { name: ILike(`%${search}%`) } },
+        ]
+      : [base];
+
+    if (page === undefined || limit === undefined) {
+      return this.icsRepository.find({
+        where,
+        relations: this.relations,
+        order: { createdAt: 'DESC', id: 'DESC' },
+      });
+    }
+
+    const limitNumber = Number(limit);
+    const isUnlimited = limitNumber === -1;
+
+    const [data, count] = await this.icsRepository.findAndCount({
+      where,
       relations: this.relations,
-      order: { createdAt: 'DESC' },
+      order: { createdAt: 'DESC', id: 'DESC' },
+      ...(!isUnlimited && {
+        take: limitNumber,
+        skip: (Number(page) - 1) * limitNumber,
+      }),
     });
+
+    return { data, count };
   }
 
   async findOne(id: number) {

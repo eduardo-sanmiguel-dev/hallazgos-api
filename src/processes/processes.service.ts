@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
-import { ILike, In, Repository } from 'typeorm';
+import { FindManyOptions, ILike, In, Repository } from 'typeorm';
+import { findPaginated } from 'shared/utils';
 
 import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
 import { Processes } from './entities/processes.entity';
@@ -32,8 +33,8 @@ export class ProcessesService {
     return this.processesRepository.save(processes);
   }
 
-  async findAll(queryProcessesDto: QueryProcessesDto): Promise<Processes[]> {
-    const { name, manufacturingPlantId, manufacturingPlantNames } =
+  async findAll(queryProcessesDto: QueryProcessesDto) {
+    const { name, manufacturingPlantId, manufacturingPlantNames, page, limit } =
       queryProcessesDto;
 
     const manufacturingPlantIds = [];
@@ -55,7 +56,7 @@ export class ProcessesService {
       }
     }
 
-    return this.processesRepository.find({
+    const options: FindManyOptions<Processes> = {
       where: {
         isActive: true,
         ...(name && { name: ILike(`%${name}%`) }),
@@ -74,7 +75,11 @@ export class ProcessesService {
       order: {
         id: 'DESC',
       },
-    });
+    };
+
+    return page && limit
+      ? findPaginated(this.processesRepository, options, page, limit)
+      : this.processesRepository.find(options);
   }
 
   async findOne(id: number, isActive = true): Promise<Processes> {

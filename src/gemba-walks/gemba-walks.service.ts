@@ -10,6 +10,7 @@ import { REQUEST } from '@nestjs/core';
 
 import {
   And,
+  FindManyOptions,
   FindOptionsWhere,
   In,
   LessThan,
@@ -465,11 +466,22 @@ export class GembaWalksService {
     };
   }
 
-  async findAll(queryGembaWalkDto: QueryGembaWalkDto): Promise<GembaWalk[]> {
+  async findAll(
+    queryGembaWalkDto: QueryGembaWalkDto,
+  ): Promise<GembaWalk[] | { data: GembaWalk[]; count: number }> {
     await this.assertObserver();
 
-    const { manufacturingPlantId, gembaWalkZoneId, startDate, endDate } =
-      queryGembaWalkDto;
+    const {
+      manufacturingPlantId,
+      gembaWalkZoneId,
+      startDate,
+      endDate,
+      nameZone,
+      nameLocation,
+      isAdditional,
+      page,
+      limit,
+    } = queryGembaWalkDto;
 
     if (manufacturingPlantId) {
       this.assertUserPlant(manufacturingPlantId);
@@ -478,10 +490,15 @@ export class GembaWalksService {
     const calendarWhere: FindOptionsWhere<GembaWalkCalendar> = {
       gembaWalkZone: {
         ...(gembaWalkZoneId && { id: gembaWalkZoneId }),
+        ...(nameZone && { nameZone }),
+        ...(nameLocation && { nameLocation }),
         manufacturingPlant: {
           id: manufacturingPlantId || In(this.userPlantIds()),
         },
       },
+      ...(isAdditional !== undefined && {
+        isAdditional: String(isAdditional) === 'true',
+      }),
     };
 
     if (startDate && endDate) {
@@ -495,7 +512,7 @@ export class GembaWalksService {
       calendarWhere.scheduledAt = LessThan(new Date(endDate));
     }
 
-    return this.gembaWalkRepository.find({
+    const options = {
       // Cada observador solo ve los recorridos que él registró; el
       // administrador ve todos.
       where: {
@@ -504,8 +521,24 @@ export class GembaWalksService {
         gembaWalkCalendar: calendarWhere,
       },
       relations: [...this.relations, 'results'],
-      order: { performedAt: 'DESC' },
+      order: { performedAt: 'DESC', id: 'DESC' },
+    } satisfies FindManyOptions<GembaWalk>;
+
+    if (page === undefined || limit === undefined) {
+      return this.gembaWalkRepository.find(options);
+    }
+
+    const limitNumber = Number(limit);
+
+    const [data, count] = await this.gembaWalkRepository.findAndCount({
+      ...options,
+      ...(limitNumber !== -1 && {
+        take: limitNumber,
+        skip: (Number(page) - 1) * limitNumber,
+      }),
     });
+
+    return { data, count };
   }
 
   async findOne(id: number): Promise<GembaWalk> {

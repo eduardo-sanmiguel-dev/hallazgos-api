@@ -30,8 +30,18 @@ export class EquipmentsController {
   findAll(
     @Query('manufacturingPlantId') manufacturingPlantId: string = '0',
     @Query('name') name: string = '',
+    // Con page y limit responde paginado ({ data, count }); limit -1 = todos.
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.equipmentsService.findAll(+manufacturingPlantId, name);
+    return page && limit
+      ? this.equipmentsService.findAllPaginated(
+          +manufacturingPlantId,
+          name,
+          page,
+          limit,
+        )
+      : this.equipmentsService.findAll(+manufacturingPlantId, name);
   }
 
   @Get(':id')

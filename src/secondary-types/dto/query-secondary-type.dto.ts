@@ -1,4 +1,4 @@
-import { IsOptional, IsPositive, IsString } from 'class-validator';
+import { IsOptional, IsPositive, IsString, IsInt } from 'class-validator';
 
 export class QuerySecondaryTypeDto {
   @IsOptional()
@@ -8,4 +8,13 @@ export class QuerySecondaryTypeDto {
   @IsOptional()
   @IsPositive()
   mainTypeId: number;
+
+  @IsOptional()
+  @IsPositive()
+  readonly page?: number;
+
+  // -1 = sin límite (todos los registros)
+  @IsOptional()
+  @IsInt()
+  readonly limit?: number;
 }

@@ -5,7 +5,11 @@ import { ILike, Repository } from 'typeorm';
 import { readdirSync } from 'fs';
 import { join } from 'path';
 
-import { CreateSafetyDataFileDto, UpdateSafetyDataFileDto } from './dto';
+import {
+  CreateSafetyDataFileDto,
+  QuerySafetyDataFileDto,
+  UpdateSafetyDataFileDto,
+} from './dto';
 import { SafetyDataFile } from './entities/safety-data-file.entity';
 
 @Injectable()
@@ -36,11 +40,32 @@ export class SafetyDataFilesService {
     return createSafetyDataFileDto;
   }
 
-  findAll(name: string) {
-    return this.safetyDataFileRepository.find({
-      where: { isActive: true, ...(name && { name: ILike(`%${name}%`) }) },
-      order: { name: 'ASC' },
+  async findAll({ name, order, page, limit }: QuerySafetyDataFileDto) {
+    const search = name?.trim();
+
+    const options = {
+      where: {
+        isActive: true,
+        ...(search && { name: ILike(`%${search}%`) }),
+      },
+      order: { name: order === 'desc' ? ('DESC' as const) : ('ASC' as const) },
+    };
+
+    if (page === undefined || limit === undefined) {
+      return this.safetyDataFileRepository.find(options);
+    }
+
+    const limitNumber = Number(limit);
+
+    const [data, count] = await this.safetyDataFileRepository.findAndCount({
+      ...options,
+      ...(limitNumber !== -1 && {
+        take: limitNumber,
+        skip: (Number(page) - 1) * limitNumber,
+      }),
     });
+
+    return { data, count };
   }
 
   findOne(id: number) {

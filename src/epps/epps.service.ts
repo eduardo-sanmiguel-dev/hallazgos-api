@@ -241,6 +241,11 @@ export class EppsService {
     search,
     orderBy = 'name',
     order = 'asc',
+    areaId,
+    positionId,
+    equipmentId,
+    startDate,
+    endDate,
   }: QueryEppDto) {
     // El ValidationPipe global no transforma: los query params llegan como texto.
     const page = Math.max(1, Number(rawPage) || 1);
@@ -272,19 +277,36 @@ export class EppsService {
            WHERE epp."employeeId" = employee.id
              AND epp."isActive"
              AND epp_equipment."isActive"
+             ${equipmentId ? 'AND epp_equipment."equipmentId" = :equipmentId' : ''}
+             ${startDate ? 'AND epp_equipment."deliveryDate" >= :startDate' : ''}
+             ${endDate ? 'AND epp_equipment."deliveryDate" <= :endDate' : ''}
         )`,
+        {
+          ...(equipmentId && { equipmentId: Number(equipmentId) }),
+          ...(startDate && { startDate }),
+          ...(endDate && { endDate }),
+        },
       );
+
+    if (areaId) {
+      query.andWhere('area.id = :areaId', { areaId: Number(areaId) });
+    }
+
+    if (positionId) {
+      query.andWhere('position.id = :positionId', {
+        positionId: Number(positionId),
+      });
+    }
 
     const term = search?.trim();
 
+    // Solo nombre o cédula: área y cargo se filtran con areaId / positionId.
     if (term) {
       query.andWhere(
         new Brackets((qb) =>
           qb
             .where('employee.name ILIKE :term')
-            .orWhere('CAST(employee.code AS TEXT) ILIKE :term')
-            .orWhere('position.name ILIKE :term')
-            .orWhere('area.name ILIKE :term'),
+            .orWhere('CAST(employee.code AS TEXT) ILIKE :term'),
         ),
         { term: `%${term.replace(/[\\%_]/g, '\\$&')}%` },
       );

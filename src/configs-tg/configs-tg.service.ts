@@ -7,7 +7,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { FindOptionsSelect, FindOptionsWhere, Repository } from 'typeorm';
+import {
+  FindManyOptions,
+  FindOptionsSelect,
+  FindOptionsWhere,
+  Repository,
+} from 'typeorm';
+import { findPaginated } from 'shared/utils';
 import type { Request } from 'express';
 
 import { ConfigsTg } from './entities/configs-tg.entity';
@@ -112,9 +118,17 @@ export class ConfigsTgService {
   }
 
   findAll(queryConfigsTgDto: QueryConfigsTgDto) {
+    const { page, limit, areaManagerId, humanResourceManagerId } =
+      queryConfigsTgDto;
     const { positionId, manufacturingPlantId } = queryConfigsTgDto;
 
-    const where: FindOptionsWhere<ConfigsTg> = { ...this.where };
+    const where: FindOptionsWhere<ConfigsTg> = {
+      ...this.where,
+      ...(areaManagerId && { areaManager: { id: Number(areaManagerId) } }),
+      ...(humanResourceManagerId && {
+        humanResourceManager: { id: Number(humanResourceManagerId) },
+      }),
+    };
 
     if (positionId) {
       where.position = { id: positionId };
@@ -124,10 +138,14 @@ export class ConfigsTgService {
       where.manufacturingPlant = { id: manufacturingPlantId };
     }
 
-    return this.configsTgRepository.find({
+    const options: FindManyOptions<ConfigsTg> = {
       ...this.optionsDefault,
       where,
-    });
+    };
+
+    return page && limit
+      ? findPaginated(this.configsTgRepository, options, page, limit)
+      : this.configsTgRepository.find(options);
   }
 
   async findOne(id: number) {

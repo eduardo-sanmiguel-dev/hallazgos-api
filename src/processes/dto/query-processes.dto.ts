@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  IsInt,
 } from 'class-validator';
 
 import { parseStringArrayQueryByKey } from 'shared/utils';
@@ -24,4 +25,13 @@ export class QueryProcessesDto {
   @IsString({ each: true })
   @ArrayMinSize(1)
   manufacturingPlantNames: string[];
+
+  @IsOptional()
+  @IsPositive()
+  page?: number;
+
+  // -1 = sin límite (todos los registros)
+  @IsOptional()
+  @IsInt()
+  limit?: number;
 }

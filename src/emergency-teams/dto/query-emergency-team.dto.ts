@@ -1,4 +1,12 @@
-import { IsInt, IsOptional, IsPositive, IsString } from 'class-validator';
+import {
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsPositive,
+  IsString,
+} from 'class-validator';
+
+import { ExtinguisherType } from '../entities/emergency-team.entity';
 
 export class QueryEmergencyTeamDto {
   @IsOptional()
@@ -9,4 +17,17 @@ export class QueryEmergencyTeamDto {
   @IsInt()
   @IsPositive()
   manufacturingPlantId: number;
+
+  @IsOptional()
+  @IsEnum(ExtinguisherType)
+  typeOfExtinguisher?: ExtinguisherType;
+
+  @IsOptional()
+  @IsPositive()
+  page?: number;
+
+  // -1 = sin límite (todos los registros)
+  @IsOptional()
+  @IsInt()
+  limit?: number;
 }

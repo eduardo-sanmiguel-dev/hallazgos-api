@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
-import { ILike, Repository } from 'typeorm';
+import { FindManyOptions, ILike, Repository } from 'typeorm';
+import { findPaginated } from 'shared/utils';
 
 import {
   CreateSecondaryTypeDto,
@@ -34,12 +35,11 @@ export class SecondaryTypesService {
     return this.secondaryTypeRepository.save(SecondaryType);
   }
 
-  findAll(
-    querySecondaryTypeDto: QuerySecondaryTypeDto,
-  ): Promise<SecondaryType[]> {
+  findAll(querySecondaryTypeDto: QuerySecondaryTypeDto) {
+    const { page, limit } = querySecondaryTypeDto;
     const { name, mainTypeId } = querySecondaryTypeDto;
 
-    return this.secondaryTypeRepository.find({
+    const options: FindManyOptions<SecondaryType> = {
       where: {
         isActive: true,
         ...(name && { name: ILike(`%${name}%`) }),
@@ -49,7 +49,11 @@ export class SecondaryTypesService {
       order: {
         id: 'DESC',
       },
-    });
+    };
+
+    return page && limit
+      ? findPaginated(this.secondaryTypeRepository, options, page, limit)
+      : this.secondaryTypeRepository.find(options);
   }
 
   findAllByManufacturingPlant(id: number) {

@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  IsInt,
 } from 'class-validator';
 
 import { parseStringArrayQueryByKey } from 'shared/utils';
@@ -33,4 +34,13 @@ export class QueryZoneDto {
   @IsOptional()
   @IsBoolean()
   withArea: boolean = false;
+
+  @IsOptional()
+  @IsPositive()
+  page?: number;
+
+  // -1 = sin límite (todos los registros)
+  @IsOptional()
+  @IsInt()
+  limit?: number;
 }
