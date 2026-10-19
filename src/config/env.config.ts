@@ -1,5 +1,6 @@
 export const EnvConfiguration = () => ({
   environment: process.env.NODE_ENV,
+  port: Number(process.env.PORT),
   appKey: process.env.APP_KEY,
   frontendUrl: process.env.FRONTEND_URL,
   jwt: {

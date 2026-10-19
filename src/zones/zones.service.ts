@@ -1,15 +1,13 @@
 import {
   ConflictException,
-  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { REQUEST } from '@nestjs/core';
+import { RequestContextService } from 'shared/services/request-context.service';
 
 import { FindManyOptions, ILike, In, Repository } from 'typeorm';
 import { findPaginated } from 'shared/utils';
-import type { Request } from 'express';
 
 import { Zone } from 'zones/entities/zone.entity';
 import { CreateZoneDto, QueryZoneDto, UpdateZoneDto } from './dto';
@@ -31,12 +29,11 @@ export class ZonesService {
     private readonly zoneRepository: Repository<Zone>,
     private readonly manufacturingPlantsService: ManufacturingPlantsService,
     private readonly areasService: AreasService,
-    @Inject(REQUEST)
-    private readonly request: Request,
+    private readonly requestContext: RequestContextService,
   ) {}
 
   async create(createZoneDto: CreateZoneDto): Promise<Zone> {
-    const { id: createdBy } = this.request['user'] as User;
+    const createdBy = this.requestContext.userId;
 
     const manufacturingPlant = await this.manufacturingPlantsService.findOne(
       createZoneDto.manufacturingPlantId,
@@ -84,18 +81,12 @@ export class ZonesService {
     if (manufacturingPlantId) {
       manufacturingPlantIds.push(manufacturingPlantId);
     } else if (manufacturingPlantNames?.length && !manufacturingPlantId) {
-      for (let i = 0, t = manufacturingPlantNames.length; i < t; i++) {
-        const manufacturingPlantName = manufacturingPlantNames[i];
-
-        const manufacturing =
-          await this.manufacturingPlantsService.findOneByName(
-            manufacturingPlantName,
-          );
-
-        if (manufacturing) {
-          manufacturingPlantIds.push(manufacturing.id);
-        }
-      }
+      // Una consulta para todos los nombres (antes una por nombre).
+      manufacturingPlantIds.push(
+        ...(await this.manufacturingPlantsService.findIdsByNamesOrFail(
+          manufacturingPlantNames,
+        )),
+      );
     }
 
     const options: FindManyOptions<Zone> = {
@@ -174,7 +165,7 @@ export class ZonesService {
   }
 
   async update(id: number, updateZoneDto: UpdateZoneDto): Promise<Zone> {
-    const { id: updatedBy } = this.request['user'] as User;
+    const updatedBy = this.requestContext.userId;
 
     await this.findOne(id);
 
@@ -210,7 +201,7 @@ export class ZonesService {
   }
 
   async remove(id: number): Promise<Zone> {
-    const { id: updatedBy } = this.request['user'] as User;
+    const updatedBy = this.requestContext.userId;
     const zone = await this.findOne(id);
 
     zone.isActive = false;

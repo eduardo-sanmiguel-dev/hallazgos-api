@@ -1,15 +1,13 @@
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   BadRequestException,
-  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { REQUEST } from '@nestjs/core';
+import { RequestContextService } from 'shared/services/request-context.service';
 
 import { FindManyOptions, ILike, Repository } from 'typeorm';
 import { findPaginated } from 'shared/utils';
-import type { Request } from 'express';
 
 import {
   CreateGembaWalkZoneDto,
@@ -28,8 +26,7 @@ export class GembaWalkZonesService {
     @InjectRepository(GembaWalkZone)
     private readonly gembaWalkZoneRepository: Repository<GembaWalkZone>,
     private readonly manufacturingPlantsService: ManufacturingPlantsService,
-    @Inject(REQUEST)
-    private readonly request: Request,
+    private readonly requestContext: RequestContextService,
   ) {}
 
   private async validateUniqueActive(
@@ -65,7 +62,7 @@ export class GembaWalkZonesService {
   async create(
     createGembaWalkZoneDto: CreateGembaWalkZoneDto,
   ): Promise<GembaWalkZone> {
-    const { id: createdBy } = this.request['user'] as User;
+    const createdBy = this.requestContext.userId;
     const { manufacturingPlantId } = createGembaWalkZoneDto;
     const nameZone = createGembaWalkZoneDto.nameZone.trim();
     const nameLocation = createGembaWalkZoneDto.nameLocation.trim();
@@ -139,7 +136,7 @@ export class GembaWalkZonesService {
     id: number,
     updateGembaWalkZoneDto: UpdateGembaWalkZoneDto,
   ): Promise<GembaWalkZone> {
-    const { id: updatedBy } = this.request['user'] as User;
+    const updatedBy = this.requestContext.userId;
     const gembaWalkZoneCurrent = await this.findOne(id);
 
     const manufacturingPlantId =
@@ -176,7 +173,7 @@ export class GembaWalkZonesService {
   }
 
   async remove(id: number): Promise<GembaWalkZone> {
-    const { id: updatedBy } = this.request['user'] as User;
+    const updatedBy = this.requestContext.userId;
     const gembaWalkZone = await this.findOne(id);
 
     gembaWalkZone.isActive = false;

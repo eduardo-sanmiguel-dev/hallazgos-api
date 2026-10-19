@@ -1,13 +1,13 @@
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { REQUEST } from '@nestjs/core';
 import {
   BadRequestException,
   ForbiddenException,
-  Inject,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { RequestContextService } from 'shared/services/request-context.service';
 
 import {
   Between,
@@ -19,7 +19,7 @@ import {
 } from 'typeorm';
 import { StyleDictionary, TDocumentDefinitions } from 'pdfmake/interfaces';
 import XlsxPopulate from 'xlsx-populate';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 
 import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
@@ -153,11 +153,12 @@ export class EvidencesService {
   }
 
   constructor(
+    private readonly configService: ConfigService,
     @InjectRepository(Evidence)
     private readonly evidenceRepository: Repository<Evidence>,
     @InjectRepository(Comment)
     private readonly commentRepository: Repository<Comment>,
-    @Inject(REQUEST) private readonly request: Request,
+    private readonly requestContext: RequestContextService,
     private readonly manufacturingPlantsService: ManufacturingPlantsService,
     private readonly mainTypesService: MainTypesService,
     private readonly secondaryTypesService: SecondaryTypesService,
@@ -322,7 +323,7 @@ export class EvidencesService {
     createEvidenceDto: CreateEvidenceDto,
     file: Express.Multer.File,
   ) {
-    const { id: userId } = this.request['user'] as User;
+    const userId = this.requestContext.userId;
 
     let imgEvidence = '';
 
@@ -420,9 +421,9 @@ export class EvidencesService {
       currentResponsibles?: User[];
     },
   ) {
-    const requestUser = this.request['user'] as User;
+    const requestUser = this.requestContext.user;
 
-    if (process.env.NODE_ENV === ENV_DEVELOPMENT) {
+    if (this.configService.get<string>('environment') === ENV_DEVELOPMENT) {
       const mio = await this.usersService.findOne(1);
       users = [mio];
     }
@@ -480,7 +481,7 @@ export class EvidencesService {
       manufacturingPlant.id,
     );
 
-    if (process.env.NODE_ENV === ENV_DEVELOPMENT) {
+    if (this.configService.get<string>('environment') === ENV_DEVELOPMENT) {
       const mio = await this.usersService.findOne(1);
       plantUsers = [mio];
     }
@@ -504,7 +505,7 @@ export class EvidencesService {
     descriptionSolution: string,
   ) {
     const evidence = await this.findOne(id);
-    const requestUser = this.request['user'] as User;
+    const requestUser = this.requestContext.user;
 
     if (!this.canManageEvidence(requestUser, evidence)) {
       throw new ForbiddenException(
@@ -547,7 +548,7 @@ export class EvidencesService {
     }
 
     const evidence = await this.findOne(id);
-    const requestUser = this.request['user'] as User;
+    const requestUser = this.requestContext.user;
 
     if (!this.canManageEvidence(requestUser, evidence)) {
       throw new ForbiddenException(
@@ -591,7 +592,7 @@ export class EvidencesService {
 
   async addComment(id: number, comment: CommentEvidenceDto) {
     const evidence = await this.findOne(id);
-    const user = this.request['user'] as User;
+    const user = this.requestContext.user;
 
     const { comment: commentText } = comment;
 
@@ -913,7 +914,7 @@ export class EvidencesService {
         sheet.column(i + 1).width(Math.max(20, header.length + 4)),
       );
 
-      const user = this.request['user'] as User;
+      const user = this.requestContext.user;
       const filtersSheet = workbook.addSheet('Filtros');
       const filtersRows: Array<[string, string | number]> = [
         ['Campo', 'Valor'],
@@ -1085,7 +1086,7 @@ export class EvidencesService {
   }
 
   async findAll(queryEvidenceDto: QueryEvidenceDto) {
-    const { manufacturingPlants } = this.request['user'] as User;
+    const { manufacturingPlants } = this.requestContext.user;
 
     const {
       id,
@@ -1397,7 +1398,7 @@ export class EvidencesService {
     id: number,
     reassignResponsiblesDto: ReassignResponsiblesDto,
   ) {
-    const requestUser = this.request['user'] as User;
+    const requestUser = this.requestContext.user;
     const evidence = await this.findOne(id);
     const previousResponsibles = evidence.responsibles || [];
 
@@ -1475,7 +1476,7 @@ export class EvidencesService {
   }
 
   async remove(id: number) {
-    const requestUser = this.request['user'] as User;
+    const requestUser = this.requestContext.user;
 
     if (!this.canCancelEvidence(requestUser)) {
       throw new ForbiddenException(

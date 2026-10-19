@@ -1,19 +1,17 @@
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { REQUEST } from '@nestjs/core';
 import {
   ConflictException,
-  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { RequestContextService } from 'shared/services/request-context.service';
 
 import { Repository } from 'typeorm';
-import type { Request } from 'express';
 
 import { TrainingGuide, TrainingGuideEvaluation } from './entities';
 import { ConfigsTgService } from 'configs-tg/configs-tg.service';
 import { EmployeesService } from 'employees/employees.service';
-import { User } from 'users/entities/user.entity';
 import { ConfigsTg } from 'configs-tg/entities';
 import {
   CreateTrainingGuideDto,
@@ -37,7 +35,8 @@ export class TrainingGuidesService {
   ];
 
   constructor(
-    @Inject(REQUEST) private readonly request: Request,
+    private readonly configService: ConfigService,
+    private readonly requestContext: RequestContextService,
     @InjectRepository(TrainingGuide)
     private readonly trainingGuideRepository: Repository<TrainingGuide>,
     @InjectRepository(ConfigsTg)
@@ -48,7 +47,7 @@ export class TrainingGuidesService {
   ) {}
 
   async create(createTrainingGuideDto: CreateTrainingGuideDto) {
-    const createdBy = this.request['user'] as User;
+    const createdBy = this.requestContext.user;
 
     const {
       manufacturingPlantId,
@@ -113,7 +112,7 @@ export class TrainingGuidesService {
           `The configuration already exists, the combination of position and manufacturing plant must be unique`,
         );
       }
-      throw new Error(error);
+      throw error;
     }
   }
 
@@ -138,7 +137,7 @@ export class TrainingGuidesService {
   }
 
   async update(id: number, updateTrainingGuideDto: UpdateTrainingGuideDto) {
-    const updatedBy = this.request['user'] as User;
+    const updatedBy = this.requestContext.user;
 
     const trainingGuide = await this.findOne(id);
 
@@ -190,7 +189,7 @@ export class TrainingGuidesService {
   }
 
   async createSignature(id: number, signatureDto: SignatureDto) {
-    const updatedBy = this.request['user'] as User;
+    const updatedBy = this.requestContext.user;
 
     const { userId, type, signature } = signatureDto;
 
@@ -212,7 +211,7 @@ export class TrainingGuidesService {
 
         //const { areaManager, humanResourceManager } = trainingGuideRow;
 
-        if (process.env.NODE_ENV === ENV_DEVELOPMENT) {
+        if (this.configService.get<string>('environment') === ENV_DEVELOPMENT) {
           await this.mailService.sendPendingTrainingGuide(
             trainingGuideRow,
             'eduardo-266@hotmail.com',
@@ -282,7 +281,7 @@ export class TrainingGuidesService {
   }
 
   async remove(id: number) {
-    const updatedBy = this.request['user'] as User;
+    const updatedBy = this.requestContext.user;
 
     const trainingGuide = await this.findOne(id);
 

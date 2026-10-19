@@ -1,9 +1,8 @@
-import { REQUEST } from '@nestjs/core';
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { RequestContextService } from 'shared/services/request-context.service';
 
 import { In, MoreThan, Repository, SelectQueryBuilder } from 'typeorm';
-import type { Request } from 'express';
 
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
 import { AccidentRate } from './entities/accident-rate.entity';
@@ -29,7 +28,7 @@ export class DashboardService {
     private readonly evidenceRepository: Repository<Evidence>,
     @InjectRepository(MainType)
     private readonly mainTypeRepository: Repository<MainType>,
-    @Inject(REQUEST) private readonly request: Request,
+    private readonly requestContext: RequestContextService,
   ) {}
 
   private normalizeForComparison(value: string) {
@@ -41,7 +40,7 @@ export class DashboardService {
   }
 
   private isRestrictedDashboardUser() {
-    const user = this.request['user'] as User | undefined;
+    const user = this.requestContext.userOrNull;
     const currentEmail = this.normalizeForComparison(user?.email || '');
 
     return (
@@ -1234,11 +1233,7 @@ export class DashboardService {
   }
 
   findManufacturingPlantsIdsCurrentUser() {
-    const user = this.request['user'] as User;
-
-    return user.manufacturingPlants.map(
-      (manufacturingPlant) => manufacturingPlant.id,
-    );
+    return this.requestContext.manufacturingPlantIds;
   }
 
   async findManufacturingPlantsWithEvidences() {
@@ -3663,7 +3658,7 @@ export class DashboardService {
     };
   }
 
-  async findAllEvidencesByMonth(year: number) {
+  async findAllEvidencesByMonth(year?: number) {
     const manager = this.manufacturingPlant.manager;
 
     const manufacturingPlantsIds = this.findManufacturingPlantsIdsCurrentUser();
@@ -3779,7 +3774,7 @@ export class DashboardService {
     };
   }
 
-  async findAllAccidentsByMonth(year: number) {
+  async findAllAccidentsByMonth(year?: number) {
     const manager = this.manufacturingPlant.manager;
 
     const where = ` 1 = 1

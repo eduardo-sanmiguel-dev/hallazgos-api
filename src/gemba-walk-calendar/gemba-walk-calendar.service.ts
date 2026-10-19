@@ -1,11 +1,10 @@
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   BadRequestException,
-  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { REQUEST } from '@nestjs/core';
+import { RequestContextService } from 'shared/services/request-context.service';
 
 import {
   FindManyOptions,
@@ -18,7 +17,6 @@ import {
   Repository,
 } from 'typeorm';
 import { findPaginated } from 'shared/utils';
-import type { Request } from 'express';
 
 import {
   CreateGembaWalkCalendarDto,
@@ -50,8 +48,7 @@ export class GembaWalkCalendarService {
     private readonly gembaWalkCalendarRepository: Repository<GembaWalkCalendar>,
     @InjectRepository(GembaWalkZone)
     private readonly gembaWalkZoneRepository: Repository<GembaWalkZone>,
-    @Inject(REQUEST)
-    private readonly request: Request,
+    private readonly requestContext: RequestContextService,
   ) {}
 
   private async validateZones(gembaWalkZoneIds: number[]) {
@@ -132,7 +129,7 @@ export class GembaWalkCalendarService {
   async create(
     createGembaWalkCalendarDto: CreateGembaWalkCalendarDto,
   ): Promise<GembaWalkCalendar[]> {
-    const { id: createdBy } = this.request['user'] as User;
+    const createdBy = this.requestContext.userId;
 
     const slots: EventSlot[] = createGembaWalkCalendarDto.events.map(
       ({ gembaWalkZoneId, scheduledAt, isAdditional = false }) => ({
@@ -230,7 +227,7 @@ export class GembaWalkCalendarService {
   async update(
     updateGembaWalkCalendarDto: UpdateGembaWalkCalendarDto,
   ): Promise<GembaWalkCalendar[]> {
-    const { id: updatedBy } = this.request['user'] as User;
+    const updatedBy = this.requestContext.userId;
     const { events } = updateGembaWalkCalendarDto;
     const ids = events.map(({ id }) => id);
 
@@ -300,7 +297,7 @@ export class GembaWalkCalendarService {
   }
 
   async remove(id: number): Promise<GembaWalkCalendar> {
-    const { id: updatedBy } = this.request['user'] as User;
+    const updatedBy = this.requestContext.userId;
     const gembaWalkCalendar = await this.findOne(id);
 
     if (gembaWalkCalendar.scheduledAt.getTime() <= Date.now()) {

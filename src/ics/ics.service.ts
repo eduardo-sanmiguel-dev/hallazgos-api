@@ -1,12 +1,11 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { REQUEST } from '@nestjs/core';
+import { RequestContextService } from 'shared/services/request-context.service';
 
 import { FindOptionsWhere, ILike, Repository } from 'typeorm';
 
 import { RulesOfLife } from 'rules-of-life/entities';
 import { CreateIcsDto, FiltersIcsDto, UpdateIcsDto } from './dto';
-import { User } from 'users/entities/user.entity';
 import { Ics } from './entities/ics.entity';
 
 @Injectable()
@@ -21,7 +20,7 @@ export class IcsService {
   ];
 
   constructor(
-    @Inject(REQUEST) private readonly request: Request,
+    private readonly requestContext: RequestContextService,
     @InjectRepository(Ics)
     private readonly icsRepository: Repository<Ics>,
     @InjectRepository(RulesOfLife)
@@ -29,7 +28,7 @@ export class IcsService {
   ) {}
 
   create(createIcsDto: CreateIcsDto, file: Express.Multer.File) {
-    const { id: createdBy } = this.request['user'] as User;
+    const createdBy = this.requestContext.userId;
 
     const {
       description,

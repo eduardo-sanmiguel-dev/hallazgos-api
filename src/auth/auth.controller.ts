@@ -1,4 +1,5 @@
-import { Controller, Post, Body, Res } from '@nestjs/common';
+import { Controller, Post, Body, Res, UseGuards } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 
 import { parse } from 'cookie';
 import type { Response } from 'express';
@@ -6,11 +7,18 @@ import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginAuthDto } from './dto/login-auth.dto';
 
+// Límite por IP en los endpoints públicos que reciben credenciales o
+// correos: frena fuerza bruta y abuso del envío de correos.
+const LOGIN_LIMIT = { auth: { limit: 10, ttl: 60_000 } };
+const EMAIL_LIMIT = { auth: { limit: 5, ttl: 60_000 } };
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('/login')
+  @UseGuards(ThrottlerGuard)
+  @Throttle(LOGIN_LIMIT)
   async login(@Body() loginAuthDto: LoginAuthDto, @Res() response: Response) {
     const serializedCookie = await this.authService.login(loginAuthDto);
     const token = parse(serializedCookie).token || '';
@@ -21,6 +29,8 @@ export class AuthController {
   }
 
   @Post('/login-restore-password')
+  @UseGuards(ThrottlerGuard)
+  @Throttle(LOGIN_LIMIT)
   async loginRestorePassword(
     @Body() loginAuthDto: LoginAuthDto,
     @Res() response: Response,
@@ -35,6 +45,8 @@ export class AuthController {
   }
 
   @Post('/forgot-password')
+  @UseGuards(ThrottlerGuard)
+  @Throttle(EMAIL_LIMIT)
   async forgotPassword(@Body('email') email: string) {
     return this.authService.forgotPassword(email);
   }
@@ -54,6 +66,8 @@ export class AuthController {
   }
 
   @Post('/check-token-restore-password')
+  @UseGuards(ThrottlerGuard)
+  @Throttle(LOGIN_LIMIT)
   checkTokenRestorePassword(@Body('token') token: string) {
     return this.authService.checkTokenRestorePassword(token);
   }

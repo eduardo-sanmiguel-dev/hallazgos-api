@@ -184,12 +184,6 @@ export class RulesOfLifeService {
           where: { name: In(areas || []) },
         });
 
-        console.log({
-          size: currentAreas?.length || 'N/A',
-          areas: areas?.length || 'N/A',
-          nameStd,
-        });
-
         const standardEntity = this.standardOfBehaviorRepository.create({
           name: nameStd,
           rulesOfLife: ruleEntity,

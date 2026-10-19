@@ -1,17 +1,15 @@
 import {
-  Inject,
   Injectable,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { REQUEST } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
+import { RequestContextService } from 'shared/services/request-context.service';
 
 import { serialize } from 'cookie';
 import { Repository } from 'typeorm';
 import * as argon2 from 'argon2';
-import type { Request } from 'express';
 
 import { ENV_DEVELOPMENT, ENV_PRODUCTION } from '@shared/constants';
 import { User } from 'users/entities/user.entity';
@@ -28,7 +26,7 @@ export class AuthService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly jwtService: JwtService,
-    @Inject(REQUEST) private readonly request: Request,
+    private readonly requestContext: RequestContextService,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
   ) {
@@ -132,9 +130,8 @@ export class AuthService {
   }
 
   async logout(): Promise<string> {
-    const token = this.request['user'].token as string;
-
-    const serialized = serialize(this.nameCookie, token, {
+    // Se borra la cookie (valor vacío y maxAge 0).
+    const serialized = serialize(this.nameCookie, '', {
       ...this.optsSerialize,
       maxAge: 0,
     });
@@ -154,7 +151,7 @@ export class AuthService {
     }
     const token = this.jwtService.create(user.id, true);
 
-    if (process.env.NODE_ENV === ENV_DEVELOPMENT) {
+    if (this.environment === ENV_DEVELOPMENT) {
       email = 'eduardo-266@hotmail.com';
     }
 
@@ -169,7 +166,8 @@ export class AuthService {
   checkToken(): {
     message: string;
   } {
-    const token = this.request.headers['authorization'].split(' ')[1];
+    const token =
+      this.requestContext.request.headers['authorization'].split(' ')[1];
     try {
       this.jwtService.verify(token);
       return { message: 'Token válido.' };

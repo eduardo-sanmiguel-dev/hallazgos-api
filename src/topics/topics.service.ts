@@ -1,11 +1,10 @@
 import { InjectRepository } from '@nestjs/typeorm';
-import { REQUEST } from '@nestjs/core';
 import {
   ConflictException,
-  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { RequestContextService } from 'shared/services/request-context.service';
 
 import {
   FindManyOptions,
@@ -15,10 +14,8 @@ import {
   Repository,
 } from 'typeorm';
 import { findPaginated } from 'shared/utils';
-import type { Request } from 'express';
 
 import { CreateTopicDto, QueryTopicDto, UpdateTopicDto } from './dto';
-import { User } from 'users/entities/user.entity';
 import { Topic } from './entities/topic.entity';
 
 @Injectable()
@@ -30,20 +27,20 @@ export class TopicsService {
   ];
 
   constructor(
-    @Inject(REQUEST) private readonly request: Request,
+    private readonly requestContext: RequestContextService,
     @InjectRepository(Topic)
     private readonly topicRepository: Repository<Topic>,
   ) {}
 
   getManufacturingPlantsIdsValid(manufacturingPlantsIds: number[]) {
-    const user = this.request['user'] as User;
+    const user = this.requestContext.user;
     return user.manufacturingPlants.filter((mp) =>
       manufacturingPlantsIds.includes(mp.id),
     );
   }
 
   async create(createTopicDto: CreateTopicDto) {
-    const createdBy = this.request['user'] as User;
+    const createdBy = this.requestContext.user;
 
     const { name, duration, typeOfEvaluation, manufacturingPlantsIds } =
       createTopicDto;
@@ -70,7 +67,7 @@ export class TopicsService {
       if (error.code === '23505') {
         throw new ConflictException('Topic with this name already exists');
       }
-      throw new Error(error);
+      throw error;
     }
   }
 
@@ -126,7 +123,7 @@ export class TopicsService {
   }
 
   async update(id: number, updateTopicDto: UpdateTopicDto) {
-    const updatedBy = this.request['user'] as User;
+    const updatedBy = this.requestContext.user;
 
     const topic = await this.findOne(id);
 
@@ -153,7 +150,7 @@ export class TopicsService {
         );
       }
 
-      throw new Error(error);
+      throw error;
     }
   }
 

@@ -1,9 +1,8 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { REQUEST } from '@nestjs/core';
+import { RequestContextService } from 'shared/services/request-context.service';
 
 import { FindOptionsWhere, ILike, In, Not, Repository } from 'typeorm';
-import type { Request } from 'express';
 import * as argon2 from 'argon2';
 
 import { CreateUserDto, QueryUserDto, UpdateUserDto } from './dto';
@@ -18,7 +17,7 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-    @Inject(REQUEST) private readonly request: Request,
+    private readonly requestContext: RequestContextService,
     private readonly manufacturingPlantsService: ManufacturingPlantsService,
     private readonly zonesService: ZonesService,
     private readonly processesService: ProcessesService,
@@ -292,7 +291,7 @@ export class UsersService {
   }
 
   async getSupervisors(): Promise<User[]> {
-    const { manufacturingPlants } = this.request['user'] as User;
+    const { manufacturingPlants } = this.requestContext.user;
 
     const manufacturingPlantsIds = manufacturingPlants.map(
       (manufacturingPlant) => manufacturingPlant.id,
@@ -315,7 +314,7 @@ export class UsersService {
   }
 
   async getInformationCurrentUser(): Promise<User> {
-    const { id: userId } = this.request['user'] as User;
+    const userId = this.requestContext.userId;
 
     const user = await this.userRepository.findOne({
       where: {

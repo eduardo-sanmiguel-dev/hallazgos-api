@@ -1,18 +1,11 @@
-import {
-  ConflictException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { REQUEST } from '@nestjs/core';
+import { RequestContextService } from 'shared/services/request-context.service';
 
 import { Repository, FindOptionsWhere, In, ILike, Raw } from 'typeorm';
-import type { Request } from 'express';
 
 import { Employee, EmployeeArea, EmployeePosition } from './entities';
 import { Genre } from 'genres/entities/genre.entity';
-import { User } from 'users/entities/user.entity';
 import {
   CreateEmployeeDto,
   FiltersEmployeeDto,
@@ -43,7 +36,7 @@ export class EmployeesService {
     private readonly employeeAreaRepository: Repository<EmployeeArea>,
     @InjectRepository(EmployeePosition)
     private readonly employeePositionRepository: Repository<EmployeePosition>,
-    @Inject(REQUEST) private readonly request: Request,
+    private readonly requestContext: RequestContextService,
     @InjectRepository(Genre)
     private readonly genreRepository: Repository<Genre>,
   ) {}
@@ -70,8 +63,8 @@ export class EmployeesService {
   }
 
   get manufacturingPlants() {
-    return this.request['user']?.manufacturingPlants.sort((a, b) =>
-      a.name.localeCompare(b.name),
+    return [...(this.requestContext.userOrNull?.manufacturingPlants ?? [])].sort(
+      (a, b) => a.name.localeCompare(b.name),
     );
   }
 
@@ -87,7 +80,7 @@ export class EmployeesService {
       manufacturingPlantsIds,
     } = createEmployeeDto;
 
-    const manufacturingPlants = this.request['user']?.manufacturingPlants;
+    const manufacturingPlants = this.requestContext.userOrNull?.manufacturingPlants;
 
     const area = await this.employeeAreaRepository.findOne({
       where: { id: areaId, isActive: true },
@@ -146,7 +139,7 @@ export class EmployeesService {
   }
 
   findAll(filtersEmployeeDto: FiltersEmployeeDto) {
-    const { manufacturingPlants } = this.request['user'] as User;
+    const { manufacturingPlants } = this.requestContext.user;
 
     const rawIsActive = filtersEmployeeDto.isActive as
       | boolean
@@ -335,7 +328,7 @@ export class EmployeesService {
       manufacturingPlantsIds,
     } = updateEmployeeDto;
 
-    const manufacturingPlants = this.request['user']?.manufacturingPlants;
+    const manufacturingPlants = this.requestContext.userOrNull?.manufacturingPlants;
 
     const area = await this.employeeAreaRepository.findOne({
       where: { id: areaId, isActive: true },

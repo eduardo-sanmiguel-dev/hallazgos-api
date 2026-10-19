@@ -1,15 +1,13 @@
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   BadRequestException,
-  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { REQUEST } from '@nestjs/core';
+import { RequestContextService } from 'shared/services/request-context.service';
 
 import { FindManyOptions, ILike, In, Not, Repository } from 'typeorm';
 import { findPaginated } from 'shared/utils';
-import type { Request } from 'express';
 
 import {
   CreateGembaWalkObserverDto,
@@ -38,8 +36,7 @@ export class GembaWalkObserversService {
     private readonly userRepository: Repository<User>,
     private readonly manufacturingPlantsService: ManufacturingPlantsService,
     private readonly gembaWalkZonesService: GembaWalkZonesService,
-    @Inject(REQUEST)
-    private readonly request: Request,
+    private readonly requestContext: RequestContextService,
   ) {}
 
   private async validateRelations(
@@ -112,7 +109,7 @@ export class GembaWalkObserversService {
   async create(
     createGembaWalkObserverDto: CreateGembaWalkObserverDto,
   ): Promise<GembaWalkObserver[]> {
-    const { id: createdBy } = this.request['user'] as User;
+    const createdBy = this.requestContext.userId;
     const { manufacturingPlantId, gembaWalkZoneId, userIds } =
       createGembaWalkObserverDto;
 
@@ -195,7 +192,7 @@ export class GembaWalkObserversService {
     id: number,
     updateGembaWalkObserverDto: UpdateGembaWalkObserverDto,
   ): Promise<GembaWalkObserver> {
-    const { id: updatedBy } = this.request['user'] as User;
+    const updatedBy = this.requestContext.userId;
     const gembaWalkObserverCurrent = await this.findOne(id);
 
     const manufacturingPlantId =
@@ -234,7 +231,7 @@ export class GembaWalkObserversService {
   }
 
   async remove(id: number): Promise<GembaWalkObserver> {
-    const { id: updatedBy } = this.request['user'] as User;
+    const updatedBy = this.requestContext.userId;
     const gembaWalkObserver = await this.findOne(id);
 
     gembaWalkObserver.isActive = false;
