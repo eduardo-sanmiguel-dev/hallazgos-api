@@ -9,6 +9,7 @@ import {
   Param,
   Delete,
   Res,
+  Logger,
 } from '@nestjs/common';
 
 import XlsxPopulate from 'xlsx-populate';
@@ -26,6 +27,8 @@ import {
 
 @Controller('training-guides')
 export class TrainingGuidesController {
+  private readonly logger = new Logger(TrainingGuidesController.name);
+
   private readonly filePath: string = join(
     process.cwd(),
     'src/files',
@@ -286,7 +289,7 @@ export class TrainingGuidesController {
         });
       })
       .catch((err) => {
-        console.error('Error al procesar el archivo:', err);
+        this.logger.error('Error al procesar el archivo', err?.stack ?? err);
         res.status(500).send('Error al procesar el archivo');
       });
   }

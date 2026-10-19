@@ -2,11 +2,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import {
   BadRequestException,
   ForbiddenException,
-  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { REQUEST } from '@nestjs/core';
+import { RequestContextService } from 'shared/services/request-context.service';
 
 import {
   And,
@@ -18,7 +17,6 @@ import {
   QueryFailedError,
   Repository,
 } from 'typeorm';
-import type { Request } from 'express';
 import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
 
@@ -42,7 +40,6 @@ import {
   toWallClock,
   wallClockToInstant,
 } from '@shared/utils';
-import { ROLE_ADMINISTRADOR } from '@shared/constants';
 
 const UNIQUE_VIOLATION = '23505';
 
@@ -79,8 +76,7 @@ export class GembaWalksService {
     private readonly gembaWalkObserverRepository: Repository<GembaWalkObserver>,
     @InjectRepository(ManufacturingPlant)
     private readonly manufacturingPlantRepository: Repository<ManufacturingPlant>,
-    @Inject(REQUEST)
-    private readonly request: Request,
+    private readonly requestContext: RequestContextService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -90,27 +86,15 @@ export class GembaWalksService {
     return `${this.configService.get<string>('jwt.secretKey')}:gemba-walk-start`;
   }
 
-  private get currentUser(): User {
-    return this.request['user'] as User;
-  }
-
-  private get isAdmin(): boolean {
-    return this.currentUser.role === ROLE_ADMINISTRADOR;
-  }
-
-  private userPlantIds(): number[] {
-    return (this.currentUser.manufacturingPlants || []).map(({ id }) => id);
-  }
-
   // Solo los usuarios registrados como observadores activos usan el módulo.
   // El administrador tiene acceso completo aunque no esté registrado.
   async isObserver(): Promise<boolean> {
-    if (this.isAdmin) return true;
+    if (this.requestContext.isAdmin) return true;
 
     const count = await this.gembaWalkObserverRepository.count({
       where: {
         isActive: true,
-        user: { id: this.currentUser.id },
+        user: { id: this.requestContext.user.id },
         gembaWalkZone: { isActive: true },
         manufacturingPlant: { isActive: true },
       },
@@ -128,7 +112,9 @@ export class GembaWalksService {
   }
 
   private assertUserPlant(manufacturingPlantId: number) {
-    if (!this.userPlantIds().includes(manufacturingPlantId)) {
+    if (
+      !this.requestContext.manufacturingPlantIds.includes(manufacturingPlantId)
+    ) {
       throw new ForbiddenException('No tienes acceso a la planta seleccionada');
     }
   }
@@ -266,12 +252,13 @@ export class GembaWalksService {
     const payload: StartTokenPayload = {
       purpose: 'gemba-walk-start',
       gembaWalkCalendarId,
-      userId: this.currentUser.id,
+      userId: this.requestContext.user.id,
       startedAt,
     };
 
     return {
       startToken: jwt.sign(payload, this.startTokenSecret, {
+        algorithm: 'HS256',
         expiresIn: '24h',
       }),
       startedAt: new Date(startedAt),
@@ -286,10 +273,9 @@ export class GembaWalksService {
     let payload: StartTokenPayload;
 
     try {
-      payload = jwt.verify(
-        startToken,
-        this.startTokenSecret,
-      ) as unknown as StartTokenPayload;
+      payload = jwt.verify(startToken, this.startTokenSecret, {
+        algorithms: ['HS256'],
+      }) as unknown as StartTokenPayload;
     } catch {
       throw new BadRequestException(
         'El inicio del recorrido no es válido o ya venció. Vuelve a iniciarlo',
@@ -299,7 +285,7 @@ export class GembaWalksService {
     if (
       payload.purpose !== 'gemba-walk-start' ||
       payload.gembaWalkCalendarId !== gembaWalkCalendarId ||
-      payload.userId !== this.currentUser.id
+      payload.userId !== this.requestContext.user.id
     ) {
       throw new BadRequestException(
         'El inicio del recorrido no corresponde al evento seleccionado',
@@ -351,7 +337,7 @@ export class GembaWalksService {
         Math.round((performedAt.getTime() - payload.startedAt) / 1000),
       ),
       gembaWalkCalendar: { id: gembaWalkCalendarId },
-      createdBy: { id: this.currentUser.id } as User,
+      createdBy: { id: this.requestContext.user.id } as User,
       createdAt: new Date(),
       results: evaluations.map((evaluation) => {
         const result = resultsByEvaluation.get(evaluation.id);
@@ -452,7 +438,8 @@ export class GembaWalksService {
     gembaWalkId: number | null;
   } {
     if (walk) {
-      return this.isAdmin || walk.createdBy?.id === this.currentUser.id
+      return this.requestContext.isAdmin ||
+        walk.createdBy?.id === this.requestContext.user.id
         ? { status: 'DONE', gembaWalkId: walk.id }
         : { status: 'MISSED', gembaWalkId: null };
     }
@@ -493,7 +480,9 @@ export class GembaWalksService {
         ...(nameZone && { nameZone }),
         ...(nameLocation && { nameLocation }),
         manufacturingPlant: {
-          id: manufacturingPlantId || In(this.userPlantIds()),
+          id:
+            manufacturingPlantId ||
+            In(this.requestContext.manufacturingPlantIds),
         },
       },
       ...(isAdditional !== undefined && {
@@ -517,7 +506,9 @@ export class GembaWalksService {
       // administrador ve todos.
       where: {
         isActive: true,
-        ...(!this.isAdmin && { createdBy: { id: this.currentUser.id } }),
+        ...(!this.requestContext.isAdmin && {
+          createdBy: { id: this.requestContext.user.id },
+        }),
         gembaWalkCalendar: calendarWhere,
       },
       relations: [...this.relations, 'results'],
@@ -549,7 +540,9 @@ export class GembaWalksService {
       where: {
         id,
         isActive: true,
-        ...(!this.isAdmin && { createdBy: { id: this.currentUser.id } }),
+        ...(!this.requestContext.isAdmin && {
+          createdBy: { id: this.requestContext.user.id },
+        }),
       },
       relations: [...this.relations, 'results'],
       order: { results: { id: 'ASC' } },

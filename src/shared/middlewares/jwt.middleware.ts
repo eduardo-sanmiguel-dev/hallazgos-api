@@ -8,6 +8,7 @@ import { JwtService } from 'auth/jwt.service';
 import type { Request, Response, NextFunction } from 'express';
 
 import { UsersService } from 'users/users.service';
+import type { User } from 'users/entities/user.entity';
 
 @Injectable()
 export class JwtMiddleware implements NestMiddleware {
@@ -32,7 +33,8 @@ export class JwtMiddleware implements NestMiddleware {
     try {
       const decoded = this.jwtService.verify(token);
       const user = await this.usersService.findOne(decoded.userId);
-      req['user'] = { ...user };
+      // Copia plana con los datos del usuario (sin métodos de la entidad).
+      req.user = { ...user } as User;
       next();
     } catch (error) {
       throw new UnauthorizedException('Credenciales no válidas');

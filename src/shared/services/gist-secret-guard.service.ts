@@ -1,9 +1,12 @@
 import { Injectable, OnApplicationBootstrap } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class GistSecretGuardService implements OnApplicationBootstrap {
   private readonly expectedSecret = 'abc';
+
+  constructor(private readonly configService: ConfigService) {}
 
   async onApplicationBootstrap() {
     if (!this.isProduction()) {
@@ -23,11 +26,11 @@ export class GistSecretGuardService implements OnApplicationBootstrap {
   }
 
   private isProduction() {
-    return process.env.NODE_ENV === 'production';
+    return this.configService.get<string>('environment') === 'production';
   }
 
   private getGistUrl() {
-    return process.env.GIST_SECRET_URL || '';
+    return this.configService.get<string>('security.gistSecretUrl') || '';
   }
 
   private async validateOrShutdown(_: 'startup' | 'hourly') {

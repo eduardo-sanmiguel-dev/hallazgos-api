@@ -13,6 +13,7 @@ import {
 
 import type { Response } from 'express';
 import { existsSync } from 'fs';
+import { basename, join } from 'path';
 
 import {
   CreateSafetyDataFileDto,
@@ -39,7 +40,15 @@ export class SafetyDataFilesController {
 
   @Get('download')
   async downloadPdf(@Query('name') name: string, @Res() res: Response) {
-    const filePath = this.safetyDataFilesService.filePath + `/${name}`;
+    // Solo un nombre de archivo simple dentro de la carpeta de HDS: evita
+    // rutas como "../../.env" (path traversal).
+    const fileName = basename(name ?? '');
+
+    if (!fileName || fileName !== name) {
+      throw new NotFoundException('File not found');
+    }
+
+    const filePath = join(this.safetyDataFilesService.filePath, fileName);
 
     if (!existsSync(filePath)) {
       throw new NotFoundException('File not found');

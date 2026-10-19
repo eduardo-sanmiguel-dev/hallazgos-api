@@ -1,15 +1,13 @@
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   BadRequestException,
-  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { REQUEST } from '@nestjs/core';
+import { RequestContextService } from 'shared/services/request-context.service';
 
 import { FindManyOptions, FindOptionsWhere, ILike, Repository } from 'typeorm';
 import { findPaginated } from 'shared/utils';
-import type { Request } from 'express';
 
 import {
   CreateGembaWalkEvaluationDto,
@@ -28,8 +26,7 @@ export class GembaWalkEvaluationsService {
     @InjectRepository(GembaWalkEvaluation)
     private readonly gembaWalkEvaluationRepository: Repository<GembaWalkEvaluation>,
     private readonly manufacturingPlantsService: ManufacturingPlantsService,
-    @Inject(REQUEST)
-    private readonly request: Request,
+    private readonly requestContext: RequestContextService,
   ) {}
 
   // Un área no se repite dentro de la misma planta y categoría.
@@ -62,7 +59,7 @@ export class GembaWalkEvaluationsService {
   async create(
     createGembaWalkEvaluationDto: CreateGembaWalkEvaluationDto,
   ): Promise<GembaWalkEvaluation> {
-    const { id: createdBy } = this.request['user'] as User;
+    const createdBy = this.requestContext.userId;
     const { manufacturingPlantId, category } = createGembaWalkEvaluationDto;
     const area = createGembaWalkEvaluationDto.area.trim();
     const description = createGembaWalkEvaluationDto.description.trim();
@@ -141,7 +138,7 @@ export class GembaWalkEvaluationsService {
     id: number,
     updateGembaWalkEvaluationDto: UpdateGembaWalkEvaluationDto,
   ): Promise<GembaWalkEvaluation> {
-    const { id: updatedBy } = this.request['user'] as User;
+    const updatedBy = this.requestContext.userId;
     const current = await this.findOne(id);
 
     const manufacturingPlantId =
@@ -173,7 +170,7 @@ export class GembaWalkEvaluationsService {
   }
 
   async remove(id: number): Promise<GembaWalkEvaluation> {
-    const { id: updatedBy } = this.request['user'] as User;
+    const updatedBy = this.requestContext.userId;
     const gembaWalkEvaluation = await this.findOne(id);
 
     gembaWalkEvaluation.isActive = false;

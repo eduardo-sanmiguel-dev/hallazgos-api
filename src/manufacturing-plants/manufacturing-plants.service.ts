@@ -76,6 +76,26 @@ export class ManufacturingPlantsService {
     return manufacturing;
   }
 
+  /**
+   * Ids de las plantas activas con esos nombres, en una sola consulta.
+   * Igual que llamar findOneByName por cada nombre: si alguno no existe
+   * lanza el mismo NotFoundException.
+   */
+  async findIdsByNamesOrFail(names: string[]): Promise<number[]> {
+    const plants = await this.findAllByNames(names);
+    const idByName = new Map(plants.map(({ id, name }) => [name, id]));
+
+    return names.map((name) => {
+      const id = idByName.get(name);
+
+      if (id === undefined) {
+        throw new NotFoundException(`Planta con nombre ${name} no encontrada`);
+      }
+
+      return id;
+    });
+  }
+
   async findAllByNames(names: string[]): Promise<ManufacturingPlant[]> {
     return this.manufacturingPlantRepository.find({
       where: {

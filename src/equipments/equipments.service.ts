@@ -1,14 +1,12 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { REQUEST } from '@nestjs/core';
+import { RequestContextService } from 'shared/services/request-context.service';
 
 import { FindOptionsWhere, ILike, In, Repository } from 'typeorm';
-import type { Request } from 'express';
 
 import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
 import { CreateEquipmentDto, UpdateEquipmentDto } from './dto';
 import { Equipment, EquipmentCostHistory } from './entities';
-import { User } from 'users/entities/user.entity';
 import { findPaginated, getColombiaNow } from '@shared/utils';
 
 @Injectable()
@@ -25,8 +23,7 @@ export class EquipmentsService {
     private readonly equipmentRepository: Repository<Equipment>,
     @InjectRepository(EquipmentCostHistory)
     private readonly equipmentCostHistoryRepository: Repository<EquipmentCostHistory>,
-    @Inject(REQUEST)
-    private readonly request: Request,
+    private readonly requestContext: RequestContextService,
     private readonly manufacturingPlantsService: ManufacturingPlantsService,
   ) {}
 
@@ -40,7 +37,7 @@ export class EquipmentsService {
   }
 
   async create(createEquipmentDto: CreateEquipmentDto) {
-    const createdBy = this.request['user'] as User;
+    const createdBy = this.requestContext.user;
 
     const { name, deliveryFrequency, manufacturingPlantId, price } =
       createEquipmentDto;
@@ -81,8 +78,7 @@ export class EquipmentsService {
     manufacturingPlantId: number,
     name: string,
   ): FindOptionsWhere<Equipment> {
-    const user = this.request['user'] as User;
-    let manufacturingPlantsIds = user.manufacturingPlants.map((mp) => mp.id);
+    let manufacturingPlantsIds = this.requestContext.manufacturingPlantIds;
 
     if (manufacturingPlantId) {
       manufacturingPlantsIds = manufacturingPlantsIds.filter(
@@ -160,7 +156,7 @@ export class EquipmentsService {
   }
 
   async update(id: number, updateEquipmentDto: UpdateEquipmentDto) {
-    const updatedBy = this.request['user'] as User;
+    const updatedBy = this.requestContext.user;
 
     const { price, manufacturingPlantId } = updateEquipmentDto;
 
@@ -189,7 +185,7 @@ export class EquipmentsService {
   }
 
   async remove(id: number) {
-    const updatedBy = this.request['user'] as User;
+    const updatedBy = this.requestContext.user;
 
     const equipment = await this.findOne(id);
 

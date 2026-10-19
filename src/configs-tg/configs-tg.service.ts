@@ -1,11 +1,10 @@
 import { InjectRepository } from '@nestjs/typeorm';
-import { REQUEST } from '@nestjs/core';
 import {
   ConflictException,
-  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { RequestContextService } from 'shared/services/request-context.service';
 
 import {
   FindManyOptions,
@@ -14,10 +13,8 @@ import {
   Repository,
 } from 'typeorm';
 import { findPaginated } from 'shared/utils';
-import type { Request } from 'express';
 
 import { ConfigsTg } from './entities/configs-tg.entity';
-import { User } from 'users/entities/user.entity';
 import { ConfigsTopicTg } from './entities';
 import {
   CreateConfigsTgDto,
@@ -66,7 +63,7 @@ export class ConfigsTgService {
   };
 
   constructor(
-    @Inject(REQUEST) private readonly request: Request,
+    private readonly requestContext: RequestContextService,
     @InjectRepository(ConfigsTg)
     private readonly configsTgRepository: Repository<ConfigsTg>,
     @InjectRepository(ConfigsTopicTg)
@@ -74,7 +71,7 @@ export class ConfigsTgService {
   ) {}
 
   async create(createConfigsTgDto: CreateConfigsTgDto) {
-    const createdBy = this.request['user'] as User;
+    const createdBy = this.requestContext.user;
 
     const {
       positionId,
@@ -113,7 +110,7 @@ export class ConfigsTgService {
           `The configuration already exists, the combination of position and manufacturing plant must be unique`,
         );
       }
-      throw new Error(error);
+      throw error;
     }
   }
 
@@ -191,7 +188,7 @@ export class ConfigsTgService {
   }
 
   async update(id: number, updateConfigsTgDto: UpdateConfigsTgDto) {
-    const updatedBy = this.request['user'] as User;
+    const updatedBy = this.requestContext.user;
 
     const config = await this.findOne(id);
 
@@ -238,7 +235,7 @@ export class ConfigsTgService {
 
       return this.findOne(config.id);
     } catch (error) {
-      throw new Error(error);
+      throw error;
     }
   }
 

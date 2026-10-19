@@ -42,18 +42,12 @@ export class ProcessesService {
     if (manufacturingPlantId) {
       manufacturingPlantIds.push(manufacturingPlantId);
     } else if (manufacturingPlantNames?.length && !manufacturingPlantId) {
-      for (let i = 0, t = manufacturingPlantNames.length; i < t; i++) {
-        const manufacturingPlantName = manufacturingPlantNames[i];
-
-        const manufacturing =
-          await this.manufacturingPlantsService.findOneByName(
-            manufacturingPlantName,
-          );
-
-        if (manufacturing) {
-          manufacturingPlantIds.push(manufacturing.id);
-        }
-      }
+      // Una consulta para todos los nombres (antes una por nombre).
+      manufacturingPlantIds.push(
+        ...(await this.manufacturingPlantsService.findIdsByNamesOrFail(
+          manufacturingPlantNames,
+        )),
+      );
     }
 
     const options: FindManyOptions<Processes> = {

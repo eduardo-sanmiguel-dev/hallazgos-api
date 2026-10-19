@@ -10,6 +10,7 @@ import {
   Delete,
   Query,
   Res,
+  Logger,
 } from '@nestjs/common';
 
 import XlsxPopulate from 'xlsx-populate';
@@ -22,6 +23,8 @@ import { CiaelsService } from './ciaels.service';
 
 @Controller('ciaels')
 export class CiaelsController {
+  private readonly logger = new Logger(CiaelsController.name);
+
   private readonly filePath: string = join(
     process.cwd(),
     'src/files',
@@ -121,7 +124,7 @@ export class CiaelsController {
         });
       })
       .catch((err) => {
-        console.error('Error al procesar el archivo:', err);
+        this.logger.error('Error al procesar el archivo', err?.stack ?? err);
         res.status(500).send('Error al procesar el archivo');
       });
   }

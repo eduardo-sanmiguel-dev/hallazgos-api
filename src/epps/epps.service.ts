@@ -1,9 +1,8 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { REQUEST } from '@nestjs/core';
+import { RequestContextService } from 'shared/services/request-context.service';
 
 import { Brackets, In, Repository } from 'typeorm';
-import type { Request } from 'express';
 
 import {
   CreateEppDto,
@@ -11,7 +10,6 @@ import {
   QueryEppDto,
   UpdateEppDto,
 } from './dto';
-import { User } from 'users/entities/user.entity';
 import { Equipment } from 'equipments/entities';
 import { Epp, EppEquipment } from './entities';
 import { Employee } from 'employees/entities';
@@ -35,7 +33,7 @@ export class EppsService {
     private readonly eppRepository: Repository<Epp>,
     @InjectRepository(Employee)
     private readonly employeeRepository: Repository<Employee>,
-    @Inject(REQUEST) private readonly request: Request,
+    private readonly requestContext: RequestContextService,
     @InjectRepository(EppEquipment)
     private readonly eppEquipmentRepository: Repository<EppEquipment>,
     @InjectRepository(Equipment)
@@ -115,7 +113,7 @@ export class EppsService {
   }
 
   async create(createEppDto: CreateEppDto) {
-    const createBy = this.request['user'] as User;
+    const createBy = this.requestContext.user;
 
     const { employeeId, signature, equipments } = createEppDto;
 

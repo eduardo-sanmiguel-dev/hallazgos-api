@@ -8,8 +8,8 @@ import { TrainingGuide } from 'training-guides/entities';
 import { ENV_DEVELOPMENT } from '@shared/constants';
 import { User } from 'users/entities/user.entity';
 
-const pathImage =
-  process.env.NODE_ENV === ENV_DEVELOPMENT
+const pathImageFor = (environment: string) =>
+  environment === ENV_DEVELOPMENT
     ? __dirname + '../../../public/static/images/evidences/'
     : 'https://api.comportarte.com/static/images/evidences/';
 
@@ -80,6 +80,8 @@ export class MailService {
 
   private MAIL_USER_APP: string = '';
   private FRONTEND_URL: string = '';
+  private readonly environment: string;
+  private readonly pathImage: string;
 
   constructor(
     private readonly mailerService: MailerService,
@@ -87,10 +89,12 @@ export class MailService {
   ) {
     this.MAIL_USER_APP = this.configService.get<string>('email.user');
     this.FRONTEND_URL = this.configService.get<string>('frontendUrl');
+    this.environment = this.configService.get<string>('environment');
+    this.pathImage = pathImageFor(this.environment);
   }
 
   get emailTest() {
-    if (process.env.NODE_ENV === ENV_DEVELOPMENT) {
+    if (this.environment === ENV_DEVELOPMENT) {
       return 'eduardo-266@hotmail.com';
     }
     return '';
@@ -137,7 +141,7 @@ export class MailService {
           attachments: [
             {
               filename: imgEvidence,
-              path: pathImage + imgEvidence,
+              path: this.pathImage + imgEvidence,
               cid: 'imgEvidence',
             },
           ],
@@ -203,7 +207,7 @@ export class MailService {
         attachments: [
           {
             filename: imgEvidence,
-            path: pathImage + imgEvidence,
+            path: this.pathImage + imgEvidence,
             cid: 'imgEvidence',
           },
         ],
@@ -226,7 +230,7 @@ export class MailService {
     if (imgEvidence) {
       attachments.push({
         filename: imgEvidence,
-        path: pathImage + imgEvidence,
+        path: this.pathImage + imgEvidence,
         cid: 'imgEvidence',
       });
     }
@@ -299,7 +303,7 @@ export class MailService {
     if (imgEvidence) {
       attachments.push({
         filename: imgEvidence,
-        path: pathImage + imgEvidence,
+        path: this.pathImage + imgEvidence,
         cid: 'imgEvidence',
       });
     }
@@ -307,7 +311,7 @@ export class MailService {
     if (imgProcess) {
       attachments.push({
         filename: imgProcess,
-        path: pathImage + imgProcess,
+        path: this.pathImage + imgProcess,
         cid: 'imgProcess',
       });
     }
@@ -375,7 +379,7 @@ export class MailService {
         attachments: [
           {
             filename: imgEvidence,
-            path: pathImage + imgEvidence,
+            path: this.pathImage + imgEvidence,
             cid: 'imgEvidence',
           },
         ],

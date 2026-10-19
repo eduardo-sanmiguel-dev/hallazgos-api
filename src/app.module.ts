@@ -14,7 +14,12 @@ import { join } from 'path';
 
 import { EnvConfiguration, JoiValidationSchema } from '@config';
 
-import { AppKeyMiddleware, JwtMiddleware } from '@shared/middlewares';
+import {
+  AppKeyMiddleware,
+  JwtMiddleware,
+  RequestContextMiddleware,
+} from '@shared/middlewares';
+import { RequestContextModule } from './shared/services/request-context.module';
 import { GistSecretGuardService } from './shared/services/gist-secret-guard.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -60,6 +65,7 @@ import { GembaWalkObserversModule } from './gemba-walk-observers/gemba-walk-obse
 import { GembaWalkCalendarModule } from './gemba-walk-calendar/gemba-walk-calendar.module';
 import { GembaWalkEvaluationsModule } from './gemba-walk-evaluations/gemba-walk-evaluations.module';
 import { GembaWalksModule } from './gemba-walks/gemba-walks.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -70,17 +76,21 @@ import { GembaWalksModule } from './gemba-walks/gemba-walks.module';
       validationSchema: JoiValidationSchema,
     }),
     ScheduleModule.forRoot(),
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.DB_HOST,
-      port: +process.env.DB_PORT,
-      username: process.env.DB_USERNAME,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
-      autoLoadEntities: true,
-      synchronize: false,
-      migrationsRun: true,
-      migrations: [join(__dirname, 'migrations', '*{.ts,.js}')],
+    // Conexión con la configuración ya validada por Joi (ConfigService).
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        type: 'postgres',
+        host: configService.get<string>('db.host'),
+        port: Number(configService.get<string>('db.port')),
+        username: configService.get<string>('db.username'),
+        password: configService.get<string>('db.password'),
+        database: configService.get<string>('db.name'),
+        autoLoadEntities: true,
+        synchronize: false,
+        migrationsRun: true,
+        migrations: [join(__dirname, 'migrations', '*{.ts,.js}')],
+      }),
     }),
     GraphQLModule.forRootAsync<ApolloDriverConfig>({
       driver: ApolloDriver,
@@ -91,7 +101,8 @@ import { GembaWalksModule } from './gemba-walks/gemba-walks.module';
         jwtService: JwtService,
       ) => ({
         autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
-        introspection: process.env.NODE_ENV !== 'production',
+        introspection:
+          configService.get<string>('environment') !== 'production',
         async context({ req }) {
           const appKey = configService.get<string>('appKey');
 
@@ -120,8 +131,7 @@ import { GembaWalksModule } from './gemba-walks/gemba-walks.module';
           try {
             const { userId } = await jwtService.verify(token);
             return { user: { userId } };
-          } catch (error) {
-            console.log(error.message);
+          } catch {
             throw Error('Credenciales no válidas');
           }
         },
@@ -173,13 +183,20 @@ import { GembaWalksModule } from './gemba-walks/gemba-walks.module';
     GembaWalkCalendarModule,
     GembaWalkEvaluationsModule,
     GembaWalksModule,
+    HealthModule,
+    RequestContextModule,
   ],
   controllers: [],
   providers: [JwtService, GistSecretGuardService],
 })
 export class AppModule implements NestModule {
   public configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(AppKeyMiddleware).forRoutes('/');
+    // /health es público (monitoreo): sin app key ni JWT.
+    const healthRoute = { path: 'health', method: RequestMethod.GET };
+
+    // Primero: abre el contexto de la petición que leen los servicios.
+    consumer.apply(RequestContextMiddleware).forRoutes('/');
+    consumer.apply(AppKeyMiddleware).exclude(healthRoute).forRoutes('/');
     consumer
       .apply(JwtMiddleware)
       .exclude(
@@ -191,6 +208,7 @@ export class AppModule implements NestModule {
         { path: 'auth/login', method: RequestMethod.POST },
         { path: 'auth/login-restore-password', method: RequestMethod.POST },
         { path: 'auth/forgot-password', method: RequestMethod.POST },
+        healthRoute,
       )
       .forRoutes('/');
   }

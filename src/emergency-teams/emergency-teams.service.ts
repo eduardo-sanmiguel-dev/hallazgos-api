@@ -1,9 +1,8 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { REQUEST } from '@nestjs/core';
+import { RequestContextService } from 'shared/services/request-context.service';
 
 import { Brackets, Repository } from 'typeorm';
-import type { Request } from 'express';
 
 import { EmergencyTeam } from './entities/emergency-team.entity';
 import { User } from 'users/entities/user.entity';
@@ -20,11 +19,11 @@ export class EmergencyTeamsService {
   constructor(
     @InjectRepository(EmergencyTeam)
     private readonly emergencyTeamRepository: Repository<EmergencyTeam>,
-    @Inject(REQUEST) private readonly request: Request,
+    private readonly requestContext: RequestContextService,
   ) {}
 
   create(createEmergencyTeamDto: CreateEmergencyTeamDto) {
-    const { id: createdBy } = this.request['user'] as User;
+    const createdBy = this.requestContext.userId;
 
     const emergencyTeam = this.emergencyTeamRepository.create({
       ...createEmergencyTeamDto,
@@ -106,7 +105,7 @@ export class EmergencyTeamsService {
   }
 
   async update(id: number, updateEmergencyTeamDto: UpdateEmergencyTeamDto) {
-    const { id: updatedBy } = this.request['user'] as User;
+    const updatedBy = this.requestContext.userId;
     const { manufacturingPlantId, ...restUpdateEmergencyTeamDto } =
       updateEmergencyTeamDto;
 
@@ -130,7 +129,7 @@ export class EmergencyTeamsService {
   }
 
   async remove(id: number) {
-    const { id: updatedBy } = this.request['user'] as User;
+    const updatedBy = this.requestContext.userId;
     const emergencyTeam = await this.findOne(id);
     emergencyTeam.isActive = false;
     emergencyTeam.updatedBy = { id: updatedBy } as User;

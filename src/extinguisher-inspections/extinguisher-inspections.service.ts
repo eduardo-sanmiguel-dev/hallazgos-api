@@ -1,14 +1,12 @@
 import {
   BadRequestException,
-  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { REQUEST } from '@nestjs/core';
+import { RequestContextService } from 'shared/services/request-context.service';
 
 import { Brackets, Repository } from 'typeorm';
-import type { Request } from 'express';
 
 import { ExtinguisherInspection } from './entities/extinguisher-inspection.entity';
 import { ExtinguisherInspectionEvaluation } from './entities/extinguisher-inspection-evaluation.entity';
@@ -34,13 +32,13 @@ export class ExtinguisherInspectionsService {
     private readonly extinguisherInspectionRepository: Repository<ExtinguisherInspection>,
     @InjectRepository(ExtinguisherInspectionEvaluation)
     private readonly extinguisherInspectionEvaluationRepository: Repository<ExtinguisherInspectionEvaluation>,
-    @Inject(REQUEST) private readonly request: Request,
+    private readonly requestContext: RequestContextService,
   ) {}
 
   async create(
     createExtinguisherInspectionDto: CreateExtinguisherInspectionDto,
   ) {
-    const { id: createdBy } = this.request['user'] as User;
+    const createdBy = this.requestContext.userId;
     const now = new Date();
     const todayString = now.toISOString().split('T')[0];
 
@@ -238,7 +236,7 @@ export class ExtinguisherInspectionsService {
     id: number,
     updateExtinguisherInspectionDto: UpdateExtinguisherInspectionDto,
   ) {
-    const { id: updatedBy } = this.request['user'] as User;
+    const updatedBy = this.requestContext.userId;
     const {
       manufacturingPlantId,
       evaluations,
@@ -299,7 +297,7 @@ export class ExtinguisherInspectionsService {
   }
 
   async remove(id: number) {
-    const { id: updatedBy } = this.request['user'] as User;
+    const updatedBy = this.requestContext.userId;
 
     const extinguisherInspection = await this.findOne(id);
 

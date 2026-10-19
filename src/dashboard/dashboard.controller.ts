@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
 
 import { DashboardService } from './dashboard.service';
 
@@ -61,7 +61,8 @@ export class DashboardController {
   }
 
   @Get('my-evidences/:userId')
-  findMyEvidences(@Param('userId') userId: number) {
+  // ParseIntPipe: el id se interpola en SQL; solo se aceptan enteros.
+  findMyEvidences(@Param('userId', ParseIntPipe) userId: number) {
     return this.dashboardService.findMyEvidences(userId);
   }
 
@@ -462,7 +463,9 @@ export class DashboardController {
   }
 
   @Get('evidences-by-month')
-  findAllEvidencesByMonth(@Query('year') year: number) {
+  findAllEvidencesByMonth(
+    @Query('year', new ParseIntPipe({ optional: true })) year?: number,
+  ) {
     return this.dashboardService.findAllEvidencesByMonth(year);
   }
 
@@ -498,7 +501,9 @@ export class DashboardController {
   }
 
   @Get('accidents-by-month')
-  findAllAccidentsByMonth(@Query('year') year: number) {
+  findAllAccidentsByMonth(
+    @Query('year', new ParseIntPipe({ optional: true })) year?: number,
+  ) {
     return this.dashboardService.findAllAccidentsByMonth(year);
   }
 

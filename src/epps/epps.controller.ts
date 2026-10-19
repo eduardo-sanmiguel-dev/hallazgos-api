@@ -10,6 +10,7 @@ import {
   Delete,
   Res,
   Query,
+  Logger,
 } from '@nestjs/common';
 
 import XlsxPopulate from 'xlsx-populate';
@@ -27,6 +28,8 @@ import { writeFile } from 'fs/promises';
 
 @Controller('epps')
 export class EppsController {
+  private readonly logger = new Logger(EppsController.name);
+
   private readonly filePath: string = join(
     process.cwd(),
     'src/files',
@@ -188,7 +191,7 @@ export class EppsController {
         });
       })
       .catch((err) => {
-        console.error('Error al procesar el archivo:', err);
+        this.logger.error('Error al procesar el archivo', err?.stack ?? err);
         res.status(500).send('Error al procesar el archivo');
       });
   }

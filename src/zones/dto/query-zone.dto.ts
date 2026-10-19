@@ -31,7 +31,9 @@ export class QueryZoneDto {
   @ArrayMinSize(1)
   manufacturingPlantNames?: string[];
 
+  // Se lee el valor crudo: la conversión implícita hacía "false" → true.
   @IsOptional()
+  @Transform(({ obj, key }) => obj[key] === true || obj[key] === 'true')
   @IsBoolean()
   withArea: boolean = false;
 

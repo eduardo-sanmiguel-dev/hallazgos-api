@@ -1,15 +1,13 @@
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   BadRequestException,
-  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { REQUEST } from '@nestjs/core';
+import { RequestContextService } from 'shared/services/request-context.service';
 
 import { FindManyOptions, ILike, Repository } from 'typeorm';
 import { findPaginated } from 'shared/utils';
-import type { Request } from 'express';
 
 import { CreateAreaDto, QueryAreaDto, UpdateAreaDto } from './dto';
 import { Area } from './entities/area.entity';
@@ -24,8 +22,7 @@ export class AreasService {
     @InjectRepository(Area)
     private readonly areaRepository: Repository<Area>,
     private readonly manufacturingPlantsService: ManufacturingPlantsService,
-    @Inject(REQUEST)
-    private readonly request: Request,
+    private readonly requestContext: RequestContextService,
   ) {}
 
   private async validateUniqueActiveName(
@@ -77,7 +74,7 @@ export class AreasService {
   }
 
   async create(createAreaDto: CreateAreaDto): Promise<Area> {
-    const { id: createdBy } = this.request['user'] as User;
+    const createdBy = this.requestContext.userId;
     const { manufacturingPlantId, coordinateX, coordinateY, zoomLevel } =
       createAreaDto;
     const name = createAreaDto.name.trim();
@@ -142,7 +139,7 @@ export class AreasService {
   }
 
   async update(id: number, updateAreaDto: UpdateAreaDto): Promise<Area> {
-    const { id: updatedBy } = this.request['user'] as User;
+    const updatedBy = this.requestContext.userId;
     const areaCurrent = await this.findOne(id);
 
     const manufacturingPlantId =
@@ -181,7 +178,7 @@ export class AreasService {
   }
 
   async remove(id: number): Promise<Area> {
-    const { id: updatedBy } = this.request['user'] as User;
+    const updatedBy = this.requestContext.userId;
     const area = await this.findOne(id);
 
     area.isActive = false;

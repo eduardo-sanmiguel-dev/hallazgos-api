@@ -1,5 +1,5 @@
 import { InjectRepository } from '@nestjs/typeorm';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 
 import { ILike, Repository } from 'typeorm';
 import { readdirSync } from 'fs';
@@ -13,14 +13,24 @@ import {
 import { SafetyDataFile } from './entities/safety-data-file.entity';
 
 @Injectable()
-export class SafetyDataFilesService {
+export class SafetyDataFilesService implements OnModuleInit {
+  private readonly logger = new Logger(SafetyDataFilesService.name);
+
   readonly filePath: string = join(process.cwd(), 'src/files/hds_files');
 
   constructor(
     @InjectRepository(SafetyDataFile)
     private readonly safetyDataFileRepository: Repository<SafetyDataFile>,
-  ) {
-    this.seed();
+  ) {}
+
+  // Al iniciar se sincroniza la tabla con los PDF de la carpeta. Antes se
+  // lanzaba desde el constructor sin esperar ni manejar errores.
+  async onModuleInit() {
+    try {
+      await this.seed();
+    } catch (error) {
+      this.logger.error('No se pudo cargar el catálogo de HDS', error?.stack);
+    }
   }
 
   async seed() {
@@ -28,12 +38,12 @@ export class SafetyDataFilesService {
 
     const files = readdirSync(this.filePath);
 
-    for (const fileName of files) {
-      const newFile = this.safetyDataFileRepository.create({
-        name: fileName,
-      });
-      await this.safetyDataFileRepository.save(newFile);
-    }
+    if (!files.length) return;
+
+    // Una sola inserción en lugar de un INSERT por archivo.
+    await this.safetyDataFileRepository.insert(
+      files.map((fileName) => ({ name: fileName })),
+    );
   }
 
   create(createSafetyDataFileDto: CreateSafetyDataFileDto) {

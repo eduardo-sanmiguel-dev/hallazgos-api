@@ -1,8 +1,7 @@
-import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { REQUEST } from '@nestjs/core';
+import { RequestContextService } from 'shared/services/request-context.service';
 
-import type { Request } from 'express';
 import { FindOptionsWhere, ILike, Raw, Repository } from 'typeorm';
 
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
@@ -94,7 +93,7 @@ export class CiaelsService {
   };
 
   constructor(
-    @Inject(REQUEST) private readonly request: Request,
+    private readonly requestContext: RequestContextService,
     @InjectRepository(Ciael)
     private readonly ciaelRepository: Repository<Ciael>,
     @InjectRepository(Area)
@@ -156,7 +155,7 @@ export class CiaelsService {
   }
 
   async create(createCiaelDto: CreateCiaelDto) {
-    const createdBy = this.request['user'] as User;
+    const createdBy = this.requestContext.user;
 
     const {
       manufacturingPlantId,
