@@ -110,6 +110,7 @@ const BUSINESS_FOLDERS = [
   'shared/pipes',
   'shared/services',
   'shared/filters',
+  'shared/interceptors',
 ];
 /**
  * Carpetas sensibles con umbral propio, más alto que el global. Cada una
