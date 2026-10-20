@@ -122,7 +122,7 @@ describe('DeleteUploadsOnErrorInterceptor (HTTP)', () => {
     expect(files()).toEqual([res.body.filename]);
   });
 
-  it.each(['400', '403', '404', '409', '500'] as const)(
+  it.each(['400', '403', '404', '409'] as const)(
     'si la petición termina en %s borra el archivo y responde el mismo error',
     async (status) => {
       const res = await http()
@@ -130,12 +130,33 @@ describe('DeleteUploadsOnErrorInterceptor (HTTP)', () => {
         .attach('file', png, 'foto.png')
         .expect(Number(status));
 
-      if (status !== '500') {
-        expect(res.body.message).toBe(ERRORS[status]().message);
-      }
+      expect(res.body.message).toBe(ERRORS[status]().message);
       expect(files()).toEqual([]);
     },
   );
+
+  it('ante un error inesperado borra el archivo, responde 500 y registra la excepción', async () => {
+    // Este error es deliberado: comprobar su registro sin imprimir un fallo falso.
+    const logError = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+
+    try {
+      await http()
+        .post('/upload/fail/500')
+        .attach('file', png, 'foto.png')
+        .expect(500, {
+          statusCode: 500,
+          message: 'Internal server error',
+        });
+
+      expect(files()).toEqual([]);
+      expect(logError).toHaveBeenCalledTimes(1);
+      expect(logError).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Falla inesperada' }),
+      );
+    } finally {
+      logError.mockRestore();
+    }
+  });
 
   it('borra todos los archivos de FilesInterceptor', async () => {
     await http()
