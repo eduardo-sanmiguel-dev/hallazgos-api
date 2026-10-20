@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 const { createObserveModule } = require('@nestjs/observe');
+
 const { ObserveModule } = createObserveModule();
 
 @Module({
