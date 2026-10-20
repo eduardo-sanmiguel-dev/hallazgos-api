@@ -22,6 +22,12 @@ pnpm test:db:cov    # lo mismo, con cobertura de dashboard.service (umbral 90/70
   `public/static/images/evidences` y los borran al terminar.
 - `--forceExit`: el transporte SMTP de `MailerModule` deja una conexión
   abierta al cerrar la app.
+- Cada archivo corre en su propio proceso (`workerIdleMemoryLimit`): al
+  encadenar varias apps en el mismo proceso Jest se caía de forma
+  intermitente (código nativo en Windows).
+- `@nestjs/observe` se sustituye por `stubs/nestjs-observe.ts`: se publica
+  solo como ESM (Jest no lo carga con `require`) y en pruebas no debe enviar
+  telemetría.
 
 ## Archivos
 
@@ -37,3 +43,20 @@ pnpm test:db:cov    # lo mismo, con cobertura de dashboard.service (umbral 90/70
 
 Requisito: PostgreSQL local corriendo (el mismo de desarrollo) y un usuario
 con permiso para crear bases (`CREATEDB`).
+
+## GitHub Actions
+
+El job `database-tests` de `.github/workflows/deploy.yml` usa PostgreSQL 14
+como servicio temporal del runner, con la base `hallazgos_test` y credenciales
+exclusivas de CI. El contenedor se elimina al terminar el job y el deploy por
+SSH requiere que pasen tanto las pruebas unitarias como las de base de datos.
+
+En CI las conexiones se configuran exclusivamente mediante `DB_HOST`, `DB_PORT`,
+`DB_USERNAME`, `DB_PASSWORD` y `TEST_DB_NAME`; no se lee `.env.development`.
+Las demás variables de la aplicación tienen valores de prueba definidos en el
+workflow. No se usan secretos del VPS. Se rechazan `NODE_ENV=production`, nombres
+de base que no sean identificadores terminados en `_test` y, en CI, hosts que no
+sean de loopback. Los correos permanecen simulados.
+
+Fuera de CI, `.env.development` es opcional si las variables necesarias ya están
+configuradas en el entorno.

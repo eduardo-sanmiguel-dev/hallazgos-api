@@ -4,6 +4,7 @@ import {
   NestModule,
   RequestMethod,
 } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -20,6 +21,7 @@ import {
   RequestContextMiddleware,
 } from '@shared/middlewares';
 import { RequestContextModule } from './shared/services/request-context.module';
+import { DeleteUploadsOnErrorInterceptor } from './shared/interceptors';
 import { GistSecretGuardService } from './shared/services/gist-secret-guard.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -188,7 +190,12 @@ import { ObserveIntegrationModule } from 'observe.module';
     ObserveIntegrationModule,
   ],
   controllers: [],
-  providers: [JwtService, GistSecretGuardService],
+  providers: [
+    JwtService,
+    GistSecretGuardService,
+    // Borra las imágenes subidas si la petición termina en error.
+    { provide: APP_INTERCEPTOR, useClass: DeleteUploadsOnErrorInterceptor },
+  ],
 })
 export class AppModule implements NestModule {
   public configure(consumer: MiddlewareConsumer): void {

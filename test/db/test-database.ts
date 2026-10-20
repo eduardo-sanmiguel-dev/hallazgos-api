@@ -1,8 +1,8 @@
 /**
- * Base de datos de pruebas aislada (PostgreSQL local).
+ * Base de datos de pruebas aislada (PostgreSQL local o temporal de CI).
  *
- * - Credenciales: las de `.env.development` (mismo servidor que la base de
- *   desarrollo), sin escribirlas en ningún archivo.
+ * - Credenciales: variables del servicio temporal en CI; en local se puede
+ *   usar el archivo de desarrollo sin copiar sus valores a otro archivo.
  * - Base: `TEST_DB_NAME` o `hallazgos_test`. Por seguridad el nombre DEBE
  *   terminar en `_test`: el esquema se borra y se vuelve a crear en cada
  *   corrida.
@@ -24,9 +24,7 @@ export const TEST_DB_NAME = process.env.TEST_DB_NAME || 'hallazgos_test';
 const loadDevelopmentEnv = () => {
   const file = join(ROOT, '.env.development');
   if (!existsSync(file)) {
-    throw new Error(
-      'Falta .env.development: de ahí se toman las credenciales de PostgreSQL',
-    );
+    return;
   }
 
   for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
@@ -47,9 +45,35 @@ const loadDevelopmentEnv = () => {
  * busca `.env.test` (no existe) y usa estas variables.
  */
 export const useTestEnvironment = () => {
-  loadDevelopmentEnv();
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'Las pruebas de base de datos no pueden ejecutarse en producción',
+    );
+  }
 
-  if (!TEST_DB_NAME.endsWith('_test')) {
+  // En CI nunca cargar archivos locales: solo las variables del servicio temporal.
+  if (process.env.CI !== 'true') {
+    loadDevelopmentEnv();
+  }
+
+  const required = ['DB_HOST', 'DB_PORT', 'DB_USERNAME', 'DB_PASSWORD'];
+  const missing = required.filter((key) => !process.env[key]);
+  if (missing.length) {
+    throw new Error(
+      `Faltan variables de PostgreSQL de pruebas: ${missing.join(', ')}`,
+    );
+  }
+
+  if (
+    process.env.CI === 'true' &&
+    !['127.0.0.1', 'localhost', '::1'].includes(process.env.DB_HOST)
+  ) {
+    throw new Error(
+      'En CI las pruebas solo pueden conectarse a PostgreSQL local temporal',
+    );
+  }
+
+  if (!/^[a-z_][a-z0-9_]*_test$/i.test(TEST_DB_NAME)) {
     throw new Error(
       `TEST_DB_NAME debe terminar en "_test" (recibido "${TEST_DB_NAME}"): la base se borra en cada corrida`,
     );

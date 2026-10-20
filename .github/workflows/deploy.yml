@@ -22,9 +22,66 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+      # Solo pruebas con dependencias simuladas, en el runner y sin secretos del VPS.
+      - name: Pruebas unitarias
+        env:
+          NODE_ENV: test
+        run: |
+          mkdir -p public/static/images/evidences
+          pnpm test --config ./jest.config.js --ci --runInBand
+
+  # PostgreSQL desechable del runner: sin credenciales ni acceso al VPS.
+  database-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: hallazgos_ci
+          POSTGRES_PASSWORD: hallazgos_ci_only
+          POSTGRES_DB: hallazgos_test
+          TZ: America/Mexico_City
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -U hallazgos_ci -d hallazgos_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_ENV: test
+      TZ: America/Mexico_City
+      TEST_DB_NAME: hallazgos_test
+      DB_NAME: hallazgos_test
+      DB_HOST: 127.0.0.1
+      DB_PORT: ${{ job.services.postgres.ports[5432] }}
+      DB_USERNAME: hallazgos_ci
+      DB_PASSWORD: hallazgos_ci_only
+      PORT: 4000
+      APP_KEY: app-key-de-pruebas
+      JWT_SECRET_KEY: jwt-secreto-solo-para-pruebas
+      WHITE_LIST_DOMAINS: http://localhost:3000
+      FRONTEND_URL: http://localhost:3000
+      MAIL_HOST: 127.0.0.1
+      MAIL_USER: ci@example.com
+      MAIL_PASSWORD: mail-ci-only
+      GIST_SECRET_URL: http://127.0.0.1/unused-test-secret
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Pruebas de base de datos temporal
+        run: |
+          mkdir -p public/static/images/evidences
+          pnpm test:db --ci
 
   deploy:
-    needs: typecheck
+    needs: [typecheck, database-tests]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:

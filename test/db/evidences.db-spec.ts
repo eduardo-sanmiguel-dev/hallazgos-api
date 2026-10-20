@@ -33,14 +33,16 @@ describe('E2E: hallazgos', () => {
     e2e = await createE2eApp();
   });
 
+  /** PNG de prueba subidos en esta corrida que siguen en disco. */
+  const testUploads = () =>
+    readdirSync(IMAGES_DIR).filter((name) => {
+      const { size, mtimeMs } = statSync(join(IMAGES_DIR, name));
+      return size === PNG.length && mtimeMs >= startedAt;
+    });
+
   afterAll(async () => {
-    // Borra los PNG de prueba que se subieron en esta corrida (también los de
-    // peticiones rechazadas: multer guarda el archivo antes del 403).
-    for (const name of readdirSync(IMAGES_DIR)) {
-      const path = join(IMAGES_DIR, name);
-      const { size, mtimeMs } = statSync(path);
-      if (size === PNG.length && mtimeMs >= startedAt) unlinkSync(path);
-    }
+    // Borra los PNG de las peticiones que terminaron bien.
+    for (const name of testUploads()) unlinkSync(join(IMAGES_DIR, name));
     await e2e?.close();
   });
 
@@ -195,6 +197,43 @@ describe('E2E: hallazgos', () => {
         .call('patch', `/evidences/reassign/${id}`, e2e.tokens.supervisor)
         .send({ responsibleIds: [e2e.base.users.admin.id] })
         .expect(200);
+    });
+  });
+
+  describe('imágenes de peticiones rechazadas', () => {
+    it('si la petición falla (403, 404, 409) la imagen subida se borra; si termina bien se conserva', async () => {
+      const { id } = await saveEvidence(e2e.dataSource, e2e.base);
+      const before = testUploads();
+
+      // 403: un General no inicia "en progreso".
+      await e2e
+        .call('post', `/evidences/process/${id}`, e2e.tokens.general)
+        .attach('file', PNG, 'proceso.png')
+        .expect(403);
+      // 404: crear en una planta ajena.
+      await e2e
+        .call('post', '/evidences', e2e.tokens.generalColombia)
+        .field(fields())
+        .attach('file', PNG, 'hallazgo.png')
+        .expect(404);
+      expect(testUploads()).toEqual(before);
+
+      // Termina bien: la imagen queda guardada.
+      const started = await e2e
+        .call('post', `/evidences/process/${id}`, e2e.tokens.supervisor)
+        .attach('file', PNG, 'proceso.png')
+        .expect(201);
+      expect(testUploads()).toEqual(
+        expect.arrayContaining([started.body.imgProcess]),
+      );
+      const afterSuccess = testUploads();
+
+      // 409: iniciar otra vez un hallazgo que ya está en progreso.
+      await e2e
+        .call('post', `/evidences/process/${id}`, e2e.tokens.supervisor)
+        .attach('file', PNG, 'proceso.png')
+        .expect(409);
+      expect(testUploads()).toEqual(afterSuccess);
     });
   });
 

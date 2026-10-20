@@ -170,10 +170,22 @@ o hacerlo idempotente y solo para administradores.
 
 ## Imágenes huérfanas en peticiones rechazadas
 
-**Riesgo:** bajo (espacio en disco). **Estado:** pendiente.
+**Riesgo:** bajo (espacio en disco). **Estado:** ✅ resuelto (2026-10-20).
 
 Multer guarda la imagen en `public/static/images/evidences` **antes** de que
-el servicio valide permisos o estado. Si la petición termina en 403/404/409
-(p. ej. iniciar "en progreso" sin permiso), el archivo queda en disco sin
-hallazgo que lo use. Propuesta: borrar `file.path` cuando el servicio lanza
-un error (interceptor o `try/finally` en el controlador).
+el servicio valide permisos o estado. Si la petición terminaba en error (p. ej.
+iniciar "en progreso" sin permiso), el archivo quedaba en disco sin hallazgo
+que lo use.
+
+Solución: interceptor global `DeleteUploadsOnErrorInterceptor`
+(`src/shared/interceptors`, registrado como `APP_INTERCEPTOR` en `AppModule`).
+Si la petición termina en cualquier error (400/403/404/409/500) borra los
+archivos subidos (`file` o `files`) y devuelve el **mismo** error; si termina
+bien no toca nada; si el borrado falla solo lo registra en el log. Aplica a
+todos los endpoints con Multer (crear, cerrar e iniciar hallazgo; crear ICS) y
+a los que se agreguen.
+
+Pruebas: `delete-uploads-on-error.interceptor.spec.ts` (éxito conserva; 400,
+403, 404, 409 y 500 borran; varios archivos; falla al borrar no cambia el
+error) y el E2E de hallazgos contra la base de pruebas (403, 404 y 409 no
+dejan archivos; la subida exitosa se conserva).

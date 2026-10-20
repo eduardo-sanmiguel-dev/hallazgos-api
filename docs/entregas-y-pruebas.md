@@ -34,6 +34,19 @@ de **otra** planta. "Asignado" = supervisor o responsable del hallazgo.
 - [ ] (DevTools) `GET /api/v1/evidences/<id de otra planta>` → 404.
 - [ ] (DevTools) `GET /api/v1/dashboard/global-summary?manufacturingPlantId=<ajena>` → 404.
 
+### Imágenes de peticiones rechazadas
+
+Cuenta los archivos de `public/static/images/evidences` antes y después de
+cada paso (en el servidor de desarrollo).
+
+- [ ] Como **General** asignado, intentar "En progreso" adjuntando foto (la
+      API responde 403): no aparece ningún archivo nuevo.
+- [ ] Cerrar con foto un hallazgo que ya está Cerrado o Cancelado (409, p. ej.
+      desde una pestaña sin recargar): no aparece ningún archivo nuevo.
+- [ ] Crear un hallazgo con foto y un campo inválido (400): no aparece archivo.
+- [ ] Crear un hallazgo, iniciar "En progreso" y cerrar con foto (todo bien):
+      las imágenes se conservan y se ven en el detalle.
+
 ### General
 
 - [ ] Crear un hallazgo en su planta: se guarda y llegan los correos.
@@ -106,6 +119,8 @@ API `b07048f`, UI `532757f`.
 | 5 | Dashboard sin `userId` | 7 endpoints eliminados | 20 componentes, 16 funciones de servicio y 16 interfaces eliminados | — | Cualquier orden: ninguna pantalla los usaba. |
 | 6 | Hallazgos | `evidences/*` | `TableEvidences.tsx` | 4 | **API primero** y UI en la misma ventana. |
 | 7 | Correcciones de módulos | `ciaels/*`, `gemba-walk-*`, `extinguisher-inspections/*`, `areas`, `zones`, `processes`, `secondary-types`, `manufacturing-plants` (DTO), `ics` | — | 1 (pruebas) | Solo API. |
+| 8 | Imágenes de peticiones rechazadas | `shared/interceptors/*` (`DeleteUploadsOnErrorInterceptor`), `app.module.ts` (`APP_INTERCEPTOR`) | — | — | Solo API; sin cambios en el contrato (mismas respuestas). |
+| 9 | Estabilidad de `test:db` | `test/jest-db.json` (cada suite en su propio proceso; `@nestjs/observe` sustituido en pruebas), `test/db/stubs/*`, `test/db/evidences.db-spec.ts` | — | 1 | Solo pruebas. |
 | — | Documentación | `docs/*`, `test/db/README.md` | — | — | Con cualquiera. |
 
 Notas:
@@ -114,6 +129,8 @@ Notas:
   grupo que se suba, o el pre-push fallará en los anteriores.
 - `test/app.e2e-spec.ts` mezcla pruebas de los grupos 0, 4 y 5; si se separan
   los commits, dividirlo con `git add -p`.
+- `src/observe.module.ts` y `.env.example` tienen cambios en curso del
+  usuario (configuración de `@nestjs/observe`): no son parte de estos grupos.
 - `src/shared/services/gist-secret-guard.service.ts` y
   `src/shared/utils/query-string-array-transformer.util.ts` solo difieren en
   fin de línea (cambio previo): no incluirlos.

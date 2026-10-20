@@ -7,6 +7,7 @@
   "globalSetup": "<rootDir>/test/db/global-setup.ts",
   "setupFiles": ["<rootDir>/test/db/setup-env.ts"],
   "maxWorkers": 1,
+  "workerIdleMemoryLimit": "50MB",
   "testTimeout": 60000,
   "collectCoverageFrom": ["src/dashboard/dashboard.service.ts"],
   "coverageDirectory": "<rootDir>/coverage/db",
@@ -33,6 +34,7 @@
   "moduleNameMapper": {
     "^@config$": "<rootDir>/src/config",
     "^@shared/(.*)$": "<rootDir>/src/shared/$1",
-    "^@test/(.*)$": "<rootDir>/test/$1"
+    "^@test/(.*)$": "<rootDir>/test/$1",
+    "^@nestjs/observe$": "<rootDir>/test/db/stubs/nestjs-observe.ts"
   }
 }

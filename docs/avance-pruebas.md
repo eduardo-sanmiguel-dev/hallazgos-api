@@ -169,13 +169,27 @@ restringidos de `glora@hadainternational.com`.
 - Cambio mínimo para probar: con `NODE_ENV=test` el esquema GraphQL se genera
   en memoria (no reescribe `src/schema.gql`).
 
+### Tarea adicional — imágenes de peticiones rechazadas — terminado
+
+- Interceptor global `DeleteUploadsOnErrorInterceptor`: si una petición con
+  Multer termina en error borra lo subido y devuelve el mismo error; si el
+  borrado falla solo lo registra. 13 pruebas propias (100 / 90) y un E2E real
+  (403, 404 y 409 no dejan archivos; la subida exitosa se conserva).
+  Verificado que el E2E falla sin el interceptor.
+- `shared/interceptors` agregado a las carpetas con umbral (85/70/70/85).
+- `test:db`: desde el commit que agregó `@nestjs/observe`/OpenTelemetry el
+  proceso de Jest se caía de forma intermitente (código nativo `0xC0000409`)
+  al encadenar suites, también sin el interceptor. Ahora cada suite corre en
+  su propio proceso (`workerIdleMemoryLimit`): 7 corridas seguidas en verde.
+  `@nestjs/observe` (solo ESM) se sustituye en estas pruebas.
+
 ## Resultado final (2026-10-20)
 
 | Métrica | Inicial | Final |
 | --- | --- | --- |
-| Tests unitarios | 375 | **996** |
+| Tests unitarios | 375 | **1009** |
 | Tests e2e (sin BD, `test:e2e`) | 17 | **29** |
-| Tests con BD (`test:db`) | 0 | **135** |
+| Tests con BD (`test:db`) | 0 | **136** |
 | **Global sin dashboard.service** (`test:cov:goal`) | ≈ 33 / 28 | **95.7 % sentencias / 92.3 % ramas** |
 | Global incluyendo dashboard (solo unitarias) | 27.9 / 18.8 / 17.3 / 26.9 | 79.3 / 70.7 / 72.6 / 78.9 |
 | auth | 99.3 / 88.2 / 96.6 / 100 | 99.3 / 88.2 / 96.6 / 100 (meta 90/85) |
