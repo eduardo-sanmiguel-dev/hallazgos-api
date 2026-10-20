@@ -41,6 +41,17 @@ jobs:
           mkdir -p public/static/images/evidences
           pnpm test:cov --config ./jest.config.js --ci --runInBand
 
+  # Contratos HTTP con servicios simulados, sin conexión a PostgreSQL.
+  http-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - name: Pruebas HTTP con servicios simulados
         env:
           NODE_ENV: test
@@ -59,7 +70,7 @@ jobs:
           POSTGRES_DB: hallazgos_test
           TZ: America/Mexico_City
         ports:
-          - 5432/tcp
+          - '5432:5432'
         options: >-
           --health-cmd "pg_isready -U hallazgos_ci -d hallazgos_test"
           --health-interval 5s
@@ -92,13 +103,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Pruebas de base de datos temporal
         env:
-          DB_PORT: ${{ job.services.postgres.ports[5432] }}
+          DB_PORT: '5432'
         run: |
           mkdir -p public/static/images/evidences
           pnpm test:db --ci
 
   deploy:
-    needs: [typecheck, unit-tests, database-tests]
+    needs: [typecheck, unit-tests, http-tests, database-tests]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
