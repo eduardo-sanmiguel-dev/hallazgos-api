@@ -55,7 +55,6 @@ jobs:
       TEST_DB_NAME: hallazgos_test
       DB_NAME: hallazgos_test
       DB_HOST: 127.0.0.1
-      DB_PORT: ${{ job.services.postgres.ports[5432] }}
       DB_USERNAME: hallazgos_ci
       DB_PASSWORD: hallazgos_ci_only
       PORT: 4000
@@ -76,6 +75,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Pruebas de base de datos temporal
+        env:
+          DB_PORT: ${{ job.services.postgres.ports[5432] }}
         run: |
           mkdir -p public/static/images/evidences
           pnpm test:db --ci
