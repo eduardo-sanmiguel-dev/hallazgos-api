@@ -79,6 +79,11 @@ export class AreasService {
       createAreaDto;
     const name = createAreaDto.name.trim();
 
+    // Solo espacios pasaba la validación del DTO y se guardaba vacío.
+    if (!name) {
+      throw new BadRequestException('El nombre del área es obligatorio');
+    }
+
     await this.manufacturingPlantsService.findOne(manufacturingPlantId);
 
     await this.validateUniqueActiveName(name, manufacturingPlantId);

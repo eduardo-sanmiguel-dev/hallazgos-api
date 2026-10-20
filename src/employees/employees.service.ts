@@ -6,7 +6,16 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { RequestContextService } from 'shared/services/request-context.service';
 
-import { Repository, FindOptionsWhere, In, ILike, Raw } from 'typeorm';
+import {
+  Repository,
+  FindOptionsWhere,
+  In,
+  ILike,
+  ObjectLiteral,
+  Raw,
+} from 'typeorm';
+
+import { scopePlantIds } from '@shared/utils';
 
 import { Employee, EmployeeArea, EmployeePosition } from './entities';
 import { Genre } from 'genres/entities/genre.entity';
@@ -67,6 +76,29 @@ export class EmployeesService {
     ].sort((a, b) => a.name.localeCompare(b.name));
   }
 
+  /**
+   * Registro activo de un catálogo por id. Sin id no consulta (con
+   * `id: undefined` TypeORM ignora la condición y devuelve cualquier registro);
+   * un id inexistente o inactivo responde 404 en lugar de guardar null.
+   */
+  private async findCatalog<T extends ObjectLiteral>(
+    repository: Repository<T>,
+    id: number | undefined,
+    label: string,
+  ): Promise<T | undefined> {
+    if (!id) return undefined;
+
+    const found = await repository.findOne({
+      where: { id, isActive: true } as unknown as FindOptionsWhere<T>,
+    });
+
+    if (!found) {
+      throw new NotFoundException(`${label} con id ${id} no encontrado`);
+    }
+
+    return found;
+  }
+
   async create(createEmployeeDto: CreateEmployeeDto) {
     const {
       code,
@@ -82,17 +114,21 @@ export class EmployeesService {
     const manufacturingPlants =
       this.requestContext.userOrNull?.manufacturingPlants;
 
-    const area = await this.employeeAreaRepository.findOne({
-      where: { id: areaId, isActive: true },
-    });
-
-    const position = await this.employeePositionRepository.findOne({
-      where: { id: positionId, isActive: true },
-    });
-
-    const gender = await this.genreRepository.findOne({
-      where: { id: genderId, isActive: true },
-    });
+    const area = await this.findCatalog(
+      this.employeeAreaRepository,
+      areaId,
+      'Área',
+    );
+    const position = await this.findCatalog(
+      this.employeePositionRepository,
+      positionId,
+      'Puesto',
+    );
+    const gender = await this.findCatalog(
+      this.genreRepository,
+      genderId,
+      'Género',
+    );
 
     const employee = this.employeeRepository.create({
       code,
@@ -159,18 +195,21 @@ export class EmployeesService {
       genreId = 0,
     } = filtersEmployeeDto;
 
+    // Solo plantas del usuario: con una planta ajena no hay resultados
+    // (antes el filtro reemplazaba las plantas del usuario).
+    const plantIds = scopePlantIds(manufacturingPlants, manufacturingPlantId);
+    const { page, limit } = filtersEmployeeDto;
+
+    if (!plantIds.length) {
+      return page === undefined || limit === undefined
+        ? Promise.resolve([])
+        : Promise.resolve({ data: [], count: 0 });
+    }
+
     const where: FindOptionsWhere<Employee> = {
       isActive: parsedIsActive ?? true,
-      manufacturingPlants: {
-        id: In(manufacturingPlants.map((mp) => mp.id)),
-      },
+      manufacturingPlants: { id: In(plantIds) },
     };
-
-    if (manufacturingPlantId) {
-      where.manufacturingPlants = {
-        id: manufacturingPlantId,
-      };
-    }
 
     if (positionId) {
       where.position = {
@@ -202,8 +241,6 @@ export class EmployeesService {
           },
         ]
       : [where];
-
-    const { page, limit } = filtersEmployeeDto;
 
     if (page === undefined || limit === undefined) {
       return this.employeeRepository.find({
@@ -281,29 +318,34 @@ export class EmployeesService {
     const manufacturingPlants =
       this.requestContext.userOrNull?.manufacturingPlants;
 
-    const area = await this.employeeAreaRepository.findOne({
-      where: { id: areaId, isActive: true },
-    });
-
-    const position = await this.employeePositionRepository.findOne({
-      where: { id: positionId, isActive: true },
-    });
-
-    const gender = await this.genreRepository.findOne({
-      where: { id: genderId, isActive: true },
-    });
+    // Lo que no se envía conserva su valor actual (antes, sin areaId se
+    // asignaba cualquier área y sin plantas respondía 500).
+    const area =
+      (await this.findCatalog(this.employeeAreaRepository, areaId, 'Área')) ??
+      employee.area;
+    const position =
+      (await this.findCatalog(
+        this.employeePositionRepository,
+        positionId,
+        'Puesto',
+      )) ?? employee.position;
+    const gender =
+      (await this.findCatalog(this.genreRepository, genderId, 'Género')) ??
+      employee.gender;
 
     Object.assign(employee, {
-      code,
-      name,
-      birthdate,
-      dateOfAdmission,
+      ...(code !== undefined && { code }),
+      ...(name !== undefined && { name }),
+      ...(birthdate !== undefined && { birthdate }),
+      ...(dateOfAdmission !== undefined && { dateOfAdmission }),
       area,
       position,
       gender,
-      manufacturingPlants: manufacturingPlants.filter((mp) =>
-        manufacturingPlantsIds.includes(mp.id),
-      ),
+      ...(manufacturingPlantsIds && {
+        manufacturingPlants: manufacturingPlants.filter((mp) =>
+          manufacturingPlantsIds.includes(mp.id),
+        ),
+      }),
     });
 
     try {

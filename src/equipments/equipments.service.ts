@@ -75,7 +75,7 @@ export class EquipmentsService {
   }
 
   private listWhere(
-    manufacturingPlantId: number,
+    manufacturingPlantId: number | undefined,
     name: string,
   ): FindOptionsWhere<Equipment> {
     let manufacturingPlantsIds = this.requestContext.manufacturingPlantIds;
@@ -95,7 +95,7 @@ export class EquipmentsService {
     };
   }
 
-  findAll(manufacturingPlantId: number, name: string) {
+  findAll(manufacturingPlantId: number | undefined, name: string) {
     return this.equipmentRepository.find({
       where: this.listWhere(manufacturingPlantId, name),
       relations: this.relations,
@@ -111,7 +111,7 @@ export class EquipmentsService {
   // Con skip/take solo se ordena por la entidad principal; el historial de
   // costos se ordena en memoria (el más reciente primero, como en findAll).
   async findAllPaginated(
-    manufacturingPlantId: number,
+    manufacturingPlantId: number | undefined,
     name: string,
     page: string,
     limit: string,
@@ -138,8 +138,15 @@ export class EquipmentsService {
   }
 
   async findOne(id: number) {
+    // Solo equipos de las plantas del usuario: uno ajeno responde 404.
     const equipment = await this.equipmentRepository.findOne({
-      where: { id, isActive: true },
+      where: {
+        id,
+        isActive: true,
+        manufacturingPlant: {
+          id: In(this.requestContext.manufacturingPlantIds),
+        },
+      },
       relations: this.relations,
       order: {
         costHistory: {
@@ -162,7 +169,10 @@ export class EquipmentsService {
 
     const equipment = await this.findOne(id);
 
-    const updatedAt = await this.createdAt(manufacturingPlantId);
+    // Sin planta en el body, la hora se calcula con la planta actual del equipo.
+    const updatedAt = await this.createdAt(
+      manufacturingPlantId ?? equipment.manufacturingPlant.id,
+    );
 
     Object.assign(equipment, updateEquipmentDto, {
       updatedAt,

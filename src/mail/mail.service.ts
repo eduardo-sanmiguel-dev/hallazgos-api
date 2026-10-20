@@ -1,4 +1,5 @@
 import { MailerService } from '@nestjs-modules/mailer';
+import { join } from 'path';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
@@ -7,10 +8,28 @@ import { Evidence } from 'evidences/entities/evidence.entity';
 import { ENV_DEVELOPMENT } from '@shared/constants';
 import { User } from 'users/entities/user.entity';
 
-const pathImageFor = (environment: string) =>
+// Carpeta local de imágenes (src/mail o dist/mail → <proyecto>/public/...).
+// Antes se armaba como __dirname + '../../../public/...' (sin separador):
+// "dist/mail../../../public" solo funciona en Windows, que normaliza la ruta;
+// en Linux la carpeta "mail.." no existe y el adjunto fallaba.
+export const LOCAL_EVIDENCE_IMAGES_DIR = join(
+  __dirname,
+  '..',
+  '..',
+  'public',
+  'static',
+  'images',
+  'evidences',
+);
+
+const PUBLIC_EVIDENCE_IMAGES_URL =
+  'https://api.comportarte.com/static/images/evidences/';
+
+/** Ruta (desarrollo) o URL pública (producción) de una imagen de evidencia. */
+const pathImageFor = (environment: string) => (fileName: string) =>
   environment === ENV_DEVELOPMENT
-    ? __dirname + '../../../public/static/images/evidences/'
-    : 'https://api.comportarte.com/static/images/evidences/';
+    ? join(LOCAL_EVIDENCE_IMAGES_DIR, fileName)
+    : PUBLIC_EVIDENCE_IMAGES_URL + fileName;
 
 const PRIORITY_OPTIONS = [
   { name: 'Inmediato', days: 2 },
@@ -80,7 +99,7 @@ export class MailService {
   private MAIL_USER_APP: string = '';
   private FRONTEND_URL: string = '';
   private readonly environment: string;
-  private readonly pathImage: string;
+  private readonly pathImage: (fileName: string) => string;
 
   constructor(
     private readonly mailerService: MailerService,
@@ -140,7 +159,7 @@ export class MailService {
           attachments: [
             {
               filename: imgEvidence,
-              path: this.pathImage + imgEvidence,
+              path: this.pathImage(imgEvidence),
               cid: 'imgEvidence',
             },
           ],
@@ -206,7 +225,7 @@ export class MailService {
         attachments: [
           {
             filename: imgEvidence,
-            path: this.pathImage + imgEvidence,
+            path: this.pathImage(imgEvidence),
             cid: 'imgEvidence',
           },
         ],
@@ -229,7 +248,7 @@ export class MailService {
     if (imgEvidence) {
       attachments.push({
         filename: imgEvidence,
-        path: this.pathImage + imgEvidence,
+        path: this.pathImage(imgEvidence),
         cid: 'imgEvidence',
       });
     }
@@ -237,8 +256,7 @@ export class MailService {
     if (imgSolution) {
       attachments.push({
         filename: imgSolution,
-        path:
-          __dirname + '../../../public/static/images/evidences/' + imgSolution,
+        path: join(LOCAL_EVIDENCE_IMAGES_DIR, imgSolution),
         cid: 'imgSolution',
       });
     }
@@ -302,7 +320,7 @@ export class MailService {
     if (imgEvidence) {
       attachments.push({
         filename: imgEvidence,
-        path: this.pathImage + imgEvidence,
+        path: this.pathImage(imgEvidence),
         cid: 'imgEvidence',
       });
     }
@@ -310,7 +328,7 @@ export class MailService {
     if (imgProcess) {
       attachments.push({
         filename: imgProcess,
-        path: this.pathImage + imgProcess,
+        path: this.pathImage(imgProcess),
         cid: 'imgProcess',
       });
     }
@@ -378,7 +396,7 @@ export class MailService {
         attachments: [
           {
             filename: imgEvidence,
-            path: this.pathImage + imgEvidence,
+            path: this.pathImage(imgEvidence),
             cid: 'imgEvidence',
           },
         ],

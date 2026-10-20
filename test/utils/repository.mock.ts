@@ -1,7 +1,9 @@
 import type { ObjectLiteral, Repository, SelectQueryBuilder } from 'typeorm';
 
 /** QueryBuilder encadenable: los métodos de armado devuelven el mismo objeto. */
-export type QueryBuilderMock = jest.Mocked<SelectQueryBuilder<ObjectLiteral>>;
+export type QueryBuilderMock = jest.Mocked<SelectQueryBuilder<ObjectLiteral>> &
+  // Métodos de UpdateQueryBuilder/InsertQueryBuilder que se encadenan igual.
+  Record<'set' | 'into' | 'values', jest.Mock>;
 
 const CHAINABLE = [
   'select',
@@ -26,6 +28,12 @@ const CHAINABLE = [
   'setParameter',
   'setParameters',
   'withDeleted',
+  'delete',
+  'update',
+  'set',
+  'insert',
+  'into',
+  'values',
 ] as const;
 
 const TERMINAL = [
@@ -75,6 +83,7 @@ export const createRepositoryMock = <
     insert: jest.fn().mockResolvedValue({ identifiers: [], raw: [] }),
     update: jest.fn().mockResolvedValue({ affected: 1, raw: [] }),
     delete: jest.fn().mockResolvedValue({ affected: 1, raw: [] }),
+    clear: jest.fn().mockResolvedValue(undefined),
     softDelete: jest.fn().mockResolvedValue({ affected: 1, raw: [] }),
     remove: jest.fn(async (entity) => entity),
     query: jest.fn().mockResolvedValue([]),

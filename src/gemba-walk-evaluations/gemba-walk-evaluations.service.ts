@@ -64,6 +64,13 @@ export class GembaWalkEvaluationsService {
     const area = createGembaWalkEvaluationDto.area.trim();
     const description = createGembaWalkEvaluationDto.description.trim();
 
+    // Solo espacios pasaba la validación del DTO y se guardaba vacío.
+    if (!area || !description) {
+      throw new BadRequestException(
+        'El área y la descripción del concepto son obligatorias',
+      );
+    }
+
     await this.manufacturingPlantsService.findOne(manufacturingPlantId);
     await this.validateUniqueActive(area, category, manufacturingPlantId);
 

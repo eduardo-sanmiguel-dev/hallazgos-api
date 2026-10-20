@@ -1,4 +1,5 @@
 import {
+  IsLatitude,
   IsLongitude,
   IsNotEmpty,
   IsNumber,
@@ -15,9 +16,10 @@ export class CreateManufacturingPlantDto {
   @IsUrl()
   link: string;
 
+  // Antes se validaba como longitud (±180) y aceptaba latitudes imposibles.
   @IsNotEmpty()
   @IsNumber()
-  @IsLongitude()
+  @IsLatitude()
   lat: number;
 
   @IsNotEmpty()

@@ -66,9 +66,14 @@ export class AuthController {
     return this.authService.checkToken();
   }
 
+  // Sin límite de intentos a propósito: el proxy de Next (proxy.ts) lo llama
+  // desde el servidor, así que todas las peticiones llegan con la IP del
+  // servidor y un límite por IP se repartiría entre todos los usuarios. No
+  // hace falta: solo valida un token firmado (HMAC) que no se puede adivinar
+  // por fuerza bruta y que es de un solo uso. El paso que cambia la
+  // contraseña (login-restore-password) sí tiene límite y llega con la IP
+  // real del navegador.
   @Post('/check-token-restore-password')
-  @UseGuards(ThrottlerGuard)
-  @Throttle(LOGIN_LIMIT)
   checkTokenRestorePassword(@Body('token') token: string) {
     return this.authService.checkTokenRestorePassword(token);
   }

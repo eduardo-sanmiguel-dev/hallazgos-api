@@ -10,12 +10,12 @@ describe('RequestContextService', () => {
   it('expone la petición dentro del contexto, también tras await', async () => {
     const req = { user: { id: 7 } } as unknown as Request;
 
-    await new Promise<void>((resolve) => {
-      RequestContextService.run(req, async () => {
+    await new Promise<void>((resolve, reject) => {
+      RequestContextService.run(req, () => {
         expect(service.request).toBe(req);
-        await new Promise((r) => setTimeout(r, 5));
-        expect(service.request['user']).toEqual({ id: 7 });
-        resolve();
+        new Promise((r) => setTimeout(r, 5))
+          .then(() => expect(service.request['user']).toEqual({ id: 7 }))
+          .then(() => resolve(), reject);
       });
     });
   });
@@ -26,13 +26,13 @@ describe('RequestContextService', () => {
     await Promise.all(
       [1, 2].map(
         (id) =>
-          new Promise<void>((resolve) => {
+          new Promise<void>((resolve, reject) => {
             RequestContextService.run(
               { user: { id } } as unknown as Request,
-              async () => {
-                await new Promise((r) => setTimeout(r, id === 1 ? 10 : 1));
-                seen.push(service.request['user'].id);
-                resolve();
+              () => {
+                new Promise((r) => setTimeout(r, id === 1 ? 10 : 1))
+                  .then(() => seen.push(service.request['user'].id))
+                  .then(() => resolve(), reject);
               },
             );
           }),

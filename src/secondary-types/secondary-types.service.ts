@@ -83,11 +83,13 @@ export class SecondaryTypesService {
     id: number,
     updateSecondaryTypeDto: UpdateSecondaryTypeDto,
   ): Promise<SecondaryType> {
-    await this.findOne(id);
+    const current = await this.findOne(id);
 
-    const mainType = await this.mainTypesService.findOne(
-      updateSecondaryTypeDto.mainTypeId,
-    );
+    // Sin tipo principal se conserva el actual (antes findOne(undefined)
+    // devolvía cualquier tipo principal).
+    const mainType = updateSecondaryTypeDto.mainTypeId
+      ? await this.mainTypesService.findOne(updateSecondaryTypeDto.mainTypeId)
+      : current.mainType;
 
     const manufacturingPlant = await this.secondaryTypeRepository.preload({
       id,

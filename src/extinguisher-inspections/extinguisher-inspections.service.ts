@@ -17,6 +17,8 @@ import {
   UpdateExtinguisherInspectionDto,
 } from './dto';
 import { buildInspectionFileName } from './extinguisher-inspection-file-name';
+import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
+import { PLANT_TIME_ZONES, toPlantCountry, toWallClock } from '@shared/utils';
 
 @Injectable()
 export class ExtinguisherInspectionsService {
@@ -40,13 +42,14 @@ export class ExtinguisherInspectionsService {
   ) {
     const createdBy = this.requestContext.userId;
     const now = new Date();
-    const todayString = now.toISOString().split('T')[0];
 
     const {
       manufacturingPlantId,
       evaluations = [],
       ...rest
     } = createExtinguisherInspectionDto;
+
+    const todayString = await this.plantToday(manufacturingPlantId, now);
 
     const hasPastDates = evaluations.some(
       (evaluation) =>
@@ -88,6 +91,25 @@ export class ExtinguisherInspectionsService {
     );
 
     return this.findOne(savedExtinguisherInspection.id);
+  }
+
+  /**
+   * "Hoy" (YYYY-MM-DD) en la zona horaria de la planta. Antes se usaba el día
+   * en UTC: en México, después de las 18:00 ya era "mañana" y una fecha de
+   * hoy se rechazaba como pasada.
+   */
+  private async plantToday(manufacturingPlantId: number, now: Date) {
+    const plant = await this.extinguisherInspectionRepository.manager.findOne(
+      ManufacturingPlant,
+      { where: { id: manufacturingPlantId }, relations: ['country'] },
+    );
+    const { year, month, day } = toWallClock(
+      now,
+      PLANT_TIME_ZONES[toPlantCountry(plant?.country?.name)],
+    );
+    const pad = (value: number) => String(value).padStart(2, '0');
+
+    return `${year}-${pad(month)}-${pad(day)}`;
   }
 
   async findAll(

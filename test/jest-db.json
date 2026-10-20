@@ -1,0 +1,38 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "..",
+  "roots": ["<rootDir>/test"],
+  "testEnvironment": "node",
+  "testRegex": "\\.(db|int)-spec\\.ts$",
+  "globalSetup": "<rootDir>/test/db/global-setup.ts",
+  "setupFiles": ["<rootDir>/test/db/setup-env.ts"],
+  "maxWorkers": 1,
+  "testTimeout": 60000,
+  "collectCoverageFrom": ["src/dashboard/dashboard.service.ts"],
+  "coverageDirectory": "<rootDir>/coverage/db",
+  "coverageThreshold": {
+    "global": { "statements": 90, "branches": 70, "functions": 90, "lines": 90 }
+  },
+  "transform": {
+    "^.+\\.(t|j)s$": [
+      "@swc/jest",
+      {
+        "swcrc": false,
+        "sourceMaps": "inline",
+        "module": { "type": "commonjs" },
+        "jsc": {
+          "target": "es2021",
+          "keepClassNames": true,
+          "parser": { "syntax": "typescript", "decorators": true },
+          "transform": { "legacyDecorator": true, "decoratorMetadata": true }
+        }
+      }
+    ]
+  },
+  "modulePaths": ["<rootDir>/src"],
+  "moduleNameMapper": {
+    "^@config$": "<rootDir>/src/config",
+    "^@shared/(.*)$": "<rootDir>/src/shared/$1",
+    "^@test/(.*)$": "<rootDir>/test/$1"
+  }
+}

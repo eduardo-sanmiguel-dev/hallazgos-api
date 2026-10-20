@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RequestContextService } from 'shared/services/request-context.service';
 
@@ -47,6 +51,14 @@ export class IcsService {
     }
 
     const totalIncorrectPeople = employeesIds.length;
+
+    // Antes se guardaban personas correctas y porcentaje negativos.
+    if (totalIncorrectPeople > totalPeople) {
+      throw new BadRequestException(
+        'Las personas con comportamiento incorrecto no pueden ser más que el total de personas',
+      );
+    }
+
     const totalCorrectPeople = totalPeople - totalIncorrectPeople;
 
     return this.icsRepository.save({

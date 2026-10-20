@@ -132,7 +132,7 @@ export class ZonesService {
     });
 
     if (!zone) {
-      throw new NotFoundException(`Planta con ID ${id} no encontrado`);
+      throw new NotFoundException(`Zona con ID ${id} no encontrada`);
     }
 
     return zone;
@@ -167,15 +167,22 @@ export class ZonesService {
   async update(id: number, updateZoneDto: UpdateZoneDto): Promise<Zone> {
     const updatedBy = this.requestContext.userId;
 
-    await this.findOne(id);
+    const current = await this.findOne(id);
 
-    const manufacturingPlant = await this.manufacturingPlantsService.findOne(
-      updateZoneDto.manufacturingPlantId,
-    );
+    // Sin planta se conserva la actual (antes findOne(undefined) devolvía
+    // cualquier planta). areaId: null quita el área; si no llega, se conserva.
+    const manufacturingPlant = updateZoneDto.manufacturingPlantId
+      ? await this.manufacturingPlantsService.findOne(
+          updateZoneDto.manufacturingPlantId,
+        )
+      : current.manufacturingPlant;
 
-    const area = updateZoneDto.areaId
-      ? await this.areasService.findOne(updateZoneDto.areaId)
-      : null;
+    const area =
+      updateZoneDto.areaId === undefined
+        ? current.area
+        : updateZoneDto.areaId
+          ? await this.areasService.findOne(updateZoneDto.areaId)
+          : null;
 
     const zone = await this.zoneRepository.preload({
       id,

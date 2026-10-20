@@ -1,6 +1,7 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 
 import cookieParser = require('cookie-parser');
 import helmet from 'helmet';
@@ -13,8 +14,15 @@ import { QueryFailedExceptionFilter } from './shared/filters/query-failed-except
 async function bootstrap() {
   const logger = new Logger('APP-SERVICE');
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const configService = app.get(ConfigService);
+
+  // En producción nginx (127.0.0.1) reenvía con X-Forwarded-For: se confía
+  // solo en ese salto local para que req.ip sea la IP real del cliente. Sin
+  // esto todas las peticiones llegan como 127.0.0.1 y el límite de intentos
+  // del login se compartiría entre todos los usuarios. Un X-Forwarded-For
+  // enviado desde fuera no se toma en cuenta (no viene de loopback).
+  app.set('trust proxy', 'loopback');
 
   app.enableCors({
     origin: configService.get<string>('frontendUrl') || 'http://localhost:3000',
@@ -74,7 +82,26 @@ async function bootstrap() {
   );
 }
 
-bootstrap();
+// Red de seguridad: una promesa rechazada que nadie maneja (p. ej. un envío
+// en segundo plano) se registra en lugar de terminar el proceso, que es lo
+// que Node hace por defecto y cortaría todas las peticiones en curso.
+process.on('unhandledRejection', (reason) => {
+  new Logger('UnhandledRejection').error(
+    (reason as Error)?.message ?? String(reason),
+    (reason as Error)?.stack,
+  );
+});
+
+// Si el arranque falla (p. ej. sin base de datos) sí se termina, para que
+// pm2 lo reintente: con el manejador de arriba el proceso quedaría vivo sin
+// escuchar.
+bootstrap().catch((error) => {
+  new Logger('APP-SERVICE').error(
+    `No se pudo iniciar la API: ${error?.message ?? error}`,
+    error?.stack,
+  );
+  process.exit(1);
+});
 
 /* if (process.env.NODE_ENV === ENV_DEVELOPMENT) {
   bootstrap();

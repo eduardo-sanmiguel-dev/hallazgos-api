@@ -1,9 +1,11 @@
+import { Evidence } from 'evidences/entities/evidence.entity';
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
 import { User } from 'users/entities/user.entity';
 import {
   ROLE_ADMINISTRADOR,
   ROLE_GENERAL,
   ROLE_SUPERVISOR,
+  STATUS_OPEN,
 } from '@shared/constants';
 
 /**
@@ -39,3 +41,29 @@ export const buildAdmin = (overrides: Partial<User> = {}): User =>
 
 export const buildSupervisor = (overrides: Partial<User> = {}): User =>
   buildUser({ role: ROLE_SUPERVISOR, ...overrides });
+
+/** Hallazgo abierto con creador, supervisor y responsable (sin comentarios). */
+export const buildEvidence = (overrides: Partial<Evidence> = {}): Evidence =>
+  ({
+    id: id(),
+    imgEvidence: 'uuid-evidence.png',
+    imgSolution: '',
+    imgProcess: null,
+    description: 'Derrame en pasillo',
+    descriptionSolution: '',
+    status: STATUS_OPEN,
+    isActive: true,
+    priorityDays: null,
+    createdAt: new Date('2026-10-01T15:00:00Z'),
+    updatedAt: new Date('2026-10-01T15:00:00Z'),
+    manufacturingPlant: buildManufacturingPlant({ id: 1 }),
+    mainType: { id: 1, name: 'Condición insegura' },
+    secondaryType: { id: 2, name: 'Orden y limpieza' },
+    zone: { id: 3, name: 'Almacén' },
+    process: { id: 4, name: 'Producción' },
+    user: buildUser({ name: 'Quien reportó' }),
+    supervisors: [buildSupervisor({ name: 'Supervisor del área' })],
+    responsibles: [buildUser({ name: 'Responsable del proceso' })],
+    comments: [],
+    ...overrides,
+  }) as Evidence;

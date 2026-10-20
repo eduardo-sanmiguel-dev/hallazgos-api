@@ -1,5 +1,6 @@
-import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
+import { Controller, Get, ParseIntPipe, Query } from '@nestjs/common';
 
+import { UserPlantPipe } from '@shared/pipes';
 import { DashboardService } from './dashboard.service';
 
 @Controller('dashboard')
@@ -53,132 +54,56 @@ export class DashboardController {
 
   @Get('business-intelligence/epp')
   findBusinessIntelligenceEpp(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
   ) {
     return this.dashboardService.findBusinessIntelligenceEpp(
-      +manufacturingPlantId,
+      manufacturingPlantId,
     );
-  }
-
-  @Get('my-evidences/:userId')
-  // ParseIntPipe: el id se interpola en SQL; solo se aceptan enteros.
-  findMyEvidences(@Param('userId', ParseIntPipe) userId: number) {
-    return this.dashboardService.findMyEvidences(userId);
   }
 
   @Get('critical-zones')
   findCriticalZones(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
   ) {
-    return this.dashboardService.findCriticalZones(+manufacturingPlantId);
+    return this.dashboardService.findCriticalZones(manufacturingPlantId);
   }
 
   @Get('global-summary')
   findGlobalSummary(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
   ) {
-    return this.dashboardService.findGlobalSummary(+manufacturingPlantId);
+    return this.dashboardService.findGlobalSummary(manufacturingPlantId);
   }
 
   @Get('ranking-of-responsibles')
   findRankingOfResponsibles(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
   ) {
     return this.dashboardService.findRankingOfResponsibles(
-      +manufacturingPlantId,
+      manufacturingPlantId,
     );
   }
 
   @Get('average-resolution-time')
   findAverageResolutionTime(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
   ) {
     return this.dashboardService.findAverageResolutionTime(
-      +manufacturingPlantId,
+      manufacturingPlantId,
     );
   }
-  @Get('average-resolution-time-by-user')
-  findAverageResolutionTimeByUser(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
-    @Query('userId') userId: string,
-    @Query('assigned') assigned: string,
-  ) {
-    return this.dashboardService.findAverageResolutionTimeByUser(
-      +manufacturingPlantId,
-      +userId,
-      assigned === 'true',
-    );
-  }
-
-  @Get('type-evidence-by-user')
-  findTypeEvidenceByUser(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
-    @Query('userId') userId: string,
-  ) {
-    return this.dashboardService.findTypeEvidenceByUser(
-      +manufacturingPlantId,
-      +userId,
-    );
-  }
-
-  @Get('pending-by-seniority-by-user')
-  findPendingBySeniorityByUser(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
-    @Query('userId') userId: string,
-  ) {
-    return this.dashboardService.findPendingBySeniorityByUser(
-      +manufacturingPlantId,
-      +userId,
-    );
-  }
-
-  @Get('monthly-global-trend')
-  findMonthlyGlobalTrend(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
-    @Query('isAdmin') isAdmin: string,
-    @Query('userId') userId: string,
-  ) {
-    return this.dashboardService.findMonthlyGlobalTrend(
-      +manufacturingPlantId,
-      isAdmin === 'true',
-      Number(userId) ? +userId : 0,
-    );
-  }
-
   @Get('monthly-type-trend')
   findMonthlyTypeTrend(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
   ) {
-    return this.dashboardService.findMonthlyTypeTrend(+manufacturingPlantId);
+    return this.dashboardService.findMonthlyTypeTrend(manufacturingPlantId);
   }
 
   @Get('monthly-subtype-trend')
   findMonthlySubtypeTrend(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
   ) {
-    return this.dashboardService.findMonthlySubtypeTrend(+manufacturingPlantId);
-  }
-
-  @Get('open-evidences')
-  findOpenEvidences(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
-    @Query('userId') userId: string,
-  ) {
-    return this.dashboardService.findOpenEvidences(
-      +manufacturingPlantId,
-      +userId,
-    );
-  }
-
-  @Get('recent-evidences')
-  findRecentEvidences(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
-    @Query('userId') userId: string,
-  ) {
-    return this.dashboardService.findRecentEvidences(
-      +manufacturingPlantId,
-      +userId,
-    );
+    return this.dashboardService.findMonthlySubtypeTrend(manufacturingPlantId);
   }
 
   @Get('status')
@@ -188,7 +113,7 @@ export class DashboardController {
 
   @Get('status-by-filters')
   findStatusByFilters(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
     @Query('areaIds') areaIds?: string,
@@ -199,7 +124,7 @@ export class DashboardController {
     @Query('mainTypeId') mainTypeId?: string,
   ) {
     return this.dashboardService.findStatusByFilters(
-      +manufacturingPlantId,
+      manufacturingPlantId,
       startDate,
       endDate,
       this.parseAreaIds(areaIds, areaId),
@@ -210,7 +135,7 @@ export class DashboardController {
 
   @Get('priority-intervention-by-filters')
   findPriorityInterventionByFilters(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
     @Query('areaIds') areaIds?: string,
@@ -221,7 +146,7 @@ export class DashboardController {
     @Query('mainTypeId') mainTypeId?: string,
   ) {
     return this.dashboardService.findPriorityInterventionByFilters(
-      +manufacturingPlantId,
+      manufacturingPlantId,
       startDate,
       endDate,
       this.parseAreaIds(areaIds, areaId),
@@ -232,7 +157,7 @@ export class DashboardController {
 
   @Get('risk-level-by-filters')
   findRiskLevelByFilters(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
     @Query('areaIds') areaIds?: string,
@@ -243,7 +168,7 @@ export class DashboardController {
     @Query('mainTypeId') mainTypeId?: string,
   ) {
     return this.dashboardService.findRiskLevelByFilters(
-      +manufacturingPlantId,
+      manufacturingPlantId,
       startDate,
       endDate,
       this.parseAreaIds(areaIds, areaId),
@@ -254,7 +179,7 @@ export class DashboardController {
 
   @Get('areas-by-filters')
   findAreasByFilters(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
     @Query('areaIds') areaIds?: string,
@@ -265,7 +190,7 @@ export class DashboardController {
     @Query('mainTypeId') mainTypeId?: string,
   ) {
     return this.dashboardService.findAreasByFilters(
-      +manufacturingPlantId,
+      manufacturingPlantId,
       startDate,
       endDate,
       this.parseAreaIds(areaIds, areaId),
@@ -276,7 +201,7 @@ export class DashboardController {
 
   @Get('main-types-by-filters')
   findMainTypesByFilters(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
     @Query('areaIds') areaIds?: string,
@@ -287,7 +212,7 @@ export class DashboardController {
     @Query('mainTypeId') mainTypeId?: string,
   ) {
     return this.dashboardService.findMainTypesByFilters(
-      +manufacturingPlantId,
+      manufacturingPlantId,
       startDate,
       endDate,
       this.parseAreaIds(areaIds, areaId),
@@ -298,7 +223,7 @@ export class DashboardController {
 
   @Get('heatmap-by-filters')
   findHeatmapByFilters(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
     @Query('areaIds') areaIds?: string,
@@ -309,7 +234,7 @@ export class DashboardController {
     @Query('mainTypeId') mainTypeId?: string,
   ) {
     return this.dashboardService.findHeatmapByFilters(
-      +manufacturingPlantId,
+      manufacturingPlantId,
       startDate,
       endDate,
       this.parseAreaIds(areaIds, areaId),
@@ -320,7 +245,7 @@ export class DashboardController {
 
   @Get('assigned-responsibles-by-filters')
   findAssignedResponsiblesByFilters(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
     @Query('areaIds') areaIds?: string,
@@ -331,7 +256,7 @@ export class DashboardController {
     @Query('mainTypeId') mainTypeId?: string,
   ) {
     return this.dashboardService.findAssignedResponsiblesByFilters(
-      +manufacturingPlantId,
+      manufacturingPlantId,
       startDate,
       endDate,
       this.parseAreaIds(areaIds, areaId),
@@ -347,7 +272,7 @@ export class DashboardController {
 
   @Get('sankey-by-filters')
   findSankeyByFilters(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
     @Query('areaIds') areaIds?: string,
@@ -358,7 +283,7 @@ export class DashboardController {
     @Query('mainTypeId') mainTypeId?: string,
   ) {
     return this.dashboardService.findSankeyByFilters(
-      +manufacturingPlantId,
+      manufacturingPlantId,
       startDate,
       endDate,
       this.parseAreaIds(areaIds, areaId),
@@ -369,7 +294,7 @@ export class DashboardController {
 
   @Get('packed-bubble-by-filters')
   findPackedBubbleByFilters(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
     @Query('areaIds') areaIds?: string,
@@ -380,7 +305,7 @@ export class DashboardController {
     @Query('mainTypeId') mainTypeId?: string,
   ) {
     return this.dashboardService.findPackedBubbleByFilters(
-      +manufacturingPlantId,
+      manufacturingPlantId,
       startDate,
       endDate,
       this.parseAreaIds(areaIds, areaId),
@@ -391,7 +316,7 @@ export class DashboardController {
 
   @Get('solid-gauge-kpi-by-filters')
   findSolidGaugeKpiByFilters(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
     @Query('areaIds') areaIds?: string,
@@ -402,7 +327,7 @@ export class DashboardController {
     @Query('mainTypeId') mainTypeId?: string,
   ) {
     return this.dashboardService.findSolidGaugeKpiByFilters(
-      +manufacturingPlantId,
+      manufacturingPlantId,
       startDate,
       endDate,
       this.parseAreaIds(areaIds, areaId),
@@ -413,7 +338,7 @@ export class DashboardController {
 
   @Get('area-range-line-by-filters')
   findAreaRangeLineByFilters(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
     @Query('areaIds') areaIds?: string,
@@ -424,7 +349,7 @@ export class DashboardController {
     @Query('mainTypeId') mainTypeId?: string,
   ) {
     return this.dashboardService.findAreaRangeLineByFilters(
-      +manufacturingPlantId,
+      manufacturingPlantId,
       startDate,
       endDate,
       this.parseAreaIds(areaIds, areaId),
@@ -435,7 +360,7 @@ export class DashboardController {
 
   @Get('responsibles-by-filters')
   findResponsiblesByFilters(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
     @Query('areaIds') areaIds?: string,
@@ -444,7 +369,7 @@ export class DashboardController {
     @Query('mainTypeId') mainTypeId?: string,
   ) {
     return this.dashboardService.findResponsiblesByFilters(
-      +manufacturingPlantId,
+      manufacturingPlantId,
       startDate,
       endDate,
       this.parseAreaIds(areaIds, areaId),
@@ -471,31 +396,29 @@ export class DashboardController {
 
   @Get('main-types-global-trend')
   findMainTypesGlobalTrend(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
   ) {
-    return this.dashboardService.findMainTypesGlobalTrend(
-      +manufacturingPlantId,
-    );
+    return this.dashboardService.findMainTypesGlobalTrend(manufacturingPlantId);
   }
 
   @Get('main-types-global-trend-details')
   findMainTypesGlobalTrendDetails(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
     @Query('mainTypeId') mainTypeId: string,
   ) {
     return this.dashboardService.findMainTypesGlobalTrendDetails(
-      +manufacturingPlantId,
+      manufacturingPlantId,
       +mainTypeId,
     );
   }
 
   @Get('percentage-compliance-by-zone')
   findPercentageComplianceByZone(
-    @Query('manufacturingPlantId') manufacturingPlantId: string,
+    @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
     @Query('mainTypeId') mainTypeId: string,
   ) {
     return this.dashboardService.findPercentageComplianceByZone(
-      +manufacturingPlantId,
+      manufacturingPlantId,
       +mainTypeId,
     );
   }

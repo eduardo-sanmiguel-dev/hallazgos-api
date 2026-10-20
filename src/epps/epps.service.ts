@@ -67,9 +67,19 @@ export class EppsService {
       .filter((epp) => epp.equipments.length > 0);
   }
 
+  /** Plantas del usuario en sesión (filtro de todas las consultas por id). */
+  private get userPlantIds() {
+    return In(this.requestContext.manufacturingPlantIds);
+  }
+
   async validateDeliveryFrequency(equipmentId: number, employeeId: number) {
+    // Solo equipos de las plantas del usuario: uno ajeno responde 404.
     const equipment = await this.equipmentRepository.findOne({
-      where: { id: equipmentId, isActive: true },
+      where: {
+        id: equipmentId,
+        isActive: true,
+        manufacturingPlant: { id: this.userPlantIds },
+      },
     });
 
     if (!equipment) {
@@ -117,9 +127,17 @@ export class EppsService {
 
     const { employeeId, signature, equipments } = createEppDto;
 
-    const employee = await this.employeeRepository.findOne({
-      where: { id: employeeId, isActive: true },
-    });
+    // Solo empleados de las plantas del usuario: uno ajeno responde 404.
+    const plantIds = this.requestContext.manufacturingPlantIds;
+    const employee = plantIds.length
+      ? await this.employeeRepository.findOne({
+          where: {
+            id: employeeId,
+            isActive: true,
+            manufacturingPlants: { id: In(plantIds) },
+          },
+        })
+      : null;
 
     if (!employee) {
       throw new NotFoundException(`Employee with ID ${employeeId} not found.`);
@@ -127,7 +145,11 @@ export class EppsService {
 
     for (const equipment of equipments) {
       const currrentEquipment = await this.equipmentRepository.findOne({
-        where: { id: equipment.id, isActive: true },
+        where: {
+          id: equipment.id,
+          isActive: true,
+          manufacturingPlant: { id: this.userPlantIds },
+        },
       });
 
       if (!currrentEquipment) {
@@ -190,6 +212,20 @@ export class EppsService {
     }
 
     return { message: 'EPP created successfully' };
+  }
+
+  /** 404 si el empleado no existe o no es de una de las plantas del usuario. */
+  async assertEmployeeInUserPlants(employeeId: number) {
+    const plantIds = this.requestContext.manufacturingPlantIds;
+    const found =
+      plantIds.length > 0 &&
+      (await this.employeeRepository.exists({
+        where: { id: employeeId, manufacturingPlants: { id: In(plantIds) } },
+      }));
+
+    if (!found) {
+      throw new NotFoundException(`Empleado #${employeeId} no encontrado`);
+    }
   }
 
   /** Nombre del archivo con los datos actuales del empleado y la hora del usuario. */
@@ -383,8 +419,13 @@ export class EppsService {
   }
 
   async findOne(id: number) {
+    // Solo EPP de empleados de las plantas del usuario: uno ajeno responde 404.
     const epp = await this.eppRepository.findOne({
-      where: { id, isActive: true },
+      where: {
+        id,
+        isActive: true,
+        employee: { manufacturingPlants: { id: this.userPlantIds } },
+      },
       relations: this.relations,
     });
 
@@ -404,8 +445,13 @@ export class EppsService {
   }
 
   async removeHistory(equipmentHistoryId: number) {
+    // Solo historial de empleados de las plantas del usuario: uno ajeno
+    // responde 404 (y no se borra nada).
     const equipmentHistory = await this.eppEquipmentRepository.findOne({
-      where: { id: equipmentHistoryId },
+      where: {
+        id: equipmentHistoryId,
+        epp: { employee: { manufacturingPlants: { id: this.userPlantIds } } },
+      },
       relations: ['epp'],
     });
 

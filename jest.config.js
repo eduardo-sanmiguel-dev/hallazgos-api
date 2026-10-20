@@ -64,16 +64,53 @@ const findReexportOnlyIndexes = (dir) =>
  */
 const STAGES = {
   // Piso actual redondeado hacia abajo: la cobertura no puede bajar.
-  inicial: { statements: 15, branches: 8, functions: 8, lines: 14 },
+  inicial: { statements: 20, branches: 14, functions: 11, lines: 18 },
   // Al terminar la prioridad P1 de la Fase 3.
   p1: { statements: 35, branches: 25, functions: 30, lines: 35 },
   p2: { statements: 55, branches: 45, functions: 50, lines: 55 },
   p3: { statements: 70, branches: 60, functions: 65, lines: 70 },
   final: { statements: 80, branches: 70, functions: 75, lines: 80 },
 };
-const STAGE = 'inicial';
+const STAGE = 'final'; // alcanzada al terminar la P3 (2026-10-20)
+
+// Piso real de los archivos sin umbral de carpeta (ver coverageThreshold).
+const RESTO = { statements: 79, branches: 70, functions: 56, lines: 76 };
 
 const META = 'meta';
+
+/**
+ * Meta de los módulos con lógica de negocio (plan: 85 % de sentencias). Las
+ * funciones quedan en 70: algunos módulos conservan stubs generados por Nest
+ * (update/remove que solo devuelven un texto) que no se prueban a propósito.
+ */
+const SERVICE_META = { statements: 85, branches: 70, functions: 70, lines: 85 };
+
+const BUSINESS_FOLDERS = [
+  'users',
+  'epps',
+  'ciaels',
+  'employees',
+  'equipments',
+  'gemba-walks',
+  'gemba-walk-calendar',
+  'gemba-walk-evaluations',
+  'gemba-walk-observers',
+  'gemba-walk-zones',
+  'mail',
+  'extinguisher-inspections',
+  'manufacturing-plants',
+  'areas',
+  'zones',
+  'processes',
+  'main-types',
+  'secondary-types',
+  'ics',
+  'emergency-teams',
+  'shared/utils',
+  'shared/pipes',
+  'shared/services',
+  'shared/filters',
+];
 /**
  * Carpetas sensibles con umbral propio, más alto que el global. Cada una
  * tiene su meta y el mínimo vigente; en cuanto una carpeta alcanza su meta,
@@ -90,9 +127,13 @@ const FOLDERS = {
   },
   evidences: {
     meta: { statements: 80, branches: 70, functions: 80, lines: 80 },
-    minimo: { statements: 3, branches: 0, functions: 1, lines: 2 },
+    minimo: META, // alcanzada en la Fase 3, flujos C3 y C5
   },
 };
+
+for (const folder of BUSINESS_FOLDERS) {
+  FOLDERS[folder] = { meta: SERVICE_META, minimo: META }; // alcanzada en P1–P3
+}
 
 const critical = Object.fromEntries(
   Object.entries(FOLDERS).map(([folder, { meta, minimo }]) => [
@@ -128,16 +169,27 @@ module.exports = {
     '!**/*.interfaces.ts',
     '!**/interfaces/**',
     '!**/*.enum.ts',
+    // Clases de argumentos y tipos de GraphQL: son el equivalente de los DTOs
+    // (solo decoradores; sus funciones de tipo se ejecutan al armar el schema).
+    '!**/inputs/**',
+    '!**/types/**',
     '!main.ts',
     '!config/**',
     '!migrations/**',
     '!database/**',
     // Seed de datos de ejemplo de hallazgos (no es lógica de la app).
     '!evidences/evidences-seed.service.ts',
+    // Sin uso: solo se referencia en un bloque comentado de main.ts.
+    '!cluster.service.ts',
     ...findReexportOnlyIndexes(SRC),
   ],
   coverageThreshold: {
-    global: STAGES[STAGE],
+    // Con umbral propio en cada carpeta de negocio, el "global" de Jest solo
+    // mide el resto: sobre todo catálogos con stubs generados por Nest
+    // (findOne/update/remove que devuelven un texto y no se prueban). Por eso
+    // aquí va el piso real de ese resto; la meta global del plan (80/70 sobre
+    // todo menos dashboard.service) la verifica `pnpm test:cov:goal`.
+    global: RESTO,
     ...critical,
     // dashboard.service es casi todo SQL a mano: se cubrirá con tests de
     // integración contra una BD de pruebas en la Fase 4. Mientras tanto se

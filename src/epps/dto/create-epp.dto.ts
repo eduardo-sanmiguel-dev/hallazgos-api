@@ -1,4 +1,10 @@
-import { IsArray, IsPositive, IsString, ValidateNested } from 'class-validator';
+import {
+  ArrayNotEmpty,
+  IsArray,
+  IsPositive,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 class EquipmentDto {
@@ -19,7 +25,9 @@ export class CreateEppDto {
   @IsString()
   signature: string;
 
+  // Antes se aceptaba una entrega sin equipos (quedaba vacía).
   @IsArray()
+  @ArrayNotEmpty()
   @ValidateNested({ each: true })
   @Type(() => EquipmentDto)
   equipments: EquipmentDto[];

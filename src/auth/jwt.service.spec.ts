@@ -24,7 +24,9 @@ describe('JwtService', () => {
       expect(service.verify(service.create(42)).userId).toBe(42);
     });
 
-    it('se aceptan los emitidos antes de existir `purpose` (sesiones vigentes)', () => {
+    // Comportamiento temporal: ver el TODO(2026-11-20) en JwtService.verify.
+    // Cuando se quite, este test debe cambiar a "rechaza tokens sin purpose".
+    it('[temporal hasta 2026-11-20] acepta como sesión los tokens emitidos antes de existir `purpose`', () => {
       const legacy = jwt.sign({ userId: 5 }, secret, {
         algorithm: 'HS256',
         expiresIn: 60,
