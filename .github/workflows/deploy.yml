@@ -34,12 +34,17 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Pruebas unitarias
+      - name: Pruebas unitarias con cobertura
         env:
           NODE_ENV: test
         run: |
           mkdir -p public/static/images/evidences
-          pnpm test --config ./jest.config.js --ci --runInBand
+          pnpm test:cov --config ./jest.config.js --ci --runInBand
+
+      - name: Pruebas HTTP con servicios simulados
+        env:
+          NODE_ENV: test
+        run: pnpm test:e2e --ci --runInBand
 
   # PostgreSQL desechable del runner: sin credenciales ni acceso al VPS.
   database-tests:

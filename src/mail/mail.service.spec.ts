@@ -262,13 +262,33 @@ describe('MailService', () => {
       });
     });
 
+    it('conserva las fechas en español y la duración en el correo de solución', async () => {
+      await service.sendSolution({
+        user: recipient,
+        evidenceCurrent: evidence({
+          createdAt: new Date(2026, 9, 20, 8, 5),
+          solutionDate: new Date(2026, 9, 20, 9, 6, 1),
+        }),
+      });
+
+      expect(sent().context).toMatchObject({
+        createdAt: '20 de octubre de 2026 8:05',
+        solutionDate: '20 de octubre de 2026 9:06',
+        durantionToTime: '1h 1m 1s',
+      });
+    });
+
     it('fechas inválidas no rompen el correo', async () => {
       await service.sendSolution({
         user: recipient,
         evidenceCurrent: evidence({ solutionDate: 'no-es-fecha' as never }),
       });
 
-      expect(sent().context.resolutionDays).toBe('');
+      expect(sent().context).toMatchObject({
+        resolutionDays: '',
+        solutionDate: 'Fecha inválida',
+        durantionToTime: '  ',
+      });
     });
   });
 
