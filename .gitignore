@@ -43,3 +43,8 @@ lerna-debug.log*
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+
+# Archivos que generaban las exportaciones (ahora se crean en una carpeta
+# temporal por descarga). Contienen datos personales y firmas.
+src/files/archivo_actualizado*.xlsx
+src/files/*temp-image.png

@@ -7,6 +7,7 @@ import {
   OneToMany,
   ManyToOne,
   Relation,
+  Index,
 } from 'typeorm';
 
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
@@ -50,5 +51,6 @@ export class Equipment {
     () => ManufacturingPlant,
     (manufacturingPlant) => manufacturingPlant.equipments,
   )
+  @Index('IDX_equipment_manufacturingPlantId')
   manufacturingPlant: Relation<ManufacturingPlant>;
 }

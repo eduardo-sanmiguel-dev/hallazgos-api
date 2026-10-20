@@ -8,6 +8,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   Relation,
+  Index,
 } from 'typeorm';
 
 import { Evidence } from './evidence.entity';
@@ -38,6 +39,7 @@ export class Comment {
 
   @ManyToOne(() => Evidence, (evidence) => evidence.comments)
   @Field(() => Evidence)
+  @Index('IDX_comments_evidenceId')
   evidence: Relation<Evidence>;
 
   @ManyToOne(() => User, (user) => user.comments, {

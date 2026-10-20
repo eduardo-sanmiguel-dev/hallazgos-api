@@ -8,6 +8,7 @@ import {
   ManyToMany,
   JoinTable,
   Relation,
+  Index,
 } from 'typeorm';
 
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
@@ -62,6 +63,7 @@ export class Ics {
     () => ManufacturingPlant,
     (manufacturingPlant) => manufacturingPlant.ics,
   )
+  @Index('IDX_ics_manufacturingPlantId')
   manufacturingPlant: Relation<ManufacturingPlant>;
 
   @ManyToOne(() => RulesOfLife, (rulesOfLife) => rulesOfLife.ics)

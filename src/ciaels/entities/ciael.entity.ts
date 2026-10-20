@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   Relation,
+  Index,
 } from 'typeorm';
 
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
@@ -80,6 +81,7 @@ export class Ciael {
     () => ManufacturingPlant,
     (manufacturingPlant) => manufacturingPlant.zones,
   )
+  @Index('IDX_ciael_manufacturingPlantId')
   manufacturingPlant: Relation<ManufacturingPlant>;
 
   @ManyToOne(() => TypesOfEvent, (typesOfEvent) => typesOfEvent.ciaels)
@@ -89,6 +91,7 @@ export class Ciael {
   createdBy: Relation<User>;
 
   @ManyToOne(() => Employee, (employee) => employee.ciaels)
+  @Index('IDX_ciael_employeeId')
   employee: Relation<Employee>;
 
   @ManyToOne(() => CieDiagnosis, (cieDiagnosis) => cieDiagnosis.ciaels)

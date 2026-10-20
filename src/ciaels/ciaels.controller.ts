@@ -17,7 +17,7 @@ import XlsxPopulate from 'xlsx-populate';
 //import * as ExcelJS from 'exceljs';
 import type { Response } from 'express';
 
-import { calculateAge } from '@shared/utils';
+import { calculateAge, createTempDir, removeTempDir } from '@shared/utils';
 import { CreateCiaelDto, FiltersCiaelDto, UpdateCiaelDto } from './dto';
 import { CiaelsService } from './ciaels.service';
 
@@ -31,11 +31,9 @@ export class CiaelsController {
     'CIAEL.xlsx',
   );
 
-  private readonly filePathNewFile = join(
-    process.cwd(),
-    'src/files',
-    'archivo_actualizado_ciael.xlsx',
-  );
+  // Nombre del archivo generado; se escribe en una carpeta temporal propia
+  // de cada descarga (ver createTempDir).
+  private readonly newFileName = 'archivo_actualizado_ciael.xlsx';
 
   constructor(private readonly ciaelsService: CiaelsService) {}
 
@@ -52,6 +50,11 @@ export class CiaelsController {
   @Get('download/excel')
   async downloadFile(@Res() res: Response) {
     const data = await this.ciaelsService.findAll();
+
+    // Cada descarga trabaja en su propia carpeta: con una ruta compartida, dos
+    // descargas simultáneas se pisaban y se podía entregar el archivo de otro.
+    const tempDir = await createTempDir('ciael');
+    const filePathNewFile = join(tempDir, this.newFileName);
 
     XlsxPopulate.fromFileAsync(this.filePath)
       .then((workbook) => {
@@ -114,16 +117,18 @@ export class CiaelsController {
           sheet.cell(`AG${currentIdx}`).value(ciael.manager?.name || '');
         }
 
-        return workbook.toFileAsync(this.filePathNewFile);
+        return workbook.toFileAsync(filePathNewFile);
       })
       .then(async () => {
-        res.download(this.filePathNewFile, (err) => {
+        res.download(filePathNewFile, (err) => {
+          void removeTempDir(tempDir);
           if (err) {
             res.status(500).send('Error al descargar el archivo');
           }
         });
       })
       .catch((err) => {
+        void removeTempDir(tempDir);
         this.logger.error('Error al procesar el archivo', err?.stack ?? err);
         res.status(500).send('Error al procesar el archivo');
       });

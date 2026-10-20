@@ -26,9 +26,13 @@ describe('API (e2e)', () => {
   };
   const authService = {
     login: jest.fn().mockResolvedValue('token=abc; Path=/'),
+    loginRestorePassword: jest.fn().mockResolvedValue('token=abc; Path=/'),
+    checkTokenRestorePassword: jest.fn().mockResolvedValue({ message: 'ok' }),
   };
 
-  beforeAll(async () => {
+  // App con el contador de intentos en cero (el ThrottlerModule guarda los
+  // intentos por instancia).
+  const createApp = async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [
         ThrottlerModule.forRoot([{ name: 'auth', ttl: 60_000, limit: 10 }]),
@@ -50,9 +54,9 @@ describe('API (e2e)', () => {
       ],
     }).compile();
 
-    app = moduleRef.createNestApplication();
+    const nestApp = moduleRef.createNestApplication();
     // Misma configuración de validación que main.ts.
-    app.useGlobalPipes(
+    nestApp.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
         forbidNonWhitelisted: true,
@@ -60,7 +64,12 @@ describe('API (e2e)', () => {
         transformOptions: { enableImplicitConversion: true },
       }),
     );
-    await app.init();
+    await nestApp.init();
+    return nestApp;
+  };
+
+  beforeAll(async () => {
+    app = await createApp();
   });
 
   afterAll(() => app.close());
@@ -146,6 +155,63 @@ describe('API (e2e)', () => {
       }
 
       await login().expect(429);
+    });
+  });
+
+  describe('auth: restablecer contraseña', () => {
+    let restoreApp: INestApplication;
+    const restore = (body: object) =>
+      request(restoreApp.getHttpServer())
+        .post('/auth/login-restore-password')
+        .send(body);
+    const validBody = {
+      email: 'demo@example.com',
+      password: 'Nueva-clave-2',
+      token: 'token-del-correo',
+    };
+
+    beforeEach(async () => {
+      restoreApp = await createApp();
+      authService.loginRestorePassword.mockClear();
+    });
+
+    afterEach(() => restoreApp.close());
+
+    it('exige el token del correo (400) y no llega al servicio', async () => {
+      const { email, password } = validBody;
+
+      const response = await restore({ email, password }).expect(400);
+
+      expect(JSON.stringify(response.body.message)).toContain('token');
+      expect(authService.loginRestorePassword).not.toHaveBeenCalled();
+    });
+
+    it('con el token pasa al servicio y pone la cookie de sesión', async () => {
+      const response = await restore(validBody).expect(201);
+
+      expect(authService.loginRestorePassword).toHaveBeenCalledWith(validBody);
+      expect(response.headers['set-cookie']).toEqual(['token=abc; Path=/']);
+    });
+
+    it('limita a 10 intentos por minuto por IP', async () => {
+      for (let i = 0; i < 10; i++) {
+        await restore(validBody).expect(201);
+      }
+
+      await restore(validBody).expect(429);
+    });
+
+    it('check-token-restore-password también limita a 10 intentos por minuto', async () => {
+      const check = () =>
+        request(restoreApp.getHttpServer())
+          .post('/auth/check-token-restore-password')
+          .send({ token: 'token-del-correo' });
+
+      for (let i = 0; i < 10; i++) {
+        await check().expect(201);
+      }
+
+      await check().expect(429);
     });
   });
 });

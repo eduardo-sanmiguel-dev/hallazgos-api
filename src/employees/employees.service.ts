@@ -1,4 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RequestContextService } from 'shared/services/request-context.service';
 
@@ -9,7 +13,6 @@ import { Genre } from 'genres/entities/genre.entity';
 import {
   CreateEmployeeDto,
   FiltersEmployeeDto,
-  SignatureStatus,
   UpdateEmployeeDto,
 } from './dto';
 import { Zone } from 'zones/entities/zone.entity';
@@ -21,10 +24,6 @@ export class EmployeesService {
     'position',
     'gender',
     'manufacturingPlants',
-    'trainingGuides',
-    'trainingGuides.position',
-    'trainingGuides.evaluations',
-    'trainingGuides.evaluations.topic',
   ];
 
   constructor(
@@ -63,9 +62,9 @@ export class EmployeesService {
   }
 
   get manufacturingPlants() {
-    return [...(this.requestContext.userOrNull?.manufacturingPlants ?? [])].sort(
-      (a, b) => a.name.localeCompare(b.name),
-    );
+    return [
+      ...(this.requestContext.userOrNull?.manufacturingPlants ?? []),
+    ].sort((a, b) => a.name.localeCompare(b.name));
   }
 
   async create(createEmployeeDto: CreateEmployeeDto) {
@@ -80,7 +79,8 @@ export class EmployeesService {
       manufacturingPlantsIds,
     } = createEmployeeDto;
 
-    const manufacturingPlants = this.requestContext.userOrNull?.manufacturingPlants;
+    const manufacturingPlants =
+      this.requestContext.userOrNull?.manufacturingPlants;
 
     const area = await this.employeeAreaRepository.findOne({
       where: { id: areaId, isActive: true },
@@ -142,9 +142,7 @@ export class EmployeesService {
     const { manufacturingPlants } = this.requestContext.user;
 
     const rawIsActive = filtersEmployeeDto.isActive as
-      | boolean
-      | string
-      | undefined;
+      boolean | string | undefined;
 
     const parsedIsActive =
       rawIsActive === true || rawIsActive === 'true'
@@ -159,8 +157,6 @@ export class EmployeesService {
       positionId = 0,
       areaId = 0,
       genreId = 0,
-      assignedUserId = 0,
-      signatureStatus,
     } = filtersEmployeeDto;
 
     const where: FindOptionsWhere<Employee> = {
@@ -192,25 +188,6 @@ export class EmployeesService {
       where.gender = { id: genreId };
     }
 
-    if (assignedUserId) {
-      where.trainingGuides = [
-        {
-          humanResourceManager: {
-            id: assignedUserId,
-          },
-        },
-        {
-          areaManager: {
-            id: assignedUserId,
-          },
-        },
-      ];
-    }
-
-    if (signatureStatus) {
-      where.id = this.signatureStatusFilter(signatureStatus);
-    }
-
     // `name` searches by employee name or by employee code (partial match).
     const search = name.trim();
 
@@ -239,33 +216,6 @@ export class EmployeesService {
     }
 
     return this.findAllPaginated(whereWithSearch, Number(page), Number(limit));
-  }
-
-  /**
-   * Mismo criterio que la tabla de guías: se evalúa la guía del puesto actual
-   * del colaborador (única por empleado + puesto).
-   */
-  private signatureStatusFilter(signatureStatus: SignatureStatus) {
-    const allSigned = `NULLIF(tg.signature_employee, '') IS NOT NULL
-      AND NULLIF(tg.signature_area_manager, '') IS NOT NULL
-      AND NULLIF(tg.signature_human_resource_manager, '') IS NOT NULL`;
-
-    const conditions: Record<SignatureStatus, string> = {
-      complete: `tg.id IS NOT NULL AND ${allSigned}`,
-      pending: `tg.id IS NOT NULL AND NOT (${allSigned})`,
-      'no-guide': 'tg.id IS NULL',
-    };
-
-    return Raw(
-      (alias) => `${alias} IN (
-        SELECT e.id
-          FROM employee e
-          LEFT JOIN training_guide tg
-            ON tg."employeeId" = e.id
-           AND tg."positionId" = e."positionId"
-         WHERE ${conditions[signatureStatus]}
-      )`,
-    );
   }
 
   private async findAllPaginated(
@@ -328,7 +278,8 @@ export class EmployeesService {
       manufacturingPlantsIds,
     } = updateEmployeeDto;
 
-    const manufacturingPlants = this.requestContext.userOrNull?.manufacturingPlants;
+    const manufacturingPlants =
+      this.requestContext.userOrNull?.manufacturingPlants;
 
     const area = await this.employeeAreaRepository.findOne({
       where: { id: areaId, isActive: true },

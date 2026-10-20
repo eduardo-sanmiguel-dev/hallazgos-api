@@ -9,6 +9,7 @@ import {
   ManyToMany,
   OneToMany,
   Relation,
+  Index,
 } from 'typeorm';
 
 import { RulesOfLife } from './rules-of-life.entity';
@@ -35,6 +36,7 @@ export class StandardOfBehavior {
   updatedAt: Date;
 
   @ManyToOne(() => RulesOfLife, (rulesOfLife) => rulesOfLife.standards)
+  @Index('IDX_standards_of_behavior_rulesOfLifeId')
   rulesOfLife: Relation<RulesOfLife>;
 
   @ManyToMany(

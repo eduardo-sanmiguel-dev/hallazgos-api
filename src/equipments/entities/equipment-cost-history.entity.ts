@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   Relation,
+  Index,
 } from 'typeorm';
 
 import { Equipment } from './equipment.entity';
@@ -43,5 +44,6 @@ export class EquipmentCostHistory {
   updatedAt: Date;
 
   @ManyToOne(() => Equipment, (equipment) => equipment.costHistory)
+  @Index('IDX_equipment_cost_history_equipmentId')
   equipment: Relation<Equipment>;
 }

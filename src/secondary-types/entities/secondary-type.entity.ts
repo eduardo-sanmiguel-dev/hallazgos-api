@@ -9,6 +9,7 @@ import {
   ManyToOne,
   OneToMany,
   Relation,
+  Index,
 } from 'typeorm';
 
 import { MainType } from 'main-types/entities/main-type.entity';
@@ -41,6 +42,7 @@ export class SecondaryType {
 
   @ManyToOne(() => MainType, (mainType) => mainType.secondaryTypes)
   @Field(() => MainType)
+  @Index('IDX_secondary_type_mainTypeId')
   mainType: Relation<MainType>;
 
   @OneToMany(() => Evidence, (evidence) => evidence.secondaryType)

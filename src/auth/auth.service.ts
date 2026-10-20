@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { RequestContextService } from 'shared/services/request-context.service';
@@ -14,13 +10,29 @@ import * as argon2 from 'argon2';
 import { ENV_DEVELOPMENT, ENV_PRODUCTION } from '@shared/constants';
 import { User } from 'users/entities/user.entity';
 import { LoginAuthDto } from './dto/login-auth.dto';
+import { RestorePasswordDto } from './dto/restore-password.dto';
 import { JwtService } from './jwt.service';
 import { MailService } from 'mail/mail.service';
 
+// Vida de la cookie de sesión, en SEGUNDOS (como espera `cookie.serialize`);
+// igual que la del token de sesión.
+const SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
+
+// Mismo mensaje exista o no el correo: no revela qué cuentas existen.
+const INVALID_CREDENTIALS = 'Credenciales no válidas';
+const FORGOT_PASSWORD_MESSAGE =
+  'Si el correo está registrado, recibirá un enlace para restablecer su contraseña. Revise su bandeja de entrada.';
+const INVALID_RESET_TOKEN =
+  'El enlace para restablecer la contraseña no es válido o ya venció. Solicite uno nuevo.';
+
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   nameCookie: string;
   environment: string;
+  // Hash de relleno: si el correo no existe se verifica igual contra él, para
+  // que el tiempo de respuesta no delate qué cuentas existen.
+  private dummyHash: Promise<string>;
 
   constructor(
     @InjectRepository(User)
@@ -42,61 +54,65 @@ export class AuthService {
       path: '/',
       domain:
         this.environment === ENV_PRODUCTION ? 'comportarte.com' : 'localhost',
-    };
+    } as const;
+  }
+
+  private sessionCookie(userId: number): string {
+    return serialize(this.nameCookie, this.jwtService.create(userId), {
+      ...this.optsSerialize,
+      maxAge: SESSION_COOKIE_MAX_AGE,
+    });
+  }
+
+  private findActiveUser(where: { email?: string; id?: number }) {
+    return this.userRepository.findOne({
+      where: { ...where, isActive: true },
+      relations: ['manufacturingPlants'],
+      select: { id: true, email: true, password: true },
+    });
   }
 
   async login(loginAuthDto: LoginAuthDto): Promise<string> {
     const { email, password } = loginAuthDto;
 
-    const user = await this.userRepository.findOne({
-      where: {
-        email,
-        isActive: true,
-      },
-      relations: ['manufacturingPlants'],
-      select: {
-        id: true,
-        password: true,
-      },
-    });
+    const user = await this.findActiveUser({ email });
 
-    if (!user)
-      throw new NotFoundException(`Usuario con email ${email} no encontrado`);
+    if (!user) {
+      this.dummyHash ??= argon2.hash('contraseña-de-relleno');
+      await argon2.verify(await this.dummyHash, password).catch(() => false);
+      throw new UnauthorizedException(INVALID_CREDENTIALS);
+    }
 
+    if (!(await argon2.verify(user.password, password))) {
+      throw new UnauthorizedException(INVALID_CREDENTIALS);
+    }
+
+    // Después de validar la contraseña: solo quien la conoce sabe si a la
+    // cuenta le faltan plantas.
     if (!user.manufacturingPlants.length)
       throw new UnauthorizedException('Usuario no tiene plantas asignadas');
 
-    if (!(await argon2.verify(user.password, password))) {
-      throw new UnauthorizedException('Credenciales no válidas');
-    }
-
-    const token = this.jwtService.create(user.id);
-
-    const serialized = serialize(this.nameCookie, token, {
-      ...this.optsSerialize,
-      maxAge: 1000 * 60 * 60 * 24 * 30,
-    });
-
-    return serialized;
+    return this.sessionCookie(user.id);
   }
 
-  async loginRestorePassword(loginAuthDto: LoginAuthDto): Promise<string> {
-    const { email, password } = loginAuthDto;
+  /**
+   * Cambia la contraseña con el token del correo de recuperación. El token
+   * debe ser de recuperación, estar vigente, ser del usuario del correo y no
+   * haberse usado (deja de servir en cuanto cambia la contraseña).
+   */
+  async loginRestorePassword(
+    restorePasswordDto: RestorePasswordDto,
+  ): Promise<string> {
+    const { email, password, token } = restorePasswordDto;
 
-    const user = await this.userRepository.findOne({
-      where: {
-        email,
-        isActive: true,
-      },
-      relations: ['manufacturingPlants'],
-      select: {
-        id: true,
-        password: true,
-      },
-    });
+    const user = await this.userFromResetToken(token);
 
-    if (!user)
-      throw new NotFoundException(`Usuario con email ${email} no encontrado`);
+    if (
+      !email ||
+      user.email.trim().toLowerCase() !== email.trim().toLowerCase()
+    ) {
+      throw new UnauthorizedException(INVALID_RESET_TOKEN);
+    }
 
     if (!user.manufacturingPlants.length)
       throw new UnauthorizedException('Usuario no tiene plantas asignadas');
@@ -105,38 +121,17 @@ export class AuthService {
       password: await argon2.hash(password),
     });
 
-    const userUpdated = await this.userRepository.findOne({
-      where: {
-        id: user.id,
-      },
-      select: {
-        id: true,
-        password: true,
-      },
-    });
+    this.logger.log(`Contraseña restablecida para el usuario ${user.id}`);
 
-    if (!(await argon2.verify(userUpdated.password, password))) {
-      throw new UnauthorizedException('Credenciales no válidas');
-    }
-
-    const token = this.jwtService.create(user.id);
-
-    const serialized = serialize(this.nameCookie, token, {
-      ...this.optsSerialize,
-      maxAge: 1000 * 60 * 60 * 24 * 30,
-    });
-
-    return serialized;
+    return this.sessionCookie(user.id);
   }
 
   async logout(): Promise<string> {
     // Se borra la cookie (valor vacío y maxAge 0).
-    const serialized = serialize(this.nameCookie, '', {
+    return serialize(this.nameCookie, '', {
       ...this.optsSerialize,
       maxAge: 0,
     });
-
-    return serialized;
   }
 
   async forgotPassword(email: string): Promise<{
@@ -144,46 +139,70 @@ export class AuthService {
   }> {
     const user = await this.userRepository.findOne({
       where: { email, isActive: true },
+      select: { id: true, email: true, password: true },
     });
 
-    if (!user) {
-      throw new NotFoundException(`Usuario con email ${email} no encontrado`);
-    }
-    const token = this.jwtService.create(user.id, true);
+    // Misma respuesta exista o no la cuenta.
+    if (!user) return { message: FORGOT_PASSWORD_MESSAGE };
+
+    const token = this.jwtService.createResetToken(user.id, user.password);
 
     if (this.environment === ENV_DEVELOPMENT) {
       email = 'eduardo-266@hotmail.com';
     }
 
-    await this.mailService.sendForgotPassword(email, token);
+    // Un fallo del correo tampoco cambia la respuesta (delataría la cuenta);
+    // queda en el log.
+    await this.mailService.sendForgotPassword(email, token).catch((error) => {
+      this.logger.error(
+        `No se pudo enviar el correo de recuperación al usuario ${user.id}: ${error?.message}`,
+      );
+    });
 
-    return {
-      message:
-        'Se ha enviado un correo para restablecer su contraseña, por favor revise su bandeja de entrada.',
-    };
+    return { message: FORGOT_PASSWORD_MESSAGE };
   }
 
   checkToken(): {
     message: string;
   } {
-    const token =
-      this.requestContext.request.headers['authorization'].split(' ')[1];
+    const authorization = this.requestContext.request.headers['authorization'];
+    const token = `${authorization ?? ''}`.split(' ')[1];
+
+    if (!token) throw new UnauthorizedException('Token no válido');
+
     try {
       this.jwtService.verify(token);
       return { message: 'Token válido.' };
-    } catch (error) {
+    } catch {
       throw new UnauthorizedException('Token no válido');
     }
   }
 
-  checkTokenRestorePassword(token: string): {
+  async checkTokenRestorePassword(token: string): Promise<{
     message: string;
-  } {
+  }> {
+    await this.userFromResetToken(token);
+    return { message: 'Token de restablecimiento de contraseña válido.' };
+  }
+
+  /** Usuario activo dueño de un token de recuperación válido y sin usar. */
+  private async userFromResetToken(token: string): Promise<User> {
+    let userId: number;
     try {
-      this.jwtService.verify(token);
-      return { message: 'Token de restablecimiento de contraseña válido.' };
-    } catch (error) {
-      throw new UnauthorizedException('Token no válido');
+      userId = this.jwtService.decodeResetToken(token).userId;
+    } catch {
+      throw new UnauthorizedException(INVALID_RESET_TOKEN);
     }
+
+    const user = await this.findActiveUser({ id: userId });
+
+    try {
+      if (!user) throw new Error('Usuario no encontrado o inactivo');
+      this.jwtService.verifyResetToken(token, user.password);
+    } catch {
+      throw new UnauthorizedException(INVALID_RESET_TOKEN);
+    }
+
+    return user;
   }
 }

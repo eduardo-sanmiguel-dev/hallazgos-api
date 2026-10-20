@@ -24,7 +24,8 @@
     "paths": {
       "*": ["./src/*"],
       "@config": ["./src/config"],
-      "@shared/*": ["./src/shared/*"]
+      "@shared/*": ["./src/shared/*"],
+      "@test/*": ["./test/*"]
     },
     "noUnusedLocals": true,
     "noUnusedParameters": true

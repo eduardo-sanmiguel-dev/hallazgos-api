@@ -21,12 +21,9 @@ import { Processes } from 'processes/entities/processes.entity';
 import { Evidence } from 'evidences/entities/evidence.entity';
 import { Country } from 'countries/entities/country.entity';
 import { Machine } from 'machines/entities/machine.entity';
-import { TrainingGuide } from 'training-guides/entities';
-import { Topic } from 'topics/entities/topic.entity';
 import { Ciael } from 'ciaels/entities/ciael.entity';
 import { Zone } from 'zones/entities/zone.entity';
 import { Area } from 'areas/entities/area.entity';
-import { ConfigsTg } from 'configs-tg/entities';
 import { Equipment } from 'equipments/entities';
 import { Employee } from 'employees/entities';
 import { Ics } from 'ics/entities/ics.entity';
@@ -91,12 +88,6 @@ export class ManufacturingPlant {
   })
   employees: Relation<Employee[]>;
 
-  @ManyToMany(() => Topic, (topic) => topic.manufacturingPlants)
-  @JoinTable({
-    name: 'topics_manufacturing_plants',
-  })
-  topics: Relation<Topic[]>;
-
   @ManyToMany(
     () => AccidentPosition,
     (accidentPosition) => accidentPosition.manufacturingPlants,
@@ -126,15 +117,6 @@ export class ManufacturingPlant {
     name: 'associated_tasks_manufacturing_plants',
   })
   associatedTasks: Relation<AssociatedTask[]>;
-
-  @OneToMany(() => ConfigsTg, (ciael) => ciael.manufacturingPlant)
-  configsTg: Relation<ConfigsTg[]>;
-
-  @OneToMany(
-    () => TrainingGuide,
-    (trainingGuide) => trainingGuide.manufacturingPlant,
-  )
-  trainingGuides: Relation<TrainingGuide[]>;
 
   @OneToMany(() => Equipment, (equipment) => equipment.manufacturingPlant)
   equipments: Relation<Equipment[]>;

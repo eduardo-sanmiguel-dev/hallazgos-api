@@ -77,5 +77,6 @@ export class EmergencyTeam {
     () => ManufacturingPlant,
     (manufacturingPlant) => manufacturingPlant.emergencyTeams,
   )
+  @Index('IDX_emergency_teams_manufacturingPlantId')
   manufacturingPlant: Relation<ManufacturingPlant>;
 }

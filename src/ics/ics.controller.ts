@@ -1,4 +1,5 @@
 import { FileInterceptor } from '@nestjs/platform-express';
+import { ImageFileValidationPipe, imageUploadOptions } from '@shared/utils';
 import {
   Controller,
   Get,
@@ -12,8 +13,6 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 
-import { diskStorage } from 'multer';
-
 import { CreateIcsDto, FiltersIcsDto, UpdateIcsDto } from './dto';
 import { IcsService } from './ics.service';
 
@@ -22,23 +21,10 @@ export class IcsController {
   constructor(private readonly icsService: IcsService) {}
 
   @Post()
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './public/static/images/evidences',
-        filename(req, file, callback) {
-          req;
-          callback(null, file.originalname);
-        },
-      }),
-      limits: {
-        fileSize: 2097152, //2 Megabytes
-      },
-    }),
-  )
+  @UseInterceptors(FileInterceptor('file', imageUploadOptions('evidence')))
   create(
     @Body() createIcsDto: CreateIcsDto,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile(ImageFileValidationPipe) file: Express.Multer.File,
   ) {
     return this.icsService.create(createIcsDto, file);
   }

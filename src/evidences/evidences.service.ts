@@ -516,7 +516,7 @@ export class EvidencesService {
     const colombianIds =
       await this.manufacturingPlantsService.getColombianPlantsIds();
 
-    evidence.imgSolution = file?.originalname || '';
+    evidence.imgSolution = file?.filename || '';
     evidence.solutionDate = getColombiaNow(
       colombianIds,
       evidence.manufacturingPlant.id,
@@ -571,7 +571,7 @@ export class EvidencesService {
     const colombianIds =
       await this.manufacturingPlantsService.getColombianPlantsIds();
 
-    evidence.imgProcess = file.originalname;
+    evidence.imgProcess = file.filename;
     evidence.startProcessDate = getColombiaNow(
       colombianIds,
       evidence.manufacturingPlant.id,

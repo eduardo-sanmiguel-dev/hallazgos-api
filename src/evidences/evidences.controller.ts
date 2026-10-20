@@ -12,8 +12,8 @@ import {
   Res,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { ImageFileValidationPipe, imageUploadOptions } from '@shared/utils';
 
-import { diskStorage } from 'multer';
 import type { Response } from 'express';
 
 import { EvidencesService } from './evidences.service';
@@ -30,44 +30,18 @@ export class EvidencesController {
   constructor(private readonly evidencesService: EvidencesService) {}
 
   @Post()
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './public/static/images/evidences',
-        filename(req, file, callback) {
-          req;
-          callback(null, file.originalname);
-        },
-      }),
-      limits: {
-        fileSize: 2097152, //2 Megabytes
-      },
-    }),
-  )
+  @UseInterceptors(FileInterceptor('file', imageUploadOptions('evidence')))
   create(
     @Body() createEvidenceDto: CreateEvidenceDto,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile(ImageFileValidationPipe) file: Express.Multer.File,
   ) {
     return this.evidencesService.create(createEvidenceDto, file);
   }
 
   @Post('/solution/:id')
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './public/static/images/evidences',
-        filename(req, file, callback) {
-          req;
-          callback(null, file.originalname);
-        },
-      }),
-      limits: {
-        fileSize: 2097152, //2 Megabytes
-      },
-    }),
-  )
+  @UseInterceptors(FileInterceptor('file', imageUploadOptions('solution')))
   saveSolution(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile(ImageFileValidationPipe) file: Express.Multer.File,
     @Param('id') id: string,
     @Body('descriptionSolution') descriptionSolution: string,
   ) {
@@ -75,22 +49,9 @@ export class EvidencesController {
   }
 
   @Post('/process/:id')
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './public/static/images/evidences',
-        filename(req, file, callback) {
-          req;
-          callback(null, file.originalname);
-        },
-      }),
-      limits: {
-        fileSize: 2097152, //2 Megabytes
-      },
-    }),
-  )
+  @UseInterceptors(FileInterceptor('file', imageUploadOptions('process')))
   saveProcessStart(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile(ImageFileValidationPipe) file: Express.Multer.File,
     @Param('id') id: string,
   ) {
     return this.evidencesService.saveProcessStart(+id, file);

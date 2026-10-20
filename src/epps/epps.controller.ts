@@ -19,7 +19,9 @@ import type { Response } from 'express';
 
 import {
   buildAttachmentContentDisposition,
+  createTempDir,
   formatDateToYYYYMMDD,
+  removeTempDir,
 } from '@shared/utils';
 import { CreateEppDto, QueryEppDto, UpdateEppDto } from './dto';
 import { EppsService } from './epps.service';
@@ -36,11 +38,9 @@ export class EppsController {
     'formatoEPP.xlsx',
   );
 
-  private readonly filePathNewFile = join(
-    process.cwd(),
-    'src/files',
-    'archivo_actualizado.xlsx',
-  );
+  // Nombre del archivo generado; se escribe en una carpeta temporal propia
+  // de cada descarga (ver createTempDir).
+  private readonly newFileName = 'archivo_actualizado.xlsx';
 
   private readonly imageBannerPath = join(
     process.cwd(),
@@ -92,6 +92,11 @@ export class EppsController {
       epp.equipments.map((item) => ({ ...item, signature: epp.signature })),
     );
 
+    // Cada descarga trabaja en su propia carpeta: con una ruta compartida, dos
+    // descargas simultáneas se pisaban y se podía entregar el archivo de otro.
+    const tempDir = await createTempDir('epp');
+    const filePathNewFile = join(tempDir, this.newFileName);
+
     XlsxPopulate.fromFileAsync(this.filePath)
       .then((workbook) => {
         const sheet = workbook.sheet('EPP Personas');
@@ -126,12 +131,12 @@ export class EppsController {
           sheet.cell(`E${currentIdx}`).value(equipment.observations);
         }
 
-        return workbook.toFileAsync(this.filePathNewFile);
+        return workbook.toFileAsync(filePathNewFile);
       })
       .then(async () => {
         const workbook = new ExcelJS.Workbook();
 
-        await workbook.xlsx.readFile(this.filePathNewFile).then(async () => {
+        await workbook.xlsx.readFile(filePathNewFile).then(async () => {
           const worksheet = workbook.worksheets[0];
 
           worksheet.pageSetup.printArea = 'A1:G36';
@@ -146,11 +151,7 @@ export class EppsController {
 
             const currentIdx = 8 + idx;
 
-            const imagePath = join(
-              process.cwd(),
-              'src/files',
-              `${currentIdx}temp-image.png`,
-            );
+            const imagePath = join(tempDir, `${currentIdx}temp-image.png`);
 
             await writeFile(imagePath, base64);
 
@@ -175,7 +176,7 @@ export class EppsController {
             ext: { width: 720, height: 160 },
           });
 
-          return workbook.xlsx.writeFile(this.filePathNewFile);
+          return workbook.xlsx.writeFile(filePathNewFile);
         });
 
         // sendFile en lugar de download: download reemplazaría Content-Disposition
@@ -184,13 +185,15 @@ export class EppsController {
           'Content-Disposition',
           buildAttachmentContentDisposition(fileName),
         );
-        res.sendFile(this.filePathNewFile, (err) => {
+        res.sendFile(filePathNewFile, (err) => {
+          void removeTempDir(tempDir);
           if (err) {
             res.status(500).send('Error al descargar el archivo');
           }
         });
       })
       .catch((err) => {
+        void removeTempDir(tempDir);
         this.logger.error('Error al procesar el archivo', err?.stack ?? err);
         res.status(500).send('Error al procesar el archivo');
       });

@@ -15,18 +15,14 @@ import {
 } from 'typeorm';
 
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
-import { ConfigsTg } from 'configs-tg/entities/configs-tg.entity';
 import { Processes } from 'processes/entities/processes.entity';
 import { Evidence } from 'evidences/entities/evidence.entity';
 import { Comment } from 'evidences/entities/comments.entity';
-import { TrainingGuide } from 'training-guides/entities';
-import { Topic } from 'topics/entities/topic.entity';
 import { Ciael } from 'ciaels/entities/ciael.entity';
 import { Zone } from 'zones/entities/zone.entity';
 import { Equipment } from 'equipments/entities';
 import { Epp } from 'epps/entities/epp.entity';
 import { Ics } from 'ics/entities/ics.entity';
-import { ConfigsTopicTg } from 'configs-tg/entities';
 
 @Entity()
 @ObjectType()
@@ -98,29 +94,11 @@ export class User {
   @OneToMany(() => Epp, (epp) => epp.createBy)
   epps: Relation<Epp[]>;
 
-  @OneToMany(() => Topic, (topic) => topic.createdBy)
-  topicsCreated: Relation<Topic[]>;
-
-  @OneToMany(() => Topic, (topic) => topic.updatedBy)
-  topicsUpdated: Relation<Topic[]>;
-
-  @OneToMany(() => ConfigsTg, (configsTg) => configsTg.createdBy)
-  configTgCreated: Relation<ConfigsTg[]>;
-
-  @OneToMany(() => ConfigsTg, (configsTg) => configsTg.updatedBy)
-  configTgUpdated: Relation<ConfigsTg[]>;
-
   @OneToMany(() => Equipment, (equipment) => equipment.createdBy)
   equipmentCreated: Relation<Equipment[]>;
 
   @OneToMany(() => Equipment, (equipment) => equipment.updatedBy)
   equipmentUpdated: Relation<Equipment[]>;
-
-  @OneToMany(() => ConfigsTg, (configsTg) => configsTg.areaManager)
-  areaTg: Relation<ConfigsTg[]>;
-
-  @OneToMany(() => ConfigsTg, (configsTg) => configsTg.humanResourceManager)
-  humanResourceTg: Relation<ConfigsTg[]>;
 
   @OneToMany(() => Ciael, (ciael) => ciael.createdBy)
   ciaels: Relation<Ciael[]>;
@@ -130,21 +108,6 @@ export class User {
 
   @OneToMany(() => Ciael, (ciael) => ciael.areaLeader)
   ciaelsAreaManager: Relation<Ciael[]>;
-
-  @OneToMany(() => TrainingGuide, (trainingGuide) => trainingGuide.areaManager)
-  trainingGuidesAreaManager: Relation<TrainingGuide[]>;
-
-  @OneToMany(
-    () => TrainingGuide,
-    (trainingGuide) => trainingGuide.humanResourceManager,
-  )
-  trainingGuidesHumanResourceManager: Relation<TrainingGuide[]>;
-
-  @ManyToMany(
-    () => ConfigsTopicTg,
-    (configsTopicTg) => configsTopicTg.responsibles,
-  )
-  configsTopicTg: Relation<ConfigsTopicTg[]>;
 
   @BeforeInsert()
   async hashPassword() {
