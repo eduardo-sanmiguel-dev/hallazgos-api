@@ -8,6 +8,7 @@ import {
   OneToMany,
   ManyToMany,
   Relation,
+  Index,
 } from 'typeorm';
 
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
@@ -17,7 +18,6 @@ import { Ciael } from 'ciaels/entities/ciael.entity';
 import { Genre } from 'genres/entities/genre.entity';
 import { Epp } from 'epps/entities/epp.entity';
 import { Ics } from 'ics/entities/ics.entity';
-import { TrainingGuide } from 'training-guides/entities/training-guide.entity';
 
 @Entity()
 export class Employee {
@@ -65,9 +65,11 @@ export class Employee {
   updatedAt: Date;
 
   @ManyToOne(() => EmployeeArea, (area) => area.employees)
+  @Index('IDX_employee_areaId')
   area: Relation<EmployeeArea>;
 
   @ManyToOne(() => EmployeePosition, (position) => position.employees)
+  @Index('IDX_employee_positionId')
   position: Relation<EmployeePosition>;
 
   @OneToMany(() => Epp, (epp) => epp.employee)
@@ -87,7 +89,4 @@ export class Employee {
 
   @ManyToMany(() => Ics, (ics) => ics.employees)
   ics: Relation<Ics[]>;
-
-  @OneToMany(() => TrainingGuide, (trainingGuide) => trainingGuide.employee)
-  trainingGuides: Relation<TrainingGuide[]>;
 }

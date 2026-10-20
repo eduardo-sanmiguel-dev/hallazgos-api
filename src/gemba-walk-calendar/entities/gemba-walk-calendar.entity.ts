@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   Relation,
+  Index,
 } from 'typeorm';
 
 import { GembaWalkZone } from 'gemba-walk-zones/entities/gemba-walk-zone.entity';
@@ -40,5 +41,6 @@ export class GembaWalkCalendar {
   updatedBy?: Relation<User>;
 
   @ManyToOne(() => GembaWalkZone)
+  @Index('IDX_gemba_walk_calendar_gembaWalkZoneId')
   gembaWalkZone: Relation<GembaWalkZone>;
 }

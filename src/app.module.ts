@@ -54,9 +54,6 @@ import { CountriesModule } from './countries/countries.module';
 import { CiaelsModule } from './ciaels/ciaels.module';
 import { RulesOfLifeModule } from 'rules-of-life/rules-of-life.module';
 import { IcsModule } from './ics/ics.module';
-import { TopicsModule } from './topics/topics.module';
-import { ConfigsTgModule } from './configs-tg/configs-tg.module';
-import { TrainingGuidesModule } from './training-guides/training-guides.module';
 import { SafetyDataFilesModule } from './safety-data-files/safety-data-files.module';
 import { EmergencyTeamsModule } from './emergency-teams/emergency-teams.module';
 import { ExtinguisherInspectionsModule } from './extinguisher-inspections/extinguisher-inspections.module';
@@ -172,9 +169,6 @@ import { HealthModule } from './health/health.module';
     CiaelsModule,
     RulesOfLifeModule,
     IcsModule,
-    TopicsModule,
-    ConfigsTgModule,
-    TrainingGuidesModule,
     SafetyDataFilesModule,
     EmergencyTeamsModule,
     ExtinguisherInspectionsModule,

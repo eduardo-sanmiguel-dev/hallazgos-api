@@ -61,10 +61,12 @@ export class Zone {
     (manufacturingPlant) => manufacturingPlant.zones,
   )
   //@Field(() => ManufacturingPlant)
+  @Index('IDX_zones_manufacturingPlantId')
   manufacturingPlant: Relation<ManufacturingPlant>;
 
   @ManyToOne(() => Area, (area) => area.zones)
   @Field(() => Area, { nullable: true })
+  @Index('IDX_zones_areaId')
   area: Relation<Area>;
 
   @OneToMany(() => Ciael, (ciael) => ciael.zone)

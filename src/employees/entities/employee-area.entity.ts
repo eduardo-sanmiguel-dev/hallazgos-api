@@ -9,7 +9,6 @@ import {
 } from 'typeorm';
 
 import { Employee } from './employee.entity';
-import { TrainingGuide } from 'training-guides/entities';
 
 @Entity()
 export class EmployeeArea {
@@ -30,7 +29,4 @@ export class EmployeeArea {
 
   @OneToMany(() => Employee, (employee) => employee.area)
   employees: Relation<Employee[]>;
-
-  @OneToMany(() => TrainingGuide, (trainingGuide) => trainingGuide.area)
-  trainingGuides: Relation<TrainingGuide[]>;
 }

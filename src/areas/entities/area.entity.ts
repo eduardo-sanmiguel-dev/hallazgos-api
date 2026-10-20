@@ -56,6 +56,7 @@ export class Area {
     () => ManufacturingPlant,
     (manufacturingPlant) => manufacturingPlant.areas,
   )
+  @Index('IDX_areas_manufacturingPlantId')
   manufacturingPlant: Relation<ManufacturingPlant>;
 
   @OneToMany(() => Zone, (zone) => zone.area)

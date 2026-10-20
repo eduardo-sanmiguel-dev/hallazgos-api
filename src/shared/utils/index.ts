@@ -81,6 +81,8 @@ export * from './timezone';
 export * from './file-name';
 export * from './storage-timezones';
 export * from './paginate';
+export * from './temp-dir';
+export * from './image-upload';
 
 export const getColombiaNow = (
   colombianIds: number[],

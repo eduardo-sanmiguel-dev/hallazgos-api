@@ -5,7 +5,6 @@ import { NestFactory } from '@nestjs/core';
 import cookieParser = require('cookie-parser');
 import helmet from 'helmet';
 
-//import { GlobalExceptionFilter } from '@shared/filters';
 //import { ClusterService } from 'cluster.service';
 import { AppModule } from './app.module';
 import { QueryFailedExceptionFilter } from './shared/filters/query-failed-exception.filter';
@@ -54,7 +53,6 @@ async function bootstrap() {
 
   app.setGlobalPrefix('/api/v1');
 
-  //app.useGlobalFilters(new GlobalExceptionFilter());
   // Solo errores de base de datos no manejados: mensaje explícito en español
   // en lugar de "Internal server error".
   app.useGlobalFilters(new QueryFailedExceptionFilter());

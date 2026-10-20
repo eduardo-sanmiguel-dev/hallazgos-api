@@ -53,5 +53,6 @@ export class Processes {
     (manufacturingPlant) => manufacturingPlant.zones,
   )
   //@Field(() => ManufacturingPlant)
+  @Index('IDX_processes_manufacturingPlantId')
   manufacturingPlant: Relation<ManufacturingPlant>;
 }

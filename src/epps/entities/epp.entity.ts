@@ -7,6 +7,7 @@ import {
   ManyToOne,
   OneToMany,
   Relation,
+  Index,
 } from 'typeorm';
 
 import { EppEquipment } from './epp-equipment.entity';
@@ -34,6 +35,7 @@ export class Epp {
   updatedAt: Date;
 
   @ManyToOne(() => Employee, (employee) => employee.epps)
+  @Index('IDX_epp_employeeId')
   employee: Relation<Employee>;
 
   @ManyToOne(() => User, (user) => user.epps)

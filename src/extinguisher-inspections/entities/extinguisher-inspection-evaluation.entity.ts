@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   Relation,
+  Index,
 } from 'typeorm';
 
 import { ExtinguisherType } from 'emergency-teams/entities/emergency-team.entity';
@@ -142,5 +143,6 @@ export class ExtinguisherInspectionEvaluation {
     () => ExtinguisherInspection,
     (extinguisherInspection) => extinguisherInspection.evaluations,
   )
+  @Index('IDX_extinguisher_inspection_evals_inspectionId')
   extinguisherInspection: Relation<ExtinguisherInspection>;
 }

@@ -6,6 +6,7 @@ import type { Response } from 'express';
 
 import { AuthService } from './auth.service';
 import { LoginAuthDto } from './dto/login-auth.dto';
+import { RestorePasswordDto } from './dto/restore-password.dto';
 
 // Límite por IP en los endpoints públicos que reciben credenciales o
 // correos: frena fuerza bruta y abuso del envío de correos.
@@ -32,11 +33,11 @@ export class AuthController {
   @UseGuards(ThrottlerGuard)
   @Throttle(LOGIN_LIMIT)
   async loginRestorePassword(
-    @Body() loginAuthDto: LoginAuthDto,
+    @Body() restorePasswordDto: RestorePasswordDto,
     @Res() response: Response,
   ) {
     const serializedCookie =
-      await this.authService.loginRestorePassword(loginAuthDto);
+      await this.authService.loginRestorePassword(restorePasswordDto);
     const token = parse(serializedCookie).token || '';
 
     response.setHeader('Set-Cookie', serializedCookie);

@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   Relation,
+  Index,
 } from 'typeorm';
 
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
@@ -38,5 +39,6 @@ export class GembaWalkZone {
   updatedBy?: Relation<User>;
 
   @ManyToOne(() => ManufacturingPlant)
+  @Index('IDX_gemba_walk_zones_manufacturingPlantId')
   manufacturingPlant: Relation<ManufacturingPlant>;
 }

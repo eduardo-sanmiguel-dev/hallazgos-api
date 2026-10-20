@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   ManyToOne,
   Relation,
+  Index,
 } from 'typeorm';
 
 import { GembaWalkEvaluation } from 'gemba-walk-evaluations/entities/gemba-walk-evaluation.entity';
@@ -19,6 +20,7 @@ export class GembaWalkResult {
   @ManyToOne(() => GembaWalk, (gembaWalk) => gembaWalk.results, {
     onDelete: 'CASCADE',
   })
+  @Index('IDX_gemba_walk_results_gembaWalkId')
   gembaWalk: Relation<GembaWalk>;
 
   @ManyToOne(() => GembaWalkEvaluation)
