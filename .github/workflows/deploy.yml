@@ -22,7 +22,18 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
-      # Solo pruebas con dependencias simuladas, en el runner y sin secretos del VPS.
+
+  # Solo pruebas con dependencias simuladas, sin secretos del VPS.
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - name: Pruebas unitarias
         env:
           NODE_ENV: test
@@ -82,7 +93,7 @@ jobs:
           pnpm test:db --ci
 
   deploy:
-    needs: [typecheck, database-tests]
+    needs: [typecheck, unit-tests, database-tests]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
