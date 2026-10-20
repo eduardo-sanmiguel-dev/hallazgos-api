@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RequestContextService } from 'shared/services/request-context.service';
 
@@ -186,8 +191,9 @@ export class CiaelsService {
       managerId,
     } = createCiaelDto;
 
+    // Falta de datos: 400 (antes respondía 404).
     if (!machineId && !machineName) {
-      throw new NotFoundException(`Machine id or name is required`);
+      throw new BadRequestException(`Machine id or name is required`);
     }
 
     const manufacturingPlant = await this.manufacturingPlantRepository.findOne({
@@ -244,7 +250,8 @@ export class CiaelsService {
       throw new NotFoundException(`BodyPart with id ${bodyPartId} not found`);
     }
 
-    const atAgent = await this.bodyPartRepository.findOne({
+    // Antes se buscaba en el catálogo de partes del cuerpo.
+    const atAgent = await this.atAgentRepository.findOne({
       where: { id: atAgentId, isActive: true },
     });
 
@@ -491,12 +498,19 @@ export class CiaelsService {
     return { data, count };
   }
 
-  findOne(id: number) {
-    return this.ciaelRepository.findOne({
+  async findOne(id: number) {
+    const ciael = await this.ciaelRepository.findOne({
       where: { id },
       select: this.select,
       relations: this.relations,
     });
+
+    // Antes respondía 200 sin cuerpo.
+    if (!ciael) {
+      throw new NotFoundException(`Ciael with id ${id} not found`);
+    }
+
+    return ciael;
   }
 
   update(id: number, updateCiaelDto: UpdateCiaelDto) {

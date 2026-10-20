@@ -9,6 +9,7 @@ import {
   Query,
 } from '@nestjs/common';
 
+import { OptionalUserPlantPipe, UserPlantPipe } from '@shared/pipes';
 import { CreateEquipmentDto, UpdateEquipmentDto } from './dto';
 import { EquipmentsService } from './equipments.service';
 
@@ -17,8 +18,14 @@ export class EquipmentsController {
   constructor(private readonly equipmentsService: EquipmentsService) {}
 
   @Post()
-  create(@Body() createEquipmentDto: CreateEquipmentDto) {
-    return this.equipmentsService.create(createEquipmentDto);
+  create(
+    @Body() createEquipmentDto: CreateEquipmentDto,
+    @Body('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
+  ) {
+    return this.equipmentsService.create({
+      ...createEquipmentDto,
+      manufacturingPlantId,
+    });
   }
 
   @Post('seed')
@@ -28,7 +35,9 @@ export class EquipmentsController {
 
   @Get()
   findAll(
-    @Query('manufacturingPlantId') manufacturingPlantId: string = '0',
+    // Sin planta: las del usuario. Con planta ajena: 404.
+    @Query('manufacturingPlantId', OptionalUserPlantPipe)
+    manufacturingPlantId: number | undefined,
     @Query('name') name: string = '',
     // Con page y limit responde paginado ({ data, count }); limit -1 = todos.
     @Query('page') page?: string,
@@ -36,12 +45,12 @@ export class EquipmentsController {
   ) {
     return page && limit
       ? this.equipmentsService.findAllPaginated(
-          +manufacturingPlantId,
+          manufacturingPlantId,
           name,
           page,
           limit,
         )
-      : this.equipmentsService.findAll(+manufacturingPlantId, name);
+      : this.equipmentsService.findAll(manufacturingPlantId, name);
   }
 
   @Get(':id')
@@ -53,8 +62,13 @@ export class EquipmentsController {
   update(
     @Param('id') id: string,
     @Body() updateEquipmentDto: UpdateEquipmentDto,
+    @Body('manufacturingPlantId', OptionalUserPlantPipe)
+    manufacturingPlantId: number | undefined,
   ) {
-    return this.equipmentsService.update(+id, updateEquipmentDto);
+    return this.equipmentsService.update(+id, {
+      ...updateEquipmentDto,
+      ...(manufacturingPlantId && { manufacturingPlantId }),
+    });
   }
 
   @Delete(':id')

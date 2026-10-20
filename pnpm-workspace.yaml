@@ -4,6 +4,7 @@ allowBuilds:
   '@apollo/protobufjs': true
   '@swc/core': true
   argon2: true
+  protobufjs: true
 overrides:
   # Vulnerabilidades en dependencias fijadas por otras librerías:
   # @nestjs/graphql 13 fija utils 12.0.0, exceljs usa uuid 8, y mailparser

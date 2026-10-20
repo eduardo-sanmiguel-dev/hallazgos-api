@@ -22,7 +22,7 @@ type TokenPurpose = (typeof TOKEN_PURPOSE)[keyof typeof TOKEN_PURPOSE];
 export interface JwtPayload {
   userId: number;
   // Los tokens de sesión emitidos antes de agregar `purpose` no lo traen y
-  // se siguen aceptando como sesión.
+  // se siguen aceptando como sesión (ver verify).
   purpose?: TokenPurpose;
   // Solo en tokens de recuperación: huella de la contraseña vigente al
   // emitirlo (ver passwordFingerprint).
@@ -71,6 +71,11 @@ export class JwtService {
   verify(token: string): JwtPayload {
     const payload = this.decodeAndVerify(token);
 
+    // TODO(2026-11-20): quitar la aceptación de tokens sin `purpose`. Es
+    // temporal, para no cerrar las sesiones abiertas antes del deploy del
+    // cambio de recuperación de contraseña (30 días = vida de una sesión).
+    // Al quitarla: exigir `payload.purpose === TOKEN_PURPOSE.session` y
+    // ajustar el test "[temporal hasta 2026-11-20] ..." de jwt.service.spec.
     if (payload.purpose && payload.purpose !== TOKEN_PURPOSE.session) {
       throw new jwt.JsonWebTokenError('El token no es de sesión');
     }

@@ -63,6 +63,7 @@ import { GembaWalkCalendarModule } from './gemba-walk-calendar/gemba-walk-calend
 import { GembaWalkEvaluationsModule } from './gemba-walk-evaluations/gemba-walk-evaluations.module';
 import { GembaWalksModule } from './gemba-walks/gemba-walks.module';
 import { HealthModule } from './health/health.module';
+import { ObserveIntegrationModule } from 'observe.module';
 
 @Module({
   imports: [
@@ -97,7 +98,12 @@ import { HealthModule } from './health/health.module';
         configService: ConfigService,
         jwtService: JwtService,
       ) => ({
-        autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
+        // En pruebas (NODE_ENV=test) el esquema se genera en memoria para no
+        // reescribir src/schema.gql en cada corrida.
+        autoSchemaFile:
+          configService.get<string>('environment') === 'test'
+            ? true
+            : join(process.cwd(), 'src/schema.gql'),
         introspection:
           configService.get<string>('environment') !== 'production',
         async context({ req }) {
@@ -179,6 +185,7 @@ import { HealthModule } from './health/health.module';
     GembaWalksModule,
     HealthModule,
     RequestContextModule,
+    ObserveIntegrationModule,
   ],
   controllers: [],
   providers: [JwtService, GistSecretGuardService],

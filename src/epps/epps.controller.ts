@@ -7,10 +7,12 @@ import {
   Body,
   Patch,
   Param,
+  ParseIntPipe,
   Delete,
   Res,
   Query,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
 
 import XlsxPopulate from 'xlsx-populate';
@@ -23,6 +25,7 @@ import {
   formatDateToYYYYMMDD,
   removeTempDir,
 } from '@shared/utils';
+import { UserPlantPipe } from '@shared/pipes';
 import { CreateEppDto, QueryEppDto, UpdateEppDto } from './dto';
 import { EppsService } from './epps.service';
 //import { writeFileSync } from 'fs';
@@ -56,37 +59,48 @@ export class EppsController {
   }
 
   @Get()
-  findAll(@Query() query: QueryEppDto) {
+  findAll(
+    @Query() query: QueryEppDto,
+    @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
+  ) {
     // Con `page` responde paginado ({ data, count, page, limit }); sin él, la
     // lista completa como antes (compatibilidad durante el despliegue).
     return query.page
-      ? this.eppsService.findPaginated(query)
-      : this.eppsService.findAll(+query.manufacturingPlantId);
+      ? this.eppsService.findPaginated({ ...query, manufacturingPlantId })
+      : this.eppsService.findAll(manufacturingPlantId);
   }
 
   @Get('validate-delivery-frequency')
-  validateDeliveryFrequency(
-    @Query('equipmentId') equipmentId: string,
-    @Query('employeeId') employeeId: string,
+  async validateDeliveryFrequency(
+    @Query('equipmentId', ParseIntPipe) equipmentId: number,
+    @Query('employeeId', ParseIntPipe) employeeId: number,
   ) {
-    return this.eppsService.validateDeliveryFrequency(
-      +equipmentId,
-      +employeeId,
-    );
+    await this.eppsService.assertEmployeeInUserPlants(employeeId);
+
+    return this.eppsService.validateDeliveryFrequency(equipmentId, employeeId);
   }
 
   @Get('download/file/:employeeId')
   async downloadFile(
-    @Param('employeeId') employeeId: string,
+    @Param('employeeId', ParseIntPipe) employeeId: number,
     @Query('timeZone') timeZone: string,
     @Res() res: Response,
   ) {
+    await this.eppsService.assertEmployeeInUserPlants(employeeId);
+
     const fileName = await this.eppsService.getDownloadFileName(
       +employeeId,
       timeZone,
     );
     const epps = await this.eppsService.findEppsByEmployeeId(+employeeId);
     const epp = epps[0];
+
+    // Antes, sin EPP registrados el archivo fallaba al armarse y respondía 500.
+    if (!epp) {
+      throw new NotFoundException(
+        `El empleado #${employeeId} no tiene EPP registrados`,
+      );
+    }
 
     const equipments = epps.flatMap((epp) =>
       epp.equipments.map((item) => ({ ...item, signature: epp.signature })),

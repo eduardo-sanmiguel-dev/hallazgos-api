@@ -67,6 +67,13 @@ export class GembaWalkZonesService {
     const nameZone = createGembaWalkZoneDto.nameZone.trim();
     const nameLocation = createGembaWalkZoneDto.nameLocation.trim();
 
+    // Solo espacios pasaba la validación del DTO y se guardaba vacío.
+    if (!nameZone || !nameLocation) {
+      throw new BadRequestException(
+        'El nombre de la zona y la ubicación son obligatorios',
+      );
+    }
+
     await this.manufacturingPlantsService.findOne(manufacturingPlantId);
 
     await this.validateUniqueActive(

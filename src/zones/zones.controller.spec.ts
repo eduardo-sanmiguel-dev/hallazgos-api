@@ -1,0 +1,21 @@
+import { describeCrudContract } from '@test/utils';
+import { ZonesController } from './zones.controller';
+import { ZonesService } from './zones.service';
+
+describeCrudContract({
+  path: '/zones',
+  controller: ZonesController,
+  service: ZonesService,
+  create: {
+    valid: { name: 'Pasillo', manufacturingPlantId: 1, areaId: 4 },
+    invalid: [['sin planta', { name: 'Pasillo' }]],
+  },
+  list: {
+    query: { withArea: 'false', manufacturingPlantNames: 'Tepotzotlán' },
+    // "false" se lee como false (no como texto no vacío).
+    expected: { withArea: false, manufacturingPlantNames: ['Tepotzotlán'] },
+  },
+  findOne: true,
+  update: { valid: { name: 'Pasillo norte' } },
+  remove: true,
+});

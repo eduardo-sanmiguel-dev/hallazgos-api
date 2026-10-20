@@ -87,7 +87,7 @@ export class ProcessesService {
     });
 
     if (!processes) {
-      throw new NotFoundException(`Planta con ID ${id} no encontrado`);
+      throw new NotFoundException(`Proceso con ID ${id} no encontrado`);
     }
 
     return processes;
@@ -98,8 +98,13 @@ export class ProcessesService {
   ): Promise<Processes[]> {
     const processes = [];
 
+    // Sin nombres no hay procesos (antes respondía 500 con undefined).
+    if (!names?.length) return processes;
+
     for (let i = 0; i < names.length; i++) {
-      const [manufacturingPlantName, processesName] = names[i].split(' - ');
+      // "Planta - Proceso": el proceso puede tener " - " en su nombre.
+      const [manufacturingPlantName, ...rest] = names[i].split(' - ');
+      const processesName = rest.join(' - ');
       const process = await this.processesRepository.findOne({
         where: {
           name: processesName,
@@ -123,11 +128,15 @@ export class ProcessesService {
     id: number,
     updateProcessesDto: UpdateProcessesDto,
   ): Promise<Processes> {
-    await this.findOne(id);
+    const current = await this.findOne(id);
 
-    const manufacturingPlant = await this.manufacturingPlantsService.findOne(
-      updateProcessesDto.manufacturingPlantId,
-    );
+    // Sin planta se conserva la actual (antes findOne(undefined) devolvía
+    // cualquier planta).
+    const manufacturingPlant = updateProcessesDto.manufacturingPlantId
+      ? await this.manufacturingPlantsService.findOne(
+          updateProcessesDto.manufacturingPlantId,
+        )
+      : current.manufacturingPlant;
 
     const process = await this.processesRepository.preload({
       id,

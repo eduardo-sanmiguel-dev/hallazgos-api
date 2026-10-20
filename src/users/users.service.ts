@@ -1,16 +1,26 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RequestContextService } from 'shared/services/request-context.service';
 
 import { FindOptionsWhere, ILike, In, Not, Repository } from 'typeorm';
 import * as argon2 from 'argon2';
 
-import { CreateUserDto, QueryUserDto, UpdateUserDto } from './dto';
+import {
+  CreateUserDto,
+  QueryUserDto,
+  UpdateUserDto,
+  USER_ORDER_BY_PATTERN,
+} from './dto';
 import { User } from './entities/user.entity';
 import { ROLE_SUPERVISOR } from '@shared/constants';
 import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
 import { ZonesService } from 'zones/zones.service';
 import { ProcessesService } from 'processes/processes.service';
+import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
 
 @Injectable()
 export class UsersService {
@@ -34,10 +44,9 @@ export class UsersService {
       processNames = [],
     } = createUserDto;
 
-    const manufacturingPlants =
-      await this.manufacturingPlantsService.findAllByNames(
-        manufacturingPlantNames,
-      );
+    const manufacturingPlants = await this.resolvePlants(
+      manufacturingPlantNames,
+    );
 
     const zones =
       await this.zonesService.findAllByManufacturingPlantNames(zoneNames);
@@ -70,7 +79,9 @@ export class UsersService {
 
     let order;
 
-    if (orderBy) {
+    // El DTO ya valida el formato; se revisa también aquí para no armar el
+    // orden con un valor que no sea `campo|asc|desc` de la lista permitida.
+    if (orderBy && USER_ORDER_BY_PATTERN.test(orderBy)) {
       const [key, direction] = orderBy.split('|');
       order = { [key]: direction.toUpperCase() };
     }
@@ -351,10 +362,9 @@ export class UsersService {
       processNames,
     } = updateUserDto;
 
-    const manufacturingPlants =
-      await this.manufacturingPlantsService.findAllByNames(
-        manufacturingPlantNames,
-      );
+    const manufacturingPlants = await this.resolvePlants(
+      manufacturingPlantNames,
+    );
 
     let zones = [];
     let processes = [];
@@ -380,6 +390,32 @@ export class UsersService {
     user.manufacturingPlants = manufacturingPlants;
 
     return this.userRepository.save({ ...user });
+  }
+
+  /**
+   * Plantas por nombre: todas deben existir (y estar activas) y debe haber al
+   * menos una. Ningún rol puede operar sin plantas: el login y la sesión las
+   * exigen.
+   */
+  private async resolvePlants(names: string[]): Promise<ManufacturingPlant[]> {
+    const uniqueNames = [...new Set(names ?? [])];
+
+    if (!uniqueNames.length) {
+      throw new BadRequestException('Debe asignar al menos una planta');
+    }
+
+    const plants =
+      await this.manufacturingPlantsService.findAllByNames(uniqueNames);
+    const found = new Set(plants.map(({ name }) => name));
+    const missing = uniqueNames.filter((name) => !found.has(name));
+
+    if (missing.length) {
+      throw new BadRequestException(
+        `Plantas no encontradas o inactivas: ${missing.join(', ')}`,
+      );
+    }
+
+    return plants;
   }
 
   async remove(id: number): Promise<User> {

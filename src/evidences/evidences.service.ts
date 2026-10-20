@@ -2,6 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -27,6 +28,7 @@ import { SecondaryTypesService } from 'secondary-types/secondary-types.service';
 import {
   ENV_DEVELOPMENT,
   ROLE_ADMINISTRADOR,
+  ROLE_SUPERVISOR,
   STATUS_CANCEL,
   STATUS_CLOSE,
   STATUS_IN_PROGRESS,
@@ -62,6 +64,7 @@ import {
   sanitizeFileNamePart,
   toWallClock,
   wallClockToExcelSerial,
+  scopePlantIds,
 } from '@shared/utils';
 import { MainType } from 'main-types/entities/main-type.entity';
 import { SecondaryType } from 'secondary-types/entities/secondary-type.entity';
@@ -132,16 +135,42 @@ export class EvidencesService {
     };
   }
 
-  private canManageEvidence(user: User, evidence: Evidence): boolean {
+  /** Supervisor o responsable del hallazgo (con cualquier rol). */
+  private isAssigned(user: User, evidence: Evidence): boolean {
+    return [...evidence.supervisors, ...evidence.responsibles].some(
+      (assigned) => Number(assigned.id) === Number(user.id),
+    );
+  }
+
+  /** Asignado al hallazgo y con rol Supervisor. */
+  private isAssignedSupervisor(user: User, evidence: Evidence): boolean {
+    return user.role === ROLE_SUPERVISOR && this.isAssigned(user, evidence);
+  }
+
+  // Las reglas de quién puede iniciar, cerrar y reasignar son las mismas que
+  // aplica el menú de acciones del UI (TableEvidences).
+
+  private canStartProcess(user: User, evidence: Evidence): boolean {
     return (
       user.role === ROLE_ADMINISTRADOR ||
       this.supervisorOverrideEmails.includes(user.email) ||
-      evidence.supervisors.some(
-        (supervisor) => Number(supervisor.id) === user.id,
-      ) ||
-      evidence.responsibles.some(
-        (responsible) => Number(responsible.id) === user.id,
-      )
+      this.isAssignedSupervisor(user, evidence)
+    );
+  }
+
+  /** El administrador no cierra (salvo que su correo esté en la lista especial). */
+  private canCloseEvidence(user: User, evidence: Evidence): boolean {
+    return (
+      this.supervisorOverrideEmails.includes(user.email) ||
+      this.isAssignedSupervisor(user, evidence)
+    );
+  }
+
+  private canReassignEvidence(user: User, evidence: Evidence): boolean {
+    return (
+      user.role === ROLE_ADMINISTRADOR ||
+      this.supervisorOverrideEmails.includes(user.email) ||
+      this.isAssigned(user, evidence)
     );
   }
 
@@ -150,6 +179,45 @@ export class EvidencesService {
       user.role === ROLE_ADMINISTRADOR ||
       this.cancelEvidenceEmails.includes(user.email)
     );
+  }
+
+  /**
+   * Cerrado y Cancelado son estados finales. Fuera de los estados permitidos
+   * la acción responde 409.
+   */
+  private assertStatus(evidence: Evidence, allowed: string[], action: string) {
+    if (!allowed.includes(evidence.status)) {
+      throw new ConflictException(
+        `No se puede ${action} el hallazgo #${evidence.id} porque está en estado "${evidence.status}"`,
+      );
+    }
+  }
+
+  /**
+   * Cambia el estado solo si el hallazgo sigue en uno de los permitidos (en la
+   * misma sentencia UPDATE). Si otra petición lo cambió entre la lectura y la
+   * escritura (p. ej. dos cierres a la vez), responde 409 y no envía correos.
+   */
+  private async transition(
+    evidence: Evidence,
+    allowed: string[],
+    action: string,
+    changes: Partial<Evidence>,
+  ): Promise<Evidence> {
+    this.assertStatus(evidence, allowed, action);
+
+    const { affected } = await this.evidenceRepository.update(
+      { id: evidence.id, status: In(allowed) },
+      changes,
+    );
+
+    if (!affected) {
+      throw new ConflictException(
+        `No se puede ${action} el hallazgo #${evidence.id} porque su estado cambió; recargue e intente de nuevo`,
+      );
+    }
+
+    return Object.assign(evidence, changes);
   }
 
   constructor(
@@ -342,6 +410,19 @@ export class EvidencesService {
       priorityDays,
     } = createEvidenceDto;
 
+    // Solo en una planta del usuario; una ajena responde 404 (como si no
+    // existiera), antes de consultar o guardar nada.
+    if (
+      !scopePlantIds(
+        this.requestContext.user.manufacturingPlants,
+        manufacturingPlantId,
+      ).length
+    ) {
+      throw new NotFoundException(
+        `Planta #${manufacturingPlantId} no encontrada`,
+      );
+    }
+
     const manufacturingPlant =
       await this.manufacturingPlantsService.findOne(manufacturingPlantId);
 
@@ -398,11 +479,13 @@ export class EvidencesService {
 
     const typeEmail = 'create';
 
+    // En segundo plano: el hallazgo ya está guardado y estos envíos nunca
+    // lanzan (registran sus errores), así que no se espera a que terminen.
     if (responsibles.length) {
-      this.sendEmailUsers(responsibles, evidenceCurrent, typeEmail);
+      void this.sendEmailUsers(responsibles, evidenceCurrent, typeEmail);
     }
 
-    this.notifyByEmail({
+    void this.notifyByEmail({
       manufacturingPlant,
       evidenceCurrent,
       type: typeEmail,
@@ -424,47 +507,98 @@ export class EvidencesService {
     const requestUser = this.requestContext.user;
 
     if (this.configService.get<string>('environment') === ENV_DEVELOPMENT) {
-      const mio = await this.usersService.findOne(1);
-      users = [mio];
+      try {
+        users = [await this.usersService.findOne(1)];
+      } catch (error) {
+        this.logEmailError(
+          type,
+          evidenceCurrent,
+          'la cuenta de desarrollo',
+          error,
+        );
+        return;
+      }
     }
 
     this.logger.debug(
       `sendEmailUsers: Usuarios a notificar para la planta ${evidenceCurrent.manufacturingPlant.name}: ${users.length}`,
     );
 
+    // Nunca lanza: un correo fallido se registra y no detiene a los demás ni
+    // afecta la operación (el cambio ya se guardó).
     for (let i = 0, size = users.length; i < size; i++) {
       const userToSendEmail = users[i];
 
-      switch (type) {
-        case 'create':
-          await this.mailService.sendCreate({
-            user: userToSendEmail,
-            evidenceCurrent,
-          });
-          break;
-        case 'cancel':
-          await this.mailService.sendCancel({
-            cancelledBy: requestUser,
-            user: userToSendEmail,
-            evidenceCurrent,
-          });
-          break;
-        case 'solution':
-          await this.mailService.sendSolution({
-            user: userToSendEmail,
-            evidenceCurrent,
-          });
-          break;
-        case 'reassign':
-          await this.mailService.sendReassign({
-            user: userToSendEmail,
-            reassignedBy: extra?.reassignedBy || requestUser,
-            evidenceCurrent,
-            previousResponsibles: extra?.previousResponsibles || [],
-            currentResponsibles: extra?.currentResponsibles || [],
-          });
-          break;
+      try {
+        await this.sendEmailByType(
+          type,
+          userToSendEmail,
+          evidenceCurrent,
+          requestUser,
+          extra,
+        );
+      } catch (error) {
+        this.logEmailError(
+          type,
+          evidenceCurrent,
+          `el usuario ${userToSendEmail?.id}`,
+          error,
+        );
       }
+    }
+  }
+
+  private logEmailError(
+    type: string,
+    evidence: Evidence,
+    recipient: string,
+    error: unknown,
+  ) {
+    this.logger.error(
+      `No se pudo enviar el correo "${type}" del hallazgo #${evidence.id} a ${recipient}: ${(error as Error)?.message ?? error}`,
+    );
+  }
+
+  private async sendEmailByType(
+    type: string,
+    userToSendEmail: User,
+    evidenceCurrent: Evidence,
+    requestUser: User,
+    extra?: {
+      reassignedBy?: User;
+      previousResponsibles?: User[];
+      currentResponsibles?: User[];
+    },
+  ) {
+    switch (type) {
+      case 'create':
+        await this.mailService.sendCreate({
+          user: userToSendEmail,
+          evidenceCurrent,
+        });
+        break;
+      case 'cancel':
+        await this.mailService.sendCancel({
+          cancelledBy: requestUser,
+          user: userToSendEmail,
+          evidenceCurrent,
+        });
+        break;
+      case 'solution':
+        await this.mailService.sendSolution({
+          user: userToSendEmail,
+          evidenceCurrent,
+        });
+        break;
+      case 'reassign':
+        await this.mailService.sendReassign({
+          user: userToSendEmail,
+          reassignedBy: extra?.reassignedBy || requestUser,
+          evidenceCurrent,
+          previousResponsibles: extra?.previousResponsibles || [],
+          currentResponsibles: extra?.currentResponsibles || [],
+        });
+        break;
     }
   }
 
@@ -477,13 +611,25 @@ export class EvidencesService {
     evidenceCurrent: Evidence;
     type: string;
   }) {
-    let plantUsers = await this.usersService.findAllByPlant(
-      manufacturingPlant.id,
-    );
+    // Nunca lanza: el cambio ya se guardó y un problema al avisar solo se
+    // registra en el log.
+    let plantUsers: User[];
+    try {
+      plantUsers = await this.usersService.findAllByPlant(
+        manufacturingPlant.id,
+      );
 
-    if (this.configService.get<string>('environment') === ENV_DEVELOPMENT) {
-      const mio = await this.usersService.findOne(1);
-      plantUsers = [mio];
+      if (this.configService.get<string>('environment') === ENV_DEVELOPMENT) {
+        plantUsers = [await this.usersService.findOne(1)];
+      }
+    } catch (error) {
+      this.logEmailError(
+        type,
+        evidenceCurrent,
+        `los usuarios de la planta ${manufacturingPlant.name}`,
+        error,
+      );
+      return;
     }
 
     this.logger.debug(
@@ -491,9 +637,10 @@ export class EvidencesService {
     );
 
     if (!plantUsers.length) {
-      throw new BadRequestException(
-        `No se ha encontrado usuarios asignados para la planta ${manufacturingPlant.name}`,
+      this.logger.warn(
+        `No se ha encontrado usuarios asignados para la planta ${manufacturingPlant.name}: no se envió el correo "${type}" del hallazgo #${evidenceCurrent.id}`,
       );
+      return;
     }
 
     await this.sendEmailUsers(plantUsers, evidenceCurrent, type);
@@ -507,7 +654,7 @@ export class EvidencesService {
     const evidence = await this.findOne(id);
     const requestUser = this.requestContext.user;
 
-    if (!this.canManageEvidence(requestUser, evidence)) {
+    if (!this.canCloseEvidence(requestUser, evidence)) {
       throw new ForbiddenException(
         'No tiene permisos para cerrar este hallazgo',
       );
@@ -515,17 +662,23 @@ export class EvidencesService {
 
     const colombianIds =
       await this.manufacturingPlantsService.getColombianPlantsIds();
-
-    evidence.imgSolution = file?.filename || '';
-    evidence.solutionDate = getColombiaNow(
+    const solutionDate = getColombiaNow(
       colombianIds,
       evidence.manufacturingPlant.id,
     );
-    evidence.descriptionSolution = descriptionSolution || '';
-    evidence.status = STATUS_CLOSE;
-    evidence.updatedAt = evidence.solutionDate;
 
-    const evidenceSolution = await this.evidenceRepository.save(evidence);
+    const evidenceSolution = await this.transition(
+      evidence,
+      [STATUS_OPEN, STATUS_IN_PROGRESS],
+      'cerrar',
+      {
+        imgSolution: file?.filename || '',
+        solutionDate,
+        descriptionSolution: descriptionSolution || '',
+        status: STATUS_CLOSE,
+        updatedAt: solutionDate,
+      },
+    );
 
     const manufacturingPlant = await this.manufacturingPlantsService.findOne(
       evidenceSolution.manufacturingPlant.id,
@@ -550,42 +703,54 @@ export class EvidencesService {
     const evidence = await this.findOne(id);
     const requestUser = this.requestContext.user;
 
-    if (!this.canManageEvidence(requestUser, evidence)) {
+    if (!this.canStartProcess(requestUser, evidence)) {
       throw new ForbiddenException(
         'No tiene permisos para iniciar el estatus en progreso',
       );
     }
 
-    if (evidence.imgProcess) {
-      throw new BadRequestException(
-        'El estatus en progreso ya fue registrado para este hallazgo',
-      );
-    }
+    this.assertStatus(evidence, [STATUS_OPEN], 'iniciar en progreso');
 
-    if (evidence.status !== STATUS_OPEN) {
-      throw new BadRequestException(
-        'Solo se puede iniciar en progreso cuando el hallazgo esta abierto',
+    if (evidence.imgProcess) {
+      throw new ConflictException(
+        'El estatus en progreso ya fue registrado para este hallazgo',
       );
     }
 
     const colombianIds =
       await this.manufacturingPlantsService.getColombianPlantsIds();
-
-    evidence.imgProcess = file.filename;
-    evidence.startProcessDate = getColombiaNow(
+    const startProcessDate = getColombiaNow(
       colombianIds,
       evidence.manufacturingPlant.id,
     );
-    evidence.status = STATUS_IN_PROGRESS;
-    evidence.updatedAt = evidence.startProcessDate;
 
-    const evidenceUpdated = await this.evidenceRepository.save(evidence);
+    const evidenceUpdated = await this.transition(
+      evidence,
+      [STATUS_OPEN],
+      'iniciar en progreso',
+      {
+        imgProcess: file.filename,
+        startProcessDate,
+        status: STATUS_IN_PROGRESS,
+        updatedAt: startProcessDate,
+      },
+    );
 
-    await this.mailService.sendInProgress({
-      user: evidence.user,
-      startedBy: requestUser,
-      evidenceCurrent: evidenceUpdated,
-    });
+    // El cambio ya se guardó: un correo fallido solo se registra.
+    try {
+      await this.mailService.sendInProgress({
+        user: evidence.user,
+        startedBy: requestUser,
+        evidenceCurrent: evidenceUpdated,
+      });
+    } catch (error) {
+      this.logEmailError(
+        'in-progress',
+        evidenceUpdated,
+        `el usuario ${evidence.user?.id}`,
+        error,
+      );
+    }
 
     return evidenceUpdated;
   }
@@ -794,6 +959,14 @@ export class EvidencesService {
     queryEvidenceDto: QueryEvidenceDto,
     res: Response,
   ): Promise<void> {
+    // Antes un tipo desconocido no respondía nada y la petición quedaba
+    // colgada hasta el timeout.
+    if (!['xlsx', 'pdf'].includes(type)) {
+      throw new BadRequestException(
+        `Tipo de archivo no soportado: ${type}. Use xlsx o pdf`,
+      );
+    }
+
     const datos = await this.findAll(queryEvidenceDto);
 
     if (type === 'xlsx') {
@@ -1065,7 +1238,9 @@ export class EvidencesService {
             layout: 'lightHorizontalLines',
             table: {
               headerRows: 1,
-              widths: dataPdf[0].map(() => 'auto'),
+              // Por columnas del encabezado: sin resultados, dataPdf[0] no
+              // existe (antes respondía 500).
+              widths: headers.map(() => 'auto'),
               body: [[...headers], ...dataPdf],
             },
           },
@@ -1174,12 +1349,13 @@ export class EvidencesService {
 
     const uniqueStatuses = Array.from(new Set(scopedStatuses));
 
-    const manufacturingPlantsIds = manufacturingPlantId
-      ? [manufacturingPlantId]
-      : manufacturingPlants.map((manufacturingPlant) => manufacturingPlant.id);
+    const manufacturingPlantsIds = scopePlantIds(
+      manufacturingPlants,
+      manufacturingPlantId,
+    );
 
-    if (!manufacturingPlantsIds.length)
-      throw new BadRequestException('No se ha encontrado plantas asignadas');
+    // Sin plantas propias o pidiendo una planta ajena: sin resultados.
+    if (!manufacturingPlantsIds.length) return [];
 
     const createdAtFilter = this.buildCreatedAtFilter(startDate, endDate);
     const scopedZoneFilter = {
@@ -1191,16 +1367,10 @@ export class EvidencesService {
       where: {
         //isActive: true,
         ...(uniqueEvidenceIds.length > 0 && { id: In(uniqueEvidenceIds) }),
-        ...(manufacturingPlantId
-          ? {
-              manufacturingPlant: { id: manufacturingPlantId, isActive: true },
-            }
-          : {
-              manufacturingPlant: {
-                id: In(manufacturingPlantsIds),
-                isActive: true,
-              },
-            }),
+        manufacturingPlant: {
+          id: In(manufacturingPlantsIds),
+          isActive: true,
+        },
         ...(uniqueMainTypeIds.length > 0 && {
           mainType: { id: In(uniqueMainTypeIds) },
         }),
@@ -1308,12 +1478,13 @@ export class EvidencesService {
 
     const { manufacturingPlants } = user;
 
-    const manufacturingPlantsIds = manufacturingPlantId
-      ? [manufacturingPlantId]
-      : manufacturingPlants.map((manufacturingPlant) => manufacturingPlant.id);
+    const manufacturingPlantsIds = scopePlantIds(
+      manufacturingPlants,
+      manufacturingPlantId,
+    );
 
-    if (!manufacturingPlantsIds.length)
-      throw new BadRequestException('No se ha encontrado plantas asignadas');
+    // Sin plantas propias o pidiendo una planta ajena: sin resultados.
+    if (!manufacturingPlantsIds.length) return { data: [], count: 0 };
 
     const createdAtFilter = this.buildCreatedAtFilter(startDate, endDate);
     const scopedZoneFilter = {
@@ -1324,16 +1495,10 @@ export class EvidencesService {
     const where: FindOptionsWhere<Evidence> = {
       //isActive: true,
       ...(uniqueEvidenceIds.length > 0 && { id: In(uniqueEvidenceIds) }),
-      ...(manufacturingPlantId
-        ? {
-            manufacturingPlant: { id: manufacturingPlantId, isActive: true },
-          }
-        : {
-            manufacturingPlant: {
-              id: In(manufacturingPlantsIds),
-              isActive: true,
-            },
-          }),
+      manufacturingPlant: {
+        id: In(manufacturingPlantsIds),
+        isActive: true,
+      },
       ...(scopedMainTypeIds.length > 0 && {
         mainType: { id: In(scopedMainTypeIds) },
       }),
@@ -1376,13 +1541,23 @@ export class EvidencesService {
     return { data: evidences, count: numRows };
   }
 
+  /**
+   * Hallazgo visible para el usuario en sesión: solo de sus plantas. Uno de
+   * otra planta responde el mismo 404 que uno inexistente (no revela que
+   * existe). Lo usan ver, comentar, iniciar, cerrar, reasignar y cancelar.
+   */
   async findOne(id: number) {
-    const evidence = await this.evidenceRepository.findOne({
-      where: {
-        id,
-      },
-      relations: this.relations,
-    });
+    const plantIds = this.requestContext.manufacturingPlantIds;
+
+    const evidence = plantIds.length
+      ? await this.evidenceRepository.findOne({
+          where: {
+            id,
+            manufacturingPlant: { id: In(plantIds) },
+          },
+          relations: this.relations,
+        })
+      : null;
 
     if (!evidence)
       throw new NotFoundException(`No se ha encontrado el hallazgo #${id}`);
@@ -1402,11 +1577,13 @@ export class EvidencesService {
     const evidence = await this.findOne(id);
     const previousResponsibles = evidence.responsibles || [];
 
-    if (!this.canManageEvidence(requestUser, evidence)) {
+    if (!this.canReassignEvidence(requestUser, evidence)) {
       throw new ForbiddenException(
         'No tiene permisos para reasignar responsables en este hallazgo',
       );
     }
+
+    this.assertStatus(evidence, [STATUS_OPEN, STATUS_IN_PROGRESS], 'reasignar');
 
     const responsibleIds = Array.from(
       new Set(
@@ -1484,12 +1661,12 @@ export class EvidencesService {
       );
     }
 
-    const evidence = await this.findOne(id);
-    await this.evidenceRepository.update(id, {
-      isActive: false,
-      status: STATUS_CANCEL,
-      updatedAt: new Date(),
-    });
+    const evidence = await this.transition(
+      await this.findOne(id),
+      [STATUS_OPEN, STATUS_IN_PROGRESS],
+      'cancelar',
+      { isActive: false, status: STATUS_CANCEL, updatedAt: new Date() },
+    );
 
     const manufacturingPlant = await this.manufacturingPlantsService.findOne(
       evidence.manufacturingPlant.id,
