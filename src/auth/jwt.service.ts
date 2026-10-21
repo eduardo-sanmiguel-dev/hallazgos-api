@@ -2,9 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { createHmac, timingSafeEqual } from 'crypto';
-import * as jwt from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 
-import { expireTime } from '@shared/utils';
+import { expireTime } from '../shared/utils/index.js';
 
 // Algoritmo con el que se firmaban los tokens (default de jsonwebtoken):
 // fijarlo evita aceptar tokens firmados con otro algoritmo.

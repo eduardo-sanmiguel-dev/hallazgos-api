@@ -1,5 +1,5 @@
 import { UseGuards } from '@nestjs/common';
-import { AdminGuard } from '@shared/guards/admin.guard';
+import { AdminGuard } from '../shared/guards/admin.guard.js';
 import {
   Controller,
   Get,
@@ -15,14 +15,14 @@ import {
 
 import type { Response } from 'express';
 import { basename } from 'path';
-import { safeFilePath } from '@shared/utils/safe-file-path';
+import { safeFilePath } from '../shared/utils/safe-file-path.js';
 
 import {
   CreateSafetyDataFileDto,
   QuerySafetyDataFileDto,
   UpdateSafetyDataFileDto,
-} from './dto';
-import { SafetyDataFilesService } from './safety-data-files.service';
+} from './dto/index.js';
+import { SafetyDataFilesService } from './safety-data-files.service.js';
 
 @Controller('safety-data-files')
 export class SafetyDataFilesController {

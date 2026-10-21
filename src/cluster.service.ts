@@ -1,9 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
+import cluster from 'node:cluster';
 import * as process from 'node:process';
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const cluster = require('cluster');
 
 const numCPUs = parseInt(process.argv[2] || '1');
 

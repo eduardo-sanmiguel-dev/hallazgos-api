@@ -5,12 +5,12 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
-  Relation,
+  type Relation,
   Index,
 } from 'typeorm';
 
-import { GembaWalkZone } from 'gemba-walk-zones/entities/gemba-walk-zone.entity';
-import { User } from 'users/entities/user.entity';
+import { GembaWalkZone } from '../../gemba-walk-zones/entities/gemba-walk-zone.entity.js';
+import { User } from '../../users/entities/user.entity.js';
 
 @Entity({ name: 'gemba_walk_calendar' })
 export class GembaWalkCalendar {

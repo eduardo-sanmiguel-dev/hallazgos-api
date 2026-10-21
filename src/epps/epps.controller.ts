@@ -16,7 +16,7 @@ import {
 } from '@nestjs/common';
 
 import XlsxPopulate from 'xlsx-populate';
-import * as ExcelJS from 'exceljs';
+import ExcelJS from 'exceljs';
 import type { Response } from 'express';
 
 import {
@@ -24,10 +24,10 @@ import {
   createTempDir,
   formatDateToYYYYMMDD,
   removeTempDir,
-} from '@shared/utils';
-import { UserPlantPipe } from '@shared/pipes';
-import { CreateEppDto, QueryEppDto, UpdateEppDto } from './dto';
-import { EppsService } from './epps.service';
+} from '../shared/utils/index.js';
+import { UserPlantPipe } from '../shared/pipes/index.js';
+import { CreateEppDto, QueryEppDto, UpdateEppDto } from './dto/index.js';
+import { EppsService } from './epps.service.js';
 //import { writeFileSync } from 'fs';
 import { writeFile } from 'fs/promises';
 

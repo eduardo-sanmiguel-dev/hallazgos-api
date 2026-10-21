@@ -5,27 +5,27 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
-  Relation,
+  type Relation,
   Index,
 } from 'typeorm';
 
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
-import { AccidentPosition } from 'accident-positions/entities/accident-position.entity';
-import { AssociatedTask } from 'associated-tasks/entities/associated-task.entity';
-import { NatureOfEvent } from 'nature-of-events/entities/nature-of-event.entity';
-import { TypeOfInjury } from 'type-of-injuries/entities/type-of-injury.entity';
-import { TypesOfEvent } from 'types-of-events/entities/types-of-event.entity';
-import { CieDiagnosis } from 'cie-diagnoses/entities/cie-diagnosis.entity';
-import { AtMechanism } from 'at-mechanisms/entities/at-mechanism.entity';
-import { TypeOfLink } from 'type-of-links/entities/type-of-link.entity';
-import { WorkingDay } from 'working-days/entities/working-day.entity';
-import { RiskFactor } from 'risk-factors/entities/risk-factor.entity';
-import { BodyPart } from 'body-parts/entities/body-part.entity';
-import { AtAgent } from 'at-agents/entities/at-agent.entity';
-import { Machine } from 'machines/entities/machine.entity';
-import { User } from 'users/entities/user.entity';
-import { Zone } from 'zones/entities/zone.entity';
-import { Employee } from 'employees/entities';
+import { ManufacturingPlant } from '../../manufacturing-plants/entities/manufacturing-plant.entity.js';
+import { AccidentPosition } from '../../accident-positions/entities/accident-position.entity.js';
+import { AssociatedTask } from '../../associated-tasks/entities/associated-task.entity.js';
+import { NatureOfEvent } from '../../nature-of-events/entities/nature-of-event.entity.js';
+import { TypeOfInjury } from '../../type-of-injuries/entities/type-of-injury.entity.js';
+import { TypesOfEvent } from '../../types-of-events/entities/types-of-event.entity.js';
+import { CieDiagnosis } from '../../cie-diagnoses/entities/cie-diagnosis.entity.js';
+import { AtMechanism } from '../../at-mechanisms/entities/at-mechanism.entity.js';
+import { TypeOfLink } from '../../type-of-links/entities/type-of-link.entity.js';
+import { WorkingDay } from '../../working-days/entities/working-day.entity.js';
+import { RiskFactor } from '../../risk-factors/entities/risk-factor.entity.js';
+import { BodyPart } from '../../body-parts/entities/body-part.entity.js';
+import { AtAgent } from '../../at-agents/entities/at-agent.entity.js';
+import { Machine } from '../../machines/entities/machine.entity.js';
+import { User } from '../../users/entities/user.entity.js';
+import { Zone } from '../../zones/entities/zone.entity.js';
+import { Employee } from '../../employees/entities/index.js';
 
 @Entity({ name: 'ciael' })
 export class Ciael {

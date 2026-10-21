@@ -1,13 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { RequestContextService } from 'shared/services/request-context.service';
+import { RequestContextService } from '../shared/services/request-context.service.js';
 
-import { FindOptionsWhere, ILike, In, Repository } from 'typeorm';
+import { type FindOptionsWhere, ILike, In, Repository } from 'typeorm';
 
-import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
-import { CreateEquipmentDto, UpdateEquipmentDto } from './dto';
-import { Equipment, EquipmentCostHistory } from './entities';
-import { findPaginated, getColombiaNow } from '@shared/utils';
+import { ManufacturingPlantsService } from '../manufacturing-plants/manufacturing-plants.service.js';
+import { CreateEquipmentDto, UpdateEquipmentDto } from './dto/index.js';
+import { Equipment, EquipmentCostHistory } from './entities/index.js';
+import { findPaginated, getColombiaNow } from '../shared/utils/index.js';
 
 @Injectable()
 export class EquipmentsService {

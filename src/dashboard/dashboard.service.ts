@@ -1,15 +1,15 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { RequestContextService } from 'shared/services/request-context.service';
+import { RequestContextService } from '../shared/services/request-context.service.js';
 
 import { In, MoreThan, Repository, SelectQueryBuilder } from 'typeorm';
 
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
-import { AccidentRate } from './entities/accident-rate.entity';
-import { User } from 'users/entities/user.entity';
-import { Evidence } from 'evidences/entities/evidence.entity';
-import { MainType } from 'main-types/entities/main-type.entity';
-import { groupBy } from '@shared/utils';
+import { ManufacturingPlant } from '../manufacturing-plants/entities/manufacturing-plant.entity.js';
+import { AccidentRate } from './entities/accident-rate.entity.js';
+import { User } from '../users/entities/user.entity.js';
+import { Evidence } from '../evidences/entities/evidence.entity.js';
+import { MainType } from '../main-types/entities/main-type.entity.js';
+import { groupBy } from '../shared/utils/index.js';
 
 @Injectable()
 export class DashboardService {

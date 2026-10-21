@@ -1,14 +1,14 @@
 import { InjectRepository } from '@nestjs/typeorm';
 import { Injectable } from '@nestjs/common';
 
-import { FindOptionsWhere, Repository } from 'typeorm';
+import { type FindOptionsWhere, Repository } from 'typeorm';
 
-import { AccidentPosition } from './entities/accident-position.entity';
+import { AccidentPosition } from './entities/accident-position.entity.js';
 import {
   CreateAccidentPositionDto,
   FiltersAccidentPositionDto,
   UpdateAccidentPositionDto,
-} from './dto';
+} from './dto/index.js';
 
 @Injectable()
 export class AccidentPositionsService {

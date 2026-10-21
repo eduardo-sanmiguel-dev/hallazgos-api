@@ -5,10 +5,10 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
-  Relation,
+  type Relation,
 } from 'typeorm';
 
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
+import { ManufacturingPlant } from '../../manufacturing-plants/entities/manufacturing-plant.entity.js';
 
 @Entity({ name: 'countries' })
 export class Country {

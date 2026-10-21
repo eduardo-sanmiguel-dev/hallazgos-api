@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { type MigrationInterface, type QueryRunner } from 'typeorm';
 
 export class AddSolkaflanToExtinguisherEnums1790711000000 implements MigrationInterface {
   name = 'AddSolkaflanToExtinguisherEnums1790711000000';

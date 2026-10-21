@@ -1,11 +1,11 @@
-import { Injectable, Logger, NestMiddleware } from '@nestjs/common';
+import { Injectable, Logger, type NestMiddleware } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
 import { DataSource, In } from 'typeorm';
-import { JwtService } from 'auth/jwt.service';
-import { UsersService } from 'users/users.service';
-import { Ics } from 'ics/entities/ics.entity';
-import { Evidence } from './entities/evidence.entity';
-import { safeFilePath } from '@shared/utils/safe-file-path';
+import { JwtService } from '../auth/jwt.service.js';
+import { UsersService } from '../users/users.service.js';
+import { Ics } from '../ics/entities/ics.entity.js';
+import { Evidence } from './entities/evidence.entity.js';
+import { safeFilePath } from '../shared/utils/safe-file-path.js';
 import { join, posix } from 'path';
 
 @Injectable()

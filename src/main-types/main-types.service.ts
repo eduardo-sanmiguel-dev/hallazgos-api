@@ -1,11 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
-import { FindManyOptions, ILike, Repository } from 'typeorm';
-import { findPaginated } from 'shared/utils';
+import { type FindManyOptions, ILike, Repository } from 'typeorm';
+import { findPaginated } from '../shared/utils/index.js';
 
-import { CreateMainTypeDto, QueryMainTypeDto, UpdateMainTypeDto } from './dto';
-import { MainType } from './entities/main-type.entity';
+import {
+  CreateMainTypeDto,
+  QueryMainTypeDto,
+  UpdateMainTypeDto,
+} from './dto/index.js';
+import { MainType } from './entities/main-type.entity.js';
 
 @Injectable()
 export class MainTypesService {

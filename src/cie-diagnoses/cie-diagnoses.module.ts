@@ -1,9 +1,9 @@
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Module } from '@nestjs/common';
 
-import { CieDiagnosesController } from './cie-diagnoses.controller';
-import { CieDiagnosesService } from './cie-diagnoses.service';
-import { CieDiagnosis } from './entities/cie-diagnosis.entity';
+import { CieDiagnosesController } from './cie-diagnoses.controller.js';
+import { CieDiagnosesService } from './cie-diagnoses.service.js';
+import { CieDiagnosis } from './entities/cie-diagnosis.entity.js';
 
 @Module({
   imports: [TypeOrmModule.forFeature([CieDiagnosis])],

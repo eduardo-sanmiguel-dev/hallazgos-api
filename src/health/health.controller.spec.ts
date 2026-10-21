@@ -1,7 +1,7 @@
 import { Logger, ServiceUnavailableException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
-import { HealthController } from './health.controller';
+import { HealthController } from './health.controller.js';
 
 describe('HealthController', () => {
   const query = jest.fn();

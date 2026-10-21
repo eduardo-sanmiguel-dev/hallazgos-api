@@ -1,9 +1,9 @@
 import type { ConfigService } from '@nestjs/config';
 
-import * as jwt from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 
-import { expireTime } from '@shared/utils';
-import { JwtService, TOKEN_PURPOSE } from './jwt.service';
+import { expireTime } from '../shared/utils/index.js';
+import { JwtService, TOKEN_PURPOSE } from './jwt.service.js';
 
 describe('JwtService', () => {
   const secret = 'test-secret';

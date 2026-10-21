@@ -1,1 +1,1 @@
-export * from './user-plant.pipe';
+export * from './user-plant.pipe.js';

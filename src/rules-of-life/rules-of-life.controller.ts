@@ -1,5 +1,5 @@
 import { UseGuards } from '@nestjs/common';
-import { AdminGuard } from '@shared/guards/admin.guard';
+import { AdminGuard } from '../shared/guards/admin.guard.js';
 import {
   Controller,
   Get,
@@ -10,8 +10,8 @@ import {
   Delete,
 } from '@nestjs/common';
 
-import { CreateRulesOfLifeDto, UpdateRulesOfLifeDto } from './dto';
-import { RulesOfLifeService } from './rules-of-life.service';
+import { CreateRulesOfLifeDto, UpdateRulesOfLifeDto } from './dto/index.js';
+import { RulesOfLifeService } from './rules-of-life.service.js';
 
 @Controller('rules-of-life')
 export class RulesOfLifeController {

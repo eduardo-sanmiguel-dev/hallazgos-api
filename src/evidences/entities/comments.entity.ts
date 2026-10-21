@@ -7,12 +7,12 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
-  Relation,
+  type Relation,
   Index,
 } from 'typeorm';
 
-import { Evidence } from './evidence.entity';
-import { User } from 'users/entities/user.entity';
+import { Evidence } from './evidence.entity.js';
+import { User } from '../../users/entities/user.entity.js';
 
 @Entity({ name: 'comments' })
 @ObjectType()

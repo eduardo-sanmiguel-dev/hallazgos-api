@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { ZonesService } from './zones.service';
-import { ZonesController } from './zones.controller';
-import { Zone } from './entities/zone.entity';
-import { ManufacturingPlantsModule } from '../manufacturing-plants/manufacturing-plants.module';
-import { AreasModule } from 'areas/areas.module';
+import { ZonesService } from './zones.service.js';
+import { ZonesController } from './zones.controller.js';
+import { Zone } from './entities/zone.entity.js';
+import { ManufacturingPlantsModule } from '../manufacturing-plants/manufacturing-plants.module.js';
+import { AreasModule } from '../areas/areas.module.js';
 
 @Module({
   imports: [

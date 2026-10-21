@@ -1,9 +1,9 @@
 import { NotFoundException } from '@nestjs/common';
 import XlsxPopulate from 'xlsx-populate';
 
-import { describeCrudContract } from '@test/utils';
-import { ExtinguisherInspectionsController } from './extinguisher-inspections.controller';
-import { ExtinguisherInspectionsService } from './extinguisher-inspections.service';
+import { describeCrudContract } from '../../test/utils/index.js';
+import { ExtinguisherInspectionsController } from './extinguisher-inspections.controller.js';
+import { ExtinguisherInspectionsService } from './extinguisher-inspections.service.js';
 
 const validEvaluation = {
   location: 'Almacén norte',

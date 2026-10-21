@@ -4,27 +4,27 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { RequestContextService } from 'shared/services/request-context.service';
+import { RequestContextService } from '../shared/services/request-context.service.js';
 
 import {
   Repository,
-  FindOptionsWhere,
+  type FindOptionsWhere,
   In,
   ILike,
-  ObjectLiteral,
+  type ObjectLiteral,
   Raw,
 } from 'typeorm';
 
-import { scopePlantIds } from '@shared/utils';
+import { scopePlantIds } from '../shared/utils/index.js';
 
-import { Employee, EmployeeArea, EmployeePosition } from './entities';
-import { Genre } from 'genres/entities/genre.entity';
+import { Employee, EmployeeArea, EmployeePosition } from './entities/index.js';
+import { Genre } from '../genres/entities/genre.entity.js';
 import {
   CreateEmployeeDto,
   FiltersEmployeeDto,
   UpdateEmployeeDto,
-} from './dto';
-import { Zone } from 'zones/entities/zone.entity';
+} from './dto/index.js';
+import { Zone } from '../zones/entities/zone.entity.js';
 
 @Injectable()
 export class EmployeesService {

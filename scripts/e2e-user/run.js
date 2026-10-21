@@ -10,16 +10,21 @@
  * - No borra ni modifica ningún otro usuario.
  * - Las credenciales viven en hallazgos-ui/e2e/.env.e2e (ignorado por git).
  */
-const { readFileSync } = require('fs');
-const { join } = require('path');
-const argon2 = require('argon2');
-const { Client } = require('pg');
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import argon2 from 'argon2';
+import pg from 'pg';
+
+const { Client } = pg;
 
 const ROLE_ADMINISTRADOR = 'Administrador';
 const E2E_NAME = 'Usuario pruebas e2e';
 
 const env = Object.fromEntries(
-  readFileSync(join(__dirname, '..', '..', '.env.development'), 'utf8')
+  readFileSync(
+    join(import.meta.dirname, '..', '..', '.env.development'),
+    'utf8',
+  )
     .split(/\r?\n/)
     .filter((line) => /^[A-Z_]+=/.test(line))
     .map((line) => {

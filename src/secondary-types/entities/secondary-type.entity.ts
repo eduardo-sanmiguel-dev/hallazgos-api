@@ -8,12 +8,12 @@ import {
   UpdateDateColumn,
   ManyToOne,
   OneToMany,
-  Relation,
+  type Relation,
   Index,
 } from 'typeorm';
 
-import { MainType } from 'main-types/entities/main-type.entity';
-import { Evidence } from 'evidences/entities/evidence.entity';
+import { MainType } from '../../main-types/entities/main-type.entity.js';
+import { Evidence } from '../../evidences/entities/evidence.entity.js';
 
 @Entity()
 @ObjectType()

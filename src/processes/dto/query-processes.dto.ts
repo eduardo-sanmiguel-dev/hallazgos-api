@@ -8,7 +8,7 @@ import {
   IsInt,
 } from 'class-validator';
 
-import { parseStringArrayQueryByKey } from 'shared/utils';
+import { parseStringArrayQueryByKey } from '../../shared/utils/index.js';
 
 export class QueryProcessesDto {
   @IsOptional()

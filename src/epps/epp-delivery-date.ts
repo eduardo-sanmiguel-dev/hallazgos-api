@@ -1,8 +1,8 @@
 import {
   PLANT_TIME_ZONES,
   toPlantCountry,
-} from '../shared/utils/storage-timezones';
-import { toWallClock } from '../shared/utils/timezone';
+} from '../shared/utils/storage-timezones.js';
+import { toWallClock } from '../shared/utils/timezone.js';
 
 /**
  * Fecha de entrega de EPP: el día local de la planta (México o Bogotá según

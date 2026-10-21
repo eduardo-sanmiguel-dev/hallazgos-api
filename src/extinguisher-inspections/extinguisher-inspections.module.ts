@@ -1,11 +1,11 @@
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Module } from '@nestjs/common';
 
-import { ExtinguisherInspectionEvaluation } from './entities/extinguisher-inspection-evaluation.entity';
-import { ExtinguisherInspectionsController } from './extinguisher-inspections.controller';
-import { ExtinguisherInspectionsService } from './extinguisher-inspections.service';
-import { ExtinguisherInspection } from './entities/extinguisher-inspection.entity';
-import { EmergencyTeam } from 'emergency-teams/entities/emergency-team.entity';
+import { ExtinguisherInspectionEvaluation } from './entities/extinguisher-inspection-evaluation.entity.js';
+import { ExtinguisherInspectionsController } from './extinguisher-inspections.controller.js';
+import { ExtinguisherInspectionsService } from './extinguisher-inspections.service.js';
+import { ExtinguisherInspection } from './entities/extinguisher-inspection.entity.js';
+import { EmergencyTeam } from '../emergency-teams/entities/emergency-team.entity.js';
 
 @Module({
   imports: [

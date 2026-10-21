@@ -5,10 +5,10 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
-  Relation,
+  type Relation,
 } from 'typeorm';
 
-import { Employee } from './employee.entity';
+import { Employee } from './employee.entity.js';
 
 @Entity()
 export class EmployeeArea {

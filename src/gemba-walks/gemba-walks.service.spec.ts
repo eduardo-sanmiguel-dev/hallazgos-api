@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as jwt from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 import { FindOperator, QueryFailedError } from 'typeorm';
 
 import {
@@ -12,18 +12,18 @@ import {
   buildManufacturingPlant,
   buildUser,
   createServiceTestingModule,
-  RepositoryMock,
+  type RepositoryMock,
   runAsUser,
-} from '@test/utils';
-import { GembaWalkCalendar } from 'gemba-walk-calendar/entities/gemba-walk-calendar.entity';
-import { GembaWalkEvaluation } from 'gemba-walk-evaluations/entities/gemba-walk-evaluation.entity';
-import { GembaWalkObserver } from 'gemba-walk-observers/entities/gemba-walk-observer.entity';
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
-import { GembaWalk } from './entities/gemba-walk.entity';
+} from '../../test/utils/index.js';
+import { GembaWalkCalendar } from '../gemba-walk-calendar/entities/gemba-walk-calendar.entity.js';
+import { GembaWalkEvaluation } from '../gemba-walk-evaluations/entities/gemba-walk-evaluation.entity.js';
+import { GembaWalkObserver } from '../gemba-walk-observers/entities/gemba-walk-observer.entity.js';
+import { ManufacturingPlant } from '../manufacturing-plants/entities/manufacturing-plant.entity.js';
+import { GembaWalk } from './entities/gemba-walk.entity.js';
 import {
   GEMBA_WALK_TOLERANCE_MINUTES,
   GembaWalksService,
-} from './gemba-walks.service';
+} from './gemba-walks.service.js';
 
 const SECRET = 'secreto-de-prueba';
 const MINUTE = 60_000;

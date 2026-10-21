@@ -1,5 +1,5 @@
 import { UseGuards } from '@nestjs/common';
-import { AdminGuard } from '@shared/guards/admin.guard';
+import { AdminGuard } from '../shared/guards/admin.guard.js';
 import {
   Controller,
   Get,
@@ -10,8 +10,8 @@ import {
   Delete,
 } from '@nestjs/common';
 
-import { CreateTypesOfEventDto, UpdateTypesOfEventDto } from './dto';
-import { TypesOfEventsService } from './types-of-events.service';
+import { CreateTypesOfEventDto, UpdateTypesOfEventDto } from './dto/index.js';
+import { TypesOfEventsService } from './types-of-events.service.js';
 
 @Controller('types-of-events')
 export class TypesOfEventsController {

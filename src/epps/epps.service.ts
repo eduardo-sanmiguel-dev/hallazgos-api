@@ -1,21 +1,21 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { RequestContextService } from 'shared/services/request-context.service';
+import { RequestContextService } from '../shared/services/request-context.service.js';
 
 import { Brackets, In, Repository } from 'typeorm';
 
 import {
   CreateEppDto,
-  EppSortableColumn,
+  type EppSortableColumn,
   QueryEppDto,
   UpdateEppDto,
-} from './dto';
-import { Equipment } from 'equipments/entities';
-import { Epp, EppEquipment } from './entities';
-import { Employee } from 'employees/entities';
-import { buildFileNameTimestamp } from '@shared/utils';
-import { buildEppFileName } from './epp-file-name';
-import { plantDeliveryDate } from './epp-delivery-date';
+} from './dto/index.js';
+import { Equipment } from '../equipments/entities/index.js';
+import { Epp, EppEquipment } from './entities/index.js';
+import { Employee } from '../employees/entities/index.js';
+import { buildFileNameTimestamp } from '../shared/utils/index.js';
+import { buildEppFileName } from './epp-file-name.js';
+import { plantDeliveryDate } from './epp-delivery-date.js';
 
 @Injectable()
 export class EppsService {

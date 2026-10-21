@@ -1,10 +1,10 @@
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Module } from '@nestjs/common';
 
-import { GembaWalkEvaluationsController } from './gemba-walk-evaluations.controller';
-import { GembaWalkEvaluationsService } from './gemba-walk-evaluations.service';
-import { GembaWalkEvaluation } from './entities/gemba-walk-evaluation.entity';
-import { ManufacturingPlantsModule } from 'manufacturing-plants/manufacturing-plants.module';
+import { GembaWalkEvaluationsController } from './gemba-walk-evaluations.controller.js';
+import { GembaWalkEvaluationsService } from './gemba-walk-evaluations.service.js';
+import { GembaWalkEvaluation } from './entities/gemba-walk-evaluation.entity.js';
+import { ManufacturingPlantsModule } from '../manufacturing-plants/manufacturing-plants.module.js';
 
 @Module({
   imports: [

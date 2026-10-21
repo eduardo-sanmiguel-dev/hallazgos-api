@@ -4,12 +4,12 @@ import { Brackets } from 'typeorm';
 import {
   buildUser,
   createServiceTestingModule,
-  RepositoryMock,
+  type RepositoryMock,
   runAsUser,
-} from '@test/utils';
-import { ExtinguisherInspection } from './entities/extinguisher-inspection.entity';
-import { ExtinguisherInspectionEvaluation } from './entities/extinguisher-inspection-evaluation.entity';
-import { ExtinguisherInspectionsService } from './extinguisher-inspections.service';
+} from '../../test/utils/index.js';
+import { ExtinguisherInspection } from './entities/extinguisher-inspection.entity.js';
+import { ExtinguisherInspectionEvaluation } from './entities/extinguisher-inspection-evaluation.entity.js';
+import { ExtinguisherInspectionsService } from './extinguisher-inspections.service.js';
 
 // 2026-10-20 19:30 en México (UTC-6) = 2026-10-21 01:30 UTC.
 const MEXICO_EVENING = new Date('2026-10-21T01:30:00Z');

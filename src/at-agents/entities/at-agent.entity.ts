@@ -5,10 +5,10 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
-  Relation,
+  type Relation,
 } from 'typeorm';
 
-import { Ciael } from 'ciaels/entities/ciael.entity';
+import { Ciael } from '../../ciaels/entities/ciael.entity.js';
 
 @Entity({ name: 'at_agents' })
 export class AtAgent {

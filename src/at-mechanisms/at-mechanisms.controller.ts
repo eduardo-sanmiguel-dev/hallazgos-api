@@ -1,5 +1,5 @@
 import { UseGuards } from '@nestjs/common';
-import { AdminGuard } from '@shared/guards/admin.guard';
+import { AdminGuard } from '../shared/guards/admin.guard.js';
 import {
   Controller,
   Get,
@@ -10,8 +10,8 @@ import {
   Delete,
 } from '@nestjs/common';
 
-import { CreateAtMechanismDto, UpdateAtMechanismDto } from './dto';
-import { AtMechanismsService } from './at-mechanisms.service';
+import { CreateAtMechanismDto, UpdateAtMechanismDto } from './dto/index.js';
+import { AtMechanismsService } from './at-mechanisms.service.js';
 
 @Controller('at-mechanisms')
 export class AtMechanismsController {

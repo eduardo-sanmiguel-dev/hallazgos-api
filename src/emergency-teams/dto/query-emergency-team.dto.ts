@@ -6,7 +6,7 @@ import {
   IsString,
 } from 'class-validator';
 
-import { ExtinguisherType } from '../entities/emergency-team.entity';
+import { ExtinguisherType } from '../entities/emergency-team.entity.js';
 
 export class QueryEmergencyTeamDto {
   @IsOptional()

@@ -8,11 +8,11 @@ import {
   toWallClock,
   wallClockToExcelSerial,
   wallClockToInstant,
-} from '../shared/utils/timezone';
+} from '../shared/utils/timezone.js';
 import {
   getStorageTimeZone,
   storedWallClockToInstant,
-} from './evidence-storage-timezones';
+} from './evidence-storage-timezones.js';
 
 const MEXICO = 'America/Mexico_City';
 const BOGOTA = 'America/Bogota';

@@ -1,24 +1,28 @@
 /**
  * E2E (app completa + base de pruebas): CIAEL y sus catálogos (P4).
  */
-import { ObjectLiteral } from 'typeorm';
+import { type ObjectLiteral } from 'typeorm';
 
-import { AccidentPosition } from 'accident-positions/entities/accident-position.entity';
-import { AssociatedTask } from 'associated-tasks/entities/associated-task.entity';
-import { AtAgent } from 'at-agents/entities/at-agent.entity';
-import { AtMechanism } from 'at-mechanisms/entities/at-mechanism.entity';
-import { BodyPart } from 'body-parts/entities/body-part.entity';
-import { CieDiagnosis } from 'cie-diagnoses/entities/cie-diagnosis.entity';
-import { Employee, EmployeeArea, EmployeePosition } from 'employees/entities';
-import { Genre } from 'genres/entities/genre.entity';
-import { Machine } from 'machines/entities/machine.entity';
-import { NatureOfEvent } from 'nature-of-events/entities/nature-of-event.entity';
-import { RiskFactor } from 'risk-factors/entities/risk-factor.entity';
-import { TypeOfInjury } from 'type-of-injuries/entities/type-of-injury.entity';
-import { TypeOfLink } from 'type-of-links/entities/type-of-link.entity';
-import { TypesOfEvent } from 'types-of-events/entities/types-of-event.entity';
-import { WorkingDay } from 'working-days/entities/working-day.entity';
-import { createE2eApp, E2eApp } from './e2e-app';
+import { AccidentPosition } from '../../src/accident-positions/entities/accident-position.entity.js';
+import { AssociatedTask } from '../../src/associated-tasks/entities/associated-task.entity.js';
+import { AtAgent } from '../../src/at-agents/entities/at-agent.entity.js';
+import { AtMechanism } from '../../src/at-mechanisms/entities/at-mechanism.entity.js';
+import { BodyPart } from '../../src/body-parts/entities/body-part.entity.js';
+import { CieDiagnosis } from '../../src/cie-diagnoses/entities/cie-diagnosis.entity.js';
+import {
+  Employee,
+  EmployeeArea,
+  EmployeePosition,
+} from '../../src/employees/entities/index.js';
+import { Genre } from '../../src/genres/entities/genre.entity.js';
+import { Machine } from '../../src/machines/entities/machine.entity.js';
+import { NatureOfEvent } from '../../src/nature-of-events/entities/nature-of-event.entity.js';
+import { RiskFactor } from '../../src/risk-factors/entities/risk-factor.entity.js';
+import { TypeOfInjury } from '../../src/type-of-injuries/entities/type-of-injury.entity.js';
+import { TypeOfLink } from '../../src/type-of-links/entities/type-of-link.entity.js';
+import { TypesOfEvent } from '../../src/types-of-events/entities/types-of-event.entity.js';
+import { WorkingDay } from '../../src/working-days/entities/working-day.entity.js';
+import { createE2eApp, type E2eApp } from './e2e-app.js';
 
 /** Catálogos con su ruta; los marcados con planta se filtran por planta. */
 const CATALOGS: [string, new () => ObjectLiteral, boolean][] = [

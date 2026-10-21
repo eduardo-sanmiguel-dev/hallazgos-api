@@ -4,21 +4,25 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { RequestContextService } from 'shared/services/request-context.service';
+import { RequestContextService } from '../shared/services/request-context.service.js';
 
 import { Brackets, Repository, In } from 'typeorm';
 
-import { ExtinguisherInspection } from './entities/extinguisher-inspection.entity';
-import { ExtinguisherInspectionEvaluation } from './entities/extinguisher-inspection-evaluation.entity';
-import { User } from 'users/entities/user.entity';
+import { ExtinguisherInspection } from './entities/extinguisher-inspection.entity.js';
+import { ExtinguisherInspectionEvaluation } from './entities/extinguisher-inspection-evaluation.entity.js';
+import { User } from '../users/entities/user.entity.js';
 import {
   CreateExtinguisherInspectionDto,
   QueryExtinguisherInspectionDto,
   UpdateExtinguisherInspectionDto,
-} from './dto';
-import { buildInspectionFileName } from './extinguisher-inspection-file-name';
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
-import { PLANT_TIME_ZONES, toPlantCountry, toWallClock } from '@shared/utils';
+} from './dto/index.js';
+import { buildInspectionFileName } from './extinguisher-inspection-file-name.js';
+import { ManufacturingPlant } from '../manufacturing-plants/entities/manufacturing-plant.entity.js';
+import {
+  PLANT_TIME_ZONES,
+  toPlantCountry,
+  toWallClock,
+} from '../shared/utils/index.js';
 
 @Injectable()
 export class ExtinguisherInspectionsService {

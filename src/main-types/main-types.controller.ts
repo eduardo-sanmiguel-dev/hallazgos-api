@@ -1,5 +1,5 @@
 import { UseGuards } from '@nestjs/common';
-import { AdminGuard } from '@shared/guards/admin.guard';
+import { AdminGuard } from '../shared/guards/admin.guard.js';
 import {
   Controller,
   Get,
@@ -11,8 +11,12 @@ import {
   Query,
 } from '@nestjs/common';
 
-import { MainTypesService } from './main-types.service';
-import { CreateMainTypeDto, QueryMainTypeDto, UpdateMainTypeDto } from './dto';
+import { MainTypesService } from './main-types.service.js';
+import {
+  CreateMainTypeDto,
+  QueryMainTypeDto,
+  UpdateMainTypeDto,
+} from './dto/index.js';
 
 @Controller('main-types')
 export class MainTypesController {

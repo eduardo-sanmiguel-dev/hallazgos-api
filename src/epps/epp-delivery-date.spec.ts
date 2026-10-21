@@ -1,4 +1,4 @@
-import { plantDeliveryDate } from './epp-delivery-date';
+import { plantDeliveryDate } from './epp-delivery-date.js';
 
 // Lo que guarda el transformer de la columna deliveryDate.
 const stored = (date: Date) => date.toISOString().slice(0, 10);

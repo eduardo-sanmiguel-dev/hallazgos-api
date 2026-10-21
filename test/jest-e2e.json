@@ -19,10 +19,5 @@
       }
     ]
   },
-  "modulePaths": ["<rootDir>/../src"],
-  "moduleNameMapper": {
-    "^@config$": "<rootDir>/../src/config",
-    "^@shared/(.*)$": "<rootDir>/../src/shared/$1",
-    "^@test/(.*)$": "<rootDir>/$1"
-  }
+  "moduleNameMapper": { "^(\\.{1,2}/.*)\\.js$": "$1" }
 }

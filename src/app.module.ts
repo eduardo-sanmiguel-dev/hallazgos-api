@@ -1,7 +1,7 @@
 import {
-  MiddlewareConsumer,
+  type MiddlewareConsumer,
   Module,
-  NestModule,
+  type NestModule,
   RequestMethod,
 } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
@@ -9,63 +9,63 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { GraphQLModule } from '@nestjs/graphql';
-import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
+import { ApolloDriver, type ApolloDriverConfig } from '@nestjs/apollo';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 
-import { EnvConfiguration, JoiValidationSchema } from '@config';
+import { EnvConfiguration, JoiValidationSchema } from './config/index.js';
 
 import {
   AppKeyMiddleware,
   JwtMiddleware,
   RequestContextMiddleware,
-} from '@shared/middlewares';
-import { RequestContextModule } from './shared/services/request-context.module';
-import { DeleteUploadsOnErrorInterceptor } from './shared/interceptors';
-import { GistSecretGuardService } from './shared/services/gist-secret-guard.service';
-import { AuthModule } from './auth/auth.module';
-import { UsersModule } from './users/users.module';
-import { ManufacturingPlantsModule } from './manufacturing-plants/manufacturing-plants.module';
-import { EvidencesModule } from './evidences/evidences.module';
-import { ZonesModule } from './zones/zones.module';
-import { MainTypesModule } from './main-types/main-types.module';
-import { SecondaryTypesModule } from './secondary-types/secondary-types.module';
-import { MailModule } from './mail/mail.module';
-import { DashboardModule } from './dashboard/dashboard.module';
-import { JwtService } from 'auth/jwt.service';
-import { ProcessesModule } from 'processes/processes.module';
-import { EppsModule } from './epps/epps.module';
-import { EmployeesModule } from './employees/employees.module';
-import { EquipmentsModule } from './equipments/equipments.module';
-import { AreasModule } from './areas/areas.module';
-import { TypesOfEventsModule } from './types-of-events/types-of-events.module';
-import { GenresModule } from './genres/genres.module';
-import { CieDiagnosesModule } from './cie-diagnoses/cie-diagnoses.module';
-import { AccidentPositionsModule } from './accident-positions/accident-positions.module';
-import { BodyPartsModule } from './body-parts/body-parts.module';
-import { AtAgentsModule } from './at-agents/at-agents.module';
-import { TypeOfInjuriesModule } from './type-of-injuries/type-of-injuries.module';
-import { AtMechanismsModule } from './at-mechanisms/at-mechanisms.module';
-import { WorkingDaysModule } from './working-days/working-days.module';
-import { TypeOfLinksModule } from './type-of-links/type-of-links.module';
-import { MachinesModule } from './machines/machines.module';
-import { AssociatedTasksModule } from './associated-tasks/associated-tasks.module';
-import { RiskFactorsModule } from './risk-factors/risk-factors.module';
-import { NatureOfEventsModule } from './nature-of-events/nature-of-events.module';
-import { CountriesModule } from './countries/countries.module';
-import { CiaelsModule } from './ciaels/ciaels.module';
-import { RulesOfLifeModule } from 'rules-of-life/rules-of-life.module';
-import { IcsModule } from './ics/ics.module';
-import { SafetyDataFilesModule } from './safety-data-files/safety-data-files.module';
-import { EmergencyTeamsModule } from './emergency-teams/emergency-teams.module';
-import { ExtinguisherInspectionsModule } from './extinguisher-inspections/extinguisher-inspections.module';
-import { GembaWalkZonesModule } from './gemba-walk-zones/gemba-walk-zones.module';
-import { GembaWalkObserversModule } from './gemba-walk-observers/gemba-walk-observers.module';
-import { GembaWalkCalendarModule } from './gemba-walk-calendar/gemba-walk-calendar.module';
-import { GembaWalkEvaluationsModule } from './gemba-walk-evaluations/gemba-walk-evaluations.module';
-import { GembaWalksModule } from './gemba-walks/gemba-walks.module';
-import { HealthModule } from './health/health.module';
-import { EvidenceImageAccessMiddleware } from './evidences/evidence-image-access.middleware';
+} from './shared/middlewares/index.js';
+import { RequestContextModule } from './shared/services/request-context.module.js';
+import { DeleteUploadsOnErrorInterceptor } from './shared/interceptors/index.js';
+import { GistSecretGuardService } from './shared/services/gist-secret-guard.service.js';
+import { AuthModule } from './auth/auth.module.js';
+import { UsersModule } from './users/users.module.js';
+import { ManufacturingPlantsModule } from './manufacturing-plants/manufacturing-plants.module.js';
+import { EvidencesModule } from './evidences/evidences.module.js';
+import { ZonesModule } from './zones/zones.module.js';
+import { MainTypesModule } from './main-types/main-types.module.js';
+import { SecondaryTypesModule } from './secondary-types/secondary-types.module.js';
+import { MailModule } from './mail/mail.module.js';
+import { DashboardModule } from './dashboard/dashboard.module.js';
+import { JwtService } from './auth/jwt.service.js';
+import { ProcessesModule } from './processes/processes.module.js';
+import { EppsModule } from './epps/epps.module.js';
+import { EmployeesModule } from './employees/employees.module.js';
+import { EquipmentsModule } from './equipments/equipments.module.js';
+import { AreasModule } from './areas/areas.module.js';
+import { TypesOfEventsModule } from './types-of-events/types-of-events.module.js';
+import { GenresModule } from './genres/genres.module.js';
+import { CieDiagnosesModule } from './cie-diagnoses/cie-diagnoses.module.js';
+import { AccidentPositionsModule } from './accident-positions/accident-positions.module.js';
+import { BodyPartsModule } from './body-parts/body-parts.module.js';
+import { AtAgentsModule } from './at-agents/at-agents.module.js';
+import { TypeOfInjuriesModule } from './type-of-injuries/type-of-injuries.module.js';
+import { AtMechanismsModule } from './at-mechanisms/at-mechanisms.module.js';
+import { WorkingDaysModule } from './working-days/working-days.module.js';
+import { TypeOfLinksModule } from './type-of-links/type-of-links.module.js';
+import { MachinesModule } from './machines/machines.module.js';
+import { AssociatedTasksModule } from './associated-tasks/associated-tasks.module.js';
+import { RiskFactorsModule } from './risk-factors/risk-factors.module.js';
+import { NatureOfEventsModule } from './nature-of-events/nature-of-events.module.js';
+import { CountriesModule } from './countries/countries.module.js';
+import { CiaelsModule } from './ciaels/ciaels.module.js';
+import { RulesOfLifeModule } from './rules-of-life/rules-of-life.module.js';
+import { IcsModule } from './ics/ics.module.js';
+import { SafetyDataFilesModule } from './safety-data-files/safety-data-files.module.js';
+import { EmergencyTeamsModule } from './emergency-teams/emergency-teams.module.js';
+import { ExtinguisherInspectionsModule } from './extinguisher-inspections/extinguisher-inspections.module.js';
+import { GembaWalkZonesModule } from './gemba-walk-zones/gemba-walk-zones.module.js';
+import { GembaWalkObserversModule } from './gemba-walk-observers/gemba-walk-observers.module.js';
+import { GembaWalkCalendarModule } from './gemba-walk-calendar/gemba-walk-calendar.module.js';
+import { GembaWalkEvaluationsModule } from './gemba-walk-evaluations/gemba-walk-evaluations.module.js';
+import { GembaWalksModule } from './gemba-walks/gemba-walks.module.js';
+import { HealthModule } from './health/health.module.js';
+import { EvidenceImageAccessMiddleware } from './evidences/evidence-image-access.middleware.js';
 
 @Module({
   imports: [
@@ -89,7 +89,7 @@ import { EvidenceImageAccessMiddleware } from './evidences/evidence-image-access
         autoLoadEntities: true,
         synchronize: false,
         migrationsRun: true,
-        migrations: [join(__dirname, 'migrations', '*{.ts,.js}')],
+        migrations: [join(import.meta.dirname, 'migrations', '*{.ts,.js}')],
       }),
     }),
     GraphQLModule.forRootAsync<ApolloDriverConfig>({
@@ -143,7 +143,7 @@ import { EvidenceImageAccessMiddleware } from './evidences/evidence-image-access
       }),
     }),
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'public'),
+      rootPath: join(import.meta.dirname, '..', 'public'),
     }),
     AuthModule,
     UsersModule,

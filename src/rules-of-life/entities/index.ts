@@ -1,3 +1,3 @@
-export * from './areas-of-behavior';
-export * from './rules-of-life.entity';
-export * from './standard-of-behavior';
+export * from './areas-of-behavior.js';
+export * from './rules-of-life.entity.js';
+export * from './standard-of-behavior.js';

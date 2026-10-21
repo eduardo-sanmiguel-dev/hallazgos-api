@@ -6,11 +6,11 @@ import {
   UpdateDateColumn,
   ManyToMany,
   OneToMany,
-  Relation,
+  type Relation,
 } from 'typeorm';
 
-import { StandardOfBehavior } from './standard-of-behavior';
-import { Ics } from 'ics/entities/ics.entity';
+import { StandardOfBehavior } from './standard-of-behavior.js';
+import { Ics } from '../../ics/entities/ics.entity.js';
 
 @Entity({ name: 'areas_of_behavior' })
 export class AreaOfBehavior {

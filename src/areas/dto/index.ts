@@ -1,3 +1,3 @@
-export * from './create-area.dto';
-export * from './query-area.dto';
-export * from './update-area.dto';
+export * from './create-area.dto.js';
+export * from './query-area.dto.js';
+export * from './update-area.dto.js';

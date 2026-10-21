@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { ProcessesService } from './processes.service';
-import { ProcessesController } from './processes.controller';
-import { Processes } from './entities/processes.entity';
-import { ManufacturingPlantsModule } from '../manufacturing-plants/manufacturing-plants.module';
+import { ProcessesService } from './processes.service.js';
+import { ProcessesController } from './processes.controller.js';
+import { Processes } from './entities/processes.entity.js';
+import { ManufacturingPlantsModule } from '../manufacturing-plants/manufacturing-plants.module.js';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Processes]), ManufacturingPlantsModule],

@@ -1,5 +1,5 @@
 import { UseGuards } from '@nestjs/common';
-import { AdminGuard } from '@shared/guards/admin.guard';
+import { AdminGuard } from '../shared/guards/admin.guard.js';
 import {
   Controller,
   Get,
@@ -10,8 +10,8 @@ import {
   Delete,
 } from '@nestjs/common';
 
-import { CreateGenreDto, UpdateGenreDto } from './dto';
-import { GenresService } from './genres.service';
+import { CreateGenreDto, UpdateGenreDto } from './dto/index.js';
+import { GenresService } from './genres.service.js';
 
 @Controller('genres')
 export class GenresController {

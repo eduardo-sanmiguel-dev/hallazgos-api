@@ -12,18 +12,21 @@ import {
   Res,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ImageFileValidationPipe, imageUploadOptions } from '@shared/utils';
+import {
+  ImageFileValidationPipe,
+  imageUploadOptions,
+} from '../shared/utils/index.js';
 
 import type { Response } from 'express';
 
-import { EvidencesService } from './evidences.service';
+import { EvidencesService } from './evidences.service.js';
 import {
   CommentEvidenceDto,
   CreateEvidenceDto,
   QueryEvidenceDto,
   ReassignResponsiblesDto,
   UpdateEvidenceDto,
-} from './dto';
+} from './dto/index.js';
 
 @Controller('evidences')
 export class EvidencesController {

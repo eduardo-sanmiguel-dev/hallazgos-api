@@ -4,9 +4,13 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 
-import { buildManufacturingPlant, buildUser, runAsUser } from '@test/utils';
-import { RequestContextService } from '../services/request-context.service';
-import { OptionalUserPlantPipe, UserPlantPipe } from './user-plant.pipe';
+import {
+  buildManufacturingPlant,
+  buildUser,
+  runAsUser,
+} from '../../../test/utils/index.js';
+import { RequestContextService } from '../services/request-context.service.js';
+import { OptionalUserPlantPipe, UserPlantPipe } from './user-plant.pipe.js';
 
 describe('UserPlantPipe', () => {
   const pipe = new UserPlantPipe(new RequestContextService());

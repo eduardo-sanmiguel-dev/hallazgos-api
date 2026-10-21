@@ -2,9 +2,9 @@ import {
   createHttpTestApp,
   describeCrudContract,
   mockProvider,
-} from '@test/utils';
-import { EmployeesController } from './employees.controller';
-import { EmployeesService } from './employees.service';
+} from '../../test/utils/index.js';
+import { EmployeesController } from './employees.controller.js';
+import { EmployeesService } from './employees.service.js';
 
 const valid = {
   code: 123,

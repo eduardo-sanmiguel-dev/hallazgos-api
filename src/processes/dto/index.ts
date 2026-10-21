@@ -1,3 +1,3 @@
-export * from './create-processes.dto';
-export * from './query-processes.dto';
-export * from './update-processes.dto';
+export * from './create-processes.dto.js';
+export * from './query-processes.dto.js';
+export * from './update-processes.dto.js';

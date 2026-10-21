@@ -6,14 +6,14 @@ import {
   UpdateDateColumn,
   OneToMany,
   ManyToOne,
-  Relation,
+  type Relation,
   Index,
 } from 'typeorm';
 
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
-import { EquipmentCostHistory } from './equipment-cost-history.entity';
-import { EppEquipment } from 'epps/entities';
-import { User } from 'users/entities/user.entity';
+import { ManufacturingPlant } from '../../manufacturing-plants/entities/manufacturing-plant.entity.js';
+import { EquipmentCostHistory } from './equipment-cost-history.entity.js';
+import { EppEquipment } from '../../epps/entities/index.js';
+import { User } from '../../users/entities/user.entity.js';
 
 @Entity()
 export class Equipment {

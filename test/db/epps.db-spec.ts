@@ -1,10 +1,14 @@
 /**
  * E2E (app completa + base de pruebas): EPP y equipos.
  */
-import { Employee, EmployeeArea, EmployeePosition } from 'employees/entities';
-import { Equipment } from 'equipments/entities';
-import { Genre } from 'genres/entities/genre.entity';
-import { createE2eApp, E2eApp } from './e2e-app';
+import {
+  Employee,
+  EmployeeArea,
+  EmployeePosition,
+} from '../../src/employees/entities/index.js';
+import { Equipment } from '../../src/equipments/entities/index.js';
+import { Genre } from '../../src/genres/entities/genre.entity.js';
+import { createE2eApp, type E2eApp } from './e2e-app.js';
 
 // PNG de 1x1 como firma (data URL, como la manda el UI).
 const SIGNATURE =

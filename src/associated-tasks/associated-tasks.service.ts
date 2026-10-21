@@ -1,14 +1,14 @@
 import { InjectRepository } from '@nestjs/typeorm';
 import { Injectable } from '@nestjs/common';
 
-import { FindOptionsWhere, Repository } from 'typeorm';
+import { type FindOptionsWhere, Repository } from 'typeorm';
 
-import { AssociatedTask } from './entities/associated-task.entity';
+import { AssociatedTask } from './entities/associated-task.entity.js';
 import {
   CreateAssociatedTaskDto,
   FiltersAssociatedTaskDto,
   UpdateAssociatedTaskDto,
-} from './dto';
+} from './dto/index.js';
 
 @Injectable()
 export class AssociatedTasksService {

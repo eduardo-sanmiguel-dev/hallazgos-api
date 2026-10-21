@@ -3,8 +3,8 @@ import { Injectable } from '@nestjs/common';
 
 import { Repository } from 'typeorm';
 
-import { CreateTypesOfEventDto, UpdateTypesOfEventDto } from './dto';
-import { TypesOfEvent } from './entities/types-of-event.entity';
+import { CreateTypesOfEventDto, UpdateTypesOfEventDto } from './dto/index.js';
+import { TypesOfEvent } from './entities/types-of-event.entity.js';
 
 @Injectable()
 export class TypesOfEventsService {

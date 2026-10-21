@@ -7,18 +7,18 @@ import {
   ManyToOne,
   ManyToMany,
   JoinTable,
-  Relation,
+  type Relation,
   Index,
 } from 'typeorm';
 
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
-import { User } from 'users/entities/user.entity';
-import { Employee } from 'employees/entities';
+import { ManufacturingPlant } from '../../manufacturing-plants/entities/manufacturing-plant.entity.js';
+import { User } from '../../users/entities/user.entity.js';
+import { Employee } from '../../employees/entities/index.js';
 import {
   AreaOfBehavior,
   RulesOfLife,
   StandardOfBehavior,
-} from 'rules-of-life/entities';
+} from '../../rules-of-life/entities/index.js';
 
 @Entity({ name: 'ics' })
 export class Ics {

@@ -7,12 +7,12 @@ import {
   ManyToOne,
   OneToMany,
   Index,
-  Relation,
+  type Relation,
 } from 'typeorm';
 
-import { GembaWalkCalendar } from 'gemba-walk-calendar/entities/gemba-walk-calendar.entity';
-import { User } from 'users/entities/user.entity';
-import { GembaWalkResult } from './gemba-walk-result.entity';
+import { GembaWalkCalendar } from '../../gemba-walk-calendar/entities/gemba-walk-calendar.entity.js';
+import { User } from '../../users/entities/user.entity.js';
+import { GembaWalkResult } from './gemba-walk-result.entity.js';
 
 // Recorrido registrado por un observador sobre un evento programado.
 // No se edita ni se elimina.

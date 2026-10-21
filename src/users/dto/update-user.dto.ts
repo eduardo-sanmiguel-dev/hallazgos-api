@@ -8,8 +8,8 @@ import {
   IsString,
 } from 'class-validator';
 
-import { parseStringArrayQueryByKey } from '@shared/utils';
-import { CreateUserDto } from './create-user.dto';
+import { parseStringArrayQueryByKey } from '../../shared/utils/index.js';
+import { CreateUserDto } from './create-user.dto.js';
 
 export class UpdateUserDto extends PartialType(
   OmitType(CreateUserDto, ['manufacturingPlantNames', 'password'] as const),

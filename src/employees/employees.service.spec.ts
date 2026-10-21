@@ -5,13 +5,13 @@ import {
   buildManufacturingPlant,
   buildUser,
   createServiceTestingModule,
-  RepositoryMock,
+  type RepositoryMock,
   runAsUser,
-} from '@test/utils';
-import { Genre } from 'genres/entities/genre.entity';
-import { Zone } from 'zones/entities/zone.entity';
-import { Employee, EmployeeArea, EmployeePosition } from './entities';
-import { EmployeesService } from './employees.service';
+} from '../../test/utils/index.js';
+import { Genre } from '../genres/entities/genre.entity.js';
+import { Zone } from '../zones/entities/zone.entity.js';
+import { Employee, EmployeeArea, EmployeePosition } from './entities/index.js';
+import { EmployeesService } from './employees.service.js';
 
 describe('EmployeesService', () => {
   let service: EmployeesService;

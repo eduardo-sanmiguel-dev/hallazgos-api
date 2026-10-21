@@ -1,5 +1,5 @@
 import { UseGuards } from '@nestjs/common';
-import { AdminGuard } from '@shared/guards/admin.guard';
+import { AdminGuard } from '../shared/guards/admin.guard.js';
 import {
   Controller,
   Get,
@@ -11,8 +11,12 @@ import {
   Query,
 } from '@nestjs/common';
 
-import { CreateMachineDto, FiltersMachineDto, UpdateMachineDto } from './dto';
-import { MachinesService } from './machines.service';
+import {
+  CreateMachineDto,
+  FiltersMachineDto,
+  UpdateMachineDto,
+} from './dto/index.js';
+import { MachinesService } from './machines.service.js';
 
 @Controller('machines')
 export class MachinesController {

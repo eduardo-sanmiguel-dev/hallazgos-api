@@ -3,8 +3,8 @@ import { Injectable } from '@nestjs/common';
 
 import { Repository } from 'typeorm';
 
-import { CreateCountryDto, UpdateCountryDto } from './dto';
-import { Country } from './entities/country.entity';
+import { CreateCountryDto, UpdateCountryDto } from './dto/index.js';
+import { Country } from './entities/country.entity.js';
 
 @Injectable()
 export class CountriesService {

@@ -1,16 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
-import { FindManyOptions, ILike, In, Repository } from 'typeorm';
-import { findPaginated } from 'shared/utils';
+import { type FindManyOptions, ILike, In, Repository } from 'typeorm';
+import { findPaginated } from '../shared/utils/index.js';
 
-import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
-import { Processes } from './entities/processes.entity';
+import { ManufacturingPlantsService } from '../manufacturing-plants/manufacturing-plants.service.js';
+import { Processes } from './entities/processes.entity.js';
 import {
   CreateProcessesDto,
   QueryProcessesDto,
   UpdateProcessesDto,
-} from './dto';
+} from './dto/index.js';
 
 @Injectable()
 export class ProcessesService {

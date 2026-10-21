@@ -2,7 +2,7 @@ import { existsSync } from 'fs';
 import { writeFile } from 'fs/promises';
 import { join } from 'path';
 
-import { createTempDir, removeTempDir } from './temp-dir';
+import { createTempDir, removeTempDir } from './temp-dir.js';
 
 describe('temp-dir', () => {
   it('crea una carpeta distinta en cada llamada', async () => {

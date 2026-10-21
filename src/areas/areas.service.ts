@@ -4,15 +4,15 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { RequestContextService } from 'shared/services/request-context.service';
+import { RequestContextService } from '../shared/services/request-context.service.js';
 
-import { FindManyOptions, ILike, Repository } from 'typeorm';
-import { findPaginated } from 'shared/utils';
+import { type FindManyOptions, ILike, Repository } from 'typeorm';
+import { findPaginated } from '../shared/utils/index.js';
 
-import { CreateAreaDto, QueryAreaDto, UpdateAreaDto } from './dto';
-import { Area } from './entities/area.entity';
-import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
-import { User } from 'users/entities/user.entity';
+import { CreateAreaDto, QueryAreaDto, UpdateAreaDto } from './dto/index.js';
+import { Area } from './entities/area.entity.js';
+import { ManufacturingPlantsService } from '../manufacturing-plants/manufacturing-plants.service.js';
+import { User } from '../users/entities/user.entity.js';
 
 @Injectable()
 export class AreasService {

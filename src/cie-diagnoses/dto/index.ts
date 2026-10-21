@@ -1,2 +1,2 @@
-export * from './create-cie-diagnosis.dto';
-export * from './update-cie-diagnosis.dto';
+export * from './create-cie-diagnosis.dto.js';
+export * from './update-cie-diagnosis.dto.js';

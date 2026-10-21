@@ -1,7 +1,7 @@
-import { buildAdmin } from '@test/utils';
-import { describeCrudContract } from '@test/utils';
-import { ManufacturingPlantsController } from './manufacturing-plants.controller';
-import { ManufacturingPlantsService } from './manufacturing-plants.service';
+import { buildAdmin } from '../../test/utils/index.js';
+import { describeCrudContract } from '../../test/utils/index.js';
+import { ManufacturingPlantsController } from './manufacturing-plants.controller.js';
+import { ManufacturingPlantsService } from './manufacturing-plants.service.js';
 
 const valid = { name: 'Nueva', link: 'https://x.test', lat: 19.6, lng: -99.2 };
 

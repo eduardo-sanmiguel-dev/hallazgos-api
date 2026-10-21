@@ -1,6 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 
-import { GistSecretGuardService } from './gist-secret-guard.service';
+import { GistSecretGuardService } from './gist-secret-guard.service.js';
 
 const GIST_URL = 'https://gist.test/secret.json';
 

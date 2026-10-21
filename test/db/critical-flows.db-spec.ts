@@ -1,15 +1,19 @@
 import { Logger } from '@nestjs/common';
 /** Regresiones críticas: solo PostgreSQL desechable configurado por jest-db. */
 import * as argon2 from 'argon2';
-import { JwtService } from 'auth/jwt.service';
-import { User } from 'users/entities/user.entity';
-import { Employee, EmployeeArea, EmployeePosition } from 'employees/entities';
-import { Equipment } from 'equipments/entities';
-import { Genre } from 'genres/entities/genre.entity';
-import { Epp, EppEquipment } from 'epps/entities';
-import { Evidence } from 'evidences/entities/evidence.entity';
-import { createE2eApp, E2eApp } from './e2e-app';
-import { saveEvidence, STATUSES } from './fixtures';
+import { JwtService } from '../../src/auth/jwt.service.js';
+import { User } from '../../src/users/entities/user.entity.js';
+import {
+  Employee,
+  EmployeeArea,
+  EmployeePosition,
+} from '../../src/employees/entities/index.js';
+import { Equipment } from '../../src/equipments/entities/index.js';
+import { Genre } from '../../src/genres/entities/genre.entity.js';
+import { Epp, EppEquipment } from '../../src/epps/entities/index.js';
+import { Evidence } from '../../src/evidences/entities/evidence.entity.js';
+import { createE2eApp, type E2eApp } from './e2e-app.js';
+import { saveEvidence, STATUSES } from './fixtures.js';
 
 const SIGNATURE =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';

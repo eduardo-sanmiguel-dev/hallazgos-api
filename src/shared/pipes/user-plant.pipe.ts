@@ -2,11 +2,11 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-  PipeTransform,
+  type PipeTransform,
 } from '@nestjs/common';
 
-import { RequestContextService } from '../services/request-context.service';
-import { scopePlantIds } from '../utils/plant-scope';
+import { RequestContextService } from '../services/request-context.service.js';
+import { scopePlantIds } from '../utils/plant-scope.js';
 
 const isMissing = (value: unknown) =>
   value === undefined || value === null || value === '';

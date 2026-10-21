@@ -1,7 +1,7 @@
-import { buildAdmin } from '@test/utils';
-import { describeCrudContract } from '@test/utils';
-import { ZonesController } from './zones.controller';
-import { ZonesService } from './zones.service';
+import { buildAdmin } from '../../test/utils/index.js';
+import { describeCrudContract } from '../../test/utils/index.js';
+import { ZonesController } from './zones.controller.js';
+import { ZonesService } from './zones.service.js';
 
 describeCrudContract({
   user: buildAdmin(),

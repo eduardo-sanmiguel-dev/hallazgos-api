@@ -9,12 +9,12 @@ import {
   OneToMany,
   ManyToOne,
   Index,
-  Relation,
+  type Relation,
 } from 'typeorm';
 
-import { Evidence } from 'evidences/entities/evidence.entity';
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
-import { User } from 'users/entities/user.entity';
+import { Evidence } from '../../evidences/entities/evidence.entity.js';
+import { ManufacturingPlant } from '../../manufacturing-plants/entities/manufacturing-plant.entity.js';
+import { User } from '../../users/entities/user.entity.js';
 
 @Entity({ name: 'processes' })
 @Index(['name', 'manufacturingPlant'], { unique: true })

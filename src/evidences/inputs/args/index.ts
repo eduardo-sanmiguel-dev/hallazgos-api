@@ -1,1 +1,1 @@
-export * from './params.args';
+export * from './params.args.js';

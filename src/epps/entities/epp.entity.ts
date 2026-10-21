@@ -6,13 +6,13 @@ import {
   UpdateDateColumn,
   ManyToOne,
   OneToMany,
-  Relation,
+  type Relation,
   Index,
 } from 'typeorm';
 
-import { EppEquipment } from './epp-equipment.entity';
-import { User } from 'users/entities/user.entity';
-import { Employee } from 'employees/entities';
+import { EppEquipment } from './epp-equipment.entity.js';
+import { User } from '../../users/entities/user.entity.js';
+import { Employee } from '../../employees/entities/index.js';
 
 @Entity()
 export class Epp {

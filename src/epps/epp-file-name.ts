@@ -2,7 +2,7 @@ import {
   fileNameWords,
   sanitizeFileNamePart,
   toPascalCaseFileNamePart,
-} from '../shared/utils/file-name';
+} from '../shared/utils/file-name.js';
 
 export const EPP_FILE_NAME_MAX_LENGTH = 150;
 

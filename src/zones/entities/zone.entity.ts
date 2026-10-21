@@ -9,14 +9,14 @@ import {
   OneToMany,
   ManyToOne,
   Index,
-  Relation,
+  type Relation,
 } from 'typeorm';
 
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
-import { Evidence } from 'evidences/entities/evidence.entity';
-import { Ciael } from 'ciaels/entities/ciael.entity';
-import { User } from 'users/entities/user.entity';
-import { Area } from 'areas/entities/area.entity';
+import { ManufacturingPlant } from '../../manufacturing-plants/entities/manufacturing-plant.entity.js';
+import { Evidence } from '../../evidences/entities/evidence.entity.js';
+import { Ciael } from '../../ciaels/entities/ciael.entity.js';
+import { User } from '../../users/entities/user.entity.js';
+import { Area } from '../../areas/entities/area.entity.js';
 
 @Entity({ name: 'zones' })
 @Index(['name', 'manufacturingPlant'], { unique: true })

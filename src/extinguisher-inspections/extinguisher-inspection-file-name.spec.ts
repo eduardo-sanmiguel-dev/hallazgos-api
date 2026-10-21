@@ -1,5 +1,5 @@
-import { buildInspectionFileName } from './extinguisher-inspection-file-name';
-import { inspectionStoredWallClockToInstant } from './extinguisher-inspection-storage-timezones';
+import { buildInspectionFileName } from './extinguisher-inspection-file-name.js';
+import { inspectionStoredWallClockToInstant } from './extinguisher-inspection-storage-timezones.js';
 
 describe('buildInspectionFileName', () => {
   it('México: hora de México y UTC-06', () => {

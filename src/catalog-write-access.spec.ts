@@ -1,4 +1,4 @@
-import { RequestMethod, Type } from '@nestjs/common';
+import { RequestMethod, type Type } from '@nestjs/common';
 import { PATH_METADATA, METHOD_METADATA } from '@nestjs/common/constants';
 import {
   buildUser,
@@ -6,38 +6,38 @@ import {
   buildAdmin,
   createHttpTestApp,
   mockProvider,
-} from '@test/utils';
+} from '../test/utils/index.js';
 const controllers: Type<unknown>[] = [
-  require('./manufacturing-plants/manufacturing-plants.controller')
+  require('./manufacturing-plants/manufacturing-plants.controller.js')
     .ManufacturingPlantsController,
-  require('./main-types/main-types.controller').MainTypesController,
-  require('./secondary-types/secondary-types.controller')
+  require('./main-types/main-types.controller.js').MainTypesController,
+  require('./secondary-types/secondary-types.controller.js')
     .SecondaryTypesController,
-  require('./zones/zones.controller').ZonesController,
-  require('./processes/processes.controller').ProcessesController,
-  require('./areas/areas.controller').AreasController,
-  require('./machines/machines.controller').MachinesController,
-  require('./rules-of-life/rules-of-life.controller').RulesOfLifeController,
-  require('./risk-factors/risk-factors.controller').RiskFactorsController,
-  require('./working-days/working-days.controller').WorkingDaysController,
-  require('./countries/countries.controller').CountriesController,
-  require('./accident-positions/accident-positions.controller')
+  require('./zones/zones.controller.js').ZonesController,
+  require('./processes/processes.controller.js').ProcessesController,
+  require('./areas/areas.controller.js').AreasController,
+  require('./machines/machines.controller.js').MachinesController,
+  require('./rules-of-life/rules-of-life.controller.js').RulesOfLifeController,
+  require('./risk-factors/risk-factors.controller.js').RiskFactorsController,
+  require('./working-days/working-days.controller.js').WorkingDaysController,
+  require('./countries/countries.controller.js').CountriesController,
+  require('./accident-positions/accident-positions.controller.js')
     .AccidentPositionsController,
-  require('./associated-tasks/associated-tasks.controller')
+  require('./associated-tasks/associated-tasks.controller.js')
     .AssociatedTasksController,
-  require('./at-agents/at-agents.controller').AtAgentsController,
-  require('./at-mechanisms/at-mechanisms.controller').AtMechanismsController,
-  require('./body-parts/body-parts.controller').BodyPartsController,
-  require('./cie-diagnoses/cie-diagnoses.controller').CieDiagnosesController,
-  require('./genres/genres.controller').GenresController,
-  require('./nature-of-events/nature-of-events.controller')
+  require('./at-agents/at-agents.controller.js').AtAgentsController,
+  require('./at-mechanisms/at-mechanisms.controller.js').AtMechanismsController,
+  require('./body-parts/body-parts.controller.js').BodyPartsController,
+  require('./cie-diagnoses/cie-diagnoses.controller.js').CieDiagnosesController,
+  require('./genres/genres.controller.js').GenresController,
+  require('./nature-of-events/nature-of-events.controller.js')
     .NatureOfEventsController,
-  require('./type-of-injuries/type-of-injuries.controller')
+  require('./type-of-injuries/type-of-injuries.controller.js')
     .TypeOfInjuriesController,
-  require('./type-of-links/type-of-links.controller').TypeOfLinksController,
-  require('./types-of-events/types-of-events.controller')
+  require('./type-of-links/type-of-links.controller.js').TypeOfLinksController,
+  require('./types-of-events/types-of-events.controller.js')
     .TypesOfEventsController,
-  require('./safety-data-files/safety-data-files.controller')
+  require('./safety-data-files/safety-data-files.controller.js')
     .SafetyDataFilesController,
 ];
 describe.each(controllers)('Permisos de escritura: %p', (Controller) => {

@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { type MigrationInterface, type QueryRunner } from 'typeorm';
 
 /**
  * Elimina el módulo de guías de entrenamiento: sus tablas, registros y el

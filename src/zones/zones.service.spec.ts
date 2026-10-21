@@ -5,13 +5,13 @@ import {
   buildUser,
   createServiceTestingModule,
   mockProvider,
-  RepositoryMock,
+  type RepositoryMock,
   runAsUser,
-} from '@test/utils';
-import { AreasService } from 'areas/areas.service';
-import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
-import { Zone } from './entities/zone.entity';
-import { ZonesService } from './zones.service';
+} from '../../test/utils/index.js';
+import { AreasService } from '../areas/areas.service.js';
+import { ManufacturingPlantsService } from '../manufacturing-plants/manufacturing-plants.service.js';
+import { Zone } from './entities/zone.entity.js';
+import { ZonesService } from './zones.service.js';
 
 describe('ZonesService', () => {
   let service: ZonesService;

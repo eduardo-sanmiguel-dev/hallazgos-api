@@ -1,7 +1,7 @@
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { safeFilePath } from './safe-file-path';
+import { safeFilePath } from './safe-file-path.js';
 describe('safeFilePath', () => {
   let temp: string;
   let root: string;

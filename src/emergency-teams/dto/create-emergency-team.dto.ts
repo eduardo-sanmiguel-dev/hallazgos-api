@@ -10,7 +10,7 @@ import {
   Min,
 } from 'class-validator';
 
-import { ExtinguisherType } from 'emergency-teams/entities/emergency-team.entity';
+import { ExtinguisherType } from '../entities/emergency-team.entity.js';
 
 export class CreateEmergencyTeamDto {
   @IsString()

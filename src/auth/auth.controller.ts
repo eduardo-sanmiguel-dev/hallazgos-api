@@ -4,9 +4,9 @@ import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { parseCookie } from 'cookie';
 import type { Response } from 'express';
 
-import { AuthService } from './auth.service';
-import { LoginAuthDto } from './dto/login-auth.dto';
-import { RestorePasswordDto } from './dto/restore-password.dto';
+import { AuthService } from './auth.service.js';
+import { LoginAuthDto } from './dto/login-auth.dto.js';
+import { RestorePasswordDto } from './dto/restore-password.dto.js';
 
 // Límite por IP en los endpoints públicos que reciben credenciales o
 // correos: frena fuerza bruta y abuso del envío de correos.

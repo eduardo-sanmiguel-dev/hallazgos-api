@@ -8,24 +8,28 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { RequestContextService } from 'shared/services/request-context.service';
+import { RequestContextService } from '../shared/services/request-context.service.js';
 
 import {
   Between,
-  EntityTarget,
-  FindOptionsWhere,
+  type EntityTarget,
+  type FindOptionsWhere,
   In,
   LessThanOrEqual,
   Repository,
 } from 'typeorm';
-import { StyleDictionary, TDocumentDefinitions } from 'pdfmake/interfaces';
+import type {
+  StyleDictionary,
+  TDocumentDefinitions,
+} from 'pdfmake/interfaces.js';
 import XlsxPopulate from 'xlsx-populate';
 import type { Response } from 'express';
+import { createRequire } from 'module';
 import { dirname, resolve, sep } from 'path';
 
-import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
-import { SecondaryTypesService } from 'secondary-types/secondary-types.service';
+import { ManufacturingPlantsService } from '../manufacturing-plants/manufacturing-plants.service.js';
+import { ManufacturingPlant } from '../manufacturing-plants/entities/manufacturing-plant.entity.js';
+import { SecondaryTypesService } from '../secondary-types/secondary-types.service.js';
 import {
   ENV_DEVELOPMENT,
   ROLE_ADMINISTRADOR,
@@ -34,23 +38,23 @@ import {
   STATUS_CLOSE,
   STATUS_IN_PROGRESS,
   STATUS_OPEN,
-} from '@shared/constants';
-import { MainTypesService } from 'main-types/main-types.service';
-import { ProcessesService } from 'processes/processes.service';
-import { Evidence } from './entities/evidence.entity';
-import { Comment } from './entities/comments.entity';
-import { ZonesService } from 'zones/zones.service';
-import { UsersService } from 'users/users.service';
-import { User } from 'users/entities/user.entity';
-import { MailService } from 'mail/mail.service';
-import { ParamsArgs } from './inputs/args';
+} from '../shared/constants/index.js';
+import { MainTypesService } from '../main-types/main-types.service.js';
+import { ProcessesService } from '../processes/processes.service.js';
+import { Evidence } from './entities/evidence.entity.js';
+import { Comment } from './entities/comments.entity.js';
+import { ZonesService } from '../zones/zones.service.js';
+import { UsersService } from '../users/users.service.js';
+import { User } from '../users/entities/user.entity.js';
+import { MailService } from '../mail/mail.service.js';
+import { ParamsArgs } from './inputs/args/index.js';
 import {
   CommentEvidenceDto,
   CreateEvidenceDto,
   QueryEvidenceDto,
   ReassignResponsiblesDto,
   UpdateEvidenceDto,
-} from './dto';
+} from './dto/index.js';
 import {
   uploadStaticImage,
   stringToDateWithTime,
@@ -66,20 +70,22 @@ import {
   toWallClock,
   wallClockToExcelSerial,
   scopePlantIds,
-} from '@shared/utils';
-import { MainType } from 'main-types/entities/main-type.entity';
-import { SecondaryType } from 'secondary-types/entities/secondary-type.entity';
-import { Area } from 'areas/entities/area.entity';
-import { Zone } from 'zones/entities/zone.entity';
-import { Processes } from 'processes/entities/processes.entity';
+} from '../shared/utils/index.js';
+import { MainType } from '../main-types/entities/main-type.entity.js';
+import { SecondaryType } from '../secondary-types/entities/secondary-type.entity.js';
+import { Area } from '../areas/entities/area.entity.js';
+import { Zone } from '../zones/entities/zone.entity.js';
+import { Processes } from '../processes/entities/processes.entity.js';
 import {
-  EvidenceCountry,
-  StoredDateColumn,
+  type EvidenceCountry,
+  type StoredDateColumn,
   assertStoredDateColumn,
   storedWallClockToInstant,
   toEvidenceCountry,
-} from './evidence-storage-timezones';
+} from './evidence-storage-timezones.js';
 
+// pdfmake es CommonJS y su fuente se resuelve como archivo del paquete.
+const require = createRequire(import.meta.url);
 const pdfMake = require('pdfmake');
 const pdfFonts = require('pdfmake/fonts/Roboto');
 

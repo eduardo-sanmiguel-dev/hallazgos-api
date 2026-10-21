@@ -4,7 +4,7 @@ import {
   getOffsetMinutes,
   resolveTimeZone,
   isValidTimeZone,
-} from './timezone';
+} from './timezone.js';
 describe('zonas horarias de plantas', () => {
   it('distingue el cambio de día en México y Colombia', () => {
     const instant = new Date('2026-10-21T05:30:00Z');

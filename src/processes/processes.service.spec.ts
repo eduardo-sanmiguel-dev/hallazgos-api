@@ -4,11 +4,11 @@ import { FindOperator } from 'typeorm';
 import {
   createServiceTestingModule,
   mockProvider,
-  RepositoryMock,
-} from '@test/utils';
-import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
-import { Processes } from './entities/processes.entity';
-import { ProcessesService } from './processes.service';
+  type RepositoryMock,
+} from '../../test/utils/index.js';
+import { ManufacturingPlantsService } from '../manufacturing-plants/manufacturing-plants.service.js';
+import { Processes } from './entities/processes.entity.js';
+import { ProcessesService } from './processes.service.js';
 
 describe('ProcessesService', () => {
   let service: ProcessesService;

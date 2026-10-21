@@ -4,28 +4,28 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { RequestContextService } from 'shared/services/request-context.service';
+import { RequestContextService } from '../shared/services/request-context.service.js';
 
 import {
-  FindManyOptions,
+  type FindManyOptions,
   And,
-  FindOptionsWhere,
+  type FindOptionsWhere,
   In,
   LessThan,
   MoreThanOrEqual,
   Not,
   Repository,
 } from 'typeorm';
-import { findPaginated, scopePlantIds } from 'shared/utils';
+import { findPaginated, scopePlantIds } from '../shared/utils/index.js';
 
 import {
   CreateGembaWalkCalendarDto,
   QueryGembaWalkCalendarDto,
   UpdateGembaWalkCalendarDto,
-} from './dto';
-import { GembaWalkCalendar } from './entities/gemba-walk-calendar.entity';
-import { GembaWalkZone } from 'gemba-walk-zones/entities/gemba-walk-zone.entity';
-import { User } from 'users/entities/user.entity';
+} from './dto/index.js';
+import { GembaWalkCalendar } from './entities/gemba-walk-calendar.entity.js';
+import { GembaWalkZone } from '../gemba-walk-zones/entities/gemba-walk-zone.entity.js';
+import { User } from '../users/entities/user.entity.js';
 
 interface EventSlot {
   id?: number;

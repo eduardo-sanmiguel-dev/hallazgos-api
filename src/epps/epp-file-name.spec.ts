@@ -1,5 +1,5 @@
-import { buildFileNameTimestamp } from '../shared/utils/file-name';
-import { EPP_FILE_NAME_MAX_LENGTH, buildEppFileName } from './epp-file-name';
+import { buildFileNameTimestamp } from '../shared/utils/file-name.js';
+import { EPP_FILE_NAME_MAX_LENGTH, buildEppFileName } from './epp-file-name.js';
 
 const at = new Date('2026-10-08T14:40:00Z');
 const mx = buildFileNameTimestamp('America/Mexico_City', at);

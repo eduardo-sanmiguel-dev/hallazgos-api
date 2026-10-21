@@ -5,11 +5,11 @@ import {
   binaryParser,
   buildUser,
   createHttpTestApp,
-  HttpTestApp,
+  type HttpTestApp,
   mockProvider,
-} from '@test/utils';
-import { CiaelsController } from './ciaels.controller';
-import { CiaelsService } from './ciaels.service';
+} from '../../test/utils/index.js';
+import { CiaelsController } from './ciaels.controller.js';
+import { CiaelsService } from './ciaels.service.js';
 
 const named = (name: string) => ({ name });
 

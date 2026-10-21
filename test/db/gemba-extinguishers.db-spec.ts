@@ -2,8 +2,8 @@
  * E2E (app completa + base de pruebas): Gemba Walk e inspecciones de
  * extintores.
  */
-import { binaryParser } from '@test/utils';
-import { createE2eApp, E2eApp } from './e2e-app';
+import { binaryParser } from '../utils/index.js';
+import { createE2eApp, type E2eApp } from './e2e-app.js';
 
 const inMinutes = (minutes: number) =>
   new Date(Date.now() + minutes * 60_000).toISOString();

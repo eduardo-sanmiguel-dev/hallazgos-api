@@ -9,9 +9,9 @@ import {
   Query,
 } from '@nestjs/common';
 
-import { OptionalUserPlantPipe, UserPlantPipe } from '@shared/pipes';
-import { CreateEquipmentDto, UpdateEquipmentDto } from './dto';
-import { EquipmentsService } from './equipments.service';
+import { OptionalUserPlantPipe, UserPlantPipe } from '../shared/pipes/index.js';
+import { CreateEquipmentDto, UpdateEquipmentDto } from './dto/index.js';
+import { EquipmentsService } from './equipments.service.js';
 
 @Controller('equipments')
 export class EquipmentsController {

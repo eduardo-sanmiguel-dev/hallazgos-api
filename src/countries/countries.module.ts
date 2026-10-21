@@ -1,9 +1,9 @@
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Module } from '@nestjs/common';
 
-import { CountriesController } from './countries.controller';
-import { CountriesService } from './countries.service';
-import { Country } from './entities/country.entity';
+import { CountriesController } from './countries.controller.js';
+import { CountriesService } from './countries.service.js';
+import { Country } from './entities/country.entity.js';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Country])],

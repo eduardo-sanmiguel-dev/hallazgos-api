@@ -1,6 +1,6 @@
-import { buildAdmin, describeCrudContract } from '@test/utils';
-import { GembaWalkZonesController } from './gemba-walk-zones.controller';
-import { GembaWalkZonesService } from './gemba-walk-zones.service';
+import { buildAdmin, describeCrudContract } from '../../test/utils/index.js';
+import { GembaWalkZonesController } from './gemba-walk-zones.controller.js';
+import { GembaWalkZonesService } from './gemba-walk-zones.service.js';
 
 describeCrudContract({
   user: buildAdmin(),

@@ -1,4 +1,4 @@
-import { AdminGuard } from '../shared/guards/admin.guard';
+import { AdminGuard } from '../shared/guards/admin.guard.js';
 
 import {
   Controller,
@@ -16,8 +16,8 @@ import {
   CreateGembaWalkZoneDto,
   QueryGembaWalkZoneDto,
   UpdateGembaWalkZoneDto,
-} from './dto';
-import { GembaWalkZonesService } from './gemba-walk-zones.service';
+} from './dto/index.js';
+import { GembaWalkZonesService } from './gemba-walk-zones.service.js';
 
 @Controller('gemba-walk/zones')
 export class GembaWalkZonesController {

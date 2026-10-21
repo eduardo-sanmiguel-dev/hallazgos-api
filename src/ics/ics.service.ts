@@ -4,15 +4,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { RequestContextService } from 'shared/services/request-context.service';
+import { RequestContextService } from '../shared/services/request-context.service.js';
 
-import { FindOptionsWhere, ILike, Repository, In } from 'typeorm';
+import { type FindOptionsWhere, ILike, Repository, In } from 'typeorm';
 
-import { scopePlantIds } from '@shared/utils/plant-scope';
-import { Employee } from 'employees/entities/employee.entity';
-import { RulesOfLife } from 'rules-of-life/entities';
-import { CreateIcsDto, FiltersIcsDto, UpdateIcsDto } from './dto';
-import { Ics } from './entities/ics.entity';
+import { scopePlantIds } from '../shared/utils/plant-scope.js';
+import { Employee } from '../employees/entities/employee.entity.js';
+import { RulesOfLife } from '../rules-of-life/entities/index.js';
+import { CreateIcsDto, FiltersIcsDto, UpdateIcsDto } from './dto/index.js';
+import { Ics } from './entities/ics.entity.js';
 
 @Injectable()
 export class IcsService {

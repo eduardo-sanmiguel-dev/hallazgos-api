@@ -1,18 +1,18 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
-import { RequestContextService } from 'shared/services/request-context.service';
+import { RequestContextService } from '../shared/services/request-context.service.js';
 
 import { stringifySetCookie } from 'cookie';
 import { Repository } from 'typeorm';
 import * as argon2 from 'argon2';
 
-import { ENV_DEVELOPMENT, ENV_PRODUCTION } from '@shared/constants';
-import { User } from 'users/entities/user.entity';
-import { LoginAuthDto } from './dto/login-auth.dto';
-import { RestorePasswordDto } from './dto/restore-password.dto';
-import { JwtService } from './jwt.service';
-import { MailService } from 'mail/mail.service';
+import { ENV_DEVELOPMENT, ENV_PRODUCTION } from '../shared/constants/index.js';
+import { User } from '../users/entities/user.entity.js';
+import { LoginAuthDto } from './dto/login-auth.dto.js';
+import { RestorePasswordDto } from './dto/restore-password.dto.js';
+import { JwtService } from './jwt.service.js';
+import { MailService } from '../mail/mail.service.js';
 
 // Vida de la cookie de sesión, en SEGUNDOS (como espera `cookie.serialize`);
 // igual que la del token de sesión.

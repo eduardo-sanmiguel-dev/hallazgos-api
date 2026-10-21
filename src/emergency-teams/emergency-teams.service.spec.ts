@@ -4,11 +4,11 @@ import { Brackets } from 'typeorm';
 import {
   buildUser,
   createServiceTestingModule,
-  RepositoryMock,
+  type RepositoryMock,
   runAsUser,
-} from '@test/utils';
-import { EmergencyTeam } from './entities/emergency-team.entity';
-import { EmergencyTeamsService } from './emergency-teams.service';
+} from '../../test/utils/index.js';
+import { EmergencyTeam } from './entities/emergency-team.entity.js';
+import { EmergencyTeamsService } from './emergency-teams.service.js';
 
 describe('EmergencyTeamsService', () => {
   let service: EmergencyTeamsService;

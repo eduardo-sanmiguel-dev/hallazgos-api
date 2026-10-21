@@ -1,5 +1,5 @@
 import { InjectRepository } from '@nestjs/typeorm';
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 
 import { ILike, Repository } from 'typeorm';
 import { readdirSync } from 'fs';
@@ -9,8 +9,8 @@ import {
   CreateSafetyDataFileDto,
   QuerySafetyDataFileDto,
   UpdateSafetyDataFileDto,
-} from './dto';
-import { SafetyDataFile } from './entities/safety-data-file.entity';
+} from './dto/index.js';
+import { SafetyDataFile } from './entities/safety-data-file.entity.js';
 
 @Injectable()
 export class SafetyDataFilesService implements OnModuleInit {

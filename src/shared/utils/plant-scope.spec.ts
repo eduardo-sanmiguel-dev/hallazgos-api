@@ -1,4 +1,4 @@
-import { scopePlantIds } from './plant-scope';
+import { scopePlantIds } from './plant-scope.js';
 
 describe('scopePlantIds', () => {
   const plants = [{ id: 1 }, { id: '2' }];

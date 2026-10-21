@@ -7,11 +7,11 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
-  Relation,
+  type Relation,
 } from 'typeorm';
 
-import { SecondaryType } from 'secondary-types/entities/secondary-type.entity';
-import { Evidence } from 'evidences/entities/evidence.entity';
+import { SecondaryType } from '../../secondary-types/entities/secondary-type.entity.js';
+import { Evidence } from '../../evidences/entities/evidence.entity.js';
 
 @Entity()
 @ObjectType()

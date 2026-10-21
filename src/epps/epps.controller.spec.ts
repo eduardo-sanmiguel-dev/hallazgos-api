@@ -6,11 +6,11 @@ import {
   buildManufacturingPlant,
   buildUser,
   createHttpTestApp,
-  HttpTestApp,
+  type HttpTestApp,
   mockProvider,
-} from '@test/utils';
-import { EppsController } from './epps.controller';
-import { EppsService } from './epps.service';
+} from '../../test/utils/index.js';
+import { EppsController } from './epps.controller.js';
+import { EppsService } from './epps.service.js';
 
 // PNG de 1x1: la firma se guarda como data URL.
 const SIGNATURE =

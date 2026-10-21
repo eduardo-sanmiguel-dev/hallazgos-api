@@ -1,7 +1,7 @@
 import { Controller, Get, ParseIntPipe, Query } from '@nestjs/common';
 
-import { UserPlantPipe } from '@shared/pipes';
-import { DashboardService } from './dashboard.service';
+import { UserPlantPipe } from '../shared/pipes/index.js';
+import { DashboardService } from './dashboard.service.js';
 
 @Controller('dashboard')
 export class DashboardController {

@@ -3,8 +3,8 @@ import { Injectable } from '@nestjs/common';
 
 import { Repository } from 'typeorm';
 
-import { CreateAtMechanismDto, UpdateAtMechanismDto } from './dto';
-import { AtMechanism } from './entities/at-mechanism.entity';
+import { CreateAtMechanismDto, UpdateAtMechanismDto } from './dto/index.js';
+import { AtMechanism } from './entities/at-mechanism.entity.js';
 
 @Injectable()
 export class AtMechanismsService {

@@ -4,12 +4,12 @@ import { FindOperator, In } from 'typeorm';
 import {
   buildUser,
   createServiceTestingModule,
-  RepositoryMock,
+  type RepositoryMock,
   runAsUser,
-} from '@test/utils';
-import { RulesOfLife } from 'rules-of-life/entities';
-import { Ics } from './entities/ics.entity';
-import { IcsService } from './ics.service';
+} from '../../test/utils/index.js';
+import { RulesOfLife } from '../rules-of-life/entities/index.js';
+import { Ics } from './entities/ics.entity.js';
+import { IcsService } from './ics.service.js';
 
 describe('IcsService', () => {
   let service: IcsService;

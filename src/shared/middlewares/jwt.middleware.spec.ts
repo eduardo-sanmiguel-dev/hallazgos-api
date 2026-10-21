@@ -2,13 +2,13 @@ import { NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 
-import * as jwt from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 
-import { JwtService } from 'auth/jwt.service';
-import { buildUser } from '@test/utils';
-import { User } from 'users/entities/user.entity';
-import { UsersService } from 'users/users.service';
-import { JwtMiddleware } from './jwt.middleware';
+import { JwtService } from '../../auth/jwt.service.js';
+import { buildUser } from '../../../test/utils/index.js';
+import { User } from '../../users/entities/user.entity.js';
+import { UsersService } from '../../users/users.service.js';
+import { JwtMiddleware } from './jwt.middleware.js';
 
 const SECRET = 'secreto-de-pruebas';
 

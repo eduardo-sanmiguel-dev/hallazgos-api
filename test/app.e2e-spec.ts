@@ -1,5 +1,5 @@
 import {
-  INestApplication,
+  type INestApplication,
   NotFoundException,
   ValidationPipe,
 } from '@nestjs/common';
@@ -9,19 +9,19 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import type { NextFunction, Request, Response } from 'express';
 
-import { AuthController } from '../src/auth/auth.controller';
-import { AuthService } from '../src/auth/auth.service';
-import { DashboardController } from '../src/dashboard/dashboard.controller';
-import { DashboardService } from '../src/dashboard/dashboard.service';
-import { EppsController } from '../src/epps/epps.controller';
-import { EppsService } from '../src/epps/epps.service';
-import { EquipmentsController } from '../src/equipments/equipments.controller';
-import { EquipmentsService } from '../src/equipments/equipments.service';
-import { HealthController } from '../src/health/health.controller';
-import { SafetyDataFilesController } from '../src/safety-data-files/safety-data-files.controller';
-import { SafetyDataFilesService } from '../src/safety-data-files/safety-data-files.service';
-import { RequestContextService } from '../src/shared/services/request-context.service';
-import type { User } from '../src/users/entities/user.entity';
+import { AuthController } from '../src/auth/auth.controller.js';
+import { AuthService } from '../src/auth/auth.service.js';
+import { DashboardController } from '../src/dashboard/dashboard.controller.js';
+import { DashboardService } from '../src/dashboard/dashboard.service.js';
+import { EppsController } from '../src/epps/epps.controller.js';
+import { EppsService } from '../src/epps/epps.service.js';
+import { EquipmentsController } from '../src/equipments/equipments.controller.js';
+import { EquipmentsService } from '../src/equipments/equipments.service.js';
+import { HealthController } from '../src/health/health.controller.js';
+import { SafetyDataFilesController } from '../src/safety-data-files/safety-data-files.controller.js';
+import { SafetyDataFilesService } from '../src/safety-data-files/safety-data-files.service.js';
+import { RequestContextService } from '../src/shared/services/request-context.service.js';
+import type { User } from '../src/users/entities/user.entity.js';
 
 // Pruebas HTTP de los controladores (supertest) con dependencias simuladas:
 // no levantan la app completa ni tocan la base de datos.

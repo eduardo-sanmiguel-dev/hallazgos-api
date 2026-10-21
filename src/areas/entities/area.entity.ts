@@ -7,13 +7,13 @@ import {
   OneToMany,
   ManyToOne,
   Index,
-  Relation,
+  type Relation,
 } from 'typeorm';
 import { Field, ID, ObjectType } from '@nestjs/graphql';
 
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
-import { Zone } from 'zones/entities/zone.entity';
-import { User } from 'users/entities/user.entity';
+import { ManufacturingPlant } from '../../manufacturing-plants/entities/manufacturing-plant.entity.js';
+import { Zone } from '../../zones/entities/zone.entity.js';
+import { User } from '../../users/entities/user.entity.js';
 
 @Index(['name', 'manufacturingPlant'], { unique: true })
 @Entity({ name: 'areas' })

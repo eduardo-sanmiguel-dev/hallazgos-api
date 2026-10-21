@@ -8,10 +8,10 @@
  */
 import * as argon2 from 'argon2';
 
-import { MainType } from 'main-types/entities/main-type.entity';
-import { User } from 'users/entities/user.entity';
-import { createE2eApp, E2eApp } from './e2e-app';
-import { saveEvidence, STATUSES, TEST_PASSWORD } from './fixtures';
+import { MainType } from '../../src/main-types/entities/main-type.entity.js';
+import { User } from '../../src/users/entities/user.entity.js';
+import { createE2eApp, type E2eApp } from './e2e-app.js';
+import { saveEvidence, STATUSES, TEST_PASSWORD } from './fixtures.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 const ddmmyyyy = (date: Date) =>

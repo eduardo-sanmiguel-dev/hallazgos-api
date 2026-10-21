@@ -2,11 +2,11 @@ import {
   buildManufacturingPlant,
   buildUser,
   createHttpTestApp,
-  HttpTestApp,
+  type HttpTestApp,
   mockProvider,
-} from '@test/utils';
-import { EquipmentsController } from './equipments.controller';
-import { EquipmentsService } from './equipments.service';
+} from '../../test/utils/index.js';
+import { EquipmentsController } from './equipments.controller.js';
+import { EquipmentsService } from './equipments.service.js';
 
 describe('EquipmentsController (HTTP)', () => {
   let http: HttpTestApp;

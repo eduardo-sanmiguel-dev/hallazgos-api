@@ -1,1 +1,1 @@
-export * from './delete-uploads-on-error.interceptor';
+export * from './delete-uploads-on-error.interceptor.js';

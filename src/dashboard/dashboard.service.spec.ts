@@ -2,15 +2,15 @@ import { BadRequestException } from '@nestjs/common';
 import {
   buildUser,
   createRepositoryMock,
-  RepositoryMock,
+  type RepositoryMock,
   runAsUser,
-} from '@test/utils';
-import { RequestContextService } from '@shared/services/request-context.service';
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
-import { Evidence } from 'evidences/entities/evidence.entity';
-import { MainType } from 'main-types/entities/main-type.entity';
-import { AccidentRate } from './entities/accident-rate.entity';
-import { DashboardService } from './dashboard.service';
+} from '../../test/utils/index.js';
+import { RequestContextService } from '../shared/services/request-context.service.js';
+import { ManufacturingPlant } from '../manufacturing-plants/entities/manufacturing-plant.entity.js';
+import { Evidence } from '../evidences/entities/evidence.entity.js';
+import { MainType } from '../main-types/entities/main-type.entity.js';
+import { AccidentRate } from './entities/accident-rate.entity.js';
+import { DashboardService } from './dashboard.service.js';
 
 // El SQL se verifica contra PostgreSQL en test/db/dashboard.int-spec.ts.
 // Aquí se comprueban validaciones, alcance de los filtros y transformaciones.

@@ -3,17 +3,20 @@ import { join } from 'path';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { durantionToTime, stringToDateWithTime } from '@shared/utils';
-import { Evidence } from 'evidences/entities/evidence.entity';
-import { ENV_DEVELOPMENT } from '@shared/constants';
-import { User } from 'users/entities/user.entity';
+import {
+  durantionToTime,
+  stringToDateWithTime,
+} from '../shared/utils/index.js';
+import { Evidence } from '../evidences/entities/evidence.entity.js';
+import { ENV_DEVELOPMENT } from '../shared/constants/index.js';
+import { User } from '../users/entities/user.entity.js';
 
 // Carpeta local de imágenes (src/mail o dist/mail → <proyecto>/public/...).
 // Antes se armaba como __dirname + '../../../public/...' (sin separador):
 // "dist/mail../../../public" solo funciona en Windows, que normaliza la ruta;
 // en Linux la carpeta "mail.." no existe y el adjunto fallaba.
 export const LOCAL_EVIDENCE_IMAGES_DIR = join(
-  __dirname,
+  import.meta.dirname,
   '..',
   '..',
   'public',

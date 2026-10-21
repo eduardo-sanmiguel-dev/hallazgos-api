@@ -1,9 +1,12 @@
 import { NotFoundException } from '@nestjs/common';
 import { FindOperator } from 'typeorm';
 
-import { createServiceTestingModule, RepositoryMock } from '@test/utils';
-import { MainType } from './entities/main-type.entity';
-import { MainTypesService } from './main-types.service';
+import {
+  createServiceTestingModule,
+  type RepositoryMock,
+} from '../../test/utils/index.js';
+import { MainType } from './entities/main-type.entity.js';
+import { MainTypesService } from './main-types.service.js';
 
 describe('MainTypesService', () => {
   let service: MainTypesService;

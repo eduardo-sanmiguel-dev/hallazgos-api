@@ -1,10 +1,10 @@
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Module } from '@nestjs/common';
 
-import { AreasController } from './areas.controller';
-import { AreasService } from './areas.service';
-import { Area } from './entities/area.entity';
-import { ManufacturingPlantsModule } from 'manufacturing-plants/manufacturing-plants.module';
+import { AreasController } from './areas.controller.js';
+import { AreasService } from './areas.service.js';
+import { Area } from './entities/area.entity.js';
+import { ManufacturingPlantsModule } from '../manufacturing-plants/manufacturing-plants.module.js';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Area]), ManufacturingPlantsModule],

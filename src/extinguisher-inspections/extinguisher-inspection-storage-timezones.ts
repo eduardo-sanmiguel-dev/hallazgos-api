@@ -1,10 +1,10 @@
 import {
   PLANT_TIME_ZONES,
-  PlantCountry,
+  type PlantCountry,
   SERVER_TZ_TO_MEXICO_CUT,
-  StorageTimeZoneRules,
+  type StorageTimeZoneRules,
   resolveStoredInstant,
-} from '../shared/utils/storage-timezones';
+} from '../shared/utils/storage-timezones.js';
 
 /*
  * Zona en la que quedó guardada la hora de pared de las columnas

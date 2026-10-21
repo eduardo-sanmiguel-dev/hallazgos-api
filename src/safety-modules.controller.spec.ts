@@ -1,4 +1,4 @@
-import { buildAdmin } from '@test/utils';
+import { buildAdmin } from '../test/utils/index.js';
 /**
  * Contrato HTTP de brigadas (equipos de emergencia), ICS y reglas de vida.
  */
@@ -6,13 +6,13 @@ import {
   createHttpTestApp,
   describeCrudContract,
   mockProvider,
-} from '@test/utils';
-import { EmergencyTeamsController } from 'emergency-teams/emergency-teams.controller';
-import { EmergencyTeamsService } from 'emergency-teams/emergency-teams.service';
-import { IcsController } from 'ics/ics.controller';
-import { IcsService } from 'ics/ics.service';
-import { RulesOfLifeController } from 'rules-of-life/rules-of-life.controller';
-import { RulesOfLifeService } from 'rules-of-life/rules-of-life.service';
+} from '../test/utils/index.js';
+import { EmergencyTeamsController } from './emergency-teams/emergency-teams.controller.js';
+import { EmergencyTeamsService } from './emergency-teams/emergency-teams.service.js';
+import { IcsController } from './ics/ics.controller.js';
+import { IcsService } from './ics/ics.service.js';
+import { RulesOfLifeController } from './rules-of-life/rules-of-life.controller.js';
+import { RulesOfLifeService } from './rules-of-life/rules-of-life.service.js';
 
 const team = {
   location: 'Almacén norte',

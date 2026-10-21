@@ -6,14 +6,14 @@ import {
   buildManufacturingPlant,
   createServiceTestingModule,
   mockProvider,
-  RepositoryMock,
+  type RepositoryMock,
   runAsUser,
-} from '@test/utils';
-import { UsersService } from './users.service';
-import { User } from './entities/user.entity';
-import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
-import { ZonesService } from 'zones/zones.service';
-import { ProcessesService } from 'processes/processes.service';
+} from '../../test/utils/index.js';
+import { UsersService } from './users.service.js';
+import { User } from './entities/user.entity.js';
+import { ManufacturingPlantsService } from '../manufacturing-plants/manufacturing-plants.service.js';
+import { ZonesService } from '../zones/zones.service.js';
+import { ProcessesService } from '../processes/processes.service.js';
 
 describe('UsersService: aislamiento por planta en HTTP', () => {
   const plant = buildManufacturingPlant({ id: 1, name: 'México' });

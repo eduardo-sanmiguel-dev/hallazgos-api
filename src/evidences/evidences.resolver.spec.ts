@@ -1,9 +1,9 @@
-import { mockProvider } from '@test/utils';
+import { mockProvider } from '../../test/utils/index.js';
 import { Test } from '@nestjs/testing';
 
-import { EvidencesResolver } from './evidences.resolver';
-import { EvidencesService } from './evidences.service';
-import { ParamsArgs } from './inputs/args';
+import { EvidencesResolver } from './evidences.resolver.js';
+import { EvidencesService } from './evidences.service.js';
+import { ParamsArgs } from './inputs/args/index.js';
 
 describe('EvidencesResolver', () => {
   it('consulta la lista con los argumentos y el usuario del contexto (id numérico)', async () => {

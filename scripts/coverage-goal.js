@@ -3,13 +3,13 @@
  * Los umbrales de carpetas de Jest se conservan como controles adicionales.
  * Uso: node scripts/coverage-goal.js [ruta a coverage-summary.json]
  */
-const { readFileSync } = require('fs');
-const { join, resolve } = require('path');
+import { readFileSync } from 'fs';
+import { join, resolve } from 'path';
 
 const GOAL = { statements: 85, branches: 80, functions: 85, lines: 85 };
 const report = process.argv[2]
   ? resolve(process.argv[2])
-  : join(__dirname, '..', 'coverage', 'coverage-summary.json');
+  : join(import.meta.dirname, '..', 'coverage', 'coverage-summary.json');
 
 try {
   const summary = JSON.parse(readFileSync(report, 'utf8'));

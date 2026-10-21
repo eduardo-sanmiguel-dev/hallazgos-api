@@ -4,15 +4,15 @@
  * Todas las cuentas usan TEST_PASSWORD.
  */
 import * as argon2 from 'argon2';
-import { DataSource, DeepPartial, ObjectLiteral } from 'typeorm';
+import { DataSource, type DeepPartial, type ObjectLiteral } from 'typeorm';
 
-import { Area } from 'areas/entities/area.entity';
-import { Country } from 'countries/entities/country.entity';
-import { Evidence } from 'evidences/entities/evidence.entity';
-import { MainType } from 'main-types/entities/main-type.entity';
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
-import { Processes } from 'processes/entities/processes.entity';
-import { SecondaryType } from 'secondary-types/entities/secondary-type.entity';
+import { Area } from '../../src/areas/entities/area.entity.js';
+import { Country } from '../../src/countries/entities/country.entity.js';
+import { Evidence } from '../../src/evidences/entities/evidence.entity.js';
+import { MainType } from '../../src/main-types/entities/main-type.entity.js';
+import { ManufacturingPlant } from '../../src/manufacturing-plants/entities/manufacturing-plant.entity.js';
+import { Processes } from '../../src/processes/entities/processes.entity.js';
+import { SecondaryType } from '../../src/secondary-types/entities/secondary-type.entity.js';
 import {
   ROLE_ADMINISTRADOR,
   ROLE_GENERAL,
@@ -21,9 +21,9 @@ import {
   STATUS_CLOSE,
   STATUS_IN_PROGRESS,
   STATUS_OPEN,
-} from '@shared/constants';
-import { User } from 'users/entities/user.entity';
-import { Zone } from 'zones/entities/zone.entity';
+} from '../../src/shared/constants/index.js';
+import { User } from '../../src/users/entities/user.entity.js';
+import { Zone } from '../../src/zones/entities/zone.entity.js';
 
 export const TEST_PASSWORD = 'Clave-Prueba-1';
 

@@ -1,7 +1,7 @@
 import type { Request } from 'express';
 
-import { RequestContextService } from '@shared/services/request-context.service';
-import { User } from 'users/entities/user.entity';
+import { RequestContextService } from '../../src/shared/services/request-context.service.js';
+import { User } from '../../src/users/entities/user.entity.js';
 
 /**
  * Ejecuta `fn` dentro de una petición simulada, usando el
