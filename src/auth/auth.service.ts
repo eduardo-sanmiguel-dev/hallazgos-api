@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { RequestContextService } from 'shared/services/request-context.service';
 
-import { serialize } from 'cookie';
+import { stringifySetCookie } from 'cookie';
 import { Repository } from 'typeorm';
 import * as argon2 from 'argon2';
 
@@ -58,7 +58,9 @@ export class AuthService {
   }
 
   private sessionCookie(userId: number): string {
-    return serialize(this.nameCookie, this.jwtService.create(userId), {
+    return stringifySetCookie({
+      name: this.nameCookie,
+      value: this.jwtService.create(userId),
       ...this.optsSerialize,
       maxAge: SESSION_COOKIE_MAX_AGE,
     });
@@ -132,7 +134,9 @@ export class AuthService {
 
   async logout(): Promise<string> {
     // Se borra la cookie (valor vacío y maxAge 0).
-    return serialize(this.nameCookie, '', {
+    return stringifySetCookie({
+      name: this.nameCookie,
+      value: '',
       ...this.optsSerialize,
       maxAge: 0,
     });

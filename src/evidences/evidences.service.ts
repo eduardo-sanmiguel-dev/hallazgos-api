@@ -21,6 +21,7 @@ import {
 import { StyleDictionary, TDocumentDefinitions } from 'pdfmake/interfaces';
 import XlsxPopulate from 'xlsx-populate';
 import type { Response } from 'express';
+import { dirname, resolve, sep } from 'path';
 
 import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
 import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
@@ -79,10 +80,19 @@ import {
   toEvidenceCountry,
 } from './evidence-storage-timezones';
 
-const pdfMake = require('pdfmake/build/pdfmake');
-const pdfFonts = require('pdfmake/build/vfs_fonts');
+const pdfMake = require('pdfmake');
+const pdfFonts = require('pdfmake/fonts/Roboto');
 
-pdfMake.vfs = pdfFonts.vfs;
+const PDF_FONTS_DIR = dirname(require.resolve('pdfmake/fonts/Roboto'));
+
+pdfMake.setFonts(pdfFonts);
+// Desde pdfmake 0.3 el servidor puede leer archivos locales y descargar URLs.
+// El reporte solo usa imágenes data: y las fuentes del paquete: se bloquea lo
+// demás, como hacía el build de navegador de 0.2 (y evita sus avisos).
+pdfMake.setUrlAccessPolicy(() => false);
+pdfMake.setLocalAccessPolicy((path: string) =>
+  resolve(path).startsWith(PDF_FONTS_DIR + sep),
+);
 
 @Injectable()
 export class EvidencesService {
@@ -1251,16 +1261,14 @@ export class EvidencesService {
         ],
       };
 
-      const pdfDoc = pdfMake.createPdf(docDefinition);
+      const pdf: Buffer = await pdfMake.createPdf(docDefinition).getBuffer();
 
-      pdfDoc.getBase64((dataPdf64) => {
-        res.writeHead(200, {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': 'attachment;filename="Hallazgos.pdf"',
-          'Content-Length': Buffer.byteLength(dataPdf64, 'base64'),
-        });
-        res.end(Buffer.from(dataPdf64, 'base64'));
+      res.writeHead(200, {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': 'attachment;filename="Hallazgos.pdf"',
+        'Content-Length': pdf.length,
       });
+      res.end(pdf);
     }
   }
 

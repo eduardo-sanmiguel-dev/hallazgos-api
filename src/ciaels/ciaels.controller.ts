@@ -120,7 +120,13 @@ export class CiaelsController {
         return workbook.toFileAsync(filePathNewFile);
       })
       .then(async () => {
-        res.download(filePathNewFile, (err) => {
+        // sendFile en lugar de download: desde Express 5.3, download omite las
+        // comillas del filename y el header debe quedar igual para el front.
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename="${this.newFileName}"`,
+        );
+        res.sendFile(filePathNewFile, (err) => {
           void removeTempDir(tempDir);
           if (err) {
             res.status(500).send('Error al descargar el archivo');

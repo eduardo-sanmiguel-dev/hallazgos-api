@@ -25,9 +25,6 @@ pnpm test:db:cov    # lo mismo, con cobertura de dashboard.service (umbral 90/70
 - Cada archivo corre en su propio proceso (`workerIdleMemoryLimit`): al
   encadenar varias apps en el mismo proceso Jest se caía de forma
   intermitente (código nativo en Windows).
-- `@nestjs/observe` se sustituye por `stubs/nestjs-observe.ts`: se publica
-  solo como ESM (Jest no lo carga con `require`) y en pruebas no debe enviar
-  telemetría.
 
 ## Archivos
 

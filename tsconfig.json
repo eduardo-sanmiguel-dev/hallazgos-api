@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "module": "Node16",
+    "module": "node20",
     "moduleResolution": "node16",
     "declaration": true,
     "removeComments": true,
@@ -8,6 +8,7 @@
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
     "target": "ES2021",
+    "lib": ["ES2022"],
     "sourceMap": true,
     "outDir": "./dist",
     "types": ["node", "jest"],

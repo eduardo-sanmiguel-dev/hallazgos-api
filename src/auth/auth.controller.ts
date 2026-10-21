@@ -1,7 +1,7 @@
 import { Controller, Post, Body, Res, UseGuards } from '@nestjs/common';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 
-import { parse } from 'cookie';
+import { parseCookie } from 'cookie';
 import type { Response } from 'express';
 
 import { AuthService } from './auth.service';
@@ -22,7 +22,7 @@ export class AuthController {
   @Throttle(LOGIN_LIMIT)
   async login(@Body() loginAuthDto: LoginAuthDto, @Res() response: Response) {
     const serializedCookie = await this.authService.login(loginAuthDto);
-    const token = parse(serializedCookie).token || '';
+    const token = parseCookie(serializedCookie).token || '';
 
     response.setHeader('Set-Cookie', serializedCookie);
 
@@ -38,7 +38,7 @@ export class AuthController {
   ) {
     const serializedCookie =
       await this.authService.loginRestorePassword(restorePasswordDto);
-    const token = parse(serializedCookie).token || '';
+    const token = parseCookie(serializedCookie).token || '';
 
     response.setHeader('Set-Cookie', serializedCookie);
 
