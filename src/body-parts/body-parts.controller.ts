@@ -1,3 +1,5 @@
+import { UseGuards } from '@nestjs/common';
+import { AdminGuard } from '@shared/guards/admin.guard';
 import {
   Controller,
   Get,
@@ -16,6 +18,7 @@ export class BodyPartsController {
   constructor(private readonly bodyPartsService: BodyPartsService) {}
 
   @Post()
+  @UseGuards(AdminGuard)
   create(@Body() createBodyPartDto: CreateBodyPartDto) {
     return this.bodyPartsService.create(createBodyPartDto);
   }
@@ -31,6 +34,7 @@ export class BodyPartsController {
   }
 
   @Patch(':id')
+  @UseGuards(AdminGuard)
   update(
     @Param('id') id: string,
     @Body() updateBodyPartDto: UpdateBodyPartDto,
@@ -39,6 +43,7 @@ export class BodyPartsController {
   }
 
   @Delete(':id')
+  @UseGuards(AdminGuard)
   remove(@Param('id') id: string) {
     return this.bodyPartsService.remove(+id);
   }

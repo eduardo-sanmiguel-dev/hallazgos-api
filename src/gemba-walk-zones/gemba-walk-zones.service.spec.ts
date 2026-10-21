@@ -1,5 +1,5 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { FindOperator } from 'typeorm';
+import { FindOperator, In } from 'typeorm';
 
 import {
   buildUser,
@@ -16,7 +16,10 @@ describe('GembaWalkZonesService', () => {
   let service: GembaWalkZonesService;
   let zones: RepositoryMock<GembaWalkZone>;
   let plants: jest.Mocked<ManufacturingPlantsService>;
-  const user = buildUser({ id: 10 });
+  const user = buildUser({
+    id: 10,
+    manufacturingPlants: [{ id: 1 }, { id: 2 }] as never,
+  });
   const as = <T>(fn: () => Promise<T>) => runAsUser(user, fn);
   const qb = () => zones.queryBuilder;
 
@@ -108,25 +111,27 @@ describe('GembaWalkZonesService', () => {
 
   describe('findAll', () => {
     it('filtra por nombre, ubicación y planta (activas)', async () => {
-      await service.findAll({
-        nameZone: 'Prod',
-        nameLocation: 'L',
-        manufacturingPlantId: 1,
-      });
+      await as(async () =>
+        service.findAll({
+          nameZone: 'Prod',
+          nameLocation: 'L',
+          manufacturingPlantId: 1,
+        }),
+      );
 
       const { where } = zones.find.mock.calls[0][0] as {
         where: Record<string, FindOperator<string> | object>;
       };
       expect((where.nameZone as FindOperator<string>).value).toBe('%Prod%');
       expect((where.nameLocation as FindOperator<string>).value).toBe('%L%');
-      expect(where.manufacturingPlant).toEqual({ isActive: true, id: 1 });
+      expect(where.manufacturingPlant).toEqual({ isActive: true, id: In([1]) });
     });
 
     it('con page y limit responde paginado', async () => {
       zones.findAndCount.mockResolvedValue([[stored()], 1]);
 
       await expect(
-        service.findAll({ page: 1, limit: 5 }),
+        as(async () => service.findAll({ page: 1, limit: 5 })),
       ).resolves.toMatchObject({
         count: 1,
       });
@@ -137,7 +142,7 @@ describe('GembaWalkZonesService', () => {
     it('inexistente responde 404', async () => {
       zones.findOne.mockResolvedValue(null);
 
-      await expect(service.findOne(3)).rejects.toThrow(
+      await expect(as(async () => service.findOne(3))).rejects.toThrow(
         new NotFoundException('Zona con ID 3 no encontrada'),
       );
     });
@@ -145,10 +150,12 @@ describe('GembaWalkZonesService', () => {
     it('inactiva responde 400 (salvo que se pida incluirla)', async () => {
       zones.findOne.mockResolvedValue(stored({ isActive: false }));
 
-      await expect(service.findOne(3)).rejects.toThrow(
+      await expect(as(async () => service.findOne(3))).rejects.toThrow(
         new BadRequestException('La zona con ID 3 esta inactiva'),
       );
-      await expect(service.findOne(3, false)).resolves.toMatchObject({ id: 3 });
+      await expect(
+        as(async () => service.findOne(3, false)),
+      ).resolves.toMatchObject({ id: 3 });
     });
   });
 

@@ -225,7 +225,7 @@ describe('EmployeesService', () => {
 
   describe('findOne y puestos', () => {
     it('un empleado inexistente o inactivo responde 404', async () => {
-      await expect(service.findOne(7)).rejects.toThrow(
+      await expect(as(() => service.findOne(7))).rejects.toThrow(
         new NotFoundException('Employee with id 7 not found'),
       );
     });
@@ -303,7 +303,7 @@ describe('EmployeesService', () => {
   it('remove desactiva al empleado existente', async () => {
     employees.findOne.mockResolvedValue({ id: 7 } as Employee);
 
-    await service.remove(7);
+    await as(() => service.remove(7));
 
     expect(employees.save).toHaveBeenCalledWith({ id: 7, isActive: false });
   });

@@ -13,7 +13,10 @@ import { EmergencyTeamsService } from './emergency-teams.service';
 describe('EmergencyTeamsService', () => {
   let service: EmergencyTeamsService;
   let teams: RepositoryMock<EmergencyTeam>;
-  const user = buildUser({ id: 10 });
+  const user = buildUser({
+    id: 10,
+    manufacturingPlants: [{ id: 1 }, { id: 2 }] as never,
+  });
   const as = <R>(fn: () => R): Promise<Awaited<R>> =>
     runAsUser(user, fn as () => Promise<Awaited<R>>);
   const qb = () => teams.queryBuilder;
@@ -50,11 +53,13 @@ describe('EmergencyTeamsService', () => {
     it('sin paginación devuelve la lista con los filtros aplicados', async () => {
       qb().getMany.mockResolvedValue([]);
 
-      await service.findAll({
-        search: 'alm',
-        manufacturingPlantId: 1,
-        typeOfExtinguisher: 'PQS',
-      } as never);
+      await as(async () =>
+        service.findAll({
+          search: 'alm',
+          manufacturingPlantId: 1,
+          typeOfExtinguisher: 'PQS',
+        } as never),
+      );
 
       expect(qb().andWhere).toHaveBeenCalledWith(expect.any(Brackets));
       expect(qb().andWhere).toHaveBeenCalledWith(
@@ -70,21 +75,24 @@ describe('EmergencyTeamsService', () => {
     it('sin filtros solo lista activos', async () => {
       qb().getMany.mockResolvedValue([]);
 
-      await service.findAll({} as never);
+      await as(async () => service.findAll({} as never));
 
-      expect(qb().andWhere).not.toHaveBeenCalled();
+      expect(qb().andWhere).toHaveBeenCalledWith(
+        'manufacturingPlant.id IN (:...allowedPlantIds)',
+        { allowedPlantIds: [1, 2] },
+      );
     });
 
     it('paginado aplica skip/take; limit <= 0 trae todo', async () => {
       qb().getManyAndCount.mockResolvedValue([[], 9]);
 
       await expect(
-        service.findAll({ page: 3, limit: 4 } as never),
+        as(async () => service.findAll({ page: 3, limit: 4 } as never)),
       ).resolves.toEqual({ data: [], count: 9 });
       expect(qb().skip).toHaveBeenCalledWith(8);
 
       qb().skip.mockClear();
-      await service.findAll({ page: 1, limit: -1 } as never);
+      await as(async () => service.findAll({ page: 1, limit: -1 } as never));
       expect(qb().skip).not.toHaveBeenCalled();
     });
   });
@@ -92,7 +100,7 @@ describe('EmergencyTeamsService', () => {
   it('findOne inexistente responde 404', async () => {
     teams.findOne.mockResolvedValue(null);
 
-    await expect(service.findOne(2)).rejects.toThrow(
+    await expect(as(async () => service.findOne(2))).rejects.toThrow(
       new NotFoundException('Emergency team with id 2 not found'),
     );
   });
@@ -103,12 +111,12 @@ describe('EmergencyTeamsService', () => {
         as(() =>
           service.update(2, {
             location: 'Patio',
-            manufacturingPlantId: 3,
+            manufacturingPlantId: 2,
           } as never),
         ),
       ).resolves.toMatchObject({
         location: 'Patio',
-        manufacturingPlant: { id: 3 },
+        manufacturingPlant: { id: 2 },
         updatedBy: { id: 10 },
       });
     });

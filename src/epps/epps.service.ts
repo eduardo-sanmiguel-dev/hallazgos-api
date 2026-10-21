@@ -26,6 +26,7 @@ export class EppsService {
     'createBy',
     'equipments',
     'equipments.equipment',
+    'equipments.equipment.manufacturingPlant',
   ];
 
   constructor(
@@ -40,7 +41,10 @@ export class EppsService {
     private readonly equipmentRepository: Repository<Equipment>,
   ) {}
 
-  private mapActiveHistory<T extends { epps: Epp[] }>(items: T[]): T[] {
+  private mapActiveHistory<T extends { epps: Epp[] }>(
+    items: T[],
+    plantIds: number[],
+  ): T[] {
     return items
       .map((item) => ({
         ...item,
@@ -49,7 +53,11 @@ export class EppsService {
           .map((epp) => ({
             ...epp,
             equipments: epp.equipments.filter(
-              (equipment) => equipment.isActive,
+              (equipment) =>
+                equipment.isActive &&
+                plantIds.includes(
+                  Number(equipment.equipment?.manufacturingPlant?.id),
+                ),
             ),
           }))
           .filter((epp) => epp.equipments.length > 0),
@@ -57,12 +65,18 @@ export class EppsService {
       .filter((item) => item.epps.length > 0);
   }
 
-  private mapActiveEquipments(epps: Epp[]): Epp[] {
+  private mapActiveEquipments(epps: Epp[], plantIds: number[]): Epp[] {
     return epps
       .filter((epp) => epp.isActive)
       .map((epp) => ({
         ...epp,
-        equipments: epp.equipments.filter((equipment) => equipment.isActive),
+        equipments: epp.equipments.filter(
+          (equipment) =>
+            equipment.isActive &&
+            plantIds.includes(
+              Number(equipment.equipment?.manufacturingPlant?.id),
+            ),
+        ),
       }))
       .filter((epp) => epp.equipments.length > 0);
   }
@@ -72,9 +86,14 @@ export class EppsService {
     return In(this.requestContext.manufacturingPlantIds);
   }
 
-  async validateDeliveryFrequency(equipmentId: number, employeeId: number) {
+  async validateDeliveryFrequency(
+    equipmentId: number,
+    employeeId: number,
+    historyRepository = this.eppEquipmentRepository,
+    equipmentRepository = this.equipmentRepository,
+  ) {
     // Solo equipos de las plantas del usuario: uno ajeno responde 404.
-    const equipment = await this.equipmentRepository.findOne({
+    const equipment = await equipmentRepository.findOne({
       where: {
         id: equipmentId,
         isActive: true,
@@ -86,9 +105,10 @@ export class EppsService {
       throw new NotFoundException(`El equipo con id ${equipmentId} no existe.`);
     }
 
-    const lastEpp = await this.eppEquipmentRepository.findOne({
+    const lastEpp = await historyRepository.findOne({
       where: {
         equipment: { id: equipmentId },
+        isActive: true,
         epp: {
           employee: { id: employeeId },
           isActive: true,
@@ -124,94 +144,90 @@ export class EppsService {
 
   async create(createEppDto: CreateEppDto) {
     const createBy = this.requestContext.user;
-
+    const plantIds = this.requestContext.manufacturingPlantIds;
     const { employeeId, signature, equipments } = createEppDto;
 
-    // Solo empleados de las plantas del usuario: uno ajeno responde 404.
-    const plantIds = this.requestContext.manufacturingPlantIds;
-    const employee = plantIds.length
-      ? await this.employeeRepository.findOne({
+    return this.eppRepository.manager.transaction(async (manager) => {
+      const employeeRepository = manager.getRepository(Employee);
+      const equipmentRepository = manager.getRepository(Equipment);
+      const eppRepository = manager.getRepository(Epp);
+      const historyRepository = manager.getRepository(EppEquipment);
+      const employee = plantIds.length
+        ? await employeeRepository.findOne({
+            where: {
+              id: employeeId,
+              isActive: true,
+              manufacturingPlants: { id: In(plantIds) },
+            },
+            relations: ['manufacturingPlants'],
+          })
+        : null;
+      if (!employee)
+        throw new NotFoundException(
+          `Employee with ID ${employeeId} not found.`,
+        );
+
+      // Serializa las entregas del mismo empleado para que ambas no lean el
+      // mismo historial vacío al validar la frecuencia.
+      const locked = await employeeRepository.findOne({
+        where: { id: employeeId, isActive: true },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!locked)
+        throw new NotFoundException(
+          `Employee with ID ${employeeId} not found.`,
+        );
+
+      const rows = [];
+      for (const equipment of equipments) {
+        const current = await equipmentRepository.findOne({
           where: {
-            id: employeeId,
+            id: equipment.id,
             isActive: true,
-            manufacturingPlants: { id: In(plantIds) },
+            manufacturingPlant: { id: In(plantIds) },
           },
-        })
-      : null;
-
-    if (!employee) {
-      throw new NotFoundException(`Employee with ID ${employeeId} not found.`);
-    }
-
-    for (const equipment of equipments) {
-      const currrentEquipment = await this.equipmentRepository.findOne({
-        where: {
-          id: equipment.id,
-          isActive: true,
-          manufacturingPlant: { id: this.userPlantIds },
-        },
-      });
-
-      if (!currrentEquipment) {
-        throw new NotFoundException(
-          `Equipo con ID ${equipment.id} no encontrado.`,
-        );
-      }
-
-      if (currrentEquipment.deliveryFrequency) {
-        const messageValidation = await this.validateDeliveryFrequency(
-          equipment.id,
-          employeeId,
-        );
-
-        if (!messageValidation.canDeliver) {
-          equipment['outOfRangeDelivery'] = true;
-        } else {
-          equipment['outOfRangeDelivery'] = false;
+          relations: ['manufacturingPlant', 'manufacturingPlant.country'],
+        });
+        if (
+          !current ||
+          !employee.manufacturingPlants.some(
+            (plant) =>
+              Number(plant.id) === Number(current.manufacturingPlant.id),
+          )
+        ) {
+          throw new NotFoundException(
+            `Equipo con ID ${equipment.id} no encontrado.`,
+          );
         }
+        const frequency = current.deliveryFrequency
+          ? await this.validateDeliveryFrequency(
+              equipment.id,
+              employeeId,
+              historyRepository,
+              equipmentRepository,
+            )
+          : null;
+        rows.push({
+          equipment: current,
+          quantity: equipment.quantity,
+          observations: equipment.observations,
+          ...(frequency && { outOfRangeDelivery: !frequency.canDeliver }),
+        });
       }
-    }
-
-    const epp = await this.eppRepository.save({
-      employee,
-      signature,
-      createBy,
-      creationDate: new Date(),
-      updatedAt: new Date(),
+      const deliveredAt = new Date();
+      const epp = await eppRepository.save({ employee, signature, createBy });
+      for (const row of rows) {
+        await historyRepository.save({
+          ...row,
+          epp,
+          deliveryDate: plantDeliveryDate(
+            deliveredAt,
+            row.equipment.manufacturingPlant.country?.name,
+          ),
+        });
+      }
+      return { message: 'EPP created successfully' };
     });
-
-    // Un solo instante para todo el registro; el día se calcula en la zona de
-    // la planta de cada equipo.
-    const deliveredAt = new Date();
-
-    for (const equipment of equipments) {
-      const currentEquipment = await this.equipmentRepository.findOne({
-        where: { id: equipment.id, isActive: true },
-        relations: ['manufacturingPlant', 'manufacturingPlant.country'],
-      });
-
-      if (!currentEquipment) {
-        throw new NotFoundException(
-          `Equipment with ID ${equipment.id} not found.`,
-        );
-      }
-
-      await this.eppEquipmentRepository.save({
-        deliveryDate: plantDeliveryDate(
-          deliveredAt,
-          currentEquipment.manufacturingPlant?.country?.name,
-        ),
-        quantity: equipment.quantity,
-        observations: equipment.observations,
-        equipment: currentEquipment,
-        outOfRangeDelivery: equipment['outOfRangeDelivery'],
-        epp,
-        creationDate: new Date(),
-        updatedAt: new Date(),
-      });
-    }
-
-    return { message: 'EPP created successfully' };
   }
 
   /** 404 si el empleado no existe o no es de una de las plantas del usuario. */
@@ -260,7 +276,10 @@ export class EppsService {
       },
     });
 
-    return this.mapActiveEquipments(epps);
+    return this.mapActiveEquipments(
+      epps,
+      this.requestContext.manufacturingPlantIds,
+    );
   }
 
   /**
@@ -308,9 +327,11 @@ export class EppsService {
           SELECT 1
             FROM epp
             JOIN epp_equipment ON epp_equipment."eppId" = epp.id
+            JOIN equipment history_equipment ON history_equipment.id = epp_equipment."equipmentId"
            WHERE epp."employeeId" = employee.id
              AND epp."isActive"
              AND epp_equipment."isActive"
+             AND history_equipment."manufacturingPlantId" = :manufacturingPlantId
              ${equipmentId ? 'AND epp_equipment."equipmentId" = :equipmentId' : ''}
              ${startDate ? 'AND epp_equipment."deliveryDate" >= :startDate' : ''}
              ${endDate ? 'AND epp_equipment."deliveryDate" <= :endDate' : ''}
@@ -370,6 +391,7 @@ export class EppsService {
             'createBy',
             'equipments',
             'equipments.equipment',
+            'equipments.equipment.manufacturingPlant',
           ],
           order: { createdAt: 'ASC' },
         })
@@ -385,7 +407,9 @@ export class EppsService {
 
     const data = employees.map((employee) => ({
       ...employee,
-      epps: this.mapActiveEquipments(eppsByEmployee.get(employee.id) ?? []),
+      epps: this.mapActiveEquipments(eppsByEmployee.get(employee.id) ?? [], [
+        Number(manufacturingPlantId),
+      ]),
     }));
 
     return { data, count, page, limit };
@@ -409,13 +433,14 @@ export class EppsService {
         'epps.createBy',
         'epps.equipments',
         'epps.equipments.equipment',
+        'epps.equipments.equipment.manufacturingPlant',
       ],
       order: {
         name: 'ASC',
       },
     });
 
-    return this.mapActiveHistory(employees);
+    return this.mapActiveHistory(employees, [Number(manufacturingPlantId)]);
   }
 
   async findOne(id: number) {
@@ -433,7 +458,12 @@ export class EppsService {
       throw new NotFoundException(`EPP with ID ${id} not found.`);
     }
 
-    return epp;
+    const visible = this.mapActiveEquipments(
+      [epp],
+      this.requestContext.manufacturingPlantIds,
+    )[0];
+    if (!visible) throw new NotFoundException(`EPP with ID ${id} not found.`);
+    return visible;
   }
 
   update(id: number, updateEppDto: UpdateEppDto) {
@@ -445,36 +475,55 @@ export class EppsService {
   }
 
   async removeHistory(equipmentHistoryId: number) {
-    // Solo historial de empleados de las plantas del usuario: uno ajeno
-    // responde 404 (y no se borra nada).
-    const equipmentHistory = await this.eppEquipmentRepository.findOne({
-      where: {
-        id: equipmentHistoryId,
-        epp: { employee: { manufacturingPlants: { id: this.userPlantIds } } },
-      },
-      relations: ['epp'],
+    return this.eppRepository.manager.transaction(async (manager) => {
+      const historyRepository = manager.getRepository(EppEquipment);
+      const eppRepository = manager.getRepository(Epp);
+      // Solo historial de empleados de las plantas del usuario: uno ajeno
+      // responde 404 (y no se borra nada).
+      const equipmentHistory = await historyRepository.findOne({
+        where: {
+          id: equipmentHistoryId,
+          equipment: { manufacturingPlant: { id: this.userPlantIds } },
+          epp: { employee: { manufacturingPlants: { id: this.userPlantIds } } },
+        },
+        relations: [
+          'epp',
+          'epp.equipments',
+          'epp.equipments.equipment',
+          'epp.equipments.equipment.manufacturingPlant',
+        ],
+      });
+
+      if (!equipmentHistory) {
+        throw new NotFoundException(
+          `Registro de historial con ID ${equipmentHistoryId} no encontrado.`,
+        );
+      }
+
+      const allowed = this.requestContext.manufacturingPlantIds;
+      if (
+        equipmentHistory.epp.equipments.some(
+          (row) =>
+            !allowed.includes(Number(row.equipment.manufacturingPlant.id)),
+        )
+      ) {
+        throw new NotFoundException('Registro de historial no encontrado.');
+      }
+      const eppId = equipmentHistory.epp.id;
+
+      await historyRepository
+        .createQueryBuilder()
+        .delete()
+        .from(EppEquipment)
+        .where('"eppId" = :eppId', { eppId })
+        .execute();
+
+      await eppRepository.delete(eppId);
+
+      return {
+        message:
+          'Registro eliminado correctamente. Se borraron el EPP y su historial relacionado.',
+      };
     });
-
-    if (!equipmentHistory) {
-      throw new NotFoundException(
-        `Registro de historial con ID ${equipmentHistoryId} no encontrado.`,
-      );
-    }
-
-    const eppId = equipmentHistory.epp.id;
-
-    await this.eppEquipmentRepository
-      .createQueryBuilder()
-      .delete()
-      .from(EppEquipment)
-      .where('"eppId" = :eppId', { eppId })
-      .execute();
-
-    await this.eppRepository.delete(eppId);
-
-    return {
-      message:
-        'Registro eliminado correctamente. Se borraron el EPP y su historial relacionado.',
-    };
   }
 }

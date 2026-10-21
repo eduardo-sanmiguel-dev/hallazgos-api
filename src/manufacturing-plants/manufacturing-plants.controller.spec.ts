@@ -1,3 +1,4 @@
+import { buildAdmin } from '@test/utils';
 import { describeCrudContract } from '@test/utils';
 import { ManufacturingPlantsController } from './manufacturing-plants.controller';
 import { ManufacturingPlantsService } from './manufacturing-plants.service';
@@ -5,6 +6,7 @@ import { ManufacturingPlantsService } from './manufacturing-plants.service';
 const valid = { name: 'Nueva', link: 'https://x.test', lat: 19.6, lng: -99.2 };
 
 describeCrudContract({
+  user: buildAdmin(),
   path: '/manufacturing-plants',
   controller: ManufacturingPlantsController,
   service: ManufacturingPlantsService,

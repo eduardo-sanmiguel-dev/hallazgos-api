@@ -70,10 +70,12 @@ class CreateExtinguisherInspectionEvaluationDto {
   @IsEnum(EvaluationValues)
   signaling: EvaluationValues;
 
-  @IsDateString()
+  @IsDateString({ strict: true })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
   nextRechargeDate: string;
 
-  @IsDateString()
+  @IsDateString({ strict: true })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
   maintenanceDate: string;
 
   @IsOptional()

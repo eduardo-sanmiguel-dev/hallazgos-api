@@ -1,3 +1,4 @@
+import { buildAdmin } from '@test/utils';
 /**
  * Contrato HTTP de los catálogos de configuración con CRUD completo
  * (procesos, tipos principales y secundarios).
@@ -15,6 +16,7 @@ import { SecondaryTypesController } from 'secondary-types/secondary-types.contro
 import { SecondaryTypesService } from 'secondary-types/secondary-types.service';
 
 describeCrudContract({
+  user: buildAdmin(),
   path: '/Processes',
   controller: ProcessesController,
   service: ProcessesService,
@@ -32,6 +34,7 @@ describeCrudContract({
 });
 
 describeCrudContract({
+  user: buildAdmin(),
   path: '/main-types',
   controller: MainTypesController,
   service: MainTypesService,
@@ -46,6 +49,7 @@ describeCrudContract({
 });
 
 describeCrudContract({
+  user: buildAdmin(),
   path: '/secondary-types',
   controller: SecondaryTypesController,
   service: SecondaryTypesService,
@@ -62,6 +66,7 @@ describeCrudContract({
 describe('GET /secondary-types/by/manufacturing-plant/:id', () => {
   it('lista por tipo principal con el id numérico', async () => {
     const http = await createHttpTestApp({
+      user: buildAdmin(),
       controllers: [SecondaryTypesController],
       providers: [mockProvider(SecondaryTypesService)],
     });

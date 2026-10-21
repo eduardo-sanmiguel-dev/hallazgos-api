@@ -6,7 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { RequestContextService } from 'shared/services/request-context.service';
 
-import { Brackets, Repository } from 'typeorm';
+import { Brackets, Repository, In } from 'typeorm';
 
 import { ExtinguisherInspection } from './entities/extinguisher-inspection.entity';
 import { ExtinguisherInspectionEvaluation } from './entities/extinguisher-inspection-evaluation.entity';
@@ -32,8 +32,6 @@ export class ExtinguisherInspectionsService {
   constructor(
     @InjectRepository(ExtinguisherInspection)
     private readonly extinguisherInspectionRepository: Repository<ExtinguisherInspection>,
-    @InjectRepository(ExtinguisherInspectionEvaluation)
-    private readonly extinguisherInspectionEvaluationRepository: Repository<ExtinguisherInspectionEvaluation>,
     private readonly requestContext: RequestContextService,
   ) {}
 
@@ -49,6 +47,7 @@ export class ExtinguisherInspectionsService {
       ...rest
     } = createExtinguisherInspectionDto;
 
+    this.requestContext.assertManufacturingPlant(manufacturingPlantId);
     const todayString = await this.plantToday(manufacturingPlantId, now);
 
     const hasPastDates = evaluations.some(
@@ -63,34 +62,44 @@ export class ExtinguisherInspectionsService {
       );
     }
 
-    const extinguisherInspection = this.extinguisherInspectionRepository.create(
-      {
-        ...rest,
-        inspectionDate: now,
-        responsible: { id: createdBy },
-        manufacturingPlant: { id: manufacturingPlantId },
-        createdBy: { id: createdBy } as User,
-        createdAt: now,
-      },
-    );
+    const savedId =
+      await this.extinguisherInspectionRepository.manager.transaction(
+        async (manager) => {
+          const inspectionRepository = manager.getRepository(
+            ExtinguisherInspection,
+          );
+          const evaluationRepository = manager.getRepository(
+            ExtinguisherInspectionEvaluation,
+          );
+          const extinguisherInspection = inspectionRepository.create({
+            ...rest,
+            inspectionDate: now,
+            responsible: { id: createdBy },
+            manufacturingPlant: { id: manufacturingPlantId },
+            createdBy: { id: createdBy } as User,
+            createdAt: now,
+          });
 
-    const savedExtinguisherInspection =
-      await this.extinguisherInspectionRepository.save(extinguisherInspection);
+          const savedExtinguisherInspection = await inspectionRepository.save(
+            extinguisherInspection,
+          );
 
-    const evaluationsToSave = evaluations.map((evaluation) =>
-      this.extinguisherInspectionEvaluationRepository.create({
-        ...evaluation,
-        extinguisherInspection: { id: savedExtinguisherInspection.id },
-        createdBy: { id: createdBy } as User,
-        createdAt: now,
-      }),
-    );
+          const evaluationsToSave = evaluations.map((evaluation) =>
+            evaluationRepository.create({
+              ...evaluation,
+              extinguisherInspection: { id: savedExtinguisherInspection.id },
+              createdBy: { id: createdBy } as User,
+              createdAt: now,
+            }),
+          );
 
-    await this.extinguisherInspectionEvaluationRepository.save(
-      evaluationsToSave,
-    );
+          await evaluationRepository.save(evaluationsToSave);
 
-    return this.findOne(savedExtinguisherInspection.id);
+          return savedExtinguisherInspection.id;
+        },
+      );
+
+    return this.findOne(savedId);
   }
 
   /**
@@ -141,6 +150,11 @@ export class ExtinguisherInspectionsService {
         { evaluationIsActive: true },
       )
       .where('extinguisherInspection.isActive = :isActive', { isActive: true })
+      .andWhere('manufacturingPlant.id IN (:...allowedPlantIds)', {
+        allowedPlantIds: this.requestContext.manufacturingPlantIds.length
+          ? this.requestContext.manufacturingPlantIds
+          : [-1],
+      })
       .orderBy('extinguisherInspection.id', 'DESC');
 
     if (search) {
@@ -205,6 +219,7 @@ export class ExtinguisherInspectionsService {
    * guardada) para no pasar por el Date de node-postgres.
    */
   async getDownloadFileName(id: number) {
+    await this.findOne(id);
     const [row]: Array<{
       plantName: string | null;
       countryName: string | null;
@@ -240,6 +255,11 @@ export class ExtinguisherInspectionsService {
         { evaluationIsActive: true },
       )
       .where('extinguisherInspection.id = :id', { id })
+      .andWhere('manufacturingPlant.id IN (:...allowedPlantIds)', {
+        allowedPlantIds: this.requestContext.manufacturingPlantIds.length
+          ? this.requestContext.manufacturingPlantIds
+          : [-1],
+      })
       .andWhere('extinguisherInspection.isActive = :isActive', {
         isActive: true,
       })
@@ -266,54 +286,77 @@ export class ExtinguisherInspectionsService {
     } = updateExtinguisherInspectionDto;
 
     const extinguisherInspection = await this.findOne(id);
-
-    const updatedExtinguisherInspection =
-      this.extinguisherInspectionRepository.merge(
-        extinguisherInspection,
-        restUpdateExtinguisherInspectionDto,
-        manufacturingPlantId
-          ? {
-              manufacturingPlant: {
-                id: manufacturingPlantId,
-              },
-            }
-          : {},
-        { updatedBy: { id: updatedBy } as User },
-        { updatedAt: new Date() },
+    if (manufacturingPlantId)
+      this.requestContext.assertManufacturingPlant(manufacturingPlantId);
+    if (evaluations?.length) {
+      const today = await this.plantToday(
+        manufacturingPlantId || extinguisherInspection.manufacturingPlant.id,
+        new Date(),
       );
-
-    await this.extinguisherInspectionRepository.save(
-      updatedExtinguisherInspection,
-    );
-
-    if (evaluations) {
-      await this.extinguisherInspectionEvaluationRepository
-        .createQueryBuilder()
-        .update(ExtinguisherInspectionEvaluation)
-        .set({
-          isActive: false,
-          updatedBy: { id: updatedBy } as User,
-          updatedAt: new Date(),
-        })
-        .where('extinguisherInspection.id = :id', { id })
-        .andWhere('isActive = :isActive', { isActive: true })
-        .execute();
-
-      if (evaluations.length) {
-        const evaluationsToSave = evaluations.map((evaluation) =>
-          this.extinguisherInspectionEvaluationRepository.create({
-            ...evaluation,
-            extinguisherInspection: { id },
-            createdBy: { id: updatedBy } as User,
-            createdAt: new Date(),
-          }),
+      if (
+        evaluations.some(
+          (evaluation) =>
+            evaluation.nextRechargeDate < today ||
+            evaluation.maintenanceDate < today,
+        )
+      )
+        throw new BadRequestException(
+          'No se permiten fechas de próxima recarga o mantenimiento anteriores a la fecha actual.',
         );
-
-        await this.extinguisherInspectionEvaluationRepository.save(
-          evaluationsToSave,
-        );
-      }
     }
+
+    await this.extinguisherInspectionRepository.manager.transaction(
+      async (manager) => {
+        const inspectionRepository = manager.getRepository(
+          ExtinguisherInspection,
+        );
+        const evaluationRepository = manager.getRepository(
+          ExtinguisherInspectionEvaluation,
+        );
+        const updatedExtinguisherInspection = inspectionRepository.merge(
+          extinguisherInspection,
+          restUpdateExtinguisherInspectionDto,
+          manufacturingPlantId
+            ? {
+                manufacturingPlant: {
+                  id: manufacturingPlantId,
+                },
+              }
+            : {},
+          { updatedBy: { id: updatedBy } as User },
+          { updatedAt: new Date() },
+        );
+
+        await inspectionRepository.save(updatedExtinguisherInspection);
+
+        if (evaluations) {
+          await evaluationRepository
+            .createQueryBuilder()
+            .update(ExtinguisherInspectionEvaluation)
+            .set({
+              isActive: false,
+              updatedBy: { id: updatedBy } as User,
+              updatedAt: new Date(),
+            })
+            .where('"extinguisherInspectionId" = :id', { id })
+            .andWhere('isActive = :isActive', { isActive: true })
+            .execute();
+
+          if (evaluations.length) {
+            const evaluationsToSave = evaluations.map((evaluation) =>
+              evaluationRepository.create({
+                ...evaluation,
+                extinguisherInspection: { id },
+                createdBy: { id: updatedBy } as User,
+                createdAt: new Date(),
+              }),
+            );
+
+            await evaluationRepository.save(evaluationsToSave);
+          }
+        }
+      },
+    );
 
     return this.findOne(id);
   }
@@ -323,23 +366,33 @@ export class ExtinguisherInspectionsService {
 
     const extinguisherInspection = await this.findOne(id);
 
-    extinguisherInspection.isActive = false;
-    extinguisherInspection.updatedBy = { id: updatedBy } as User;
-    extinguisherInspection.updatedAt = new Date();
+    await this.extinguisherInspectionRepository.manager.transaction(
+      async (manager) => {
+        const inspectionRepository = manager.getRepository(
+          ExtinguisherInspection,
+        );
+        const evaluationRepository = manager.getRepository(
+          ExtinguisherInspectionEvaluation,
+        );
+        extinguisherInspection.isActive = false;
+        extinguisherInspection.updatedBy = { id: updatedBy } as User;
+        extinguisherInspection.updatedAt = new Date();
 
-    await this.extinguisherInspectionRepository.save(extinguisherInspection);
+        await inspectionRepository.save(extinguisherInspection);
 
-    await this.extinguisherInspectionEvaluationRepository
-      .createQueryBuilder()
-      .update(ExtinguisherInspectionEvaluation)
-      .set({
-        isActive: false,
-        updatedBy: { id: updatedBy } as User,
-        updatedAt: new Date(),
-      })
-      .where('extinguisherInspection.id = :id', { id })
-      .andWhere('isActive = :isActive', { isActive: true })
-      .execute();
+        await evaluationRepository
+          .createQueryBuilder()
+          .update(ExtinguisherInspectionEvaluation)
+          .set({
+            isActive: false,
+            updatedBy: { id: updatedBy } as User,
+            updatedAt: new Date(),
+          })
+          .where('"extinguisherInspectionId" = :id', { id })
+          .andWhere('isActive = :isActive', { isActive: true })
+          .execute();
+      },
+    );
 
     return this.findOneRemoved(id);
   }
@@ -347,7 +400,13 @@ export class ExtinguisherInspectionsService {
   private async findOneRemoved(id: number) {
     const extinguisherInspection =
       await this.extinguisherInspectionRepository.findOne({
-        where: { id, isActive: false },
+        where: {
+          id,
+          isActive: false,
+          manufacturingPlant: {
+            id: In(this.requestContext.manufacturingPlantIds),
+          },
+        },
         relations: this.relations,
       });
 

@@ -1,3 +1,5 @@
+import { UseGuards } from '@nestjs/common';
+import { AdminGuard } from '@shared/guards/admin.guard';
 import {
   Controller,
   Get,
@@ -23,6 +25,7 @@ export class ManufacturingPlantsController {
   ) {}
 
   @Post()
+  @UseGuards(AdminGuard)
   create(@Body() createManufacturingPlantDto: CreateManufacturingPlantDto) {
     return this.manufacturingPlantsService.create(createManufacturingPlantDto);
   }
@@ -38,6 +41,7 @@ export class ManufacturingPlantsController {
   }
 
   @Patch(':id')
+  @UseGuards(AdminGuard)
   update(
     @Param('id') id: string,
     @Body() updateManufacturingPlantDto: UpdateManufacturingPlantDto,
@@ -49,6 +53,7 @@ export class ManufacturingPlantsController {
   }
 
   @Delete(':id')
+  @UseGuards(AdminGuard)
   remove(@Param('id') id: string) {
     return this.manufacturingPlantsService.remove(+id);
   }

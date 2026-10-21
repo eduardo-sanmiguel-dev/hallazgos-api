@@ -42,6 +42,20 @@ describe('RequestContextService', () => {
     expect(seen.sort()).toEqual([1, 2]);
   });
 
+  it('solo acepta identificadores enteros de las plantas de la sesión', () => {
+    RequestContextService.run(
+      {
+        user: { id: 1, manufacturingPlants: [{ id: 1 }] },
+      } as unknown as Request,
+      () => {
+        expect(service.assertManufacturingPlant(1)).toBe(1);
+        for (const id of [2, 0, -1, 1.5, NaN])
+          expect(() => service.assertManufacturingPlant(id)).toThrow(
+            'Planta no encontrada',
+          );
+      },
+    );
+  });
   it('falla con un mensaje claro fuera de una petición', () => {
     expect(() => service.request).toThrow(/No hay una petición activa/);
   });

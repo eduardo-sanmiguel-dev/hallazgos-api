@@ -1,3 +1,4 @@
+import { buildAdmin } from '@test/utils';
 /**
  * Catálogos de CIAEL y de configuración con la misma forma: crear (guarda el
  * cuerpo tal cual) y listar activos. findOne/update/remove son stubs generados
@@ -243,6 +244,7 @@ describe.each(CATALOGS)(
     describe('controlador (HTTP)', () => {
       it(`GET ${path} delega la lista al servicio`, async () => {
         const http = await createHttpTestApp({
+          user: buildAdmin(),
           controllers: [controller],
           providers: [mockProvider(Service)],
         });

@@ -65,6 +65,8 @@ import { GembaWalkCalendarModule } from './gemba-walk-calendar/gemba-walk-calend
 import { GembaWalkEvaluationsModule } from './gemba-walk-evaluations/gemba-walk-evaluations.module';
 import { GembaWalksModule } from './gemba-walks/gemba-walks.module';
 import { HealthModule } from './health/health.module';
+import { EvidenceImageAccessMiddleware } from './evidences/evidence-image-access.middleware';
+
 import { ObserveIntegrationModule } from 'observe.module';
 
 @Module({
@@ -193,6 +195,7 @@ import { ObserveIntegrationModule } from 'observe.module';
   providers: [
     JwtService,
     GistSecretGuardService,
+    EvidenceImageAccessMiddleware,
     // Borra las imágenes subidas si la petición termina en error.
     { provide: APP_INTERCEPTOR, useClass: DeleteUploadsOnErrorInterceptor },
   ],

@@ -19,7 +19,10 @@ describe('ExtinguisherInspectionsService', () => {
   let inspections: RepositoryMock<ExtinguisherInspection>;
   let evaluations: RepositoryMock<ExtinguisherInspectionEvaluation>;
   let plantCountry: string | null;
-  const user = buildUser({ id: 10 });
+  const user = buildUser({
+    id: 10,
+    manufacturingPlants: [{ id: 1 }, { id: 2 }] as never,
+  });
   const as = <R>(fn: () => R): Promise<Awaited<R>> =>
     runAsUser(user, fn as () => Promise<Awaited<R>>);
 
@@ -48,6 +51,12 @@ describe('ExtinguisherInspectionsService', () => {
     plantCountry = 'México';
     Object.assign(inspections, {
       manager: {
+        transaction: jest.fn(async (callback) =>
+          callback({
+            getRepository: (entity) =>
+              entity === ExtinguisherInspection ? inspections : evaluations,
+          }),
+        ),
         findOne: jest.fn(async () =>
           plantCountry === null ? null : { country: { name: plantCountry } },
         ),
@@ -56,7 +65,10 @@ describe('ExtinguisherInspectionsService', () => {
     inspections.save.mockImplementation(
       async (row) => ({ id: 30, ...row }) as never,
     );
-    inspections.queryBuilder.getOne.mockResolvedValue({ id: 30 } as never);
+    inspections.queryBuilder.getOne.mockResolvedValue({
+      id: 30,
+      manufacturingPlant: { id: 1 },
+    } as never);
 
     jest.useFakeTimers({
       now: MEXICO_EVENING,
@@ -73,7 +85,7 @@ describe('ExtinguisherInspectionsService', () => {
       );
 
     it('guarda la inspección (fecha y responsable = quien la registra) y sus evaluaciones', async () => {
-      await expect(create([evaluation()])).resolves.toEqual({ id: 30 });
+      await expect(create([evaluation()])).resolves.toMatchObject({ id: 30 });
 
       expect(inspections.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -100,7 +112,7 @@ describe('ExtinguisherInspectionsService', () => {
             maintenanceDate: '2026-10-20',
           }),
         ]),
-      ).resolves.toEqual({ id: 30 });
+      ).resolves.toMatchObject({ id: 30 });
     });
 
     it('en una planta de Colombia usa el día de Bogotá', async () => {
@@ -132,7 +144,7 @@ describe('ExtinguisherInspectionsService', () => {
 
       await expect(
         create([evaluation({ maintenanceDate: '2026-10-20' })]),
-      ).resolves.toEqual({
+      ).resolves.toMatchObject({
         id: 30,
       });
     });
@@ -150,24 +162,29 @@ describe('ExtinguisherInspectionsService', () => {
     it('sin filtros: inspecciones activas, más recientes primero, sin paginar', async () => {
       qb().getMany.mockResolvedValue([]);
 
-      await expect(service.findAll({})).resolves.toEqual([]);
+      await expect(as(async () => service.findAll({}))).resolves.toEqual([]);
       expect(qb().where).toHaveBeenCalledWith(
         'extinguisherInspection.isActive = :isActive',
         { isActive: true },
       );
-      expect(qb().andWhere).not.toHaveBeenCalled();
+      expect(qb().andWhere).toHaveBeenCalledWith(
+        'manufacturingPlant.id IN (:...allowedPlantIds)',
+        { allowedPlantIds: [1, 2] },
+      );
     });
 
     it('aplica búsqueda, planta, responsable y rango de fechas', async () => {
       qb().getMany.mockResolvedValue([]);
 
-      await service.findAll({
-        search: '12',
-        manufacturingPlantId: 1,
-        responsibleId: 2,
-        startDate: '2026-01-01',
-        endDate: '2026-12-31',
-      });
+      await as(async () =>
+        service.findAll({
+          search: '12',
+          manufacturingPlantId: 1,
+          responsibleId: 2,
+          startDate: '2026-01-01',
+          endDate: '2026-12-31',
+        }),
+      );
 
       expect(qb().andWhere).toHaveBeenCalledWith(expect.any(Brackets));
       expect(qb().andWhere).toHaveBeenCalledWith(
@@ -193,7 +210,9 @@ describe('ExtinguisherInspectionsService', () => {
     it('paginado aplica skip/take; limit -1 trae todo', async () => {
       qb().getManyAndCount.mockResolvedValue([[], 7]);
 
-      await expect(service.findAll({ page: 2, limit: 5 })).resolves.toEqual({
+      await expect(
+        as(async () => service.findAll({ page: 2, limit: 5 })),
+      ).resolves.toEqual({
         data: [],
         count: 7,
       });
@@ -201,7 +220,7 @@ describe('ExtinguisherInspectionsService', () => {
       expect(qb().take).toHaveBeenCalledWith(5);
 
       qb().skip.mockClear();
-      await service.findAll({ page: 1, limit: -1 });
+      await as(async () => service.findAll({ page: 1, limit: -1 }));
       expect(qb().skip).not.toHaveBeenCalled();
     });
   });
@@ -210,7 +229,7 @@ describe('ExtinguisherInspectionsService', () => {
     it('una inspección inexistente o inactiva responde 404', async () => {
       inspections.queryBuilder.getOne.mockResolvedValue(null);
 
-      await expect(service.findOne(30)).rejects.toThrow(
+      await expect(as(async () => service.findOne(30))).rejects.toThrow(
         new NotFoundException('Extinguisher inspection with id 30 not found'),
       );
     });
@@ -225,7 +244,9 @@ describe('ExtinguisherInspectionsService', () => {
       },
     ]);
 
-    await expect(service.getDownloadFileName(30)).resolves.toMatch(/30/);
+    await expect(
+      as(async () => service.getDownloadFileName(30)),
+    ).resolves.toMatch(/30/);
     expect(inspections.query.mock.calls[0][1]).toEqual([30]);
   });
 

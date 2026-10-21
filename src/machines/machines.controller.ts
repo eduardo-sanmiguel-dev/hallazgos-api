@@ -1,3 +1,5 @@
+import { UseGuards } from '@nestjs/common';
+import { AdminGuard } from '@shared/guards/admin.guard';
 import {
   Controller,
   Get,
@@ -17,6 +19,7 @@ export class MachinesController {
   constructor(private readonly machinesService: MachinesService) {}
 
   @Post()
+  @UseGuards(AdminGuard)
   create(@Body() createMachineDto: CreateMachineDto) {
     return this.machinesService.create(createMachineDto);
   }
@@ -32,11 +35,13 @@ export class MachinesController {
   }
 
   @Patch(':id')
+  @UseGuards(AdminGuard)
   update(@Param('id') id: string, @Body() updateMachineDto: UpdateMachineDto) {
     return this.machinesService.update(+id, updateMachineDto);
   }
 
   @Delete(':id')
+  @UseGuards(AdminGuard)
   remove(@Param('id') id: string) {
     return this.machinesService.remove(+id);
   }

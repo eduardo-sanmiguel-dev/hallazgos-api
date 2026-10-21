@@ -241,3 +241,9 @@ Otras decisiones (sin prueba que falle):
 - `dashboard.service`: validaciones defensivas (`!manufacturingPlantId`) que
   por HTTP nunca se alcanzan (el `UserPlantPipe` ya las garantiza).
 - Stubs de catálogos (ver arriba): funciones sin probar a propósito.
+
+## Meta razonable global — alcanzada
+
+Se añadió dashboard.service.spec.ts con 201 pruebas de validación, alcance y transformaciones. Resultado: 1,327 pruebas / 74 suites; cobertura 96.88 / 91.99 / 91.23 / 96.95 (sentencias / ramas / funciones / líneas), manteniendo las exclusiones previas.
+
+El verificador global ahora incluye dashboard.service.ts y exige 85 / 80 / 85 / 85. GitHub Actions lo ejecuta después de las pruebas unitarias y bloquea el deploy si falla. Los tests SQL permanecen en el job independiente con PostgreSQL temporal. Ver docs/meta-cobertura.md.

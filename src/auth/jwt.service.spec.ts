@@ -57,6 +57,26 @@ describe('JwtService', () => {
     });
   });
 
+  it.each([undefined, 0, -1, 1.5, '7'])(
+    'rechaza un userId no válido: %s',
+    (userId) => {
+      const token = jwt.sign({ userId, purpose: 'session' }, secret, {
+        algorithm: 'HS256',
+      });
+      expect(() => service.verify(token)).toThrow();
+    },
+  );
+
+  it.each(['', null, false, 'otro'])(
+    'rechaza un propósito de sesión explícito no válido: %s',
+    (purpose) => {
+      const token = jwt.sign({ userId: 7, purpose }, secret, {
+        algorithm: 'HS256',
+      });
+      expect(() => service.verify(token)).toThrow();
+    },
+  );
+
   describe('tokens de recuperación', () => {
     it('vencen en 5 minutos (ni más ni menos)', () => {
       const { exp } = jwt.decode(

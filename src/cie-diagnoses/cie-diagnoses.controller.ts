@@ -1,3 +1,5 @@
+import { UseGuards } from '@nestjs/common';
+import { AdminGuard } from '@shared/guards/admin.guard';
 import {
   Controller,
   Get,
@@ -16,6 +18,7 @@ export class CieDiagnosesController {
   constructor(private readonly cieDiagnosesService: CieDiagnosesService) {}
 
   @Post()
+  @UseGuards(AdminGuard)
   create(@Body() createCieDiagnosisDto: CreateCieDiagnosisDto) {
     return this.cieDiagnosesService.create(createCieDiagnosisDto);
   }
@@ -31,6 +34,7 @@ export class CieDiagnosesController {
   }
 
   @Patch(':id')
+  @UseGuards(AdminGuard)
   update(
     @Param('id') id: string,
     @Body() updateCieDiagnosisDto: UpdateCieDiagnosisDto,
@@ -39,6 +43,7 @@ export class CieDiagnosesController {
   }
 
   @Delete(':id')
+  @UseGuards(AdminGuard)
   remove(@Param('id') id: string) {
     return this.cieDiagnosesService.remove(+id);
   }

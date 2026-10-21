@@ -66,11 +66,14 @@ describe('AuthService', () => {
         ) ?? null
       );
     });
-    users.update.mockImplementation(async (id, data) => {
-      Object.assign(
-        table.find((u) => u.id === id),
-        data,
+    users.update.mockImplementation(async (criteria, data) => {
+      const { id, password, isActive } = criteria as Partial<User>;
+      const user = table.find(
+        (u) =>
+          u.id === id && u.password === password && u.isActive === isActive,
       );
+      if (!user) return { affected: 0, raw: [], generatedMaps: [] };
+      Object.assign(user, data);
       return { affected: 1, raw: [], generatedMaps: [] };
     });
   };
@@ -188,6 +191,39 @@ describe('AuthService', () => {
       expect(saved).not.toBe('Nueva-clave-2');
       await expect(argon2.verify(saved, 'Nueva-clave-2')).resolves.toBe(true);
       expect(jwtService.verify(tokenFromCookie(cookie)).userId).toBe(7);
+    });
+
+    it('solo una solicitud simultánea puede usar el mismo token de recuperación', async () => {
+      const token = resetTokenFor(7);
+      const results = await Promise.allSettled([
+        restore(token),
+        restore(token),
+      ]);
+      expect(
+        results.filter((result) => result.status === 'fulfilled'),
+      ).toHaveLength(1);
+      const rejected = results.find(
+        (result) => result.status === 'rejected',
+      ) as PromiseRejectedResult;
+      expect(rejected.reason).toBeInstanceOf(UnauthorizedException);
+      expect(users.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 7,
+          isActive: true,
+          password: passwordHash,
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it('no emite sesión si falla la escritura de la nueva contraseña', async () => {
+      const create = jest.spyOn(jwtService, 'create');
+      users.update.mockRejectedValueOnce(new Error('escritura fallida'));
+      await expect(restore(resetTokenFor(7))).rejects.toThrow(
+        'escritura fallida',
+      );
+      expect(create).not.toHaveBeenCalled();
+      expect(currentHashOf(7)).toBe(passwordHash);
     });
 
     it('el correo se compara sin importar mayúsculas ni espacios', async () => {

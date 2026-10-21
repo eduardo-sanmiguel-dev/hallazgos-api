@@ -1,3 +1,5 @@
+import { UseGuards } from '@nestjs/common';
+import { AdminGuard } from '@shared/guards/admin.guard';
 import {
   Controller,
   Get,
@@ -17,6 +19,7 @@ export class ZonesController {
   constructor(private readonly zonesService: ZonesService) {}
 
   @Post()
+  @UseGuards(AdminGuard)
   create(@Body() createZoneDto: CreateZoneDto) {
     return this.zonesService.create(createZoneDto);
   }
@@ -32,11 +35,13 @@ export class ZonesController {
   }
 
   @Patch(':id')
+  @UseGuards(AdminGuard)
   update(@Param('id') id: string, @Body() updateZoneDto: UpdateZoneDto) {
     return this.zonesService.update(+id, updateZoneDto);
   }
 
   @Delete(':id')
+  @UseGuards(AdminGuard)
   remove(@Param('id') id: string) {
     return this.zonesService.remove(+id);
   }

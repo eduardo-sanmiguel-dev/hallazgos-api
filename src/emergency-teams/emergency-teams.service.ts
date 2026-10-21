@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RequestContextService } from 'shared/services/request-context.service';
 
-import { Brackets, Repository } from 'typeorm';
+import { Brackets, Repository, In } from 'typeorm';
 
 import { EmergencyTeam } from './entities/emergency-team.entity';
 import { User } from 'users/entities/user.entity';
@@ -25,6 +25,9 @@ export class EmergencyTeamsService {
   create(createEmergencyTeamDto: CreateEmergencyTeamDto) {
     const createdBy = this.requestContext.userId;
 
+    this.requestContext.assertManufacturingPlant(
+      createEmergencyTeamDto.manufacturingPlantId,
+    );
     const emergencyTeam = this.emergencyTeamRepository.create({
       ...createEmergencyTeamDto,
       manufacturingPlant: {
@@ -50,6 +53,11 @@ export class EmergencyTeamsService {
         'manufacturingPlant',
       )
       .where('emergencyTeam.isActive = :isActive', { isActive: true })
+      .andWhere('manufacturingPlant.id IN (:...allowedPlantIds)', {
+        allowedPlantIds: this.requestContext.manufacturingPlantIds.length
+          ? this.requestContext.manufacturingPlantIds
+          : [-1],
+      })
       .orderBy('emergencyTeam.id', 'DESC');
 
     if (search) {
@@ -94,7 +102,13 @@ export class EmergencyTeamsService {
 
   async findOne(id: number) {
     const emergencyTeam = await this.emergencyTeamRepository.findOne({
-      where: { id, isActive: true },
+      where: {
+        id,
+        isActive: true,
+        manufacturingPlant: {
+          id: In(this.requestContext.manufacturingPlantIds),
+        },
+      },
       relations: this.relations,
     });
 
@@ -110,6 +124,8 @@ export class EmergencyTeamsService {
       updateEmergencyTeamDto;
 
     const emergencyTeam = await this.findOne(id);
+    if (manufacturingPlantId)
+      this.requestContext.assertManufacturingPlant(manufacturingPlantId);
 
     const updatedEmergencyTeam = this.emergencyTeamRepository.merge(
       emergencyTeam,

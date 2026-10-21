@@ -4,7 +4,7 @@
 
 ```bash
 # hallazgos-api
-pnpm test:cov:goal   # unitarias + meta global (80/70)
+pnpm test:cov:goal   # unitarias + meta global (85/80/85/85, incluido dashboard)
 pnpm test:e2e        # contrato HTTP sin base
 pnpm test:db:cov     # E2E y dashboard contra hallazgos_test (PostgreSQL local)
 pnpm typecheck && pnpm lint && pnpm build

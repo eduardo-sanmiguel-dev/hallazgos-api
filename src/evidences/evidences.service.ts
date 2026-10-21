@@ -241,6 +241,10 @@ export class EvidencesService {
     label: string,
     isEndDate = false,
   ): Date {
+    if (typeof date !== 'string' || !/^\d{2}\/\d{2}\/\d{4}$/.test(date))
+      throw new BadRequestException(
+        `${label} debe tener el formato DD/MM/YYYY`,
+      );
     const [day, month, year] = date.split('/').map(Number);
     const parsedDate = new Date(year || 0, (month || 1) - 1, day || 0);
 
@@ -1623,11 +1627,32 @@ export class EvidencesService {
       }
     }
 
-    evidence.responsibles = nextResponsibles;
-
-    evidence.updatedAt = new Date();
-
-    await this.evidenceRepository.save(evidence);
+    await this.evidenceRepository.manager.transaction(async (manager) => {
+      const repository = manager.getRepository(Evidence);
+      const current = await repository.findOne({
+        where: { id: evidence.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!current) throw new NotFoundException('Hallazgo no encontrado');
+      this.assertStatus(
+        current,
+        [STATUS_OPEN, STATUS_IN_PROGRESS],
+        'reasignar',
+      );
+      if (
+        current.status !== evidence.status ||
+        current.updatedAt.getTime() !== evidence.updatedAt.getTime()
+      ) {
+        throw new ConflictException(
+          'El hallazgo cambió; recargue e intente de nuevo',
+        );
+      }
+      await repository.save({
+        id: evidence.id,
+        responsibles: nextResponsibles,
+        updatedAt: new Date(),
+      });
+    });
 
     const evidenceUpdated = await this.findOne(evidence.id);
 

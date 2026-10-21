@@ -1,3 +1,5 @@
+import { UseGuards } from '@nestjs/common';
+import { AdminGuard } from '@shared/guards/admin.guard';
 import {
   Controller,
   Get,
@@ -16,6 +18,7 @@ export class TypeOfLinksController {
   constructor(private readonly typeOfLinksService: TypeOfLinksService) {}
 
   @Post()
+  @UseGuards(AdminGuard)
   create(@Body() createTypeOfLinkDto: CreateTypeOfLinkDto) {
     return this.typeOfLinksService.create(createTypeOfLinkDto);
   }
@@ -31,6 +34,7 @@ export class TypeOfLinksController {
   }
 
   @Patch(':id')
+  @UseGuards(AdminGuard)
   update(
     @Param('id') id: string,
     @Body() updateTypeOfLinkDto: UpdateTypeOfLinkDto,
@@ -39,6 +43,7 @@ export class TypeOfLinksController {
   }
 
   @Delete(':id')
+  @UseGuards(AdminGuard)
   remove(@Param('id') id: string) {
     return this.typeOfLinksService.remove(+id);
   }

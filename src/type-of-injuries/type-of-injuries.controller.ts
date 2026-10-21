@@ -1,3 +1,5 @@
+import { UseGuards } from '@nestjs/common';
+import { AdminGuard } from '@shared/guards/admin.guard';
 import {
   Controller,
   Get,
@@ -16,6 +18,7 @@ export class TypeOfInjuriesController {
   constructor(private readonly typeOfInjuriesService: TypeOfInjuriesService) {}
 
   @Post()
+  @UseGuards(AdminGuard)
   create(@Body() createTypeOfInjuryDto: CreateTypeOfInjuryDto) {
     return this.typeOfInjuriesService.create(createTypeOfInjuryDto);
   }
@@ -31,6 +34,7 @@ export class TypeOfInjuriesController {
   }
 
   @Patch(':id')
+  @UseGuards(AdminGuard)
   update(
     @Param('id') id: string,
     @Body() updateTypeOfInjuryDto: UpdateTypeOfInjuryDto,
@@ -39,6 +43,7 @@ export class TypeOfInjuriesController {
   }
 
   @Delete(':id')
+  @UseGuards(AdminGuard)
   remove(@Param('id') id: string) {
     return this.typeOfInjuriesService.remove(+id);
   }

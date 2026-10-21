@@ -1,3 +1,5 @@
+import { UseGuards } from '@nestjs/common';
+import { AdminGuard } from '@shared/guards/admin.guard';
 import {
   Controller,
   Get,
@@ -16,6 +18,7 @@ export class WorkingDaysController {
   constructor(private readonly workingDaysService: WorkingDaysService) {}
 
   @Post()
+  @UseGuards(AdminGuard)
   create(@Body() createWorkingDayDto: CreateWorkingDayDto) {
     return this.workingDaysService.create(createWorkingDayDto);
   }
@@ -31,6 +34,7 @@ export class WorkingDaysController {
   }
 
   @Patch(':id')
+  @UseGuards(AdminGuard)
   update(
     @Param('id') id: string,
     @Body() updateWorkingDayDto: UpdateWorkingDayDto,
@@ -39,6 +43,7 @@ export class WorkingDaysController {
   }
 
   @Delete(':id')
+  @UseGuards(AdminGuard)
   remove(@Param('id') id: string) {
     return this.workingDaysService.remove(+id);
   }

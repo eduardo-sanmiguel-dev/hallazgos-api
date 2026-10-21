@@ -61,7 +61,7 @@ describe('MailService', () => {
   });
 
   describe('sendCreate', () => {
-    it('manda el hallazgo con su prioridad, días restantes e imagen pública', async () => {
+    it('manda el hallazgo con su prioridad, días restantes e imagen adjunta desde disco', async () => {
       await service.sendCreate({
         user: recipient,
         evidenceCurrent: evidence(),
@@ -82,7 +82,7 @@ describe('MailService', () => {
         attachments: [
           {
             filename: 'uuid-evidence.png',
-            path: 'https://api.comportarte.com/static/images/evidences/uuid-evidence.png',
+            path: join(LOCAL_EVIDENCE_IMAGES_DIR, 'uuid-evidence.png'),
             cid: 'imgEvidence',
           },
         ],

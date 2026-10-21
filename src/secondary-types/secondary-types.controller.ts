@@ -1,3 +1,5 @@
+import { UseGuards } from '@nestjs/common';
+import { AdminGuard } from '@shared/guards/admin.guard';
 import {
   Controller,
   Get,
@@ -21,6 +23,7 @@ export class SecondaryTypesController {
   constructor(private readonly secondaryTypesService: SecondaryTypesService) {}
 
   @Post()
+  @UseGuards(AdminGuard)
   create(@Body() createSecondaryTypeDto: CreateSecondaryTypeDto) {
     return this.secondaryTypesService.create(createSecondaryTypeDto);
   }
@@ -41,6 +44,7 @@ export class SecondaryTypesController {
   }
 
   @Patch(':id')
+  @UseGuards(AdminGuard)
   update(
     @Param('id') id: string,
     @Body() updateSecondaryTypeDto: UpdateSecondaryTypeDto,
@@ -49,6 +53,7 @@ export class SecondaryTypesController {
   }
 
   @Delete(':id')
+  @UseGuards(AdminGuard)
   remove(@Param('id') id: string) {
     return this.secondaryTypesService.remove(+id);
   }

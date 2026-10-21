@@ -22,14 +22,12 @@ export const LOCAL_EVIDENCE_IMAGES_DIR = join(
   'evidences',
 );
 
-const PUBLIC_EVIDENCE_IMAGES_URL =
-  'https://api.comportarte.com/static/images/evidences/';
-
-/** Ruta (desarrollo) o URL pública (producción) de una imagen de evidencia. */
-const pathImageFor = (environment: string) => (fileName: string) =>
-  environment === ENV_DEVELOPMENT
-    ? join(LOCAL_EVIDENCE_IMAGES_DIR, fileName)
-    : PUBLIC_EVIDENCE_IMAGES_URL + fileName;
+/** Adjuntos locales en todos los entornos: las URLs de imágenes exigen sesión. */
+const localImagePath = (fileName: string) => {
+  if (!/^[^\\/\0]+$/.test(fileName))
+    throw new Error('Nombre de imagen no válido');
+  return join(LOCAL_EVIDENCE_IMAGES_DIR, fileName);
+};
 
 const PRIORITY_OPTIONS = [
   { name: 'Inmediato', days: 2 },
@@ -108,7 +106,7 @@ export class MailService {
     this.MAIL_USER_APP = this.configService.get<string>('email.user');
     this.FRONTEND_URL = this.configService.get<string>('frontendUrl');
     this.environment = this.configService.get<string>('environment');
-    this.pathImage = pathImageFor(this.environment);
+    this.pathImage = localImagePath;
   }
 
   get emailTest() {
@@ -256,7 +254,7 @@ export class MailService {
     if (imgSolution) {
       attachments.push({
         filename: imgSolution,
-        path: join(LOCAL_EVIDENCE_IMAGES_DIR, imgSolution),
+        path: this.pathImage(imgSolution),
         cid: 'imgSolution',
       });
     }

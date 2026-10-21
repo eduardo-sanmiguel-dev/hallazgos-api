@@ -280,6 +280,9 @@ export class EmployeesService {
       where: {
         id,
         isActive: true,
+        manufacturingPlants: {
+          id: In(this.requestContext.manufacturingPlantIds),
+        },
       },
       relations: this.relations,
     });

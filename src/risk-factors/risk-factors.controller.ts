@@ -1,3 +1,5 @@
+import { UseGuards } from '@nestjs/common';
+import { AdminGuard } from '@shared/guards/admin.guard';
 import {
   Controller,
   Get,
@@ -16,6 +18,7 @@ export class RiskFactorsController {
   constructor(private readonly riskFactorsService: RiskFactorsService) {}
 
   @Post()
+  @UseGuards(AdminGuard)
   create(@Body() createRiskFactorDto: CreateRiskFactorDto) {
     return this.riskFactorsService.create(createRiskFactorDto);
   }
@@ -31,6 +34,7 @@ export class RiskFactorsController {
   }
 
   @Patch(':id')
+  @UseGuards(AdminGuard)
   update(
     @Param('id') id: string,
     @Body() updateRiskFactorDto: UpdateRiskFactorDto,
@@ -39,6 +43,7 @@ export class RiskFactorsController {
   }
 
   @Delete(':id')
+  @UseGuards(AdminGuard)
   remove(@Param('id') id: string) {
     return this.riskFactorsService.remove(+id);
   }

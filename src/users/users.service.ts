@@ -71,7 +71,34 @@ export class UsersService {
     return this.findOne(user.id);
   }
 
-  findAll(queryUserDto: QueryUserDto) {
+  /** No se aplica al lookup interno de autenticación, que aún no tiene req.user. */
+  async findOneForRequest(id: number): Promise<User> {
+    const user = await this.findOne(id);
+    const allowed = this.requestContext.manufacturingPlantIds;
+    if (
+      !user.manufacturingPlants.some((plant) =>
+        allowed.includes(Number(plant.id)),
+      )
+    ) {
+      throw new NotFoundException(`Usuario con id ${id} no encontrado`);
+    }
+    return user;
+  }
+
+  assertPlantsForRequest(names: string[] = []) {
+    const allowed = new Set(
+      this.requestContext.user.manufacturingPlants.map((plant) => plant.name),
+    );
+    if (names.some((name) => !allowed.has(name)))
+      throw new NotFoundException('Planta no encontrada');
+  }
+
+  findAllForRequest(query: QueryUserDto) {
+    const allowed = this.requestContext.manufacturingPlantIds;
+    return this.findAll(query, allowed);
+  }
+
+  findAll(queryUserDto: QueryUserDto, allowedPlantIds?: number[]) {
     const { name, manufacturingPlantId, rule, zoneId, processId, orderBy } =
       queryUserDto;
     const { page, limit } = queryUserDto;
@@ -86,11 +113,20 @@ export class UsersService {
       order = { [key]: direction.toUpperCase() };
     }
 
+    const plantIds =
+      allowedPlantIds === undefined
+        ? manufacturingPlantId
+          ? [Number(manufacturingPlantId)]
+          : undefined
+        : allowedPlantIds.filter(
+            (id) =>
+              !manufacturingPlantId || id === Number(manufacturingPlantId),
+          );
     const base: FindOptionsWhere<User> = {
       isActive: true,
       ...(name && { name: ILike(`%${name}%`) }),
-      ...(manufacturingPlantId && {
-        manufacturingPlants: { id: In([manufacturingPlantId]) },
+      ...(plantIds !== undefined && {
+        manufacturingPlants: { id: In(plantIds) },
       }),
       ...(rule && { role: rule }),
       ...(zoneId && { zones: { id: In([zoneId]) }, role: ROLE_SUPERVISOR }),

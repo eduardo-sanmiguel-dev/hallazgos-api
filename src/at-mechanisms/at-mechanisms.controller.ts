@@ -1,3 +1,5 @@
+import { UseGuards } from '@nestjs/common';
+import { AdminGuard } from '@shared/guards/admin.guard';
 import {
   Controller,
   Get,
@@ -16,6 +18,7 @@ export class AtMechanismsController {
   constructor(private readonly atMechanismsService: AtMechanismsService) {}
 
   @Post()
+  @UseGuards(AdminGuard)
   create(@Body() createAtMechanismDto: CreateAtMechanismDto) {
     return this.atMechanismsService.create(createAtMechanismDto);
   }
@@ -31,6 +34,7 @@ export class AtMechanismsController {
   }
 
   @Patch(':id')
+  @UseGuards(AdminGuard)
   update(
     @Param('id') id: string,
     @Body() updateAtMechanismDto: UpdateAtMechanismDto,
@@ -39,6 +43,7 @@ export class AtMechanismsController {
   }
 
   @Delete(':id')
+  @UseGuards(AdminGuard)
   remove(@Param('id') id: string) {
     return this.atMechanismsService.remove(+id);
   }
