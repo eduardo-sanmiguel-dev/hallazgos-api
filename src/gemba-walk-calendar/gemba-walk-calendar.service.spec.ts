@@ -1,5 +1,5 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { FindOperator } from 'typeorm';
+import { FindOperator, In } from 'typeorm';
 
 import {
   buildUser,
@@ -20,7 +20,10 @@ describe('GembaWalkCalendarService', () => {
   let service: GembaWalkCalendarService;
   let calendars: RepositoryMock<GembaWalkCalendar>;
   let zones: RepositoryMock<GembaWalkZone>;
-  const user = buildUser({ id: 10 });
+  const user = buildUser({
+    id: 10,
+    manufacturingPlants: [{ id: 1 }, { id: 2 }] as never,
+  });
   const as = <T>(fn: () => Promise<T>) => runAsUser(user, fn);
 
   const stored = (overrides: Partial<GembaWalkCalendar> = {}) =>
@@ -157,13 +160,13 @@ describe('GembaWalkCalendarService', () => {
       };
 
     it('sin filtros: eventos activos de zonas y plantas activas, por fecha', async () => {
-      await service.findAll({});
+      await as(async () => service.findAll({}));
 
       expect(where()).toEqual({
         isActive: true,
         gembaWalkZone: {
           isActive: true,
-          manufacturingPlant: { isActive: true },
+          manufacturingPlant: { isActive: true, id: In([1, 2]) },
         },
       });
       expect(calendars.find.mock.calls[0][0].order).toEqual({
@@ -172,17 +175,19 @@ describe('GembaWalkCalendarService', () => {
     });
 
     it('filtra por planta, zona, adicional y rango', async () => {
-      await service.findAll({
-        manufacturingPlantId: 1,
-        gembaWalkZoneId: 3,
-        isAdditional: 'true',
-        startDate: '2026-10-01T00:00:00Z',
-        endDate: '2026-11-01T00:00:00Z',
-      });
+      await as(async () =>
+        service.findAll({
+          manufacturingPlantId: 1,
+          gembaWalkZoneId: 3,
+          isAdditional: 'true',
+          startDate: '2026-10-01T00:00:00Z',
+          endDate: '2026-11-01T00:00:00Z',
+        }),
+      );
 
       expect(where()).toMatchObject({
         isAdditional: true,
-        gembaWalkZone: { id: 3, manufacturingPlant: { id: 1 } },
+        gembaWalkZone: { id: 3, manufacturingPlant: { id: In([1]) } },
       });
       expect(where().scheduledAt.type).toBe('and');
     });
@@ -191,7 +196,7 @@ describe('GembaWalkCalendarService', () => {
       [{ startDate: '2026-10-01T00:00:00Z' }, 'moreThanOrEqual'],
       [{ endDate: '2026-11-01T00:00:00Z' }, 'lessThan'],
     ])('rango parcial %o', async (dates, type) => {
-      await service.findAll(dates);
+      await as(async () => service.findAll(dates));
 
       expect(where().scheduledAt.type).toBe(type);
     });
@@ -200,7 +205,7 @@ describe('GembaWalkCalendarService', () => {
       calendars.findAndCount.mockResolvedValue([[stored()], 1]);
 
       await expect(
-        service.findAll({ page: 1, limit: 10 }),
+        as(async () => service.findAll({ page: 1, limit: 10 })),
       ).resolves.toMatchObject({
         count: 1,
       });
@@ -211,11 +216,13 @@ describe('GembaWalkCalendarService', () => {
     it('devuelve el evento', async () => {
       calendars.findOne.mockResolvedValue(stored());
 
-      await expect(service.findOne(1)).resolves.toMatchObject({ id: 1 });
+      await expect(as(async () => service.findOne(1))).resolves.toMatchObject({
+        id: 1,
+      });
     });
 
     it('inexistente responde 404', async () => {
-      await expect(service.findOne(1)).rejects.toThrow(
+      await expect(as(async () => service.findOne(1))).rejects.toThrow(
         new NotFoundException('Evento con ID 1 no encontrado'),
       );
     });
@@ -223,10 +230,12 @@ describe('GembaWalkCalendarService', () => {
     it('inactivo responde 400 (salvo que se pida incluirlo)', async () => {
       calendars.findOne.mockResolvedValue(stored({ isActive: false }));
 
-      await expect(service.findOne(1)).rejects.toThrow(
+      await expect(as(async () => service.findOne(1))).rejects.toThrow(
         new BadRequestException('El evento con ID 1 esta inactivo'),
       );
-      await expect(service.findOne(1, false)).resolves.toMatchObject({ id: 1 });
+      await expect(
+        as(async () => service.findOne(1, false)),
+      ).resolves.toMatchObject({ id: 1 });
     });
   });
 

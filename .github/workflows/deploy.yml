@@ -40,6 +40,7 @@ jobs:
         run: |
           mkdir -p public/static/images/evidences
           pnpm test:cov --config ./jest.config.js --ci --runInBand
+          node scripts/coverage-goal.js
 
   # Contratos HTTP con servicios simulados, sin conexión a PostgreSQL.
   http-tests:

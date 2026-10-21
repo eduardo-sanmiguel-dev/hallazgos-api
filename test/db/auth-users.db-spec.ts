@@ -133,10 +133,12 @@ describe('E2E: usuarios', () => {
     [
       'sin contraseña',
       { ...newUser, email: 'x1@hallazgos.test', password: '' },
+      400,
     ],
     [
       'sin plantas',
       { ...newUser, email: 'x2@hallazgos.test', manufacturingPlantNames: [] },
+      400,
     ],
     [
       'con una planta que no existe',
@@ -145,9 +147,13 @@ describe('E2E: usuarios', () => {
         email: 'x3@hallazgos.test',
         manufacturingPlantNames: ['Marte'],
       },
+      404,
     ],
-  ])('crear %s responde 400', async (_c, body) => {
-    await e2e.call('post', '/users', e2e.tokens.admin).send(body).expect(400);
+  ])('rechaza crear %s', async (_c, body, status) => {
+    await e2e
+      .call('post', '/users', e2e.tokens.admin)
+      .send(body)
+      .expect(status);
   });
 
   it('editar sin cambiar la contraseña (como el UI) conserva la contraseña', async () => {
@@ -192,18 +198,12 @@ describe('E2E: usuarios', () => {
     expect(res.body).not.toHaveProperty('password');
   });
 
-  // PENDIENTE DE DECISIÓN (seguridad, ver docs/pendientes-seguridad.md):
-  // el API no valida roles; hoy un usuario General puede cambiar su propio
-  // rol a Administrador.
-  it.failing(
-    'un usuario General no puede hacerse Administrador (403)',
-    async () => {
-      const { id } = e2e.base.users.generalColombia;
+  it('un usuario General no puede hacerse Administrador (403)', async () => {
+    const { id } = e2e.base.users.generalColombia;
 
-      await e2e
-        .call('patch', `/users/${id}`, e2e.tokens.generalColombia)
-        .send({ rule: 'Administrador', manufacturingPlantNames: ['Manizales'] })
-        .expect(403);
-    },
-  );
+    await e2e
+      .call('patch', `/users/${id}`, e2e.tokens.generalColombia)
+      .send({ rule: 'Administrador', manufacturingPlantNames: ['Manizales'] })
+      .expect(403);
+  });
 });

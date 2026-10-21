@@ -1,4 +1,5 @@
 import {
+  buildAdmin,
   createHttpTestApp,
   describeCrudContract,
   mockProvider,
@@ -8,6 +9,7 @@ import { GembaWalkEvaluationsController } from './gemba-walk-evaluations.control
 import { GembaWalkEvaluationsService } from './gemba-walk-evaluations.service';
 
 describeCrudContract({
+  user: buildAdmin(),
   path: '/gemba-walk/evaluations',
   controller: GembaWalkEvaluationsController,
   service: GembaWalkEvaluationsService,

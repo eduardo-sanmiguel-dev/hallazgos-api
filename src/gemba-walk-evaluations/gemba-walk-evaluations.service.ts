@@ -6,8 +6,14 @@ import {
 } from '@nestjs/common';
 import { RequestContextService } from 'shared/services/request-context.service';
 
-import { FindManyOptions, FindOptionsWhere, ILike, Repository } from 'typeorm';
-import { findPaginated } from 'shared/utils';
+import {
+  FindManyOptions,
+  FindOptionsWhere,
+  ILike,
+  Repository,
+  In,
+} from 'typeorm';
+import { findPaginated, scopePlantIds } from 'shared/utils';
 
 import {
   CreateGembaWalkEvaluationDto,
@@ -71,6 +77,7 @@ export class GembaWalkEvaluationsService {
       );
     }
 
+    this.requestContext.assertManufacturingPlant(manufacturingPlantId);
     await this.manufacturingPlantsService.findOne(manufacturingPlantId);
     await this.validateUniqueActive(area, category, manufacturingPlantId);
 
@@ -99,7 +106,12 @@ export class GembaWalkEvaluationsService {
       ...(category && { category }),
       manufacturingPlant: {
         isActive: true,
-        ...(manufacturingPlantId && { id: manufacturingPlantId }),
+        id: In(
+          scopePlantIds(
+            this.requestContext.user.manufacturingPlants,
+            manufacturingPlantId,
+          ),
+        ),
       },
     };
 
@@ -126,7 +138,12 @@ export class GembaWalkEvaluationsService {
   async findOne(id: number, isActive = true): Promise<GembaWalkEvaluation> {
     const gembaWalkEvaluation =
       await this.gembaWalkEvaluationRepository.findOne({
-        where: { id },
+        where: {
+          id,
+          manufacturingPlant: {
+            id: In(this.requestContext.manufacturingPlantIds),
+          },
+        },
         relations: this.relations,
       });
 
@@ -156,6 +173,7 @@ export class GembaWalkEvaluationsService {
     const description =
       updateGembaWalkEvaluationDto.description?.trim() || current.description;
 
+    this.requestContext.assertManufacturingPlant(manufacturingPlantId);
     await this.manufacturingPlantsService.findOne(manufacturingPlantId);
     await this.validateUniqueActive(area, category, manufacturingPlantId, id);
 

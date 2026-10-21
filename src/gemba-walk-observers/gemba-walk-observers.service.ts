@@ -7,7 +7,7 @@ import {
 import { RequestContextService } from 'shared/services/request-context.service';
 
 import { FindManyOptions, ILike, In, Not, Repository } from 'typeorm';
-import { findPaginated } from 'shared/utils';
+import { findPaginated, scopePlantIds } from 'shared/utils';
 
 import {
   CreateGembaWalkObserverDto,
@@ -45,6 +45,7 @@ export class GembaWalkObserversService {
     userIds: number[],
     excludeId?: number,
   ) {
+    this.requestContext.assertManufacturingPlant(manufacturingPlantId);
     await this.manufacturingPlantsService.findOne(manufacturingPlantId);
 
     const gembaWalkZone =
@@ -153,7 +154,12 @@ export class GembaWalkObserversService {
         isActive: true,
         manufacturingPlant: {
           isActive: true,
-          ...(manufacturingPlantId && { id: manufacturingPlantId }),
+          id: In(
+            scopePlantIds(
+              this.requestContext.user.manufacturingPlants,
+              manufacturingPlantId,
+            ),
+          ),
         },
         ...(gembaWalkZoneId && { gembaWalkZone: { id: gembaWalkZoneId } }),
         ...(userName && {
@@ -173,7 +179,12 @@ export class GembaWalkObserversService {
 
   async findOne(id: number, isActive = true): Promise<GembaWalkObserver> {
     const gembaWalkObserver = await this.gembaWalkObserverRepository.findOne({
-      where: { id },
+      where: {
+        id,
+        manufacturingPlant: {
+          id: In(this.requestContext.manufacturingPlantIds),
+        },
+      },
       relations: this.relations,
     });
 

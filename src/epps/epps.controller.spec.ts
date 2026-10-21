@@ -259,3 +259,41 @@ describe('EppsController (HTTP)', () => {
     expect(service.removeHistory).toHaveBeenCalledWith(9);
   });
 });
+
+describe('EppsController: integridad de la entrega', () => {
+  it.each([
+    {
+      employeeId: 7,
+      signature: '',
+      equipments: [{ id: 3, quantity: 1, observations: '' }],
+    },
+    {
+      employeeId: 7,
+      signature: SIGNATURE,
+      equipments: [{ id: 3, quantity: 0.5, observations: '' }],
+    },
+    {
+      employeeId: 7,
+      signature: SIGNATURE,
+      equipments: [
+        { id: 3, quantity: 1, observations: '' },
+        { id: 3, quantity: 1, observations: '' },
+      ],
+    },
+  ])(
+    'rechaza firmas vacías, cantidades fraccionarias y equipos duplicados',
+    async (body) => {
+      const http = await createHttpTestApp({
+        controllers: [EppsController],
+        providers: [mockProvider(EppsService)],
+        user: buildUser(),
+      });
+      try {
+        await http.http().post('/epps').send(body).expect(400);
+        expect(http.get(EppsService).create).not.toHaveBeenCalled();
+      } finally {
+        await http.close();
+      }
+    },
+  );
+});

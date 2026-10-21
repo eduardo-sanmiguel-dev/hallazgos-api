@@ -1,3 +1,5 @@
+import { AdminGuard } from '../shared/guards/admin.guard';
+
 import {
   Controller,
   Get,
@@ -7,6 +9,7 @@ import {
   Param,
   Delete,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 
 import {
@@ -21,6 +24,7 @@ export class GembaWalkZonesController {
   constructor(private readonly gembaWalkZonesService: GembaWalkZonesService) {}
 
   @Post()
+  @UseGuards(AdminGuard)
   create(@Body() createGembaWalkZoneDto: CreateGembaWalkZoneDto) {
     return this.gembaWalkZonesService.create(createGembaWalkZoneDto);
   }
@@ -36,6 +40,7 @@ export class GembaWalkZonesController {
   }
 
   @Patch(':id')
+  @UseGuards(AdminGuard)
   update(
     @Param('id') id: string,
     @Body() updateGembaWalkZoneDto: UpdateGembaWalkZoneDto,
@@ -44,6 +49,7 @@ export class GembaWalkZonesController {
   }
 
   @Delete(':id')
+  @UseGuards(AdminGuard)
   remove(@Param('id') id: string) {
     return this.gembaWalkZonesService.remove(+id);
   }

@@ -9,6 +9,7 @@ import cookieParser = require('cookie-parser');
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 
+import { registerEvidenceImageAccess } from '../../src/evidences/evidence-image-access.middleware';
 import { AppModule } from '../../src/app.module';
 import { MailService } from '../../src/mail/mail.service';
 import { QueryFailedExceptionFilter } from '../../src/shared/filters/query-failed-exception.filter';
@@ -45,6 +46,7 @@ export const createE2eApp = async () => {
     }),
   );
   app.use(cookieParser());
+  registerEvidenceImageAccess(app);
   app.setGlobalPrefix('/api/v1');
   app.useGlobalFilters(new QueryFailedExceptionFilter());
   await app.listen(0, '127.0.0.1');

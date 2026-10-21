@@ -1,4 +1,5 @@
 import {
+  buildAdmin,
   createHttpTestApp,
   describeCrudContract,
   mockProvider,
@@ -7,6 +8,7 @@ import { GembaWalkCalendarController } from './gemba-walk-calendar.controller';
 import { GembaWalkCalendarService } from './gemba-walk-calendar.service';
 
 describeCrudContract({
+  user: buildAdmin(),
   path: '/gemba-walk/calendar',
   controller: GembaWalkCalendarController,
   service: GembaWalkCalendarService,
@@ -40,6 +42,7 @@ describeCrudContract({
 describe('PATCH /gemba-walk/calendar (varios eventos)', () => {
   it('valida cada evento y llama al servicio', async () => {
     const http = await createHttpTestApp({
+      user: buildAdmin(),
       controllers: [GembaWalkCalendarController],
       providers: [mockProvider(GembaWalkCalendarService)],
     });

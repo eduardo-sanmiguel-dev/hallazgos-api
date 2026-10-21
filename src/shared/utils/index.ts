@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { safeFilePath } from './safe-file-path';
 
 export const expireTime = 60 * 60 * 24 * 30; // 30 days in seconds
 
@@ -38,9 +39,12 @@ export function uploadStaticImage(img: string): string {
     return null;
   }
 
-  const routeImg = path.join(process.cwd(), 'public', 'static', 'images', img);
+  const routeImg = safeFilePath(
+    path.join(process.cwd(), 'public', 'static', 'images'),
+    img,
+  );
 
-  if (!fs.existsSync(routeImg)) {
+  if (!routeImg) {
     return null;
   }
 

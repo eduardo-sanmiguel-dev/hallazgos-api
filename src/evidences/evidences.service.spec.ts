@@ -139,9 +139,19 @@ describe('EvidencesService', () => {
     usersService.findSupervisor.mockResolvedValue([supervisor]);
     usersService.findProcesses.mockResolvedValue([responsible]);
     usersService.findAllByPlant.mockResolvedValue([plantUser]);
-    evidences.save.mockImplementation(
-      async (e) => Object.assign(e, { id: 900 }) as Evidence,
-    );
+    evidences.save.mockImplementation(async (e) => {
+      const current = stored.find((row) => row.id === e.id);
+      return (
+        current ? Object.assign(current, e) : Object.assign(e, { id: 900 })
+      ) as Evidence;
+    });
+    Object.assign(evidences, {
+      manager: {
+        transaction: jest.fn(async (callback) =>
+          callback({ getRepository: () => evidences }),
+        ),
+      },
+    });
     stored = [];
     evidences.findOne.mockImplementation(async ({ where }) => {
       const { id, manufacturingPlant } = where as {
@@ -834,6 +844,9 @@ describe('EvidencesService', () => {
       const newResponsible = buildUser({ id: 301, ...inPlant });
 
       beforeEach(() => {
+        evidences.save.mockImplementation(async (patch) =>
+          Object.assign(evidence, patch),
+        );
         const users = new Map<number, User>([
           [responsible.id, responsible],
           [newResponsible.id, newResponsible],
@@ -856,7 +869,12 @@ describe('EvidencesService', () => {
 
           expect(result.status).toBe(status);
           expect(result.responsibles).toEqual([newResponsible]);
-          expect(evidences.save).toHaveBeenCalledWith(evidence);
+          expect(evidences.save).toHaveBeenCalledWith(
+            expect.objectContaining({
+              id: evidence.id,
+              responsibles: evidence.responsibles,
+            }),
+          );
           expect(mail.sendReassign).toHaveBeenCalledTimes(2);
         },
       );
@@ -873,6 +891,21 @@ describe('EvidencesService', () => {
           expect(mail.sendReassign).not.toHaveBeenCalled();
         },
       );
+
+      it('rechaza un cierre concurrente antes de guardar responsables', async () => {
+        const original = evidences.findOne.getMockImplementation();
+        evidences.findOne.mockImplementation(async (options) => {
+          const row = await original(options);
+          return options.lock
+            ? ({ ...row, status: STATUS_CLOSE } as Evidence)
+            : row;
+        });
+        await expect(reassign(supervisor, [newResponsible.id])).rejects.toThrow(
+          ConflictException,
+        );
+        expect(evidences.save).not.toHaveBeenCalled();
+        expect(mail.sendReassign).not.toHaveBeenCalled();
+      });
 
       it('responde 400 si el nuevo responsable no es de la planta', async () => {
         await expect(reassign(supervisor, [outsider.id])).rejects.toThrow(

@@ -1,3 +1,5 @@
+import { AdminGuard } from '../shared/guards/admin.guard';
+
 import {
   Controller,
   Get,
@@ -7,6 +9,7 @@ import {
   Param,
   Delete,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 
 import {
@@ -24,6 +27,7 @@ export class GembaWalkCalendarController {
 
   // Crea varios eventos a la vez; cada uno se guarda como registro individual.
   @Post()
+  @UseGuards(AdminGuard)
   create(@Body() createGembaWalkCalendarDto: CreateGembaWalkCalendarDto) {
     return this.gembaWalkCalendarService.create(createGembaWalkCalendarDto);
   }
@@ -40,11 +44,13 @@ export class GembaWalkCalendarController {
 
   // Actualiza varios eventos a la vez.
   @Patch()
+  @UseGuards(AdminGuard)
   update(@Body() updateGembaWalkCalendarDto: UpdateGembaWalkCalendarDto) {
     return this.gembaWalkCalendarService.update(updateGembaWalkCalendarDto);
   }
 
   @Delete(':id')
+  @UseGuards(AdminGuard)
   remove(@Param('id') id: string) {
     return this.gembaWalkCalendarService.remove(+id);
   }

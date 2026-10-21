@@ -1,8 +1,10 @@
+import { buildAdmin } from '@test/utils';
 import { describeCrudContract } from '@test/utils';
 import { ZonesController } from './zones.controller';
 import { ZonesService } from './zones.service';
 
 describeCrudContract({
+  user: buildAdmin(),
   path: '/zones',
   controller: ZonesController,
   service: ZonesService,

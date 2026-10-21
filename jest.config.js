@@ -149,6 +149,10 @@ module.exports = {
   testRegex: '.*\\.spec\\.ts$',
   transform: { '^.+\\.(t|j)s$': swcTransform },
   testEnvironment: 'node',
+  // Limita la memoria por proceso en suites largas; configuración validada
+  // en Windows. --runInBand sigue disponible para depurar.
+  maxWorkers: 2,
+  workerIdleMemoryLimit: '256MB',
   modulePaths: ['<rootDir>'],
   moduleNameMapper: {
     '^@config$': '<rootDir>/config',
@@ -188,15 +192,12 @@ module.exports = {
     // Con umbral propio en cada carpeta de negocio, el "global" de Jest solo
     // mide el resto: sobre todo catálogos con stubs generados por Nest
     // (findOne/update/remove que devuelven un texto y no se prueban). Por eso
-    // aquí va el piso real de ese resto; la meta global del plan (80/70 sobre
-    // todo menos dashboard.service) la verifica `pnpm test:cov:goal`.
+    // aquí va el piso real de ese resto; la meta global (85/80/85/85 sobre
+    // todo el código medido) la verifica `pnpm test:cov:goal`.
     global: RESTO,
     ...critical,
-    // dashboard.service es casi todo SQL a mano: se cubrirá con tests de
-    // integración contra una BD de pruebas en la Fase 4. Mientras tanto se
-    // mide (aparece en el reporte) pero, al tener su propia clave sin
-    // mínimos, queda fuera del umbral global para que las metas por etapa
-    // sean alcanzables.
+    // Sus consultas SQL se verifican además con PostgreSQL en test/db.
+    // La meta total 85/80/85/85 incluye este archivo y se valida en CI.
     [inSrc('dashboard/dashboard.service.ts')]: {},
   },
 };

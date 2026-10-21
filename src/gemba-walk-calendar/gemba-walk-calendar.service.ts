@@ -16,7 +16,7 @@ import {
   Not,
   Repository,
 } from 'typeorm';
-import { findPaginated } from 'shared/utils';
+import { findPaginated, scopePlantIds } from 'shared/utils';
 
 import {
   CreateGembaWalkCalendarDto,
@@ -58,7 +58,10 @@ export class GembaWalkCalendarService {
       where: {
         id: In(uniqueIds),
         isActive: true,
-        manufacturingPlant: { isActive: true },
+        manufacturingPlant: {
+          isActive: true,
+          id: In(this.requestContext.manufacturingPlantIds),
+        },
       },
     });
 
@@ -178,7 +181,12 @@ export class GembaWalkCalendarService {
         ...(gembaWalkZoneId && { id: gembaWalkZoneId }),
         manufacturingPlant: {
           isActive: true,
-          ...(manufacturingPlantId && { id: manufacturingPlantId }),
+          id: In(
+            scopePlantIds(
+              this.requestContext.user.manufacturingPlants,
+              manufacturingPlantId,
+            ),
+          ),
         },
       },
     };
@@ -209,7 +217,14 @@ export class GembaWalkCalendarService {
 
   async findOne(id: number, isActive = true): Promise<GembaWalkCalendar> {
     const gembaWalkCalendar = await this.gembaWalkCalendarRepository.findOne({
-      where: { id },
+      where: {
+        id,
+        gembaWalkZone: {
+          manufacturingPlant: {
+            id: In(this.requestContext.manufacturingPlantIds),
+          },
+        },
+      },
       relations: this.relations,
     });
 
@@ -315,7 +330,14 @@ export class GembaWalkCalendarService {
 
   private findByIds(ids: number[]): Promise<GembaWalkCalendar[]> {
     return this.gembaWalkCalendarRepository.find({
-      where: { id: In(ids) },
+      where: {
+        id: In(ids),
+        gembaWalkZone: {
+          manufacturingPlant: {
+            id: In(this.requestContext.manufacturingPlantIds),
+          },
+        },
+      },
       relations: this.relations,
       order: {
         scheduledAt: 'ASC',

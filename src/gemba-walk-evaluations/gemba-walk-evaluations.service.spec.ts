@@ -1,5 +1,5 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { FindOperator } from 'typeorm';
+import { FindOperator, In } from 'typeorm';
 
 import {
   buildUser,
@@ -16,7 +16,10 @@ describe('GembaWalkEvaluationsService', () => {
   let service: GembaWalkEvaluationsService;
   let evaluations: RepositoryMock<GembaWalkEvaluation>;
   let plants: jest.Mocked<ManufacturingPlantsService>;
-  const user = buildUser({ id: 10 });
+  const user = buildUser({
+    id: 10,
+    manufacturingPlants: [{ id: 1 }, { id: 2 }] as never,
+  });
   const as = <T>(fn: () => Promise<T>) => runAsUser(user, fn);
   const qb = () => evaluations.queryBuilder;
 
@@ -101,11 +104,13 @@ describe('GembaWalkEvaluationsService', () => {
 
   describe('findAll', () => {
     it('busca el texto en área o descripción', async () => {
-      await service.findAll({
-        search: ' pasillo ',
-        category: 'SHE',
-        manufacturingPlantId: 1,
-      });
+      await as(async () =>
+        service.findAll({
+          search: ' pasillo ',
+          category: 'SHE',
+          manufacturingPlantId: 1,
+        }),
+      );
 
       const { where } = evaluations.find.mock.calls[0][0] as {
         where: Record<string, unknown>[];
@@ -117,14 +122,14 @@ describe('GembaWalkEvaluationsService', () => {
       );
       expect(where[0]).toMatchObject({
         category: 'SHE',
-        manufacturingPlant: { isActive: true, id: 1 },
+        manufacturingPlant: { isActive: true, id: In([1]) },
       });
     });
 
     it('sin búsqueda usa un solo filtro y pagina si se pide', async () => {
       evaluations.findAndCount.mockResolvedValue([[stored()], 1]);
 
-      await service.findAll({ page: 1, limit: 10 });
+      await as(async () => service.findAll({ page: 1, limit: 10 }));
 
       const { where } = evaluations.findAndCount.mock.calls[0][0] as {
         where: object;
@@ -137,7 +142,7 @@ describe('GembaWalkEvaluationsService', () => {
     it('inexistente responde 404', async () => {
       evaluations.findOne.mockResolvedValue(null);
 
-      await expect(service.findOne(4)).rejects.toThrow(
+      await expect(as(async () => service.findOne(4))).rejects.toThrow(
         new NotFoundException('Concepto con ID 4 no encontrado'),
       );
     });
@@ -145,7 +150,7 @@ describe('GembaWalkEvaluationsService', () => {
     it('inactivo responde 400', async () => {
       evaluations.findOne.mockResolvedValue(stored({ isActive: false }));
 
-      await expect(service.findOne(4)).rejects.toThrow(
+      await expect(as(async () => service.findOne(4))).rejects.toThrow(
         new BadRequestException('El concepto con ID 4 esta inactivo'),
       );
     });

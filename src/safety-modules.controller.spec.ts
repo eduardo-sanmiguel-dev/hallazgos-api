@@ -1,3 +1,4 @@
+import { buildAdmin } from '@test/utils';
 /**
  * Contrato HTTP de brigadas (equipos de emergencia), ICS y reglas de vida.
  */
@@ -22,6 +23,7 @@ const team = {
 };
 
 describeCrudContract({
+  user: buildAdmin(),
   path: '/emergency-teams',
   controller: EmergencyTeamsController,
   service: EmergencyTeamsService,
@@ -47,6 +49,7 @@ describeCrudContract({
 describe('IcsController (HTTP)', () => {
   it('POST convierte los campos del formulario y la lista de empleados', async () => {
     const http = await createHttpTestApp({
+      user: buildAdmin(),
       controllers: [IcsController],
       providers: [mockProvider(IcsService)],
     });
@@ -98,6 +101,7 @@ describe('IcsController (HTTP)', () => {
 describe('RulesOfLifeController (HTTP)', () => {
   it('POST seed ejecuta la carga de datos', async () => {
     const http = await createHttpTestApp({
+      user: buildAdmin(),
       controllers: [RulesOfLifeController],
       providers: [mockProvider(RulesOfLifeService)],
     });

@@ -1,3 +1,5 @@
+import { UseGuards } from '@nestjs/common';
+import { AdminGuard } from '@shared/guards/admin.guard';
 import {
   Controller,
   Get,
@@ -16,6 +18,7 @@ export class TypesOfEventsController {
   constructor(private readonly typesOfEventsService: TypesOfEventsService) {}
 
   @Post()
+  @UseGuards(AdminGuard)
   create(@Body() createTypesOfEventDto: CreateTypesOfEventDto) {
     return this.typesOfEventsService.create(createTypesOfEventDto);
   }
@@ -31,6 +34,7 @@ export class TypesOfEventsController {
   }
 
   @Patch(':id')
+  @UseGuards(AdminGuard)
   update(
     @Param('id') id: string,
     @Body() updateTypesOfEventDto: UpdateTypesOfEventDto,
@@ -39,6 +43,7 @@ export class TypesOfEventsController {
   }
 
   @Delete(':id')
+  @UseGuards(AdminGuard)
   remove(@Param('id') id: string) {
     return this.typesOfEventsService.remove(+id);
   }

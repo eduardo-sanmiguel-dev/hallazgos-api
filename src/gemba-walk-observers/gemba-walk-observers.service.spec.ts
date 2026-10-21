@@ -1,5 +1,5 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { FindOperator } from 'typeorm';
+import { FindOperator, In } from 'typeorm';
 
 import {
   buildUser,
@@ -19,7 +19,10 @@ describe('GembaWalkObserversService', () => {
   let observers: RepositoryMock<GembaWalkObserver>;
   let users: RepositoryMock<User>;
   let zones: jest.Mocked<GembaWalkZonesService>;
-  const admin = buildUser({ id: 10 });
+  const admin = buildUser({
+    id: 10,
+    manufacturingPlants: [{ id: 1 }, { id: 2 }] as never,
+  });
   const as = <T>(fn: () => Promise<T>) => runAsUser(admin, fn);
 
   const inPlant = (id: number, name = `Usuario ${id}`, plantId = 1) =>
@@ -142,11 +145,13 @@ describe('GembaWalkObserversService', () => {
 
   describe('findAll', () => {
     it('filtra por planta, zona y nombre de usuario', async () => {
-      await service.findAll({
-        manufacturingPlantId: 1,
-        gembaWalkZoneId: 3,
-        userName: 'ana',
-      });
+      await as(async () =>
+        service.findAll({
+          manufacturingPlantId: 1,
+          gembaWalkZoneId: 3,
+          userName: 'ana',
+        }),
+      );
 
       const { where } = observers.find.mock.calls[0][0] as {
         where: Record<string, unknown> & {
@@ -155,7 +160,7 @@ describe('GembaWalkObserversService', () => {
       };
       expect(where).toMatchObject({
         isActive: true,
-        manufacturingPlant: { isActive: true, id: 1 },
+        manufacturingPlant: { isActive: true, id: In([1]) },
         gembaWalkZone: { id: 3 },
       });
       expect(where.user.name.value).toBe('%ana%');
@@ -165,7 +170,7 @@ describe('GembaWalkObserversService', () => {
       observers.findAndCount.mockResolvedValue([[stored()], 1]);
 
       await expect(
-        service.findAll({ page: 1, limit: 5 }),
+        as(async () => service.findAll({ page: 1, limit: 5 })),
       ).resolves.toMatchObject({
         count: 1,
       });
@@ -174,7 +179,7 @@ describe('GembaWalkObserversService', () => {
 
   describe('findOne', () => {
     it('inexistente responde 404', async () => {
-      await expect(service.findOne(8)).rejects.toThrow(
+      await expect(as(async () => service.findOne(8))).rejects.toThrow(
         new NotFoundException('Observador con ID 8 no encontrado'),
       );
     });
@@ -182,10 +187,12 @@ describe('GembaWalkObserversService', () => {
     it('inactivo responde 400 (salvo que se pida incluirlo)', async () => {
       observers.findOne.mockResolvedValue(stored({ isActive: false }));
 
-      await expect(service.findOne(8)).rejects.toThrow(
+      await expect(as(async () => service.findOne(8))).rejects.toThrow(
         new BadRequestException('El observador con ID 8 esta inactivo'),
       );
-      await expect(service.findOne(8, false)).resolves.toMatchObject({ id: 8 });
+      await expect(
+        as(async () => service.findOne(8, false)),
+      ).resolves.toMatchObject({ id: 8 });
     });
   });
 

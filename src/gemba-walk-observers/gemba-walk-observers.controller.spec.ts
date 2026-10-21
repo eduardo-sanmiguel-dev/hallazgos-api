@@ -1,8 +1,9 @@
-import { describeCrudContract } from '@test/utils';
+import { buildAdmin, describeCrudContract } from '@test/utils';
 import { GembaWalkObserversController } from './gemba-walk-observers.controller';
 import { GembaWalkObserversService } from './gemba-walk-observers.service';
 
 describeCrudContract({
+  user: buildAdmin(),
   path: '/gemba-walk/observers',
   controller: GembaWalkObserversController,
   service: GembaWalkObserversService,

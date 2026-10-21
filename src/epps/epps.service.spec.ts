@@ -38,7 +38,10 @@ describe('EppsService', () => {
       id: 50,
       isActive: true,
       signature: 'data:image/png;base64,AAAA',
-      equipments: items,
+      equipments: items.map((item) => ({
+        equipment: { manufacturingPlant: { id: 1 } },
+        ...item,
+      })),
       ...overrides,
     }) as Epp;
 
@@ -51,6 +54,21 @@ describe('EppsService', () => {
     epps = testing.repository(Epp);
     eppEquipments = testing.repository(EppEquipment);
     equipments = testing.repository(Equipment);
+    Object.assign(epps, {
+      manager: {
+        transaction: jest.fn(async (callback) =>
+          callback({
+            getRepository: (entity) =>
+              new Map<unknown, unknown>([
+                [Employee, employees],
+                [Equipment, equipments],
+                [Epp, epps],
+                [EppEquipment, eppEquipments],
+              ]).get(entity),
+          }),
+        ),
+      },
+    });
   });
 
   describe('assertEmployeeInUserPlants', () => {
@@ -164,13 +182,16 @@ describe('EppsService', () => {
     const withoutFrequency = { id: 4, deliveryFrequency: null };
 
     beforeEach(() => {
-      employees.findOne.mockResolvedValue({ id: 7 } as Employee);
+      employees.findOne.mockResolvedValue({
+        id: 7,
+        manufacturingPlants: [{ id: 1 }],
+      } as Employee);
       equipments.findOne.mockImplementation(async ({ where }) => {
         const { id } = where as { id: number };
         const base = id === 3 ? withFrequency : withoutFrequency;
         return {
           ...base,
-          manufacturingPlant: { country: { name: 'Colombia' } },
+          manufacturingPlant: { id: 1, country: { name: 'Colombia' } },
         } as never;
       });
       epps.save.mockImplementation(
@@ -185,7 +206,7 @@ describe('EppsService', () => {
 
       expect(epps.save).toHaveBeenCalledWith(
         expect.objectContaining({
-          employee: { id: 7 },
+          employee: expect.objectContaining({ id: 7 }),
           signature: 'firma',
           createBy: expect.objectContaining({ id: user.id }),
         }),
@@ -199,6 +220,41 @@ describe('EppsService', () => {
           epp: expect.objectContaining({ id: 50 }),
         }),
       );
+    });
+
+    it('valida todos los equipos antes de guardar la cabecera', async () => {
+      equipments.findOne.mockImplementation(async ({ where }) =>
+        (where as { id: number }).id === 4
+          ? null
+          : ({
+              ...withFrequency,
+              manufacturingPlant: { id: 1, country: { name: 'México' } },
+            } as never),
+      );
+      await expect(as(() => service.create(dto))).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(epps.save).not.toHaveBeenCalled();
+      expect(eppEquipments.save).not.toHaveBeenCalled();
+    });
+
+    it('no permite equipos de una planta del usuario que no corresponda al empleado', async () => {
+      equipments.findOne.mockResolvedValue({
+        id: 3,
+        manufacturingPlant: { id: 2, country: { name: 'Colombia' } },
+      } as Equipment);
+      await expect(as(() => service.create(dto))).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(epps.save).not.toHaveBeenCalled();
+    });
+
+    it('propaga el error de persistencia para revertir la transacción', async () => {
+      eppEquipments.save.mockRejectedValueOnce(new Error('fallo de renglón'));
+      await expect(as(() => service.create(dto))).rejects.toThrow(
+        'fallo de renglón',
+      );
+      expect(epps.manager.transaction).toHaveBeenCalledTimes(1);
     });
 
     it('marca fuera de rango la entrega de un equipo antes de su frecuencia', async () => {
@@ -301,7 +357,7 @@ describe('EppsService', () => {
         buildEpp({ id: 3 }, [{ id: 30, isActive: false }]),
       ]);
 
-      const result = await service.findEppsByEmployeeId(7);
+      const result = await as(() => service.findEppsByEmployeeId(7));
 
       expect(result.map(({ id }) => id)).toEqual([1]);
       expect(result[0].equipments.map(({ id }) => id)).toEqual([10]);
@@ -461,7 +517,7 @@ describe('EppsService', () => {
     it('borra la entrega completa y todos sus renglones', async () => {
       eppEquipments.findOne.mockResolvedValue({
         id: 9,
-        epp: { id: 50 },
+        epp: { id: 50, equipments: [] },
       } as EppEquipment);
 
       await expect(as(() => service.removeHistory(9))).resolves.toEqual({

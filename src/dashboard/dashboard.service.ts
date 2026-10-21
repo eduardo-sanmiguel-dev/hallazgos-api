@@ -95,6 +95,10 @@ export class DashboardService {
     label: string,
     isEndDate = false,
   ): Date {
+    if (typeof date !== 'string' || !/^\d{2}\/\d{2}\/\d{4}$/.test(date))
+      throw new BadRequestException(
+        `${label} debe tener el formato DD/MM/YYYY`,
+      );
     const [day, month, year] = date.split('/').map(Number);
     const parsedDate = new Date(year || 0, (month || 1) - 1, day || 0);
 

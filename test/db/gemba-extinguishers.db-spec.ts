@@ -2,6 +2,7 @@
  * E2E (app completa + base de pruebas): Gemba Walk e inspecciones de
  * extintores.
  */
+import { binaryParser } from '@test/utils';
 import { createE2eApp, E2eApp } from './e2e-app';
 
 const inMinutes = (minutes: number) =>
@@ -191,7 +192,10 @@ describe('E2E: inspecciones de extintores', () => {
         `/extinguisher-inspections/download/file/${created.body.id}`,
         e2e.tokens.supervisor,
       )
+      .buffer(true)
+      .parse(binaryParser)
       .expect(200);
+    expect(file.body.subarray(0, 2).toString()).toBe('PK');
     expect(file.headers['content-type']).toContain('spreadsheetml');
 
     const list = await e2e

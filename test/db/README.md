@@ -31,18 +31,25 @@ pnpm test:db:cov    # lo mismo, con cobertura de dashboard.service (umbral 90/70
 
 ## Archivos
 
-| Archivo | Contenido |
-| --- | --- |
-| `schema.db-spec.ts` | La base es la de pruebas; esquema y datos base. |
-| `auth-users.db-spec.ts` | Login, app key, sesión (401), usuarios (400/404). |
-| `evidences.db-spec.ts` | Crear, ver, estados (403/409), comentar, cancelar, GraphQL, descargas. |
-| `epps.db-spec.ts` | Entregas de EPP, frecuencia, formato Excel, equipos, plantas ajenas (404). |
-| `ciaels.db-spec.ts` | CIAEL y sus 13 catálogos. |
-| `gemba-extinguishers.db-spec.ts` | Recorrido Gemba completo (observador) e inspecciones de extintores. |
-| `dashboard.int-spec.ts` | SQL del dashboard: valores, todos los endpoints, filtros y fugas entre plantas. |
+| Archivo                          | Contenido                                                                       |
+| -------------------------------- | ------------------------------------------------------------------------------- |
+| `schema.db-spec.ts`              | La base es la de pruebas; esquema y datos base.                                 |
+| `auth-users.db-spec.ts`          | Login, app key, sesión (401), usuarios (400/404).                               |
+| `evidences.db-spec.ts`           | Crear, ver, estados (403/409), comentar, cancelar, GraphQL, descargas.          |
+| `epps.db-spec.ts`                | Entregas de EPP, frecuencia, formato Excel, equipos, plantas ajenas (404).      |
+| `ciaels.db-spec.ts`              | CIAEL y sus 13 catálogos.                                                       |
+| `gemba-extinguishers.db-spec.ts` | Recorrido Gemba completo (observador) e inspecciones de extintores.             |
+| `dashboard.int-spec.ts`          | SQL del dashboard: valores, todos los endpoints, filtros y fugas entre plantas. |
 
 Requisito: PostgreSQL local corriendo (el mismo de desarrollo) y un usuario
 con permiso para crear bases (`CREATEDB`).
+
+## Regresiones de flujos críticos
+
+`critical-flows.db-spec.ts` agrega pruebas de roles de usuarios, aislamiento por
+planta, recuperación de contraseña concurrente, rollback de creación y borrado de
+EPP, frecuencia en entregas simultáneas y carreras de estados de hallazgos. Se
+ejecuta automáticamente con `pnpm test:db`; ver `docs/flujos-criticos.md`.
 
 ## GitHub Actions
 

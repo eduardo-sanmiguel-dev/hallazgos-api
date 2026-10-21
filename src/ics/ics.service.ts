@@ -6,8 +6,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { RequestContextService } from 'shared/services/request-context.service';
 
-import { FindOptionsWhere, ILike, Repository } from 'typeorm';
+import { FindOptionsWhere, ILike, Repository, In } from 'typeorm';
 
+import { scopePlantIds } from '@shared/utils/plant-scope';
+import { Employee } from 'employees/entities/employee.entity';
 import { RulesOfLife } from 'rules-of-life/entities';
 import { CreateIcsDto, FiltersIcsDto, UpdateIcsDto } from './dto';
 import { Ics } from './entities/ics.entity';
@@ -31,7 +33,7 @@ export class IcsService {
     private readonly rulesOfLifeRepository: Repository<RulesOfLife>,
   ) {}
 
-  create(createIcsDto: CreateIcsDto, file: Express.Multer.File) {
+  async create(createIcsDto: CreateIcsDto, file: Express.Multer.File) {
     const createdBy = this.requestContext.userId;
 
     const {
@@ -44,6 +46,19 @@ export class IcsService {
       employeesIds,
     } = createIcsDto;
 
+    this.requestContext.assertManufacturingPlant(manufacturingPlantId);
+    const ids = [...new Set(employeesIds)];
+    const count = await this.icsRepository.manager.count(Employee, {
+      where: {
+        id: In(ids),
+        isActive: true,
+        manufacturingPlants: { id: manufacturingPlantId },
+      },
+    });
+    if (count !== ids.length)
+      throw new NotFoundException(
+        'Empleado no encontrado en la planta seleccionada',
+      );
     let imgEvidence = '';
 
     if (file) {
@@ -103,9 +118,14 @@ export class IcsService {
 
     const base: FindOptionsWhere<Ics> = {
       isActive: true,
-      ...(manufacturingPlantId && {
-        manufacturingPlant: { id: Number(manufacturingPlantId) },
-      }),
+      manufacturingPlant: {
+        id: In(
+          scopePlantIds(
+            this.requestContext.user.manufacturingPlants,
+            manufacturingPlantId,
+          ),
+        ),
+      },
       ...(areaOfBehaviorId && {
         areaOfBehavior: { id: Number(areaOfBehaviorId) },
       }),
@@ -145,7 +165,13 @@ export class IcsService {
 
   async findOne(id: number) {
     const ics = await this.icsRepository.findOne({
-      where: { id, isActive: true },
+      where: {
+        id,
+        isActive: true,
+        manufacturingPlant: {
+          id: In(this.requestContext.manufacturingPlantIds),
+        },
+      },
       relations: this.relations,
     });
 
@@ -156,7 +182,8 @@ export class IcsService {
     return ics;
   }
 
-  update(id: number, updateIcDto: UpdateIcsDto) {
+  async update(id: number, updateIcDto: UpdateIcsDto) {
+    await this.findOne(id);
     return { id, updateIcDto };
   }
 

@@ -6,8 +6,8 @@ import {
 } from '@nestjs/common';
 import { RequestContextService } from 'shared/services/request-context.service';
 
-import { FindManyOptions, ILike, Repository } from 'typeorm';
-import { findPaginated } from 'shared/utils';
+import { FindManyOptions, ILike, Repository, In } from 'typeorm';
+import { findPaginated, scopePlantIds } from 'shared/utils';
 
 import {
   CreateGembaWalkZoneDto,
@@ -74,6 +74,7 @@ export class GembaWalkZonesService {
       );
     }
 
+    this.requestContext.assertManufacturingPlant(manufacturingPlantId);
     await this.manufacturingPlantsService.findOne(manufacturingPlantId);
 
     await this.validateUniqueActive(
@@ -108,7 +109,12 @@ export class GembaWalkZonesService {
         ...(nameLocation && { nameLocation: ILike(`%${nameLocation}%`) }),
         manufacturingPlant: {
           isActive: true,
-          ...(manufacturingPlantId && { id: manufacturingPlantId }),
+          id: In(
+            scopePlantIds(
+              this.requestContext.user.manufacturingPlants,
+              manufacturingPlantId,
+            ),
+          ),
         },
       },
       relations: this.relations,
@@ -124,7 +130,12 @@ export class GembaWalkZonesService {
 
   async findOne(id: number, isActive = true): Promise<GembaWalkZone> {
     const gembaWalkZone = await this.gembaWalkZoneRepository.findOne({
-      where: { id },
+      where: {
+        id,
+        manufacturingPlant: {
+          id: In(this.requestContext.manufacturingPlantIds),
+        },
+      },
       relations: this.relations,
     });
 
@@ -155,6 +166,7 @@ export class GembaWalkZonesService {
       updateGembaWalkZoneDto.nameLocation?.trim() ||
       gembaWalkZoneCurrent.nameLocation;
 
+    this.requestContext.assertManufacturingPlant(manufacturingPlantId);
     await this.manufacturingPlantsService.findOne(manufacturingPlantId);
 
     await this.validateUniqueActive(

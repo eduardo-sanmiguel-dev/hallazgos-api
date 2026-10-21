@@ -1,3 +1,5 @@
+import { UseGuards } from '@nestjs/common';
+import { AdminGuard } from '@shared/guards/admin.guard';
 import {
   Controller,
   Get,
@@ -12,8 +14,8 @@ import {
 } from '@nestjs/common';
 
 import type { Response } from 'express';
-import { existsSync } from 'fs';
-import { basename, join } from 'path';
+import { basename } from 'path';
+import { safeFilePath } from '@shared/utils/safe-file-path';
 
 import {
   CreateSafetyDataFileDto,
@@ -29,6 +31,7 @@ export class SafetyDataFilesController {
   ) {}
 
   @Post()
+  @UseGuards(AdminGuard)
   create(@Body() createSafetyDataFileDto: CreateSafetyDataFileDto) {
     return this.safetyDataFilesService.create(createSafetyDataFileDto);
   }
@@ -48,9 +51,12 @@ export class SafetyDataFilesController {
       throw new NotFoundException('File not found');
     }
 
-    const filePath = join(this.safetyDataFilesService.filePath, fileName);
+    const filePath = safeFilePath(
+      this.safetyDataFilesService.filePath,
+      fileName,
+    );
 
-    if (!existsSync(filePath)) {
+    if (!filePath) {
       throw new NotFoundException('File not found');
     }
 
@@ -63,6 +69,7 @@ export class SafetyDataFilesController {
   }
 
   @Patch(':id')
+  @UseGuards(AdminGuard)
   update(
     @Param('id') id: string,
     @Body() updateSafetyDataFileDto: UpdateSafetyDataFileDto,
@@ -71,6 +78,7 @@ export class SafetyDataFilesController {
   }
 
   @Delete(':id')
+  @UseGuards(AdminGuard)
   remove(@Param('id') id: string) {
     return this.safetyDataFilesService.remove(+id);
   }

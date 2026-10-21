@@ -1,3 +1,5 @@
+import { UseGuards } from '@nestjs/common';
+import { AdminGuard } from '@shared/guards/admin.guard';
 import {
   Controller,
   Get,
@@ -23,6 +25,7 @@ export class AccidentPositionsController {
   ) {}
 
   @Post()
+  @UseGuards(AdminGuard)
   create(@Body() createAccidentPositionDto: CreateAccidentPositionDto) {
     return this.accidentPositionsService.create(createAccidentPositionDto);
   }
@@ -38,6 +41,7 @@ export class AccidentPositionsController {
   }
 
   @Patch(':id')
+  @UseGuards(AdminGuard)
   update(
     @Param('id') id: string,
     @Body() updateAccidentPositionDto: UpdateAccidentPositionDto,
@@ -46,6 +50,7 @@ export class AccidentPositionsController {
   }
 
   @Delete(':id')
+  @UseGuards(AdminGuard)
   remove(@Param('id') id: string) {
     return this.accidentPositionsService.remove(+id);
   }

@@ -1,3 +1,5 @@
+import { UseGuards } from '@nestjs/common';
+import { AdminGuard } from '@shared/guards/admin.guard';
 import {
   Controller,
   Get,
@@ -23,6 +25,7 @@ export class AssociatedTasksController {
   ) {}
 
   @Post()
+  @UseGuards(AdminGuard)
   create(@Body() createAssociatedTaskDto: CreateAssociatedTaskDto) {
     return this.associatedTasksService.create(createAssociatedTaskDto);
   }
@@ -38,6 +41,7 @@ export class AssociatedTasksController {
   }
 
   @Patch(':id')
+  @UseGuards(AdminGuard)
   update(
     @Param('id') id: string,
     @Body() updateAssociatedTaskDto: UpdateAssociatedTaskDto,
@@ -46,6 +50,7 @@ export class AssociatedTasksController {
   }
 
   @Delete(':id')
+  @UseGuards(AdminGuard)
   remove(@Param('id') id: string) {
     return this.associatedTasksService.remove(+id);
   }

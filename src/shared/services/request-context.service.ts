@@ -1,6 +1,10 @@
 import { AsyncLocalStorage } from 'async_hooks';
 
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import type { Request } from 'express';
 
 import { ROLE_ADMINISTRADOR } from '@shared/constants';
@@ -64,6 +68,17 @@ export class RequestContextService {
 
   get userId(): number {
     return this.user.id;
+  }
+
+  assertManufacturingPlant(id: number): number {
+    const plantId = Number(id);
+    if (
+      !Number.isInteger(plantId) ||
+      !this.manufacturingPlantIds.includes(plantId)
+    ) {
+      throw new NotFoundException('Planta no encontrada');
+    }
+    return plantId;
   }
 
   get isAdmin(): boolean {

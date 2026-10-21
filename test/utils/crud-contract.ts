@@ -1,3 +1,5 @@
+import type { User } from 'users/entities/user.entity';
+
 import { Type } from '@nestjs/common';
 
 import { buildUser } from './factories';
@@ -7,6 +9,7 @@ import { mockProvider } from './testing-module';
 type Cases = [string, Record<string, unknown>][];
 
 interface CrudContract {
+  user?: User;
   /** Ruta base del controlador, p. ej. '/gemba-walk/zones'. */
   path: string;
   controller: Type<unknown>;
@@ -59,7 +62,7 @@ export const describeCrudContract = (contract: CrudContract) => {
       http = await createHttpTestApp({
         controllers: [contract.controller],
         providers: [mockProvider(contract.service)],
-        user: buildUser({ id: 10 }),
+        user: contract.user ?? buildUser({ id: 10 }),
       });
       service = http.get(contract.service) as unknown as Record<
         string,

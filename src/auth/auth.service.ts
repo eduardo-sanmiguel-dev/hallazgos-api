@@ -117,9 +117,13 @@ export class AuthService {
     if (!user.manufacturingPlants.length)
       throw new UnauthorizedException('Usuario no tiene plantas asignadas');
 
-    await this.userRepository.update(user.id, {
-      password: await argon2.hash(password),
-    });
+    const previousHash = user.password;
+    const nextHash = await argon2.hash(password);
+    const { affected } = await this.userRepository.update(
+      { id: user.id, password: previousHash, isActive: true },
+      { password: nextHash },
+    );
+    if (affected !== 1) throw new UnauthorizedException(INVALID_RESET_TOKEN);
 
     this.logger.log(`Contraseña restablecida para el usuario ${user.id}`);
 

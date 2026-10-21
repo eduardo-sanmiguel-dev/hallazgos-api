@@ -76,7 +76,10 @@ export class JwtService {
     // cambio de recuperación de contraseña (30 días = vida de una sesión).
     // Al quitarla: exigir `payload.purpose === TOKEN_PURPOSE.session` y
     // ajustar el test "[temporal hasta 2026-11-20] ..." de jwt.service.spec.
-    if (payload.purpose && payload.purpose !== TOKEN_PURPOSE.session) {
+    if (
+      payload.purpose !== undefined &&
+      payload.purpose !== TOKEN_PURPOSE.session
+    ) {
       throw new jwt.JsonWebTokenError('El token no es de sesión');
     }
 
@@ -109,9 +112,17 @@ export class JwtService {
   }
 
   private decodeAndVerify(token: string): JwtPayload {
-    return jwt.verify(token, this.secretKey, {
+    const payload = jwt.verify(token, this.secretKey, {
       algorithms: [JWT_ALGORITHM],
-    }) as JwtPayload;
+    });
+    if (
+      typeof payload === 'string' ||
+      !Number.isInteger(payload.userId) ||
+      payload.userId <= 0
+    ) {
+      throw new jwt.JsonWebTokenError('Usuario del token no válido');
+    }
+    return payload as JwtPayload;
   }
 
   /**

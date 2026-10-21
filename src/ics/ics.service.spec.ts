@@ -1,5 +1,5 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { FindOperator } from 'typeorm';
+import { FindOperator, In } from 'typeorm';
 
 import {
   buildUser,
@@ -15,7 +15,10 @@ describe('IcsService', () => {
   let service: IcsService;
   let ics: RepositoryMock<Ics>;
   let rules: RepositoryMock<RulesOfLife>;
-  const user = buildUser({ id: 10 });
+  const user = buildUser({
+    id: 10,
+    manufacturingPlants: [{ id: 1 }, { id: 2 }] as never,
+  });
   const as = <R>(fn: () => R): Promise<Awaited<R>> =>
     runAsUser(user, fn as () => Promise<Awaited<R>>);
 
@@ -34,6 +37,13 @@ describe('IcsService', () => {
     service = testing.service;
     ics = testing.repository(Ics);
     rules = testing.repository(RulesOfLife);
+    Object.assign(ics, {
+      manager: {
+        count: jest.fn(
+          async (_entity, options) => options.where.id.value.length,
+        ),
+      },
+    });
   });
 
   describe('create', () => {
@@ -95,8 +105,21 @@ describe('IcsService', () => {
     });
   });
 
+  it('rechaza empleados ajenos sin guardar el ICS', async () => {
+    (ics.manager.count as jest.Mock).mockResolvedValueOnce(0);
+    await expect(as(() => service.create(dto, undefined))).rejects.toThrow(
+      'Empleado no encontrado',
+    );
+    expect(ics.save).not.toHaveBeenCalled();
+  });
+  it('rechaza crear en una planta ajena antes de validar empleados', async () => {
+    await expect(
+      as(() => service.create({ ...dto, manufacturingPlantId: 99 }, undefined)),
+    ).rejects.toThrow('Planta no encontrada');
+    expect(ics.manager.count).not.toHaveBeenCalled();
+  });
   it('catalogs devuelve reglas con estándares y áreas, en orden', async () => {
-    await service.catalogs();
+    await as(async () => service.catalogs());
 
     expect(rules.find).toHaveBeenCalledWith({
       relations: ['standards', 'standards.areas'],
@@ -106,11 +129,13 @@ describe('IcsService', () => {
 
   describe('findAll', () => {
     it('filtra por planta y área y busca en regla o estándar', async () => {
-      await service.findAll({
-        manufacturingPlantId: 1,
-        areaOfBehaviorId: 9,
-        name: ' epp ',
-      });
+      await as(async () =>
+        service.findAll({
+          manufacturingPlantId: 1,
+          areaOfBehaviorId: 9,
+          name: ' epp ',
+        }),
+      );
 
       const { where } = ics.find.mock.calls[0][0] as {
         where: Record<string, { name?: FindOperator<string> } | unknown>[];
@@ -118,7 +143,7 @@ describe('IcsService', () => {
       expect(where).toHaveLength(2);
       expect(where[0]).toMatchObject({
         isActive: true,
-        manufacturingPlant: { id: 1 },
+        manufacturingPlant: { id: In([1]) },
         areaOfBehavior: { id: 9 },
       });
       expect(
@@ -133,11 +158,13 @@ describe('IcsService', () => {
     it('paginado: skip/take; limit -1 trae todo', async () => {
       ics.findAndCount.mockResolvedValue([[], 4]);
 
-      await expect(service.findAll({ page: 2, limit: 3 })).resolves.toEqual({
+      await expect(
+        as(async () => service.findAll({ page: 2, limit: 3 })),
+      ).resolves.toEqual({
         data: [],
         count: 4,
       });
-      await service.findAll({ page: 1, limit: -1 });
+      await as(async () => service.findAll({ page: 1, limit: -1 }));
 
       expect(ics.findAndCount.mock.calls[0][0]).toMatchObject({
         take: 3,
@@ -149,7 +176,7 @@ describe('IcsService', () => {
 
   describe('findOne y remove', () => {
     it('inexistente responde 404', async () => {
-      await expect(service.findOne(3)).rejects.toThrow(
+      await expect(as(async () => service.findOne(3))).rejects.toThrow(
         new NotFoundException('Ics with id 3 not found'),
       );
     });
@@ -157,7 +184,9 @@ describe('IcsService', () => {
     it('remove desactiva el registro', async () => {
       ics.findOne.mockResolvedValue({ id: 3 } as Ics);
 
-      await expect(service.remove(3)).resolves.toEqual({ id: 3 });
+      await expect(as(async () => service.remove(3))).resolves.toEqual({
+        id: 3,
+      });
       expect(ics.update).toHaveBeenCalledWith(3, {
         isActive: false,
         updatedAt: expect.any(Date),

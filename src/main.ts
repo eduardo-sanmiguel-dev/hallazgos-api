@@ -1,3 +1,4 @@
+import { registerEvidenceImageAccess } from './evidences/evidence-image-access.middleware';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
@@ -55,6 +56,7 @@ async function bootstrap() {
   );
 
   app.use(cookieParser());
+  registerEvidenceImageAccess(app);
 
   // Cierra conexiones (BD, cron) ordenadamente ante SIGTERM/SIGINT.
   app.enableShutdownHooks();

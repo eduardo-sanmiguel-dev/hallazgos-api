@@ -1,3 +1,5 @@
+import { UseGuards } from '@nestjs/common';
+import { AdminGuard } from '@shared/guards/admin.guard';
 import {
   Controller,
   Get,
@@ -16,11 +18,13 @@ export class RulesOfLifeController {
   constructor(private readonly rulesOfLifeService: RulesOfLifeService) {}
 
   @Post()
+  @UseGuards(AdminGuard)
   create(@Body() createRulesOfLifeDto: CreateRulesOfLifeDto) {
     return this.rulesOfLifeService.create(createRulesOfLifeDto);
   }
 
   @Post('seed')
+  @UseGuards(AdminGuard)
   seed() {
     return this.rulesOfLifeService.seed();
   }
@@ -36,6 +40,7 @@ export class RulesOfLifeController {
   }
 
   @Patch(':id')
+  @UseGuards(AdminGuard)
   update(
     @Param('id') id: string,
     @Body() updateRulesOfLifeDto: UpdateRulesOfLifeDto,
@@ -44,6 +49,7 @@ export class RulesOfLifeController {
   }
 
   @Delete(':id')
+  @UseGuards(AdminGuard)
   remove(@Param('id') id: string) {
     return this.rulesOfLifeService.remove(+id);
   }

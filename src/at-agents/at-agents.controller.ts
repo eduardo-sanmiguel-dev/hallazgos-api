@@ -1,3 +1,5 @@
+import { UseGuards } from '@nestjs/common';
+import { AdminGuard } from '@shared/guards/admin.guard';
 import {
   Controller,
   Get,
@@ -16,6 +18,7 @@ export class AtAgentsController {
   constructor(private readonly atAgentsService: AtAgentsService) {}
 
   @Post()
+  @UseGuards(AdminGuard)
   create(@Body() createAtAgentDto: CreateAtAgentDto) {
     return this.atAgentsService.create(createAtAgentDto);
   }
@@ -31,11 +34,13 @@ export class AtAgentsController {
   }
 
   @Patch(':id')
+  @UseGuards(AdminGuard)
   update(@Param('id') id: string, @Body() updateAtAgentDto: UpdateAtAgentDto) {
     return this.atAgentsService.update(+id, updateAtAgentDto);
   }
 
   @Delete(':id')
+  @UseGuards(AdminGuard)
   remove(@Param('id') id: string) {
     return this.atAgentsService.remove(+id);
   }
