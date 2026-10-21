@@ -1,4 +1,4 @@
-import { countWrappedLines, wrappedTextHeight } from './excel-row-height';
+import { countWrappedLines, wrappedTextHeight } from './excel-row-height.js';
 
 // Anchos y fuentes reales de la plantilla RGOSGSST49.
 const TYPE = { width: 13.5703125, font: 8 }; // columna D (tipo)

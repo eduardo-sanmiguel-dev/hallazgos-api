@@ -10,10 +10,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { AdminGuard } from '../shared/guards/admin.guard';
+import { AdminGuard } from '../shared/guards/admin.guard.js';
 
-import { UsersService } from './users.service';
-import { CreateUserDto, QueryUserDto, UpdateUserDto } from './dto';
+import { UsersService } from './users.service.js';
+import { CreateUserDto, QueryUserDto, UpdateUserDto } from './dto/index.js';
 
 @Controller('users')
 export class UsersController {

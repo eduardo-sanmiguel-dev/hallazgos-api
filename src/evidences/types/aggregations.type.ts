@@ -1,5 +1,5 @@
 import { Field, Int, ObjectType } from '@nestjs/graphql';
-import { Evidence } from 'evidences/entities/evidence.entity';
+import { Evidence } from '../entities/evidence.entity.js';
 
 @ObjectType()
 export class AggregationsEvidenceType {

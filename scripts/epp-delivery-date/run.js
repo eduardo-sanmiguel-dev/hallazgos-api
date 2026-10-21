@@ -11,16 +11,18 @@
  * - Las credenciales se leen del .env en tiempo de ejecución y nunca se
  *   imprimen.
  */
-const fs = require('fs');
-const path = require('path');
-const readline = require('readline');
-const { Client, types } = require('pg');
+import fs from 'fs';
+import path from 'path';
+import readline from 'readline';
+import pg from 'pg';
+
+const { Client, types } = pg;
 
 // Las columnas `date` se muestran tal cual (sin convertir a la zona local).
 types.setTypeParser(1082, (value) => value);
 
-const ROOT = path.resolve(__dirname, '..', '..');
-const SQL_FILE = path.join(__dirname, 'fix-epp-delivery-date.sql');
+const ROOT = path.resolve(import.meta.dirname, '..', '..');
+const SQL_FILE = path.join(import.meta.dirname, 'fix-epp-delivery-date.sql');
 const ENV_FILES = { dev: '.env.development', prod: '.env.production' };
 const ACTIONS = ['preview', 'apply', 'revert', 'status'];
 const LOCAL_HOSTS = ['localhost', '127.0.0.1', '::1'];

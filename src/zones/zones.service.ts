@@ -4,16 +4,16 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { RequestContextService } from 'shared/services/request-context.service';
+import { RequestContextService } from '../shared/services/request-context.service.js';
 
-import { FindManyOptions, ILike, In, Repository } from 'typeorm';
-import { findPaginated } from 'shared/utils';
+import { type FindManyOptions, ILike, In, Repository } from 'typeorm';
+import { findPaginated } from '../shared/utils/index.js';
 
-import { Zone } from 'zones/entities/zone.entity';
-import { CreateZoneDto, QueryZoneDto, UpdateZoneDto } from './dto';
-import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
-import { AreasService } from 'areas/areas.service';
-import { User } from 'users/entities/user.entity';
+import { Zone } from './entities/zone.entity.js';
+import { CreateZoneDto, QueryZoneDto, UpdateZoneDto } from './dto/index.js';
+import { ManufacturingPlantsService } from '../manufacturing-plants/manufacturing-plants.service.js';
+import { AreasService } from '../areas/areas.service.js';
+import { User } from '../users/entities/user.entity.js';
 
 @Injectable()
 export class ZonesService {

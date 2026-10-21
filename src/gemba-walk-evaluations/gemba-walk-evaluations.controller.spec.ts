@@ -3,10 +3,10 @@ import {
   createHttpTestApp,
   describeCrudContract,
   mockProvider,
-} from '@test/utils';
-import { GEMBA_WALK_EVALUATION_CATEGORIES } from './gemba-walk-evaluation-categories';
-import { GembaWalkEvaluationsController } from './gemba-walk-evaluations.controller';
-import { GembaWalkEvaluationsService } from './gemba-walk-evaluations.service';
+} from '../../test/utils/index.js';
+import { GEMBA_WALK_EVALUATION_CATEGORIES } from './gemba-walk-evaluation-categories.js';
+import { GembaWalkEvaluationsController } from './gemba-walk-evaluations.controller.js';
+import { GembaWalkEvaluationsService } from './gemba-walk-evaluations.service.js';
 
 describeCrudContract({
   user: buildAdmin(),

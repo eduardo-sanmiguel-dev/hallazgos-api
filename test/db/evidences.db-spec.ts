@@ -6,9 +6,9 @@ import { join } from 'path';
 
 import request from 'supertest';
 
-import { Evidence } from 'evidences/entities/evidence.entity';
-import { APP_KEY, createE2eApp, E2eApp } from './e2e-app';
-import { saveEvidence, STATUSES } from './fixtures';
+import { Evidence } from '../../src/evidences/entities/evidence.entity.js';
+import { APP_KEY, createE2eApp, type E2eApp } from './e2e-app.js';
+import { saveEvidence, STATUSES } from './fixtures.js';
 
 // PNG de 1x1 para las imágenes de proceso y solución.
 const PNG = Buffer.from(

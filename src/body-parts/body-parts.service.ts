@@ -3,8 +3,8 @@ import { Injectable } from '@nestjs/common';
 
 import { Repository } from 'typeorm';
 
-import { CreateBodyPartDto, UpdateBodyPartDto } from './dto';
-import { BodyPart } from './entities/body-part.entity';
+import { CreateBodyPartDto, UpdateBodyPartDto } from './dto/index.js';
+import { BodyPart } from './entities/body-part.entity.js';
 
 @Injectable()
 export class BodyPartsService {

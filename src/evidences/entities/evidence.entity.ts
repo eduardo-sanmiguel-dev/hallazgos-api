@@ -11,16 +11,16 @@ import {
   ManyToMany,
   JoinTable,
   Index,
-  Relation,
+  type Relation,
 } from 'typeorm';
 
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
-import { MainType } from 'main-types/entities/main-type.entity';
-import { SecondaryType } from 'secondary-types/entities/secondary-type.entity';
-import { Zone } from 'zones/entities/zone.entity';
-import { User } from 'users/entities/user.entity';
-import { Comment } from './comments.entity';
-import { Processes } from 'processes/entities/processes.entity';
+import { ManufacturingPlant } from '../../manufacturing-plants/entities/manufacturing-plant.entity.js';
+import { MainType } from '../../main-types/entities/main-type.entity.js';
+import { SecondaryType } from '../../secondary-types/entities/secondary-type.entity.js';
+import { Zone } from '../../zones/entities/zone.entity.js';
+import { User } from '../../users/entities/user.entity.js';
+import { Comment } from './comments.entity.js';
+import { Processes } from '../../processes/entities/processes.entity.js';
 
 @Entity()
 @ObjectType()

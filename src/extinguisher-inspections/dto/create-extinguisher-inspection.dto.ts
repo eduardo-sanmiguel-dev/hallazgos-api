@@ -16,8 +16,8 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-import { ExtinguisherType } from 'emergency-teams/entities/emergency-team.entity';
-import { EvaluationValues } from '../entities/extinguisher-inspection-evaluation.entity';
+import { ExtinguisherType } from '../../emergency-teams/entities/emergency-team.entity.js';
+import { EvaluationValues } from '../entities/extinguisher-inspection-evaluation.entity.js';
 
 class CreateExtinguisherInspectionEvaluationDto {
   @IsString()

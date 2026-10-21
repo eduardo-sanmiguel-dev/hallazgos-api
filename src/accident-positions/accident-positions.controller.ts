@@ -1,5 +1,5 @@
 import { UseGuards } from '@nestjs/common';
-import { AdminGuard } from '@shared/guards/admin.guard';
+import { AdminGuard } from '../shared/guards/admin.guard.js';
 import {
   Controller,
   Get,
@@ -11,12 +11,12 @@ import {
   Query,
 } from '@nestjs/common';
 
-import { AccidentPositionsService } from './accident-positions.service';
+import { AccidentPositionsService } from './accident-positions.service.js';
 import {
   CreateAccidentPositionDto,
   FiltersAccidentPositionDto,
   UpdateAccidentPositionDto,
-} from './dto';
+} from './dto/index.js';
 
 @Controller('accident-positions')
 export class AccidentPositionsController {

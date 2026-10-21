@@ -1,4 +1,4 @@
-import { buildAdmin } from '@test/utils';
+import { buildAdmin } from '../test/utils/index.js';
 /**
  * Contrato HTTP de los catálogos de configuración con CRUD completo
  * (procesos, tipos principales y secundarios).
@@ -7,13 +7,13 @@ import {
   createHttpTestApp,
   describeCrudContract,
   mockProvider,
-} from '@test/utils';
-import { MainTypesController } from 'main-types/main-types.controller';
-import { MainTypesService } from 'main-types/main-types.service';
-import { ProcessesController } from 'processes/processes.controller';
-import { ProcessesService } from 'processes/processes.service';
-import { SecondaryTypesController } from 'secondary-types/secondary-types.controller';
-import { SecondaryTypesService } from 'secondary-types/secondary-types.service';
+} from '../test/utils/index.js';
+import { MainTypesController } from './main-types/main-types.controller.js';
+import { MainTypesService } from './main-types/main-types.service.js';
+import { ProcessesController } from './processes/processes.controller.js';
+import { ProcessesService } from './processes/processes.service.js';
+import { SecondaryTypesController } from './secondary-types/secondary-types.controller.js';
+import { SecondaryTypesService } from './secondary-types/secondary-types.service.js';
 
 describeCrudContract({
   user: buildAdmin(),

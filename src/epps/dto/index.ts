@@ -1,3 +1,3 @@
-export * from './create-epp.dto';
-export * from './update-epp.dto';
-export * from './query-epp.dto';
+export * from './create-epp.dto.js';
+export * from './update-epp.dto.js';
+export * from './query-epp.dto.js';

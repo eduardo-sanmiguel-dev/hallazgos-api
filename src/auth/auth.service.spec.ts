@@ -3,21 +3,21 @@ import { ConfigService } from '@nestjs/config';
 
 import * as argon2 from 'argon2';
 import { parseCookie } from 'cookie';
-import * as jwt from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 
-import { ENV_DEVELOPMENT, ENV_PRODUCTION } from '@shared/constants';
+import { ENV_DEVELOPMENT, ENV_PRODUCTION } from '../shared/constants/index.js';
 import {
   buildManufacturingPlant,
   buildUser,
   createServiceTestingModule,
   mockProvider,
-  RepositoryMock,
+  type RepositoryMock,
   runInRequest,
-} from '@test/utils';
-import { MailService } from 'mail/mail.service';
-import { User } from 'users/entities/user.entity';
-import { AuthService } from './auth.service';
-import { JwtService, TOKEN_PURPOSE } from './jwt.service';
+} from '../../test/utils/index.js';
+import { MailService } from '../mail/mail.service.js';
+import { User } from '../users/entities/user.entity.js';
+import { AuthService } from './auth.service.js';
+import { JwtService, TOKEN_PURPOSE } from './jwt.service.js';
 
 const SECRET = 'secreto-de-pruebas';
 const THIRTY_DAYS_SECONDS = 60 * 60 * 24 * 30;

@@ -1,4 +1,4 @@
-import { durantionToTime, stringToDateWithTime } from './date-time';
+import { durantionToTime, stringToDateWithTime } from './date-time.js';
 
 describe('stringToDateWithTime', () => {
   it('conserva el formato español, omite segundos y no modifica la fecha', () => {

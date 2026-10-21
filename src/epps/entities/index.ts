@@ -1,2 +1,2 @@
-export * from './epp-equipment.entity';
-export * from './epp.entity';
+export * from './epp-equipment.entity.js';
+export * from './epp.entity.js';

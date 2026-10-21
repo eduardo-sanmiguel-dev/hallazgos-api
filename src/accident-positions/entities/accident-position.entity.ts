@@ -6,11 +6,11 @@ import {
   UpdateDateColumn,
   OneToMany,
   ManyToMany,
-  Relation,
+  type Relation,
 } from 'typeorm';
 
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
-import { Ciael } from 'ciaels/entities/ciael.entity';
+import { ManufacturingPlant } from '../../manufacturing-plants/entities/manufacturing-plant.entity.js';
+import { Ciael } from '../../ciaels/entities/ciael.entity.js';
 @Entity({ name: 'accident_positions' })
 export class AccidentPosition {
   @PrimaryGeneratedColumn()

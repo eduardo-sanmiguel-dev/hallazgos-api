@@ -1,16 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
-import { FindManyOptions, ILike, Repository } from 'typeorm';
-import { findPaginated } from 'shared/utils';
+import { type FindManyOptions, ILike, Repository } from 'typeorm';
+import { findPaginated } from '../shared/utils/index.js';
 
 import {
   CreateSecondaryTypeDto,
   QuerySecondaryTypeDto,
   UpdateSecondaryTypeDto,
-} from './dto';
-import { SecondaryType } from './entities/secondary-type.entity';
-import { MainTypesService } from 'main-types/main-types.service';
+} from './dto/index.js';
+import { SecondaryType } from './entities/secondary-type.entity.js';
+import { MainTypesService } from '../main-types/main-types.service.js';
 
 @Injectable()
 export class SecondaryTypesService {

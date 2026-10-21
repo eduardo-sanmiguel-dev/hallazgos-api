@@ -1,7 +1,7 @@
 import {
   BadRequestException,
   Injectable,
-  NestMiddleware,
+  type NestMiddleware,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 

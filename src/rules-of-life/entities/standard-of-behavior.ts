@@ -8,13 +8,13 @@ import {
   JoinTable,
   ManyToMany,
   OneToMany,
-  Relation,
+  type Relation,
   Index,
 } from 'typeorm';
 
-import { RulesOfLife } from './rules-of-life.entity';
-import { AreaOfBehavior } from './areas-of-behavior';
-import { Ics } from 'ics/entities/ics.entity';
+import { RulesOfLife } from './rules-of-life.entity.js';
+import { AreaOfBehavior } from './areas-of-behavior.js';
+import { Ics } from '../../ics/entities/ics.entity.js';
 
 @Entity({ name: 'standards_of_behavior' })
 export class StandardOfBehavior {

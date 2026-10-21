@@ -6,12 +6,12 @@ import {
   buildUser,
   createServiceTestingModule,
   mockProvider,
-  RepositoryMock,
+  type RepositoryMock,
   runAsUser,
-} from '@test/utils';
-import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
-import { Equipment, EquipmentCostHistory } from './entities';
-import { EquipmentsService } from './equipments.service';
+} from '../../test/utils/index.js';
+import { ManufacturingPlantsService } from '../manufacturing-plants/manufacturing-plants.service.js';
+import { Equipment, EquipmentCostHistory } from './entities/index.js';
+import { EquipmentsService } from './equipments.service.js';
 
 const operand = (value: unknown) => (value as FindOperator<unknown>).value;
 

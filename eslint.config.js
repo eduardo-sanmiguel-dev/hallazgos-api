@@ -1,7 +1,7 @@
-const tsParser = require('@typescript-eslint/parser');
-const tsPlugin = require('@typescript-eslint/eslint-plugin');
+import tsParser from '@typescript-eslint/parser';
+import tsPlugin from '@typescript-eslint/eslint-plugin';
 
-module.exports = [
+export default [
   {
     ignores: ['dist/**', 'node_modules/**'],
   },
@@ -11,7 +11,7 @@ module.exports = [
       parser: tsParser,
       parserOptions: {
         project: 'tsconfig.json',
-        tsconfigRootDir: __dirname,
+        tsconfigRootDir: import.meta.dirname,
         sourceType: 'module',
       },
     },

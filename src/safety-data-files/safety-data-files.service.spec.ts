@@ -2,9 +2,12 @@ import { Logger } from '@nestjs/common';
 import { readdirSync } from 'fs';
 import { FindOperator } from 'typeorm';
 
-import { createServiceTestingModule, RepositoryMock } from '@test/utils';
-import { SafetyDataFile } from './entities/safety-data-file.entity';
-import { SafetyDataFilesService } from './safety-data-files.service';
+import {
+  createServiceTestingModule,
+  type RepositoryMock,
+} from '../../test/utils/index.js';
+import { SafetyDataFile } from './entities/safety-data-file.entity.js';
+import { SafetyDataFilesService } from './safety-data-files.service.js';
 
 jest.mock('fs', () => ({
   ...jest.requireActual('fs'),

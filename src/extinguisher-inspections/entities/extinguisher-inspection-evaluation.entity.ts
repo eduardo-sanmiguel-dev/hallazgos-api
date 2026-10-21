@@ -5,13 +5,13 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
-  Relation,
+  type Relation,
   Index,
 } from 'typeorm';
 
-import { ExtinguisherType } from 'emergency-teams/entities/emergency-team.entity';
-import { ExtinguisherInspection } from './extinguisher-inspection.entity';
-import { User } from 'users/entities/user.entity';
+import { ExtinguisherType } from '../../emergency-teams/entities/emergency-team.entity.js';
+import { ExtinguisherInspection } from './extinguisher-inspection.entity.js';
+import { User } from '../../users/entities/user.entity.js';
 
 export enum EvaluationValues {
   C = 'C',

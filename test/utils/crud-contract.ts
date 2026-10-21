@@ -1,10 +1,10 @@
-import type { User } from 'users/entities/user.entity';
+import type { User } from '../../src/users/entities/user.entity.js';
 
-import { Type } from '@nestjs/common';
+import { type Type } from '@nestjs/common';
 
-import { buildUser } from './factories';
-import { createHttpTestApp, HttpTestApp } from './http-app';
-import { mockProvider } from './testing-module';
+import { buildUser } from './factories.js';
+import { createHttpTestApp, type HttpTestApp } from './http-app.js';
+import { mockProvider } from './testing-module.js';
 
 type Cases = [string, Record<string, unknown>][];
 

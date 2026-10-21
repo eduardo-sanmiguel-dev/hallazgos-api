@@ -1,12 +1,12 @@
-import { Evidence } from 'evidences/entities/evidence.entity';
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
-import { User } from 'users/entities/user.entity';
+import { Evidence } from '../../src/evidences/entities/evidence.entity.js';
+import { ManufacturingPlant } from '../../src/manufacturing-plants/entities/manufacturing-plant.entity.js';
+import { User } from '../../src/users/entities/user.entity.js';
 import {
   ROLE_ADMINISTRADOR,
   ROLE_GENERAL,
   ROLE_SUPERVISOR,
   STATUS_OPEN,
-} from '@shared/constants';
+} from '../../src/shared/constants/index.js';
 
 /**
  * Factories de datos de prueba: objetos planos con valores por defecto

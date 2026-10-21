@@ -1,4 +1,4 @@
-import { AdminGuard } from '../shared/guards/admin.guard';
+import { AdminGuard } from '../shared/guards/admin.guard.js';
 
 import {
   Controller,
@@ -16,8 +16,8 @@ import {
   CreateGembaWalkCalendarDto,
   QueryGembaWalkCalendarDto,
   UpdateGembaWalkCalendarDto,
-} from './dto';
-import { GembaWalkCalendarService } from './gemba-walk-calendar.service';
+} from './dto/index.js';
+import { GembaWalkCalendarService } from './gemba-walk-calendar.service.js';
 
 @Controller('gemba-walk/calendar')
 export class GembaWalkCalendarController {

@@ -17,9 +17,17 @@ import XlsxPopulate from 'xlsx-populate';
 //import * as ExcelJS from 'exceljs';
 import type { Response } from 'express';
 
-import { calculateAge, createTempDir, removeTempDir } from '@shared/utils';
-import { CreateCiaelDto, FiltersCiaelDto, UpdateCiaelDto } from './dto';
-import { CiaelsService } from './ciaels.service';
+import {
+  calculateAge,
+  createTempDir,
+  removeTempDir,
+} from '../shared/utils/index.js';
+import {
+  CreateCiaelDto,
+  FiltersCiaelDto,
+  UpdateCiaelDto,
+} from './dto/index.js';
+import { CiaelsService } from './ciaels.service.js';
 
 @Controller('ciaels')
 export class CiaelsController {

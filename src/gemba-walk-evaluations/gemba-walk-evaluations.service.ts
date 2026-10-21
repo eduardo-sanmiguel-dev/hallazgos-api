@@ -4,25 +4,25 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { RequestContextService } from 'shared/services/request-context.service';
+import { RequestContextService } from '../shared/services/request-context.service.js';
 
 import {
-  FindManyOptions,
-  FindOptionsWhere,
+  type FindManyOptions,
+  type FindOptionsWhere,
   ILike,
   Repository,
   In,
 } from 'typeorm';
-import { findPaginated, scopePlantIds } from 'shared/utils';
+import { findPaginated, scopePlantIds } from '../shared/utils/index.js';
 
 import {
   CreateGembaWalkEvaluationDto,
   QueryGembaWalkEvaluationDto,
   UpdateGembaWalkEvaluationDto,
-} from './dto';
-import { GembaWalkEvaluation } from './entities/gemba-walk-evaluation.entity';
-import { User } from 'users/entities/user.entity';
-import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
+} from './dto/index.js';
+import { GembaWalkEvaluation } from './entities/gemba-walk-evaluation.entity.js';
+import { User } from '../users/entities/user.entity.js';
+import { ManufacturingPlantsService } from '../manufacturing-plants/manufacturing-plants.service.js';
 
 @Injectable()
 export class GembaWalkEvaluationsService {

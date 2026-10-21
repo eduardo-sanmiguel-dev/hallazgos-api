@@ -5,12 +5,12 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
-  Relation,
+  type Relation,
   Index,
 } from 'typeorm';
 
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
-import { User } from 'users/entities/user.entity';
+import { ManufacturingPlant } from '../../manufacturing-plants/entities/manufacturing-plant.entity.js';
+import { User } from '../../users/entities/user.entity.js';
 
 @Entity({ name: 'gemba_walk_zones' })
 export class GembaWalkZone {

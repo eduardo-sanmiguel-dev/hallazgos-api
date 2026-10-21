@@ -2,7 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 
-import { AppKeyMiddleware } from './app-key.middleware';
+import { AppKeyMiddleware } from './app-key.middleware.js';
 
 describe('AppKeyMiddleware', () => {
   const middleware = new AppKeyMiddleware({

@@ -4,11 +4,11 @@ import { FindOperator } from 'typeorm';
 import {
   createServiceTestingModule,
   mockProvider,
-  RepositoryMock,
-} from '@test/utils';
-import { MainTypesService } from 'main-types/main-types.service';
-import { SecondaryType } from './entities/secondary-type.entity';
-import { SecondaryTypesService } from './secondary-types.service';
+  type RepositoryMock,
+} from '../../test/utils/index.js';
+import { MainTypesService } from '../main-types/main-types.service.js';
+import { SecondaryType } from './entities/secondary-type.entity.js';
+import { SecondaryTypesService } from './secondary-types.service.js';
 
 describe('SecondaryTypesService', () => {
   let service: SecondaryTypesService;

@@ -7,7 +7,7 @@ import {
   IsBooleanString,
 } from 'class-validator';
 
-import { ISO_WITH_OFFSET } from './iso-with-offset';
+import { ISO_WITH_OFFSET } from './iso-with-offset.js';
 
 export class QueryGembaWalkCalendarDto {
   @IsOptional()

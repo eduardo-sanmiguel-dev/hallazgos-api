@@ -11,18 +11,18 @@ import {
   ManyToMany,
   JoinTable,
   OneToMany,
-  Relation,
+  type Relation,
 } from 'typeorm';
 
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
-import { Processes } from 'processes/entities/processes.entity';
-import { Evidence } from 'evidences/entities/evidence.entity';
-import { Comment } from 'evidences/entities/comments.entity';
-import { Ciael } from 'ciaels/entities/ciael.entity';
-import { Zone } from 'zones/entities/zone.entity';
-import { Equipment } from 'equipments/entities';
-import { Epp } from 'epps/entities/epp.entity';
-import { Ics } from 'ics/entities/ics.entity';
+import { ManufacturingPlant } from '../../manufacturing-plants/entities/manufacturing-plant.entity.js';
+import { Processes } from '../../processes/entities/processes.entity.js';
+import { Evidence } from '../../evidences/entities/evidence.entity.js';
+import { Comment } from '../../evidences/entities/comments.entity.js';
+import { Ciael } from '../../ciaels/entities/ciael.entity.js';
+import { Zone } from '../../zones/entities/zone.entity.js';
+import { Equipment } from '../../equipments/entities/index.js';
+import { Epp } from '../../epps/entities/epp.entity.js';
+import { Ics } from '../../ics/entities/ics.entity.js';
 
 @Entity()
 @ObjectType()

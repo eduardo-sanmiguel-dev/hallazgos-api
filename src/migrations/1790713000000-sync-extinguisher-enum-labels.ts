@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { type MigrationInterface, type QueryRunner } from 'typeorm';
 
 export class SyncExtinguisherEnumLabels1790713000000 implements MigrationInterface {
   name = 'SyncExtinguisherEnumLabels1790713000000';

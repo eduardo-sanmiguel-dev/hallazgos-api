@@ -1,9 +1,9 @@
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Module } from '@nestjs/common';
 
-import { AreaOfBehavior, RulesOfLife, StandardOfBehavior } from './entities';
-import { RulesOfLifeController } from './rules-of-life.controller';
-import { RulesOfLifeService } from './rules-of-life.service';
+import { AreaOfBehavior, RulesOfLife, StandardOfBehavior } from './entities/index.js';
+import { RulesOfLifeController } from './rules-of-life.controller.js';
+import { RulesOfLifeService } from './rules-of-life.service.js';
 
 @Module({
   imports: [

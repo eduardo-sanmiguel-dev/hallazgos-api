@@ -5,14 +5,14 @@ import {
   buildUser,
   createServiceTestingModule,
   mockProvider,
-  RepositoryMock,
+  type RepositoryMock,
   runAsUser,
-} from '@test/utils';
-import { GembaWalkZonesService } from 'gemba-walk-zones/gemba-walk-zones.service';
-import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
-import { User } from 'users/entities/user.entity';
-import { GembaWalkObserver } from './entities/gemba-walk-observer.entity';
-import { GembaWalkObserversService } from './gemba-walk-observers.service';
+} from '../../test/utils/index.js';
+import { GembaWalkZonesService } from '../gemba-walk-zones/gemba-walk-zones.service.js';
+import { ManufacturingPlantsService } from '../manufacturing-plants/manufacturing-plants.service.js';
+import { User } from '../users/entities/user.entity.js';
+import { GembaWalkObserver } from './entities/gemba-walk-observer.entity.js';
+import { GembaWalkObserversService } from './gemba-walk-observers.service.js';
 
 describe('GembaWalkObserversService', () => {
   let service: GembaWalkObserversService;

@@ -6,8 +6,8 @@ import {
   QueryGembaWalkDto,
   QueryWalkCalendarDto,
   StartGembaWalkDto,
-} from './dto';
-import { GembaWalksService } from './gemba-walks.service';
+} from './dto/index.js';
+import { GembaWalksService } from './gemba-walks.service.js';
 
 // Registro de recorridos. Sin edición ni eliminación.
 @Controller('gemba-walk/walks')

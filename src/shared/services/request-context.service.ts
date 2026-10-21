@@ -7,8 +7,8 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 
-import { ROLE_ADMINISTRADOR } from '@shared/constants';
-import type { User } from 'users/entities/user.entity';
+import { ROLE_ADMINISTRADOR } from '../constants/index.js';
+import type { User } from '../../users/entities/user.entity.js';
 
 // JwtMiddleware deja el usuario autenticado en req.user.
 declare global {

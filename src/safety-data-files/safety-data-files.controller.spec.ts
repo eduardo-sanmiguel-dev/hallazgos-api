@@ -5,11 +5,11 @@ import { join } from 'path';
 import {
   binaryParser,
   createHttpTestApp,
-  HttpTestApp,
+  type HttpTestApp,
   mockProvider,
-} from '@test/utils';
-import { SafetyDataFilesController } from './safety-data-files.controller';
-import { SafetyDataFilesService } from './safety-data-files.service';
+} from '../../test/utils/index.js';
+import { SafetyDataFilesController } from './safety-data-files.controller.js';
+import { SafetyDataFilesService } from './safety-data-files.service.js';
 
 describe('SafetyDataFilesController (HTTP)', () => {
   let http: HttpTestApp;

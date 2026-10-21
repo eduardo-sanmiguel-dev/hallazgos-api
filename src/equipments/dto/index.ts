@@ -1,2 +1,2 @@
-export * from './create-equipment.dto';
-export * from './update-equipment.dto';
+export * from './create-equipment.dto.js';
+export * from './update-equipment.dto.js';

@@ -1,10 +1,14 @@
 import {
-  ExecutionContext,
+  type ExecutionContext,
   ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { AdminGuard } from './admin.guard';
-import { buildAdmin, buildSupervisor, buildUser } from '@test/utils';
+import { AdminGuard } from './admin.guard.js';
+import {
+  buildAdmin,
+  buildSupervisor,
+  buildUser,
+} from '../../../test/utils/index.js';
 
 describe('AdminGuard', () => {
   const guard = new AdminGuard();

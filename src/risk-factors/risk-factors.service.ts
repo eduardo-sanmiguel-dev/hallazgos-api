@@ -3,8 +3,8 @@ import { Injectable } from '@nestjs/common';
 
 import { Repository } from 'typeorm';
 
-import { CreateRiskFactorDto, UpdateRiskFactorDto } from './dto';
-import { RiskFactor } from './entities/risk-factor.entity';
+import { CreateRiskFactorDto, UpdateRiskFactorDto } from './dto/index.js';
+import { RiskFactor } from './entities/risk-factor.entity.js';
 
 @Injectable()
 export class RiskFactorsService {

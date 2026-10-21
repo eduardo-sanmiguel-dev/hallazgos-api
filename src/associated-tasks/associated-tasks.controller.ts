@@ -1,5 +1,5 @@
 import { UseGuards } from '@nestjs/common';
-import { AdminGuard } from '@shared/guards/admin.guard';
+import { AdminGuard } from '../shared/guards/admin.guard.js';
 import {
   Controller,
   Get,
@@ -11,12 +11,12 @@ import {
   Query,
 } from '@nestjs/common';
 
-import { AssociatedTasksService } from './associated-tasks.service';
+import { AssociatedTasksService } from './associated-tasks.service.js';
 import {
   CreateAssociatedTaskDto,
   FiltersAssociatedTaskDto,
   UpdateAssociatedTaskDto,
-} from './dto';
+} from './dto/index.js';
 
 @Controller('associated-tasks')
 export class AssociatedTasksController {

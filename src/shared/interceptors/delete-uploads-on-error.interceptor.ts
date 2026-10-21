@@ -1,9 +1,9 @@
 import {
-  CallHandler,
-  ExecutionContext,
+  type CallHandler,
+  type ExecutionContext,
   Injectable,
   Logger,
-  NestInterceptor,
+  type NestInterceptor,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { unlink } from 'fs/promises';

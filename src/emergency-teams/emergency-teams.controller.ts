@@ -13,8 +13,8 @@ import {
   CreateEmergencyTeamDto,
   QueryEmergencyTeamDto,
   UpdateEmergencyTeamDto,
-} from './dto';
-import { EmergencyTeamsService } from './emergency-teams.service';
+} from './dto/index.js';
+import { EmergencyTeamsService } from './emergency-teams.service.js';
 
 @Controller('emergency-teams')
 export class EmergencyTeamsController {

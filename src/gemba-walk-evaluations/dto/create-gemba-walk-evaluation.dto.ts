@@ -1,6 +1,6 @@
 import { IsIn, IsNotEmpty, IsPositive, IsString } from 'class-validator';
 
-import { GEMBA_WALK_EVALUATION_CATEGORIES } from '../gemba-walk-evaluation-categories';
+import { GEMBA_WALK_EVALUATION_CATEGORIES } from '../gemba-walk-evaluation-categories.js';
 
 export class CreateGembaWalkEvaluationDto {
   @IsNotEmpty()

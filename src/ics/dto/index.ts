@@ -1,3 +1,3 @@
-export * from './create-ics.dto';
-export * from './update-ics.dto';
-export * from './filters-ics.dto';
+export * from './create-ics.dto.js';
+export * from './update-ics.dto.js';
+export * from './filters-ics.dto.js';

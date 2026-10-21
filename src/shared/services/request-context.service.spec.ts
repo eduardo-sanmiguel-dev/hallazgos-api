@@ -1,8 +1,8 @@
 import { UnauthorizedException } from '@nestjs/common';
 import type { Request } from 'express';
 
-import { ROLE_ADMINISTRADOR } from '@shared/constants';
-import { RequestContextService } from './request-context.service';
+import { ROLE_ADMINISTRADOR } from '../constants/index.js';
+import { RequestContextService } from './request-context.service.js';
 
 describe('RequestContextService', () => {
   const service = new RequestContextService();

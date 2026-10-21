@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 
-import { RequestContextService } from '../services/request-context.service';
-import { RequestContextMiddleware } from './request-context.middleware';
+import { RequestContextService } from '../services/request-context.service.js';
+import { RequestContextMiddleware } from './request-context.middleware.js';
 
 describe('RequestContextMiddleware', () => {
   it('lo que se ejecuta después del middleware ve la petición en el contexto', () => {

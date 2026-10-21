@@ -1,5 +1,5 @@
 import { UseGuards } from '@nestjs/common';
-import { AdminGuard } from '@shared/guards/admin.guard';
+import { AdminGuard } from '../shared/guards/admin.guard.js';
 import {
   Controller,
   Get,
@@ -11,12 +11,12 @@ import {
   Query,
 } from '@nestjs/common';
 
-import { SecondaryTypesService } from './secondary-types.service';
+import { SecondaryTypesService } from './secondary-types.service.js';
 import {
   CreateSecondaryTypeDto,
   QuerySecondaryTypeDto,
   UpdateSecondaryTypeDto,
-} from './dto';
+} from './dto/index.js';
 
 @Controller('secondary-types')
 export class SecondaryTypesController {

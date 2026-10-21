@@ -1,3 +1,3 @@
-export * from './create-zone.dto';
-export * from './query-zone.dto';
-export * from './update-zone.dto';
+export * from './create-zone.dto.js';
+export * from './query-zone.dto.js';
+export * from './update-zone.dto.js';

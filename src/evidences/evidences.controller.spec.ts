@@ -3,11 +3,11 @@ import { NotFoundException } from '@nestjs/common';
 import {
   buildUser,
   createHttpTestApp,
-  HttpTestApp,
+  type HttpTestApp,
   mockProvider,
-} from '@test/utils';
-import { EvidencesController } from './evidences.controller';
-import { EvidencesService } from './evidences.service';
+} from '../../test/utils/index.js';
+import { EvidencesController } from './evidences.controller.js';
+import { EvidencesService } from './evidences.service.js';
 
 describe('EvidencesController (HTTP)', () => {
   let http: HttpTestApp;

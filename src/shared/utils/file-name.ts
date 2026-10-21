@@ -4,7 +4,7 @@ import {
   getOffsetMinutes,
   resolveTimeZone,
   toWallClock,
-} from './timezone';
+} from './timezone.js';
 
 const removeDiacritics = (value: string) =>
   value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');

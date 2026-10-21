@@ -2,11 +2,11 @@ import {
   buildManufacturingPlant,
   buildUser,
   createHttpTestApp,
-  HttpTestApp,
+  type HttpTestApp,
   mockProvider,
-} from '@test/utils';
-import { DashboardController } from './dashboard.controller';
-import { DashboardService } from './dashboard.service';
+} from '../../test/utils/index.js';
+import { DashboardController } from './dashboard.controller.js';
+import { DashboardService } from './dashboard.service.js';
 
 /** Endpoints que solo reciben la planta (validada con UserPlantPipe). */
 const BY_PLANT: [string, keyof DashboardService][] = [

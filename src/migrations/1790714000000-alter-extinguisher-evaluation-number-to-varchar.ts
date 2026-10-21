@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { type MigrationInterface, type QueryRunner } from 'typeorm';
 
 export class AlterExtinguisherEvaluationNumberToVarchar1790714000000 implements MigrationInterface {
   name = 'AlterExtinguisherEvaluationNumberToVarchar1790714000000';

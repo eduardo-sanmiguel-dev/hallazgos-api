@@ -3,8 +3,8 @@ import { Injectable } from '@nestjs/common';
 
 import { In, Repository } from 'typeorm';
 
-import { AreaOfBehavior, RulesOfLife, StandardOfBehavior } from './entities';
-import { CreateRulesOfLifeDto, UpdateRulesOfLifeDto } from './dto';
+import { AreaOfBehavior, RulesOfLife, StandardOfBehavior } from './entities/index.js';
+import { CreateRulesOfLifeDto, UpdateRulesOfLifeDto } from './dto/index.js';
 
 @Injectable()
 export class RulesOfLifeService {

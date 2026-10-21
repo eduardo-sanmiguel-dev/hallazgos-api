@@ -1,4 +1,4 @@
-import { AdminGuard } from '../shared/guards/admin.guard';
+import { AdminGuard } from '../shared/guards/admin.guard.js';
 
 import {
   Controller,
@@ -16,9 +16,9 @@ import {
   CreateGembaWalkEvaluationDto,
   QueryGembaWalkEvaluationDto,
   UpdateGembaWalkEvaluationDto,
-} from './dto';
-import { GembaWalkEvaluationsService } from './gemba-walk-evaluations.service';
-import { GEMBA_WALK_EVALUATION_CATEGORIES } from './gemba-walk-evaluation-categories';
+} from './dto/index.js';
+import { GembaWalkEvaluationsService } from './gemba-walk-evaluations.service.js';
+import { GEMBA_WALK_EVALUATION_CATEGORIES } from './gemba-walk-evaluation-categories.js';
 
 @Controller('gemba-walk/evaluations')
 export class GembaWalkEvaluationsController {

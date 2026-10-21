@@ -1,9 +1,9 @@
 import { Args, Context, Query, Resolver } from '@nestjs/graphql';
 
-import { Evidence } from './entities/evidence.entity';
-import { EvidencesService } from './evidences.service';
-import { AggregationsEvidenceType } from './types';
-import { ParamsArgs } from './inputs/args';
+import { Evidence } from './entities/evidence.entity.js';
+import { EvidencesService } from './evidences.service.js';
+import { AggregationsEvidenceType } from './types/index.js';
+import { ParamsArgs } from './inputs/args/index.js';
 
 @Resolver(Evidence)
 export class EvidencesResolver {

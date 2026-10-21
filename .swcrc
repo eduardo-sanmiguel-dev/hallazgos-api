@@ -3,14 +3,8 @@
   "jsc": {
     "parser": { "syntax": "typescript", "decorators": true },
     "transform": { "legacyDecorator": true, "decoratorMetadata": true },
-    "target": "es2021",
-    "baseUrl": "./",
-    "paths": {
-      "*": ["./src/*"],
-      "@config": ["./src/config"],
-      "@shared/*": ["./src/shared/*"]
-    }
+    "target": "es2021"
   },
-  "module": { "type": "commonjs" },
+  "module": { "type": "es6" },
   "sourceMaps": true
 }

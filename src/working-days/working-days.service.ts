@@ -3,8 +3,8 @@ import { Injectable } from '@nestjs/common';
 
 import { Repository } from 'typeorm';
 
-import { CreateWorkingDayDto, UpdateWorkingDayDto } from './dto';
-import { WorkingDay } from './entities/working-day.entity';
+import { CreateWorkingDayDto, UpdateWorkingDayDto } from './dto/index.js';
+import { WorkingDay } from './entities/working-day.entity.js';
 
 @Injectable()
 export class WorkingDaysService {

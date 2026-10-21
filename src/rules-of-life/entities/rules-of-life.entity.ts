@@ -5,11 +5,11 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
-  Relation,
+  type Relation,
 } from 'typeorm';
 
-import { StandardOfBehavior } from './standard-of-behavior';
-import { Ics } from 'ics/entities/ics.entity';
+import { StandardOfBehavior } from './standard-of-behavior.js';
+import { Ics } from '../../ics/entities/ics.entity.js';
 
 @Entity({ name: 'rules_of_life' })
 export class RulesOfLife {

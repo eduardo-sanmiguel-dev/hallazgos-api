@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
-import { CreateAtAgentDto, UpdateAtAgentDto } from './dto';
-import { AtAgent } from './entities/at-agent.entity';
+import { CreateAtAgentDto, UpdateAtAgentDto } from './dto/index.js';
+import { AtAgent } from './entities/at-agent.entity.js';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 

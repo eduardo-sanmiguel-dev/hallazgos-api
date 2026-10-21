@@ -2,10 +2,10 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
 
-import { User } from 'users/entities/user.entity';
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
-import { JwtService } from './jwt.service';
+import { User } from '../users/entities/user.entity.js';
+import { AuthService } from './auth.service.js';
+import { AuthController } from './auth.controller.js';
+import { JwtService } from './jwt.service.js';
 
 @Module({
   imports: [

@@ -5,9 +5,9 @@ import { Test } from '@nestjs/testing';
 import { existsSync } from 'fs';
 import { join } from 'path';
 
-import { ENV_DEVELOPMENT, ENV_PRODUCTION } from '@shared/constants';
-import { buildEvidence, buildUser } from '@test/utils';
-import { LOCAL_EVIDENCE_IMAGES_DIR, MailService } from './mail.service';
+import { ENV_DEVELOPMENT, ENV_PRODUCTION } from '../shared/constants/index.js';
+import { buildEvidence, buildUser } from '../../test/utils/index.js';
+import { LOCAL_EVIDENCE_IMAGES_DIR, MailService } from './mail.service.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 

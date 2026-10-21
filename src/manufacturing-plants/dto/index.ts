@@ -1,3 +1,3 @@
-export * from './create-manufacturing-plant.dto';
-export * from './update-manufacturing-plant.dto';
-export * from './query.manufacturing-plant.dto';
+export * from './create-manufacturing-plant.dto.js';
+export * from './update-manufacturing-plant.dto.js';
+export * from './query.manufacturing-plant.dto.js';

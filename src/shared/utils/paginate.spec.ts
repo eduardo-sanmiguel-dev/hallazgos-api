@@ -1,6 +1,6 @@
 import type { Repository } from 'typeorm';
 
-import { findPaginated } from './paginate';
+import { findPaginated } from './paginate.js';
 
 describe('findPaginated', () => {
   const findAndCount = jest.fn().mockResolvedValue([[{ id: 1 }], 12]);

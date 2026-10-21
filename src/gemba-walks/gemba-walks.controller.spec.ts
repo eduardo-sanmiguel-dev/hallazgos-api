@@ -1,11 +1,11 @@
 import {
   buildUser,
   createHttpTestApp,
-  HttpTestApp,
+  type HttpTestApp,
   mockProvider,
-} from '@test/utils';
-import { GembaWalksController } from './gemba-walks.controller';
-import { GembaWalksService } from './gemba-walks.service';
+} from '../../test/utils/index.js';
+import { GembaWalksController } from './gemba-walks.controller.js';
+import { GembaWalksService } from './gemba-walks.service.js';
 
 describe('GembaWalksController (HTTP)', () => {
   let http: HttpTestApp;

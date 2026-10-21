@@ -5,12 +5,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { RequestContextService } from 'shared/services/request-context.service';
+import { RequestContextService } from '../shared/services/request-context.service.js';
 
 import {
   And,
-  FindManyOptions,
-  FindOptionsWhere,
+  type FindManyOptions,
+  type FindOptionsWhere,
   In,
   LessThan,
   MoreThanOrEqual,
@@ -18,7 +18,7 @@ import {
   Repository,
 } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import * as jwt from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 
 import {
   CreateGembaWalkDto,
@@ -26,20 +26,20 @@ import {
   QueryGembaWalkDto,
   QueryWalkCalendarDto,
   StartGembaWalkDto,
-} from './dto';
-import { GembaWalk } from './entities/gemba-walk.entity';
-import { GembaWalkResult } from './entities/gemba-walk-result.entity';
-import { GembaWalkCalendar } from 'gemba-walk-calendar/entities/gemba-walk-calendar.entity';
-import { GembaWalkEvaluation } from 'gemba-walk-evaluations/entities/gemba-walk-evaluation.entity';
-import { GembaWalkObserver } from 'gemba-walk-observers/entities/gemba-walk-observer.entity';
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
-import { User } from 'users/entities/user.entity';
+} from './dto/index.js';
+import { GembaWalk } from './entities/gemba-walk.entity.js';
+import { GembaWalkResult } from './entities/gemba-walk-result.entity.js';
+import { GembaWalkCalendar } from '../gemba-walk-calendar/entities/gemba-walk-calendar.entity.js';
+import { GembaWalkEvaluation } from '../gemba-walk-evaluations/entities/gemba-walk-evaluation.entity.js';
+import { GembaWalkObserver } from '../gemba-walk-observers/entities/gemba-walk-observer.entity.js';
+import { ManufacturingPlant } from '../manufacturing-plants/entities/manufacturing-plant.entity.js';
+import { User } from '../users/entities/user.entity.js';
 import {
   PLANT_TIME_ZONES,
   toPlantCountry,
   toWallClock,
   wallClockToInstant,
-} from '@shared/utils';
+} from '../shared/utils/index.js';
 
 const UNIQUE_VIOLATION = '23505';
 

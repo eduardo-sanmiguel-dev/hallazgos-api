@@ -18,18 +18,18 @@ import type { Response } from 'express';
 import {
   buildAttachmentContentDisposition,
   formatDateToDDMMYYYY,
-} from '@shared/utils';
+} from '../shared/utils/index.js';
 import {
   countWrappedLines,
   wrappedTextHeight,
-} from '@shared/utils/excel-row-height';
+} from '../shared/utils/excel-row-height.js';
 
-import { ExtinguisherInspectionsService } from './extinguisher-inspections.service';
+import { ExtinguisherInspectionsService } from './extinguisher-inspections.service.js';
 import {
   CreateExtinguisherInspectionDto,
   QueryExtinguisherInspectionDto,
   UpdateExtinguisherInspectionDto,
-} from './dto';
+} from './dto/index.js';
 
 @Controller('extinguisher-inspections')
 export class ExtinguisherInspectionsController {

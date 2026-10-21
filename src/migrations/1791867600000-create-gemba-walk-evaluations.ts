@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { type MigrationInterface, type QueryRunner } from 'typeorm';
 
 export class CreateGembaWalkEvaluations1791867600000 implements MigrationInterface {
   name = 'CreateGembaWalkEvaluations1791867600000';

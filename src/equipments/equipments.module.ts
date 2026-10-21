@@ -1,10 +1,10 @@
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Module } from '@nestjs/common';
 
-import { ManufacturingPlantsModule } from 'manufacturing-plants/manufacturing-plants.module';
-import { EquipmentsController } from './equipments.controller';
-import { Equipment, EquipmentCostHistory } from './entities';
-import { EquipmentsService } from './equipments.service';
+import { ManufacturingPlantsModule } from '../manufacturing-plants/manufacturing-plants.module.js';
+import { EquipmentsController } from './equipments.controller.js';
+import { Equipment, EquipmentCostHistory } from './entities/index.js';
+import { EquipmentsService } from './equipments.service.js';
 
 @Module({
   imports: [

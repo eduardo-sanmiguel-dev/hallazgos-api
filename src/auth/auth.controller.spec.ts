@@ -1,7 +1,7 @@
 import type { Response } from 'express';
 
-import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
+import { AuthController } from './auth.controller.js';
+import { AuthService } from './auth.service.js';
 
 const COOKIE = 'token=abc.def.ghi; Max-Age=2592000; Path=/; HttpOnly';
 

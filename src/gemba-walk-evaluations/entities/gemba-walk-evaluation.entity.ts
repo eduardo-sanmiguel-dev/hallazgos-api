@@ -5,12 +5,12 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
-  Relation,
+  type Relation,
   Index,
 } from 'typeorm';
 
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
-import { User } from 'users/entities/user.entity';
+import { ManufacturingPlant } from '../../manufacturing-plants/entities/manufacturing-plant.entity.js';
+import { User } from '../../users/entities/user.entity.js';
 
 // Concepto a evaluar en un recorrido (ej. SHE / "EPP" / descripción).
 @Entity({ name: 'gemba_walk_evaluations' })

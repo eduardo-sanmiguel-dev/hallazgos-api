@@ -7,17 +7,17 @@ import {
   ManyToOne,
   OneToMany,
   ManyToMany,
-  Relation,
+  type Relation,
   Index,
 } from 'typeorm';
 
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
-import { EmployeePosition } from './employee-position.entity';
-import { EmployeeArea } from './employee-area.entity';
-import { Ciael } from 'ciaels/entities/ciael.entity';
-import { Genre } from 'genres/entities/genre.entity';
-import { Epp } from 'epps/entities/epp.entity';
-import { Ics } from 'ics/entities/ics.entity';
+import { ManufacturingPlant } from '../../manufacturing-plants/entities/manufacturing-plant.entity.js';
+import { EmployeePosition } from './employee-position.entity.js';
+import { EmployeeArea } from './employee-area.entity.js';
+import { Ciael } from '../../ciaels/entities/ciael.entity.js';
+import { Genre } from '../../genres/entities/genre.entity.js';
+import { Epp } from '../../epps/entities/epp.entity.js';
+import { Ics } from '../../ics/entities/ics.entity.js';
 
 @Entity()
 export class Employee {

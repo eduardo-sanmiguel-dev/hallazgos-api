@@ -19,7 +19,7 @@ import {
   STATUS_CLOSE,
   STATUS_IN_PROGRESS,
   STATUS_OPEN,
-} from '@shared/constants';
+} from '../shared/constants/index.js';
 import {
   buildAdmin,
   buildEvidence,
@@ -28,20 +28,20 @@ import {
   buildUser,
   createServiceTestingModule,
   mockProvider,
-  RepositoryMock,
+  type RepositoryMock,
   runAsUser,
-} from '@test/utils';
-import { MailService } from 'mail/mail.service';
-import { MainTypesService } from 'main-types/main-types.service';
-import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
-import { ProcessesService } from 'processes/processes.service';
-import { SecondaryTypesService } from 'secondary-types/secondary-types.service';
-import { User } from 'users/entities/user.entity';
-import { UsersService } from 'users/users.service';
-import { ZonesService } from 'zones/zones.service';
-import { Comment } from './entities/comments.entity';
-import { Evidence } from './entities/evidence.entity';
-import { EvidencesService } from './evidences.service';
+} from '../../test/utils/index.js';
+import { MailService } from '../mail/mail.service.js';
+import { MainTypesService } from '../main-types/main-types.service.js';
+import { ManufacturingPlantsService } from '../manufacturing-plants/manufacturing-plants.service.js';
+import { ProcessesService } from '../processes/processes.service.js';
+import { SecondaryTypesService } from '../secondary-types/secondary-types.service.js';
+import { User } from '../users/entities/user.entity.js';
+import { UsersService } from '../users/users.service.js';
+import { ZonesService } from '../zones/zones.service.js';
+import { Comment } from './entities/comments.entity.js';
+import { Evidence } from './entities/evidence.entity.js';
+import { EvidencesService } from './evidences.service.js';
 
 /** Deja terminar las promesas que el servicio lanza sin esperar. */
 const flushBackgroundWork = async () => {

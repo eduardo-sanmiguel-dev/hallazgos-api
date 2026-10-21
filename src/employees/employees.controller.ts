@@ -9,12 +9,12 @@ import {
   Query,
 } from '@nestjs/common';
 
-import { EmployeesService } from './employees.service';
+import { EmployeesService } from './employees.service.js';
 import {
   CreateEmployeeDto,
   FiltersEmployeeDto,
   UpdateEmployeeDto,
-} from './dto';
+} from './dto/index.js';
 
 @Controller('employees')
 export class EmployeesController {

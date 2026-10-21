@@ -1,5 +1,5 @@
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ImageFileValidationPipe, imageUploadOptions } from '@shared/utils';
+import { ImageFileValidationPipe, imageUploadOptions } from '../shared/utils/index.js';
 import {
   Controller,
   Get,
@@ -13,8 +13,8 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 
-import { CreateIcsDto, FiltersIcsDto, UpdateIcsDto } from './dto';
-import { IcsService } from './ics.service';
+import { CreateIcsDto, FiltersIcsDto, UpdateIcsDto } from './dto/index.js';
+import { IcsService } from './ics.service.js';
 
 @Controller('ics')
 export class IcsController {

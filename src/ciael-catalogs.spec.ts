@@ -1,63 +1,63 @@
-import { buildAdmin } from '@test/utils';
+import { buildAdmin } from '../test/utils/index.js';
 /**
  * Catálogos de CIAEL y de configuración con la misma forma: crear (guarda el
  * cuerpo tal cual) y listar activos. findOne/update/remove son stubs generados
  * por Nest (responden un texto sin hacer nada): no se prueban; están
  * registrados como decisión pendiente en docs/avance-pruebas.md.
  */
-import { Type } from '@nestjs/common';
-import { ObjectLiteral } from 'typeorm';
+import { type Type } from '@nestjs/common';
+import { type ObjectLiteral } from 'typeorm';
 
 import {
   createHttpTestApp,
   createServiceTestingModule,
   mockProvider,
-} from '@test/utils';
-import { AccidentPositionsController } from 'accident-positions/accident-positions.controller';
-import { AccidentPositionsService } from 'accident-positions/accident-positions.service';
-import { AccidentPosition } from 'accident-positions/entities/accident-position.entity';
-import { AssociatedTasksController } from 'associated-tasks/associated-tasks.controller';
-import { AssociatedTasksService } from 'associated-tasks/associated-tasks.service';
-import { AssociatedTask } from 'associated-tasks/entities/associated-task.entity';
-import { AtAgentsController } from 'at-agents/at-agents.controller';
-import { AtAgentsService } from 'at-agents/at-agents.service';
-import { AtAgent } from 'at-agents/entities/at-agent.entity';
-import { AtMechanismsController } from 'at-mechanisms/at-mechanisms.controller';
-import { AtMechanismsService } from 'at-mechanisms/at-mechanisms.service';
-import { AtMechanism } from 'at-mechanisms/entities/at-mechanism.entity';
-import { BodyPartsController } from 'body-parts/body-parts.controller';
-import { BodyPartsService } from 'body-parts/body-parts.service';
-import { BodyPart } from 'body-parts/entities/body-part.entity';
-import { CieDiagnosesController } from 'cie-diagnoses/cie-diagnoses.controller';
-import { CieDiagnosesService } from 'cie-diagnoses/cie-diagnoses.service';
-import { CieDiagnosis } from 'cie-diagnoses/entities/cie-diagnosis.entity';
-import { CountriesController } from 'countries/countries.controller';
-import { CountriesService } from 'countries/countries.service';
-import { Country } from 'countries/entities/country.entity';
-import { Genre } from 'genres/entities/genre.entity';
-import { GenresController } from 'genres/genres.controller';
-import { GenresService } from 'genres/genres.service';
-import { Machine } from 'machines/entities/machine.entity';
-import { MachinesController } from 'machines/machines.controller';
-import { MachinesService } from 'machines/machines.service';
-import { NatureOfEvent } from 'nature-of-events/entities/nature-of-event.entity';
-import { NatureOfEventsController } from 'nature-of-events/nature-of-events.controller';
-import { NatureOfEventsService } from 'nature-of-events/nature-of-events.service';
-import { RiskFactor } from 'risk-factors/entities/risk-factor.entity';
-import { RiskFactorsController } from 'risk-factors/risk-factors.controller';
-import { RiskFactorsService } from 'risk-factors/risk-factors.service';
-import { TypeOfInjury } from 'type-of-injuries/entities/type-of-injury.entity';
-import { TypeOfInjuriesController } from 'type-of-injuries/type-of-injuries.controller';
-import { TypeOfInjuriesService } from 'type-of-injuries/type-of-injuries.service';
-import { TypeOfLink } from 'type-of-links/entities/type-of-link.entity';
-import { TypeOfLinksController } from 'type-of-links/type-of-links.controller';
-import { TypeOfLinksService } from 'type-of-links/type-of-links.service';
-import { TypesOfEvent } from 'types-of-events/entities/types-of-event.entity';
-import { TypesOfEventsController } from 'types-of-events/types-of-events.controller';
-import { TypesOfEventsService } from 'types-of-events/types-of-events.service';
-import { WorkingDay } from 'working-days/entities/working-day.entity';
-import { WorkingDaysController } from 'working-days/working-days.controller';
-import { WorkingDaysService } from 'working-days/working-days.service';
+} from '../test/utils/index.js';
+import { AccidentPositionsController } from './accident-positions/accident-positions.controller.js';
+import { AccidentPositionsService } from './accident-positions/accident-positions.service.js';
+import { AccidentPosition } from './accident-positions/entities/accident-position.entity.js';
+import { AssociatedTasksController } from './associated-tasks/associated-tasks.controller.js';
+import { AssociatedTasksService } from './associated-tasks/associated-tasks.service.js';
+import { AssociatedTask } from './associated-tasks/entities/associated-task.entity.js';
+import { AtAgentsController } from './at-agents/at-agents.controller.js';
+import { AtAgentsService } from './at-agents/at-agents.service.js';
+import { AtAgent } from './at-agents/entities/at-agent.entity.js';
+import { AtMechanismsController } from './at-mechanisms/at-mechanisms.controller.js';
+import { AtMechanismsService } from './at-mechanisms/at-mechanisms.service.js';
+import { AtMechanism } from './at-mechanisms/entities/at-mechanism.entity.js';
+import { BodyPartsController } from './body-parts/body-parts.controller.js';
+import { BodyPartsService } from './body-parts/body-parts.service.js';
+import { BodyPart } from './body-parts/entities/body-part.entity.js';
+import { CieDiagnosesController } from './cie-diagnoses/cie-diagnoses.controller.js';
+import { CieDiagnosesService } from './cie-diagnoses/cie-diagnoses.service.js';
+import { CieDiagnosis } from './cie-diagnoses/entities/cie-diagnosis.entity.js';
+import { CountriesController } from './countries/countries.controller.js';
+import { CountriesService } from './countries/countries.service.js';
+import { Country } from './countries/entities/country.entity.js';
+import { Genre } from './genres/entities/genre.entity.js';
+import { GenresController } from './genres/genres.controller.js';
+import { GenresService } from './genres/genres.service.js';
+import { Machine } from './machines/entities/machine.entity.js';
+import { MachinesController } from './machines/machines.controller.js';
+import { MachinesService } from './machines/machines.service.js';
+import { NatureOfEvent } from './nature-of-events/entities/nature-of-event.entity.js';
+import { NatureOfEventsController } from './nature-of-events/nature-of-events.controller.js';
+import { NatureOfEventsService } from './nature-of-events/nature-of-events.service.js';
+import { RiskFactor } from './risk-factors/entities/risk-factor.entity.js';
+import { RiskFactorsController } from './risk-factors/risk-factors.controller.js';
+import { RiskFactorsService } from './risk-factors/risk-factors.service.js';
+import { TypeOfInjury } from './type-of-injuries/entities/type-of-injury.entity.js';
+import { TypeOfInjuriesController } from './type-of-injuries/type-of-injuries.controller.js';
+import { TypeOfInjuriesService } from './type-of-injuries/type-of-injuries.service.js';
+import { TypeOfLink } from './type-of-links/entities/type-of-link.entity.js';
+import { TypeOfLinksController } from './type-of-links/type-of-links.controller.js';
+import { TypeOfLinksService } from './type-of-links/type-of-links.service.js';
+import { TypesOfEvent } from './types-of-events/entities/types-of-event.entity.js';
+import { TypesOfEventsController } from './types-of-events/types-of-events.controller.js';
+import { TypesOfEventsService } from './types-of-events/types-of-events.service.js';
+import { WorkingDay } from './working-days/entities/working-day.entity.js';
+import { WorkingDaysController } from './working-days/working-days.controller.js';
+import { WorkingDaysService } from './working-days/working-days.service.js';
 
 type AnyService = Record<string, (...args: unknown[]) => unknown>;
 

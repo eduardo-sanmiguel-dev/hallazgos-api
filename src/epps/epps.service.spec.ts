@@ -5,13 +5,13 @@ import {
   buildManufacturingPlant,
   buildUser,
   createServiceTestingModule,
-  RepositoryMock,
+  type RepositoryMock,
   runAsUser,
-} from '@test/utils';
-import { Employee } from 'employees/entities';
-import { Equipment } from 'equipments/entities';
-import { Epp, EppEquipment } from './entities';
-import { EppsService } from './epps.service';
+} from '../../test/utils/index.js';
+import { Employee } from '../employees/entities/index.js';
+import { Equipment } from '../equipments/entities/index.js';
+import { Epp, EppEquipment } from './entities/index.js';
+import { EppsService } from './epps.service.js';
 
 const operand = (value: unknown) => (value as FindOperator<unknown>).value;
 const DAY = 24 * 60 * 60 * 1000;

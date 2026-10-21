@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, PipeTransform } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  type PipeTransform,
+} from '@nestjs/common';
 import type { MulterOptions } from '@nestjs/platform-express/multer/interfaces/multer-options.interface';
 import { randomUUID } from 'crypto';
 import { open, unlink } from 'fs/promises';

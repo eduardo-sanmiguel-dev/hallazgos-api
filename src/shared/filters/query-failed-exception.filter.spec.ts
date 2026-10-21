@@ -1,7 +1,7 @@
-import { ArgumentsHost, HttpStatus, Logger } from '@nestjs/common';
+import { type ArgumentsHost, HttpStatus, Logger } from '@nestjs/common';
 import { QueryFailedError } from 'typeorm';
 
-import { QueryFailedExceptionFilter } from './query-failed-exception.filter';
+import { QueryFailedExceptionFilter } from './query-failed-exception.filter.js';
 
 const queryError = (driverError: Record<string, string>) =>
   new QueryFailedError(

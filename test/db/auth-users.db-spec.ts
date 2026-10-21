@@ -3,8 +3,8 @@
  */
 import request from 'supertest';
 
-import { createE2eApp, E2eApp } from './e2e-app';
-import { TEST_PASSWORD } from './fixtures';
+import { createE2eApp, type E2eApp } from './e2e-app.js';
+import { TEST_PASSWORD } from './fixtures.js';
 
 describe('E2E: auth', () => {
   let e2e: E2eApp;

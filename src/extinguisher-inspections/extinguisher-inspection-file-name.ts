@@ -1,12 +1,12 @@
 import {
   buildFileNameTimestamp,
   sanitizeFileNamePart,
-} from '../shared/utils/file-name';
+} from '../shared/utils/file-name.js';
 import {
   PLANT_TIME_ZONES,
   toPlantCountry,
-} from '../shared/utils/storage-timezones';
-import { inspectionStoredWallClockToInstant } from './extinguisher-inspection-storage-timezones';
+} from '../shared/utils/storage-timezones.js';
+import { inspectionStoredWallClockToInstant } from './extinguisher-inspection-storage-timezones.js';
 
 /** Código del formato: siempre al inicio del nombre. */
 export const INSPECTION_FORMAT_CODE = 'RGOSGSST49';

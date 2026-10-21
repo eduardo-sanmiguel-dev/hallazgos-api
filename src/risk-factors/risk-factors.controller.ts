@@ -1,5 +1,5 @@
 import { UseGuards } from '@nestjs/common';
-import { AdminGuard } from '@shared/guards/admin.guard';
+import { AdminGuard } from '../shared/guards/admin.guard.js';
 import {
   Controller,
   Get,
@@ -10,8 +10,8 @@ import {
   Delete,
 } from '@nestjs/common';
 
-import { CreateRiskFactorDto, UpdateRiskFactorDto } from './dto';
-import { RiskFactorsService } from './risk-factors.service';
+import { CreateRiskFactorDto, UpdateRiskFactorDto } from './dto/index.js';
+import { RiskFactorsService } from './risk-factors.service.js';
 
 @Controller('risk-factors')
 export class RiskFactorsController {

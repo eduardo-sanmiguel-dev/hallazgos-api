@@ -1,5 +1,5 @@
 import { UseGuards } from '@nestjs/common';
-import { AdminGuard } from '@shared/guards/admin.guard';
+import { AdminGuard } from '../shared/guards/admin.guard.js';
 import {
   Controller,
   Get,
@@ -10,8 +10,8 @@ import {
   Delete,
 } from '@nestjs/common';
 
-import { CreateWorkingDayDto, UpdateWorkingDayDto } from './dto';
-import { WorkingDaysService } from './working-days.service';
+import { CreateWorkingDayDto, UpdateWorkingDayDto } from './dto/index.js';
+import { WorkingDaysService } from './working-days.service.js';
 
 @Controller('working-days')
 export class WorkingDaysController {

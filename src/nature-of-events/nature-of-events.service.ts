@@ -3,8 +3,8 @@ import { Injectable } from '@nestjs/common';
 
 import { Repository } from 'typeorm';
 
-import { CreateNatureOfEventDto, UpdateNatureOfEventDto } from './dto';
-import { NatureOfEvent } from './entities/nature-of-event.entity';
+import { CreateNatureOfEventDto, UpdateNatureOfEventDto } from './dto/index.js';
+import { NatureOfEvent } from './entities/nature-of-event.entity.js';
 
 @Injectable()
 export class NatureOfEventsService {

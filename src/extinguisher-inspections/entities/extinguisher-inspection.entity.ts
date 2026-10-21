@@ -6,13 +6,13 @@ import {
   UpdateDateColumn,
   ManyToOne,
   OneToMany,
-  Relation,
+  type Relation,
   Index,
 } from 'typeorm';
 
-import { ExtinguisherInspectionEvaluation } from './extinguisher-inspection-evaluation.entity';
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
-import { User } from 'users/entities/user.entity';
+import { ExtinguisherInspectionEvaluation } from './extinguisher-inspection-evaluation.entity.js';
+import { ManufacturingPlant } from '../../manufacturing-plants/entities/manufacturing-plant.entity.js';
+import { User } from '../../users/entities/user.entity.js';
 
 @Entity({ name: 'extinguisher_inspections' })
 export class ExtinguisherInspection {

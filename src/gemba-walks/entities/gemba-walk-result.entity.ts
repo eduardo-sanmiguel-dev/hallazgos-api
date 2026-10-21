@@ -4,12 +4,12 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   ManyToOne,
-  Relation,
+  type Relation,
   Index,
 } from 'typeorm';
 
-import { GembaWalkEvaluation } from 'gemba-walk-evaluations/entities/gemba-walk-evaluation.entity';
-import { GembaWalk } from './gemba-walk.entity';
+import { GembaWalkEvaluation } from '../../gemba-walk-evaluations/entities/gemba-walk-evaluation.entity.js';
+import { GembaWalk } from './gemba-walk.entity.js';
 
 // Resultado de un concepto en un recorrido: C (cumple) / NC (no cumple).
 @Entity({ name: 'gemba_walk_results' })

@@ -1,10 +1,13 @@
-import { Provider, Type } from '@nestjs/common';
+import { type Provider, type Type } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import type { ObjectLiteral } from 'typeorm';
 
-import { RequestContextService } from '@shared/services/request-context.service';
-import { createRepositoryMock, RepositoryMock } from './repository.mock';
+import { RequestContextService } from '../../src/shared/services/request-context.service.js';
+import {
+  createRepositoryMock,
+  type RepositoryMock,
+} from './repository.mock.js';
 
 /**
  * Proveedor simulado de una clase: cada método del prototipo es un jest.fn().

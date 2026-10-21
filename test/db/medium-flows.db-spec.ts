@@ -1,16 +1,16 @@
-import { Ics } from 'ics/entities/ics.entity';
-import { EmergencyTeam } from 'emergency-teams/entities/emergency-team.entity';
+import { Ics } from '../../src/ics/entities/ics.entity.js';
+import { EmergencyTeam } from '../../src/emergency-teams/entities/emergency-team.entity.js';
 import { Logger } from '@nestjs/common';
-import { ExtinguisherInspection } from 'extinguisher-inspections/entities/extinguisher-inspection.entity';
-import { ExtinguisherInspectionEvaluation } from 'extinguisher-inspections/entities/extinguisher-inspection-evaluation.entity';
-import { User } from 'users/entities/user.entity';
-import { JwtService } from 'auth/jwt.service';
+import { ExtinguisherInspection } from '../../src/extinguisher-inspections/entities/extinguisher-inspection.entity.js';
+import { ExtinguisherInspectionEvaluation } from '../../src/extinguisher-inspections/entities/extinguisher-inspection-evaluation.entity.js';
+import { User } from '../../src/users/entities/user.entity.js';
+import { JwtService } from '../../src/auth/jwt.service.js';
 import request from 'supertest';
 import { mkdirSync, writeFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
-import { createE2eApp, E2eApp } from './e2e-app';
-import { saveEvidence } from './fixtures';
+import { createE2eApp, type E2eApp } from './e2e-app.js';
+import { saveEvidence } from './fixtures.js';
 
 describe('Regresión de flujos de prioridad media', () => {
   let e2e: E2eApp;

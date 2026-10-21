@@ -1,4 +1,8 @@
-import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  type OnApplicationBootstrap,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
 import { ILike, Repository } from 'typeorm';
@@ -9,14 +13,14 @@ import {
   STATUS_CLOSE,
   STATUS_IN_PROGRESS,
   STATUS_OPEN,
-} from '@shared/constants';
-import { MainType } from 'main-types/entities/main-type.entity';
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
-import { Processes } from 'processes/entities/processes.entity';
-import { SecondaryType } from 'secondary-types/entities/secondary-type.entity';
-import { User } from 'users/entities/user.entity';
-import { Zone } from 'zones/entities/zone.entity';
-import { Evidence } from './entities/evidence.entity';
+} from '../shared/constants/index.js';
+import { MainType } from '../main-types/entities/main-type.entity.js';
+import { ManufacturingPlant } from '../manufacturing-plants/entities/manufacturing-plant.entity.js';
+import { Processes } from '../processes/entities/processes.entity.js';
+import { SecondaryType } from '../secondary-types/entities/secondary-type.entity.js';
+import { User } from '../users/entities/user.entity.js';
+import { Zone } from '../zones/entities/zone.entity.js';
+import { Evidence } from './entities/evidence.entity.js';
 import { join } from 'path';
 
 type RawRow = {

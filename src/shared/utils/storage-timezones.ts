@@ -1,4 +1,4 @@
-import { parseWallClock, wallClockToInstant } from './timezone';
+import { parseWallClock, wallClockToInstant } from './timezone.js';
 
 /*
  * Resolución genérica de "en qué zona quedó guardada" una columna

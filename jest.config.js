@@ -1,16 +1,17 @@
 // Configuración de Jest para los tests unitarios (src/**/*.spec.ts).
 // Los e2e usan test/jest-e2e.json.
-const { readdirSync, readFileSync, statSync } = require('fs');
-const { join, relative, sep } = require('path');
+import { readdirSync, readFileSync, statSync } from 'fs';
+import { join, relative, sep } from 'path';
 
-const SRC = join(__dirname, 'src');
+const SRC = join(import.meta.dirname, 'src');
 
 // Las claves de coverageThreshold se resuelven como rutas absolutas.
 const inSrc = (path) => join(SRC, path);
 
 /**
  * Transformación con SWC: mucho más rápida que ts-jest, pero NO revisa tipos.
- * Los tipos de los tests se revisan con `pnpm typecheck`.
+ * Los tipos de los tests se revisan con `pnpm typecheck`. La app es ESM, pero
+ * los tests se transpilan a CommonJS para conservar jest.mock y require.
  */
 const swcTransform = [
   '@swc/jest',
@@ -143,7 +144,7 @@ const critical = Object.fromEntries(
   ]),
 );
 
-module.exports = {
+export default {
   moduleFileExtensions: ['js', 'json', 'ts'],
   rootDir: 'src',
   testRegex: '.*\\.spec\\.ts$',
@@ -153,12 +154,8 @@ module.exports = {
   // en Windows. --runInBand sigue disponible para depurar.
   maxWorkers: 2,
   workerIdleMemoryLimit: '256MB',
-  modulePaths: ['<rootDir>'],
-  moduleNameMapper: {
-    '^@config$': '<rootDir>/config',
-    '^@shared/(.*)$': '<rootDir>/shared/$1',
-    '^@test/(.*)$': '<rootDir>/../test/$1',
-  },
+  // Los imports relativos llevan la extensión .js del código compilado.
+  moduleNameMapper: { '^(\\.{1,2}/.*)\\.js$': '$1' },
   coverageDirectory: '../coverage',
   coverageReporters: ['text-summary', 'lcov', 'json-summary'],
   collectCoverageFrom: [

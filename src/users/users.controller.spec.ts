@@ -3,9 +3,9 @@ import {
   createHttpTestApp,
   describeCrudContract,
   mockProvider,
-} from '@test/utils';
-import { UsersController } from './users.controller';
-import { UsersService } from './users.service';
+} from '../../test/utils/index.js';
+import { UsersController } from './users.controller.js';
+import { UsersService } from './users.service.js';
 
 const valid = {
   name: 'Ana',

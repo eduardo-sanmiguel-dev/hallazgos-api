@@ -1,8 +1,8 @@
-import { Injectable, NestMiddleware } from '@nestjs/common';
+import { Injectable, type NestMiddleware } from '@nestjs/common';
 
 import type { Request, Response, NextFunction } from 'express';
 
-import { RequestContextService } from '../services/request-context.service';
+import { RequestContextService } from '../services/request-context.service.js';
 
 // Abre el contexto de la petición; debe ir antes que los demás middlewares.
 @Injectable()

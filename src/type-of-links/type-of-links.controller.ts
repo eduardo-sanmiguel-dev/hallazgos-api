@@ -1,5 +1,5 @@
 import { UseGuards } from '@nestjs/common';
-import { AdminGuard } from '@shared/guards/admin.guard';
+import { AdminGuard } from '../shared/guards/admin.guard.js';
 import {
   Controller,
   Get,
@@ -10,8 +10,8 @@ import {
   Delete,
 } from '@nestjs/common';
 
-import { CreateTypeOfLinkDto, UpdateTypeOfLinkDto } from './dto';
-import { TypeOfLinksService } from './type-of-links.service';
+import { CreateTypeOfLinkDto, UpdateTypeOfLinkDto } from './dto/index.js';
+import { TypeOfLinksService } from './type-of-links.service.js';
 
 @Controller('type-of-links')
 export class TypeOfLinksController {

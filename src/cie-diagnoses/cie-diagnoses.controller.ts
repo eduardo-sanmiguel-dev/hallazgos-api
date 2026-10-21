@@ -1,5 +1,5 @@
 import { UseGuards } from '@nestjs/common';
-import { AdminGuard } from '@shared/guards/admin.guard';
+import { AdminGuard } from '../shared/guards/admin.guard.js';
 import {
   Controller,
   Get,
@@ -9,9 +9,9 @@ import {
   Param,
   Delete,
 } from '@nestjs/common';
-import { CieDiagnosesService } from './cie-diagnoses.service';
+import { CieDiagnosesService } from './cie-diagnoses.service.js';
 
-import { CreateCieDiagnosisDto, UpdateCieDiagnosisDto } from './dto';
+import { CreateCieDiagnosisDto, UpdateCieDiagnosisDto } from './dto/index.js';
 
 @Controller('cie-diagnoses')
 export class CieDiagnosesController {

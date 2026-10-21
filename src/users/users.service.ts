@@ -4,9 +4,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { RequestContextService } from 'shared/services/request-context.service';
+import { RequestContextService } from '../shared/services/request-context.service.js';
 
-import { FindOptionsWhere, ILike, In, Not, Repository } from 'typeorm';
+import { type FindOptionsWhere, ILike, In, Not, Repository } from 'typeorm';
 import * as argon2 from 'argon2';
 
 import {
@@ -14,13 +14,13 @@ import {
   QueryUserDto,
   UpdateUserDto,
   USER_ORDER_BY_PATTERN,
-} from './dto';
-import { User } from './entities/user.entity';
-import { ROLE_SUPERVISOR } from '@shared/constants';
-import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
-import { ZonesService } from 'zones/zones.service';
-import { ProcessesService } from 'processes/processes.service';
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
+} from './dto/index.js';
+import { User } from './entities/user.entity.js';
+import { ROLE_SUPERVISOR } from '../shared/constants/index.js';
+import { ManufacturingPlantsService } from '../manufacturing-plants/manufacturing-plants.service.js';
+import { ZonesService } from '../zones/zones.service.js';
+import { ProcessesService } from '../processes/processes.service.js';
+import { ManufacturingPlant } from '../manufacturing-plants/entities/manufacturing-plant.entity.js';
 
 @Injectable()
 export class UsersService {

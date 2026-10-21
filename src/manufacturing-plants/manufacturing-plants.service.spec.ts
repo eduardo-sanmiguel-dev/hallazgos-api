@@ -4,10 +4,10 @@ import { FindOperator } from 'typeorm';
 import {
   buildManufacturingPlant,
   createServiceTestingModule,
-  RepositoryMock,
-} from '@test/utils';
-import { ManufacturingPlant } from './entities/manufacturing-plant.entity';
-import { ManufacturingPlantsService } from './manufacturing-plants.service';
+  type RepositoryMock,
+} from '../../test/utils/index.js';
+import { ManufacturingPlant } from './entities/manufacturing-plant.entity.js';
+import { ManufacturingPlantsService } from './manufacturing-plants.service.js';
 
 describe('ManufacturingPlantsService.findIdsByNamesOrFail', () => {
   let service: ManufacturingPlantsService;

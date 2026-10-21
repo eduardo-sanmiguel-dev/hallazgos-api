@@ -1,6 +1,13 @@
-import { createServiceTestingModule, RepositoryMock } from '@test/utils';
-import { AreaOfBehavior, RulesOfLife, StandardOfBehavior } from './entities';
-import { RulesOfLifeService } from './rules-of-life.service';
+import {
+  createServiceTestingModule,
+  type RepositoryMock,
+} from '../../test/utils/index.js';
+import {
+  AreaOfBehavior,
+  RulesOfLife,
+  StandardOfBehavior,
+} from './entities/index.js';
+import { RulesOfLifeService } from './rules-of-life.service.js';
 
 describe('RulesOfLifeService.seed', () => {
   let service: RulesOfLifeService;

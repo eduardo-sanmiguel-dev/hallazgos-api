@@ -1,9 +1,9 @@
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 
-import { CreateUserDto } from './create-user.dto';
-import { QueryUserDto, USER_SORTABLE_COLUMNS } from './query-user.dto';
-import { UpdateUserDto } from './update-user.dto';
+import { CreateUserDto } from './create-user.dto.js';
+import { QueryUserDto, USER_SORTABLE_COLUMNS } from './query-user.dto.js';
+import { UpdateUserDto } from './update-user.dto.js';
 
 /** Propiedades con error, validando como lo hace el ValidationPipe global. */
 const invalidFields = async <T extends object>(

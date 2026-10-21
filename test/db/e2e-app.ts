@@ -3,18 +3,18 @@
  * main.ts: prefijo /api/v1, cookies, ValidationPipe y filtro de errores de BD.
  * Lo único simulado es el envío de correos.
  */
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { type INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import cookieParser = require('cookie-parser');
+import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 
-import { registerEvidenceImageAccess } from '../../src/evidences/evidence-image-access.middleware';
-import { AppModule } from '../../src/app.module';
-import { MailService } from '../../src/mail/mail.service';
-import { QueryFailedExceptionFilter } from '../../src/shared/filters/query-failed-exception.filter';
-import { seedBaseData, TEST_PASSWORD } from './fixtures';
-import { recreateTestSchema } from './test-database';
+import { registerEvidenceImageAccess } from '../../src/evidences/evidence-image-access.middleware.js';
+import { AppModule } from '../../src/app.module.js';
+import { MailService } from '../../src/mail/mail.service.js';
+import { QueryFailedExceptionFilter } from '../../src/shared/filters/query-failed-exception.filter.js';
+import { seedBaseData, TEST_PASSWORD } from './fixtures.js';
+import { recreateTestSchema } from './test-database.js';
 
 export const API = '/api/v1';
 export const APP_KEY = () => process.env.APP_KEY as string;

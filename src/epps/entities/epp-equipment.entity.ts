@@ -5,12 +5,12 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
-  Relation,
+  type Relation,
   Index,
 } from 'typeorm';
 
-import { Equipment } from 'equipments/entities';
-import { Epp } from './epp.entity';
+import { Equipment } from '../../equipments/entities/index.js';
+import { Epp } from './epp.entity.js';
 
 @Entity()
 export class EppEquipment {

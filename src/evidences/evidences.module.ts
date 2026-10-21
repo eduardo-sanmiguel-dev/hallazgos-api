@@ -1,24 +1,24 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { EvidencesService } from './evidences.service';
-import { EvidencesController } from './evidences.controller';
-import { Evidence } from './entities/evidence.entity';
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
-import { MainType } from 'main-types/entities/main-type.entity';
-import { SecondaryType } from 'secondary-types/entities/secondary-type.entity';
-import { Zone } from 'zones/entities/zone.entity';
-import { Area } from 'areas/entities/area.entity';
-import { Processes } from 'processes/entities/processes.entity';
-import { User } from 'users/entities/user.entity';
-import { ManufacturingPlantsModule } from 'manufacturing-plants/manufacturing-plants.module';
-import { MainTypesModule } from 'main-types/main-types.module';
-import { SecondaryTypesModule } from 'secondary-types/secondary-types.module';
-import { ZonesModule } from 'zones/zones.module';
-import { UsersModule } from 'users/users.module';
-import { Comment } from './entities/comments.entity';
-import { EvidencesResolver } from './evidences.resolver';
-import { ProcessesModule } from 'processes/processes.module';
+import { EvidencesService } from './evidences.service.js';
+import { EvidencesController } from './evidences.controller.js';
+import { Evidence } from './entities/evidence.entity.js';
+import { ManufacturingPlant } from '../manufacturing-plants/entities/manufacturing-plant.entity.js';
+import { MainType } from '../main-types/entities/main-type.entity.js';
+import { SecondaryType } from '../secondary-types/entities/secondary-type.entity.js';
+import { Zone } from '../zones/entities/zone.entity.js';
+import { Area } from '../areas/entities/area.entity.js';
+import { Processes } from '../processes/entities/processes.entity.js';
+import { User } from '../users/entities/user.entity.js';
+import { ManufacturingPlantsModule } from '../manufacturing-plants/manufacturing-plants.module.js';
+import { MainTypesModule } from '../main-types/main-types.module.js';
+import { SecondaryTypesModule } from '../secondary-types/secondary-types.module.js';
+import { ZonesModule } from '../zones/zones.module.js';
+import { UsersModule } from '../users/users.module.js';
+import { Comment } from './entities/comments.entity.js';
+import { EvidencesResolver } from './evidences.resolver.js';
+import { ProcessesModule } from '../processes/processes.module.js';
 
 @Module({
   imports: [

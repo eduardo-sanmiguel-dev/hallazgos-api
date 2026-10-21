@@ -8,21 +8,24 @@ import * as argon2 from 'argon2';
 import { plainToInstance } from 'class-transformer';
 import { FindOperator } from 'typeorm';
 
-import { ROLE_ADMINISTRADOR, ROLE_SUPERVISOR } from '@shared/constants';
+import {
+  ROLE_ADMINISTRADOR,
+  ROLE_SUPERVISOR,
+} from '../shared/constants/index.js';
 import {
   buildManufacturingPlant,
   buildUser,
   createServiceTestingModule,
   mockProvider,
-  RepositoryMock,
+  type RepositoryMock,
   runAsUser,
-} from '@test/utils';
-import { ManufacturingPlantsService } from 'manufacturing-plants/manufacturing-plants.service';
-import { ProcessesService } from 'processes/processes.service';
-import { ZonesService } from 'zones/zones.service';
-import { User } from './entities/user.entity';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { UsersService } from './users.service';
+} from '../../test/utils/index.js';
+import { ManufacturingPlantsService } from '../manufacturing-plants/manufacturing-plants.service.js';
+import { ProcessesService } from '../processes/processes.service.js';
+import { ZonesService } from '../zones/zones.service.js';
+import { User } from './entities/user.entity.js';
+import { UpdateUserDto } from './dto/update-user.dto.js';
+import { UsersService } from './users.service.js';
 
 // Cuentas de prueba del equipo que no deben aparecer en los listados.
 const TEST_ACCOUNTS = [

@@ -5,11 +5,11 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
-  Relation,
+  type Relation,
   Index,
 } from 'typeorm';
 
-import { Equipment } from './equipment.entity';
+import { Equipment } from './equipment.entity.js';
 
 @Entity()
 export class EquipmentCostHistory {

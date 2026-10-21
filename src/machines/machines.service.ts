@@ -1,10 +1,10 @@
 import { InjectRepository } from '@nestjs/typeorm';
 import { Injectable } from '@nestjs/common';
 
-import { FindOptionsWhere, Repository } from 'typeorm';
+import { type FindOptionsWhere, Repository } from 'typeorm';
 
-import { CreateMachineDto, FiltersMachineDto, UpdateMachineDto } from './dto';
-import { Machine } from './entities/machine.entity';
+import { CreateMachineDto, FiltersMachineDto, UpdateMachineDto } from './dto/index.js';
+import { Machine } from './entities/machine.entity.js';
 
 @Injectable()
 export class MachinesService {

@@ -1,5 +1,5 @@
 import { UseGuards } from '@nestjs/common';
-import { AdminGuard } from '@shared/guards/admin.guard';
+import { AdminGuard } from '../shared/guards/admin.guard.js';
 import {
   Controller,
   Get,
@@ -10,8 +10,8 @@ import {
   Delete,
 } from '@nestjs/common';
 
-import { CreateBodyPartDto, UpdateBodyPartDto } from './dto';
-import { BodyPartsService } from './body-parts.service';
+import { CreateBodyPartDto, UpdateBodyPartDto } from './dto/index.js';
+import { BodyPartsService } from './body-parts.service.js';
 
 @Controller('body-parts')
 export class BodyPartsController {

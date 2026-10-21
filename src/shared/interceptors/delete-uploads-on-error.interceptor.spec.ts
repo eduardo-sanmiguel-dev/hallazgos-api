@@ -2,9 +2,9 @@ import {
   BadRequestException,
   ConflictException,
   Controller,
-  ExecutionContext,
+  type ExecutionContext,
   ForbiddenException,
-  INestApplication,
+  type INestApplication,
   Logger,
   NotFoundException,
   Param,
@@ -29,7 +29,7 @@ import request from 'supertest';
 import {
   DeleteUploadsOnErrorInterceptor,
   uploadedFiles,
-} from './delete-uploads-on-error.interceptor';
+} from './delete-uploads-on-error.interceptor.js';
 
 // unlink real por omisión; cada prueba puede hacerlo fallar.
 jest.mock('fs/promises', () => {

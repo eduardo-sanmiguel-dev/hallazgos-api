@@ -1,16 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { RequestContextService } from 'shared/services/request-context.service';
+import { RequestContextService } from '../shared/services/request-context.service.js';
 
 import { Brackets, Repository, In } from 'typeorm';
 
-import { EmergencyTeam } from './entities/emergency-team.entity';
-import { User } from 'users/entities/user.entity';
+import { EmergencyTeam } from './entities/emergency-team.entity.js';
+import { User } from '../users/entities/user.entity.js';
 import {
   CreateEmergencyTeamDto,
   QueryEmergencyTeamDto,
   UpdateEmergencyTeamDto,
-} from './dto';
+} from './dto/index.js';
 
 @Injectable()
 export class EmergencyTeamsService {

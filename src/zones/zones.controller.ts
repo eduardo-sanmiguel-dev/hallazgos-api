@@ -1,5 +1,5 @@
 import { UseGuards } from '@nestjs/common';
-import { AdminGuard } from '@shared/guards/admin.guard';
+import { AdminGuard } from '../shared/guards/admin.guard.js';
 import {
   Controller,
   Get,
@@ -11,8 +11,8 @@ import {
   Query,
 } from '@nestjs/common';
 
-import { ZonesService } from './zones.service';
-import { CreateZoneDto, QueryZoneDto, UpdateZoneDto } from './dto';
+import { ZonesService } from './zones.service.js';
+import { CreateZoneDto, QueryZoneDto, UpdateZoneDto } from './dto/index.js';
 
 @Controller('zones')
 export class ZonesController {

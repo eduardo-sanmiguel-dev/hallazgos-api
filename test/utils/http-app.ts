@@ -1,16 +1,16 @@
 import {
-  INestApplication,
-  Provider,
-  Type,
+  type INestApplication,
+  type Provider,
+  type Type,
   ValidationPipe,
 } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { NextFunction, Request, Response } from 'express';
 import request, { Test as SupertestTest } from 'supertest';
 
-import { QueryFailedExceptionFilter } from '@shared/filters/query-failed-exception.filter';
-import { RequestContextService } from '@shared/services/request-context.service';
-import { User } from 'users/entities/user.entity';
+import { QueryFailedExceptionFilter } from '../../src/shared/filters/query-failed-exception.filter.js';
+import { RequestContextService } from '../../src/shared/services/request-context.service.js';
+import { User } from '../../src/users/entities/user.entity.js';
 
 interface HttpTestAppOptions {
   controllers: Type<unknown>[];

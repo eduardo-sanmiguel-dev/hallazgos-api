@@ -5,8 +5,8 @@ import { join } from 'path';
 import {
   EvidenceImageAccessMiddleware,
   registerEvidenceImageAccess,
-} from './evidence-image-access.middleware';
-import { Evidence } from './entities/evidence.entity';
+} from './evidence-image-access.middleware.js';
+import { Evidence } from './entities/evidence.entity.js';
 describe('EvidenceImageAccessMiddleware', () => {
   let middleware: EvidenceImageAccessMiddleware;
   let temp: string;

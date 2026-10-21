@@ -8,7 +8,7 @@ import {
   Matches,
 } from 'class-validator';
 
-import { ISO_WITH_OFFSET } from 'gemba-walk-calendar/dto/iso-with-offset';
+import { ISO_WITH_OFFSET } from '../../gemba-walk-calendar/dto/iso-with-offset.js';
 
 export class QueryGembaWalkDto {
   @IsOptional()

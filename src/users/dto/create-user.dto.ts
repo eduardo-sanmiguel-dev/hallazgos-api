@@ -1,4 +1,4 @@
-import { parseStringArrayQueryByKey } from '@shared/utils';
+import { parseStringArrayQueryByKey } from '../../shared/utils/index.js';
 import { Transform } from 'class-transformer';
 import {
   ArrayMinSize,

@@ -3,9 +3,9 @@ import {
   createHttpTestApp,
   describeCrudContract,
   mockProvider,
-} from '@test/utils';
-import { GembaWalkCalendarController } from './gemba-walk-calendar.controller';
-import { GembaWalkCalendarService } from './gemba-walk-calendar.service';
+} from '../../test/utils/index.js';
+import { GembaWalkCalendarController } from './gemba-walk-calendar.controller.js';
+import { GembaWalkCalendarService } from './gemba-walk-calendar.service.js';
 
 describeCrudContract({
   user: buildAdmin(),

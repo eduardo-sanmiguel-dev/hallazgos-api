@@ -1,6 +1,6 @@
 import { IsIn, IsOptional, IsPositive, IsString, IsInt } from 'class-validator';
 
-import { GEMBA_WALK_EVALUATION_CATEGORIES } from '../gemba-walk-evaluation-categories';
+import { GEMBA_WALK_EVALUATION_CATEGORIES } from '../gemba-walk-evaluation-categories.js';
 
 export class QueryGembaWalkEvaluationDto {
   @IsOptional()

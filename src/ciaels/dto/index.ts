@@ -1,3 +1,3 @@
-export * from './create-ciael.dto';
-export * from './update-ciael.dto';
-export * from './filters-ciael.dto';
+export * from './create-ciael.dto.js';
+export * from './update-ciael.dto.js';
+export * from './filters-ciael.dto.js';

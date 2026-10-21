@@ -1,11 +1,11 @@
 import { DataSource } from 'typeorm';
 
-import { seedBaseData } from './fixtures';
+import { seedBaseData } from './fixtures.js';
 import {
   createTestDataSource,
   recreateTestSchema,
   TEST_DB_NAME,
-} from './test-database';
+} from './test-database.js';
 
 describe('Base de pruebas', () => {
   let dataSource: DataSource;

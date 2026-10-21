@@ -4,12 +4,12 @@ import { FindOperator, In } from 'typeorm';
 import {
   buildUser,
   createServiceTestingModule,
-  RepositoryMock,
+  type RepositoryMock,
   runAsUser,
-} from '@test/utils';
-import { GembaWalkZone } from 'gemba-walk-zones/entities/gemba-walk-zone.entity';
-import { GembaWalkCalendar } from './entities/gemba-walk-calendar.entity';
-import { GembaWalkCalendarService } from './gemba-walk-calendar.service';
+} from '../../test/utils/index.js';
+import { GembaWalkZone } from '../gemba-walk-zones/entities/gemba-walk-zone.entity.js';
+import { GembaWalkCalendar } from './entities/gemba-walk-calendar.entity.js';
+import { GembaWalkCalendarService } from './gemba-walk-calendar.service.js';
 
 const NOW = new Date('2026-10-20T16:00:00Z');
 const HOUR = 60 * 60 * 1000;

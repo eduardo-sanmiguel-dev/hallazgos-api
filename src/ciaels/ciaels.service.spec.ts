@@ -1,34 +1,34 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { FindOperator, ObjectLiteral } from 'typeorm';
+import { FindOperator, type ObjectLiteral } from 'typeorm';
 
 import {
   buildUser,
   createServiceTestingModule,
-  RepositoryMock,
+  type RepositoryMock,
   runAsUser,
-} from '@test/utils';
-import { AccidentPosition } from 'accident-positions/entities/accident-position.entity';
-import { Area } from 'areas/entities/area.entity';
-import { AssociatedTask } from 'associated-tasks/entities/associated-task.entity';
-import { AtAgent } from 'at-agents/entities/at-agent.entity';
-import { AtMechanism } from 'at-mechanisms/entities/at-mechanism.entity';
-import { BodyPart } from 'body-parts/entities/body-part.entity';
-import { CieDiagnosis } from 'cie-diagnoses/entities/cie-diagnosis.entity';
-import { Country } from 'countries/entities/country.entity';
-import { Employee, EmployeeArea } from 'employees/entities';
-import { Genre } from 'genres/entities/genre.entity';
-import { Machine } from 'machines/entities/machine.entity';
-import { ManufacturingPlant } from 'manufacturing-plants/entities/manufacturing-plant.entity';
-import { NatureOfEvent } from 'nature-of-events/entities/nature-of-event.entity';
-import { RiskFactor } from 'risk-factors/entities/risk-factor.entity';
-import { TypeOfInjury } from 'type-of-injuries/entities/type-of-injury.entity';
-import { TypeOfLink } from 'type-of-links/entities/type-of-link.entity';
-import { TypesOfEvent } from 'types-of-events/entities/types-of-event.entity';
-import { User } from 'users/entities/user.entity';
-import { WorkingDay } from 'working-days/entities/working-day.entity';
-import { Zone } from 'zones/entities/zone.entity';
-import { Ciael } from './entities/ciael.entity';
-import { CiaelsService } from './ciaels.service';
+} from '../../test/utils/index.js';
+import { AccidentPosition } from '../accident-positions/entities/accident-position.entity.js';
+import { Area } from '../areas/entities/area.entity.js';
+import { AssociatedTask } from '../associated-tasks/entities/associated-task.entity.js';
+import { AtAgent } from '../at-agents/entities/at-agent.entity.js';
+import { AtMechanism } from '../at-mechanisms/entities/at-mechanism.entity.js';
+import { BodyPart } from '../body-parts/entities/body-part.entity.js';
+import { CieDiagnosis } from '../cie-diagnoses/entities/cie-diagnosis.entity.js';
+import { Country } from '../countries/entities/country.entity.js';
+import { Employee, EmployeeArea } from '../employees/entities/index.js';
+import { Genre } from '../genres/entities/genre.entity.js';
+import { Machine } from '../machines/entities/machine.entity.js';
+import { ManufacturingPlant } from '../manufacturing-plants/entities/manufacturing-plant.entity.js';
+import { NatureOfEvent } from '../nature-of-events/entities/nature-of-event.entity.js';
+import { RiskFactor } from '../risk-factors/entities/risk-factor.entity.js';
+import { TypeOfInjury } from '../type-of-injuries/entities/type-of-injury.entity.js';
+import { TypeOfLink } from '../type-of-links/entities/type-of-link.entity.js';
+import { TypesOfEvent } from '../types-of-events/entities/types-of-event.entity.js';
+import { User } from '../users/entities/user.entity.js';
+import { WorkingDay } from '../working-days/entities/working-day.entity.js';
+import { Zone } from '../zones/entities/zone.entity.js';
+import { Ciael } from './entities/ciael.entity.js';
+import { CiaelsService } from './ciaels.service.js';
 
 /** Catálogos que create valida (todos deben existir y estar activos). */
 const CATALOGS = {

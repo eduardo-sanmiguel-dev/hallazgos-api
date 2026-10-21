@@ -10,23 +10,23 @@ import {
   ManyToOne,
   ManyToMany,
   JoinTable,
-  Relation,
+  type Relation,
 } from 'typeorm';
 
-import { ExtinguisherInspection } from 'extinguisher-inspections/entities/extinguisher-inspection.entity';
-import { AccidentPosition } from 'accident-positions/entities/accident-position.entity';
-import { AssociatedTask } from 'associated-tasks/entities/associated-task.entity';
-import { EmergencyTeam } from 'emergency-teams/entities/emergency-team.entity';
-import { Processes } from 'processes/entities/processes.entity';
-import { Evidence } from 'evidences/entities/evidence.entity';
-import { Country } from 'countries/entities/country.entity';
-import { Machine } from 'machines/entities/machine.entity';
-import { Ciael } from 'ciaels/entities/ciael.entity';
-import { Zone } from 'zones/entities/zone.entity';
-import { Area } from 'areas/entities/area.entity';
-import { Equipment } from 'equipments/entities';
-import { Employee } from 'employees/entities';
-import { Ics } from 'ics/entities/ics.entity';
+import { ExtinguisherInspection } from '../../extinguisher-inspections/entities/extinguisher-inspection.entity.js';
+import { AccidentPosition } from '../../accident-positions/entities/accident-position.entity.js';
+import { AssociatedTask } from '../../associated-tasks/entities/associated-task.entity.js';
+import { EmergencyTeam } from '../../emergency-teams/entities/emergency-team.entity.js';
+import { Processes } from '../../processes/entities/processes.entity.js';
+import { Evidence } from '../../evidences/entities/evidence.entity.js';
+import { Country } from '../../countries/entities/country.entity.js';
+import { Machine } from '../../machines/entities/machine.entity.js';
+import { Ciael } from '../../ciaels/entities/ciael.entity.js';
+import { Zone } from '../../zones/entities/zone.entity.js';
+import { Area } from '../../areas/entities/area.entity.js';
+import { Equipment } from '../../equipments/entities/index.js';
+import { Employee } from '../../employees/entities/index.js';
+import { Ics } from '../../ics/entities/ics.entity.js';
 @Entity()
 @ObjectType()
 export class ManufacturingPlant {

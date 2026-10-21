@@ -3,8 +3,8 @@ import { Injectable } from '@nestjs/common';
 
 import { Repository } from 'typeorm';
 
-import { CreateGenreDto, UpdateGenreDto } from './dto';
-import { Genre } from './entities/genre.entity';
+import { CreateGenreDto, UpdateGenreDto } from './dto/index.js';
+import { Genre } from './entities/genre.entity.js';
 
 @Injectable()
 export class GenresService {

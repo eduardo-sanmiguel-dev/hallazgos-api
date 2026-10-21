@@ -3,8 +3,8 @@ import { Injectable } from '@nestjs/common';
 
 import { Repository } from 'typeorm';
 
-import { CreateCieDiagnosisDto, UpdateCieDiagnosisDto } from './dto';
-import { CieDiagnosis } from './entities/cie-diagnosis.entity';
+import { CreateCieDiagnosisDto, UpdateCieDiagnosisDto } from './dto/index.js';
+import { CieDiagnosis } from './entities/cie-diagnosis.entity.js';
 
 @Injectable()
 export class CieDiagnosesService {

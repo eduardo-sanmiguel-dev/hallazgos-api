@@ -1,15 +1,15 @@
-import { registerEvidenceImageAccess } from './evidences/evidence-image-access.middleware';
+import { registerEvidenceImageAccess } from './evidences/evidence-image-access.middleware.js';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 
-import cookieParser = require('cookie-parser');
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 
 //import { ClusterService } from 'cluster.service';
-import { AppModule } from './app.module';
-import { QueryFailedExceptionFilter } from './shared/filters/query-failed-exception.filter';
+import { AppModule } from './app.module.js';
+import { QueryFailedExceptionFilter } from './shared/filters/query-failed-exception.filter.js';
 //import { ENV_DEVELOPMENT } from '@shared/constants';
 
 async function bootstrap() {

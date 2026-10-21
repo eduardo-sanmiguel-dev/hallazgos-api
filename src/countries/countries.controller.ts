@@ -1,5 +1,5 @@
 import { UseGuards } from '@nestjs/common';
-import { AdminGuard } from '@shared/guards/admin.guard';
+import { AdminGuard } from '../shared/guards/admin.guard.js';
 import {
   Controller,
   Get,
@@ -10,8 +10,8 @@ import {
   Delete,
 } from '@nestjs/common';
 
-import { CreateCountryDto, UpdateCountryDto } from './dto';
-import { CountriesService } from './countries.service';
+import { CreateCountryDto, UpdateCountryDto } from './dto/index.js';
+import { CountriesService } from './countries.service.js';
 
 @Controller('countries')
 export class CountriesController {
