@@ -48,3 +48,6 @@ lerna-debug.log*
 # temporal por descarga). Contienen datos personales y firmas.
 src/files/archivo_actualizado*.xlsx
 src/files/*temp-image.png
+
+# Salida aislada del compilador de desarrollo
+/.dist-dev

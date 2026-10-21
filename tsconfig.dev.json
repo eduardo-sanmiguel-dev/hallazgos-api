@@ -1,0 +1,30 @@
+{
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./.dist-dev",
+    "declaration": false,
+    "incremental": true,
+    "tsBuildInfoFile": "./.dist-dev/.tsbuildinfo"
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    ".dist-dev",
+    "coverage",
+    "test",
+    "**/*.spec.ts"
+  ],
+  "watchOptions": {
+    "excludeDirectories": [
+      "**/node_modules",
+      "dist",
+      ".dist-dev",
+      "coverage",
+      "public",
+      "src/files"
+    ],
+    "excludeFiles": ["src/schema.gql", "**/*.spec.ts"]
+  }
+}
