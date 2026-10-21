@@ -2,7 +2,7 @@ import { Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import * as argon2 from 'argon2';
-import { parse } from 'cookie';
+import { parseCookie } from 'cookie';
 import * as jwt from 'jsonwebtoken';
 
 import { ENV_DEVELOPMENT, ENV_PRODUCTION } from '@shared/constants';
@@ -87,7 +87,7 @@ describe('AuthService', () => {
       ...overrides,
     });
 
-  const tokenFromCookie = (cookie: string) => parse(cookie).token;
+  const tokenFromCookie = (cookie: string) => parseCookie(cookie).token;
   const currentHashOf = (id: number) => table.find((u) => u.id === id).password;
 
   beforeAll(async () => {
@@ -125,6 +125,10 @@ describe('AuthService', () => {
       expect(cookie).toContain('SameSite=None');
       expect(cookie).toContain('Domain=comportarte.com');
       expect(cookie).toContain('Path=/');
+      // Texto exacto (atributos y orden): el front depende de esta cookie.
+      expect(cookie.replace(/^token=[^;]+/, 'token=<jwt>')).toBe(
+        'token=<jwt>; Max-Age=2592000; Domain=comportarte.com; Path=/; HttpOnly; Secure; SameSite=None',
+      );
     });
 
     it('en desarrollo la cookie no es segura y es de localhost', async () => {
@@ -136,6 +140,9 @@ describe('AuthService', () => {
       expect(cookie).not.toContain('Secure');
       expect(cookie).toContain('SameSite=Lax');
       expect(cookie).toContain('Domain=localhost');
+      expect(cookie.replace(/^token=[^;]+/, 'token=<jwt>')).toBe(
+        'token=<jwt>; Max-Age=2592000; Domain=localhost; Path=/; HttpOnly; SameSite=Lax',
+      );
     });
 
     it('responde el mismo 401 si el correo no existe que si la contraseña es incorrecta', async () => {
@@ -312,6 +319,9 @@ describe('AuthService', () => {
       expect(cookie).toContain('Max-Age=0');
       expect(cookie).toContain('Domain=comportarte.com');
       expect(cookie).toContain('HttpOnly');
+      expect(cookie).toBe(
+        'token=; Max-Age=0; Domain=comportarte.com; Path=/; HttpOnly; Secure; SameSite=None',
+      );
     });
   });
 

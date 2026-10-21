@@ -67,8 +67,6 @@ import { GembaWalksModule } from './gemba-walks/gemba-walks.module';
 import { HealthModule } from './health/health.module';
 import { EvidenceImageAccessMiddleware } from './evidences/evidence-image-access.middleware';
 
-import { ObserveIntegrationModule } from 'observe.module';
-
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -189,7 +187,6 @@ import { ObserveIntegrationModule } from 'observe.module';
     GembaWalksModule,
     HealthModule,
     RequestContextModule,
-    ObserveIntegrationModule,
   ],
   controllers: [],
   providers: [

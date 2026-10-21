@@ -165,6 +165,9 @@ describe('CiaelsController (HTTP)', () => {
         .parse(binaryParser)
         .expect(200);
 
+      expect(res.headers['content-disposition']).toBe(
+        'attachment; filename="archivo_actualizado_ciael.xlsx"',
+      );
       const sheet = (await XlsxPopulate.fromDataAsync(res.body)).sheet(
         'Registro',
       );

@@ -34,7 +34,6 @@
   "moduleNameMapper": {
     "^@config$": "<rootDir>/src/config",
     "^@shared/(.*)$": "<rootDir>/src/shared/$1",
-    "^@test/(.*)$": "<rootDir>/test/$1",
-    "^@nestjs/observe$": "<rootDir>/test/db/stubs/nestjs-observe.ts"
+    "^@test/(.*)$": "<rootDir>/test/$1"
   }
 }
