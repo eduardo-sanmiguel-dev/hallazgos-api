@@ -1,5 +1,5 @@
 import { registerEvidenceImageAccess } from './evidences/evidence-image-access.middleware.js';
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { ConsoleLogger, Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -10,13 +10,28 @@ import helmet from 'helmet';
 //import { ClusterService } from 'cluster.service';
 import { AppModule } from './app.module.js';
 import { QueryFailedExceptionFilter } from './shared/filters/query-failed-exception.filter.js';
+import { httpAccessLog } from './shared/middlewares/http-access-log.middleware.js';
+import {
+  createOpenObserveLogger,
+  type ObserveConfig,
+} from './shared/services/openobserve-logger.js';
 //import { ENV_DEVELOPMENT } from '@shared/constants';
 
 async function bootstrap() {
   const logger = new Logger('APP-SERVICE');
 
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // Los logs del arranque se guardan hasta elegir el logger definitivo.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bufferLogs: true,
+  });
   const configService = app.get(ConfigService);
+
+  // En producción los logs también van a OpenObserve; si no, consola normal.
+  const observeLogger = createOpenObserveLogger({
+    environment: configService.get<string>('environment'),
+    ...configService.get<ObserveConfig>('observe'),
+  });
+  app.useLogger(observeLogger ?? new ConsoleLogger());
 
   // En producción nginx (127.0.0.1) reenvía con X-Forwarded-For: se confía
   // solo en ese salto local para que req.ip sea la IP real del cliente. Sin
@@ -56,6 +71,7 @@ async function bootstrap() {
   );
 
   app.use(cookieParser());
+  if (observeLogger) app.use(httpAccessLog(observeLogger));
   registerEvidenceImageAccess(app);
 
   // Cierra conexiones (BD, cron) ordenadamente ante SIGTERM/SIGINT.

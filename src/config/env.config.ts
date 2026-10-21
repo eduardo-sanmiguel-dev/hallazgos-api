@@ -21,4 +21,10 @@ export const EnvConfiguration = () => ({
   security: {
     gistSecretUrl: process.env.GIST_SECRET_URL,
   },
+  // Envío de logs a OpenObserve (solo en producción).
+  observe: {
+    endpoint: process.env.OBSERVE_ENDPOINT,
+    authHeader: process.env.OBSERVE_AUTH_HEADER,
+    stream: process.env.OBSERVE_STREAM,
+  },
 });
