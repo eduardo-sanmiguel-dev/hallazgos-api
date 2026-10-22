@@ -4,6 +4,7 @@ export const apps = [
   {
     name: 'hallazgos-api', // Nombre de la aplicación
     script: 'dist/main.js', // Archivo compilado de NestJS
+    node_args: '--import ./dist/instrumentation.js', // Trazas: se cargan antes que la app
     instances: 1, // Usa una sola instancia en modo fork
     exec_mode: 'fork', // Modo de ejecución (fork o cluster)
     watch: false, // Desactiva watch en producción
