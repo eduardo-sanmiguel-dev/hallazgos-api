@@ -11,8 +11,8 @@ import { findPaginated } from '../shared/utils/index.js';
 
 import { CreateAreaDto, QueryAreaDto, UpdateAreaDto } from './dto/index.js';
 import { Area } from './entities/area.entity.js';
-import { User } from '../users/entities/user.entity.js';
 import { ManufacturingPlantsService } from '../manufacturing-plants/manufacturing-plants.service.js';
+import { User } from '../users/entities/user.entity.js';
 
 @Injectable()
 export class AreasService {
