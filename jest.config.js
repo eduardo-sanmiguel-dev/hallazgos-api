@@ -176,6 +176,8 @@ export default {
     '!**/inputs/**',
     '!**/types/**',
     '!main.ts',
+    // Arranque de las trazas (se carga con --import antes que la app).
+    '!instrumentation.ts',
     '!config/**',
     '!migrations/**',
     '!database/**',
