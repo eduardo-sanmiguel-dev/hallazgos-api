@@ -266,4 +266,53 @@ describe('E2E: EPP y equipos', () => {
       ).toEqual([50]);
     });
   });
+
+  // Selector de colaborador en EPP, ICS y CIAEL.
+  describe('colaboradores para selectores (view=options)', () => {
+    it('solo id, código y nombre, una vez aunque esté en varias plantas', async () => {
+      const { tepotzotlan, manizales } = e2e.base.plants;
+      const both = await e2e.dataSource.getRepository(Employee).save({
+        code: 789,
+        name: 'Beto Ruiz',
+        area: employee.area,
+        position: employee.position,
+        gender: employee.gender,
+        manufacturingPlants: [tepotzotlan, manizales],
+      });
+
+      const res = await e2e
+        .call('get', '/employees?view=options', e2e.tokens.admin)
+        .expect(200);
+
+      expect(res.body).toEqual([
+        // code es bigint: llega como texto, igual que en el listado completo.
+        { id: employee.id, code: '123', name: 'Ana Pérez' },
+        { id: both.id, code: '789', name: 'Beto Ruiz' },
+        { id: employeeColombia.id, code: '456', name: 'Luis Gómez' },
+      ]);
+    });
+
+    it('respeta la planta pedida y las del usuario en sesión', async () => {
+      const byPlant = await e2e
+        .call(
+          'get',
+          '/employees?view=options&manufacturingPlantId=2',
+          e2e.tokens.admin,
+        )
+        .expect(200);
+      expect(byPlant.body.map(({ name }) => name)).toEqual([
+        'Beto Ruiz',
+        'Luis Gómez',
+      ]);
+
+      // General solo tiene Tepotzotlán.
+      const mine = await e2e
+        .call('get', '/employees?view=options', e2e.tokens.general)
+        .expect(200);
+      expect(mine.body.map(({ name }) => name)).toEqual([
+        'Ana Pérez',
+        'Beto Ruiz',
+      ]);
+    });
+  });
 });
