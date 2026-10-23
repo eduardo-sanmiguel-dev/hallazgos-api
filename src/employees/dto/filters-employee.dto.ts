@@ -1,5 +1,6 @@
 import {
   IsBooleanString,
+  IsIn,
   IsInt,
   IsOptional,
   IsPositive,
@@ -39,4 +40,10 @@ export class FiltersEmployeeDto {
   @IsOptional()
   @IsInt()
   readonly limit?: number;
+
+  // "options": solo id, código y nombre, sin relaciones. Para selectores
+  // (EPP, ICS, CIAEL): con área, puesto, género y plantas eran ~800 KB.
+  @IsOptional()
+  @IsIn(['options'])
+  readonly view?: 'options';
 }

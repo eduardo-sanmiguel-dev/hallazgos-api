@@ -207,6 +207,35 @@ describe('EmployeesService', () => {
       expect(byCode.code.getSql('c')).toBe('CAST(c AS TEXT) ILIKE :code');
     });
 
+    it('view=options: solo id, código y nombre, sin relaciones y con los mismos filtros', async () => {
+      await as(() =>
+        service.findAll({
+          manufacturingPlantId: 2,
+          name: 'ana',
+          view: 'options',
+        }),
+      );
+
+      const args = employees.find.mock.calls[0][0] as {
+        where: Record<string, unknown>[];
+        select: unknown;
+        order: unknown;
+      };
+      expect(args.select).toEqual({ id: true, code: true, name: true });
+      expect(args).not.toHaveProperty('relations');
+      expect(args.order).toEqual({ name: 'ASC', id: 'ASC' });
+      expect(args.where).toHaveLength(2);
+      expect(plantIds(args.where[0])).toEqual([2]);
+      expect(args.where[0].isActive).toBe(true);
+    });
+
+    it('view=options con planta ajena tampoco consulta', async () => {
+      await expect(
+        as(() => service.findAll({ manufacturingPlantId: 9, view: 'options' })),
+      ).resolves.toEqual([]);
+      expect(employees.find).not.toHaveBeenCalled();
+    });
+
     it('paginado aplica skip/take; limit -1 trae todo', async () => {
       employees.findAndCount.mockResolvedValue([[], 0]);
 

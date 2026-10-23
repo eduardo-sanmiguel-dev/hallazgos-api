@@ -242,6 +242,14 @@ export class EmployeesService {
         ]
       : [where];
 
+    if (filtersEmployeeDto.view === 'options') {
+      return this.employeeRepository.find({
+        where: whereWithSearch,
+        select: { id: true, code: true, name: true },
+        order: { name: 'ASC', id: 'ASC' },
+      });
+    }
+
     if (page === undefined || limit === undefined) {
       return this.employeeRepository.find({
         where: whereWithSearch,
