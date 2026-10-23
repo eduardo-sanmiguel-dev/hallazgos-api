@@ -17,8 +17,7 @@ export const apps = [
     out_file: './logs/out.log', // Log de salida estándar
     error_file: './logs/error.log', // Log de errores
     merge_logs: true, // Combina logs de instancias
-    time: true, // Añade timestamp a los logs
-    log_date_format: 'DD/MM/YYYY HH:mm', // Formato de ese timestamp
+    log_date_format: 'DD/MM/YYYY HH:mm', // Fecha en cada línea del log (con time: true pm2 lo ignora)
   },
 ];
 
