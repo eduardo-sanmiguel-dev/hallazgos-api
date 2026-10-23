@@ -200,13 +200,97 @@ describe('UsersService', () => {
     it('lista solo usuarios activos, del más reciente al más antiguo', async () => {
       await service.findAll({} as never);
 
-      const { where, order } = lastFindArgs();
+      const { where, order, relationLoadStrategy } = lastFindArgs();
       expect(where).toEqual([{ isActive: true }]);
-      expect(order).toMatchObject({
-        id: 'DESC',
-        manufacturingPlants: { name: 'ASC' },
-        zones: { name: 'ASC' },
-      });
+      expect(order).toEqual({ id: 'DESC' });
+      // Una consulta por relación: con JOIN serían plantas × zonas × procesos filas.
+      expect(relationLoadStrategy).toBe('query');
+    });
+
+    it('ordena las plantas y zonas de cada usuario por nombre', async () => {
+      users.find.mockResolvedValue([
+        buildUser({
+          manufacturingPlants: [
+            buildManufacturingPlant({ name: 'Tepotzotlán' }),
+            buildManufacturingPlant({ name: 'Manizales' }),
+          ],
+          zones: [{ name: 'Z2' }, { name: 'Almacén' }] as never,
+        }),
+      ]);
+
+      const [user] = (await service.findAll({} as never)) as User[];
+
+      expect(user.manufacturingPlants.map((p) => p.name)).toEqual([
+        'Manizales',
+        'Tepotzotlán',
+      ]);
+      expect(user.zones.map((z) => z.name)).toEqual(['Almacén', 'Z2']);
+    });
+
+    it('cada usuario trae solo la planta, zona y proceso filtrados (como con JOIN)', async () => {
+      users.find.mockResolvedValue([
+        buildUser({
+          manufacturingPlants: [
+            buildManufacturingPlant({ id: 1, name: 'Tepotzotlán' }),
+            buildManufacturingPlant({ id: 2, name: 'Manizales' }),
+          ],
+          zones: [
+            { id: 10, name: 'Almacén' },
+            { id: 11, name: 'Bodega' },
+          ] as never,
+          processes: [
+            { id: 20, name: 'Producción' },
+            { id: 21, name: 'Calidad' },
+          ] as never,
+        }),
+      ]);
+
+      const [user] = (await service.findAll({
+        manufacturingPlantId: '1',
+        zoneId: '10',
+        processId: '20',
+      } as never)) as User[];
+
+      expect(user.manufacturingPlants.map((p) => p.id)).toEqual([1]);
+      expect(user.zones.map((z) => z.id)).toEqual([10]);
+      expect(user.processes.map((p) => p.id)).toEqual([20]);
+    });
+
+    it('sin filtros de relación conserva todas sus plantas, zonas y procesos', async () => {
+      users.find.mockResolvedValue([
+        buildUser({
+          manufacturingPlants: [
+            buildManufacturingPlant({ id: 1 }),
+            buildManufacturingPlant({ id: 2 }),
+          ],
+          zones: [
+            { id: 10, name: 'A' },
+            { id: 11, name: 'B' },
+          ] as never,
+          processes: [{ id: 20 }, { id: 21 }] as never,
+        }),
+      ]);
+
+      const [user] = (await service.findAll({} as never)) as User[];
+
+      expect(user.manufacturingPlants).toHaveLength(2);
+      expect(user.zones).toHaveLength(2);
+      expect(user.processes).toHaveLength(2);
+    });
+
+    it('con plantas permitidas deja solo esas en cada usuario', async () => {
+      users.find.mockResolvedValue([
+        buildUser({
+          manufacturingPlants: [
+            buildManufacturingPlant({ id: 1 }),
+            buildManufacturingPlant({ id: 2 }),
+          ],
+        }),
+      ]);
+
+      const [user] = (await service.findAll({} as never, [2])) as User[];
+
+      expect(user.manufacturingPlants.map((p) => p.id)).toEqual([2]);
     });
 
     it('aplica los filtros de nombre, planta, rol y proceso', async () => {
@@ -291,13 +375,20 @@ describe('UsersService', () => {
         expect(args).not.toHaveProperty('skip');
       });
 
-      it('ordena las plantas y zonas de cada usuario por nombre', async () => {
+      it('solo carga las plantas (la tabla no muestra zonas ni procesos)', async () => {
+        await service.findAll({ page: 1, limit: 10 } as never);
+
+        expect(users.findAndCount.mock.calls[0][0].relations).toEqual([
+          'manufacturingPlants',
+        ]);
+      });
+
+      it('ordena las plantas de cada usuario por nombre', async () => {
         const user = buildUser({
           manufacturingPlants: [
             buildManufacturingPlant({ name: 'Tepotzotlán' }),
             buildManufacturingPlant({ name: 'Manizales' }),
           ],
-          zones: [{ name: 'Z2' }, { name: 'Almacén' }] as never,
         });
         users.findAndCount.mockResolvedValue([[user], 1]);
 
@@ -310,7 +401,6 @@ describe('UsersService', () => {
           'Manizales',
           'Tepotzotlán',
         ]);
-        expect(data[0].zones.map((z) => z.name)).toEqual(['Almacén', 'Z2']);
       });
     });
   });
@@ -352,6 +442,24 @@ describe('UsersService', () => {
       users.findOne.mockResolvedValue(user);
 
       await expect(service.findOne(9)).resolves.toBe(user);
+      expect(users.findOne.mock.calls[0][0].relationLoadStrategy).toBe('query');
+    });
+
+    // Es el usuario en sesión: sus plantas son sus permisos.
+    it('deja fuera las plantas inactivas del usuario', async () => {
+      users.findOne.mockResolvedValue(
+        buildUser({
+          id: 9,
+          manufacturingPlants: [
+            buildManufacturingPlant({ id: 1, isActive: true }),
+            buildManufacturingPlant({ id: 2, isActive: false }),
+          ],
+        }),
+      );
+
+      const user = await service.findOne(9);
+
+      expect(user.manufacturingPlants.map((p) => p.id)).toEqual([1]);
     });
 
     it('debe lanzar NotFoundException si no existe, está inactivo o no tiene plantas activas', async () => {
@@ -424,6 +532,24 @@ describe('UsersService', () => {
       expect(order).toEqual({ name: 'ASC' });
     });
 
+    it('cada supervisor trae solo las plantas del usuario en sesión', async () => {
+      const me = buildUser({
+        manufacturingPlants: [buildManufacturingPlant({ id: 1 })],
+      });
+      users.find.mockResolvedValue([
+        buildUser({
+          manufacturingPlants: [
+            buildManufacturingPlant({ id: 1 }),
+            buildManufacturingPlant({ id: 2 }),
+          ],
+        }),
+      ]);
+
+      const [supervisor] = await runAsUser(me, () => service.getSupervisors());
+
+      expect(supervisor.manufacturingPlants.map((p) => p.id)).toEqual([1]);
+    });
+
     it('sin sesión responde 401', async () => {
       await expect(
         runAsUser(null, () => service.getSupervisors()),
@@ -444,6 +570,23 @@ describe('UsersService', () => {
           where: expect.objectContaining({ id: 12, isActive: true }),
         }),
       );
+    });
+
+    it('deja fuera las plantas inactivas', async () => {
+      const me = buildUser({
+        id: 12,
+        manufacturingPlants: [
+          buildManufacturingPlant({ id: 1, isActive: true }),
+          buildManufacturingPlant({ id: 2, isActive: false }),
+        ],
+      });
+      users.findOne.mockResolvedValue(me);
+
+      const user = await runAsUser(me, () =>
+        service.getInformationCurrentUser(),
+      );
+
+      expect(user.manufacturingPlants.map((p) => p.id)).toEqual([1]);
     });
 
     it('debe lanzar NotFoundException si el usuario en sesión ya no está activo', async () => {
