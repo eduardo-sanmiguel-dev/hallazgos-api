@@ -7,7 +7,10 @@
  * NODE_ENV=production u OBSERVE_* no hace nada.
  */
 import { existsSync } from 'node:fs';
-import { register } from 'node:module';
+// Hook síncrono (module.registerHooks): module.register() está obsoleto desde
+// Node 26 (DEP0205). Debe ser el mismo import-in-the-middle que usa
+// @opentelemetry/instrumentation para que vea sus Hook().
+import { register } from 'import-in-the-middle/register-hooks.mjs';
 
 // ConfigModule carga el .env después; aquí las variables hacen falta antes.
 const envFile = `.env.${process.env.NODE_ENV}`;
@@ -19,19 +22,17 @@ if (NODE_ENV === 'production' && OBSERVE_ENDPOINT && OBSERVE_AUTH_HEADER) {
   // Solo los módulos instrumentados: si el hook envuelve todo, cambia el
   // orden de evaluación de los imports circulares entre entidades y Nest
   // falla al arrancar (CircularDependencyException en @InjectRepository).
-  register('@opentelemetry/instrumentation/hook.mjs', import.meta.url, {
-    data: {
-      include: [
-        'http',
-        'https',
-        'node:http',
-        'node:https',
-        'express',
-        'pg',
-        'graphql',
-        /[\\/]node_modules[\\/]graphql[\\/]/,
-      ],
-    },
+  register({
+    include: [
+      'http',
+      'https',
+      'node:http',
+      'node:https',
+      'express',
+      'pg',
+      'graphql',
+      /[\\/]node_modules[\\/]graphql[\\/]/,
+    ],
   });
 
   // Import dinámico: fuera de producción ni siquiera se cargan.
