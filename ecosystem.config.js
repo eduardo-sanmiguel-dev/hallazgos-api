@@ -3,6 +3,7 @@
 export const apps = [
   {
     name: 'api-comp', // Nombre en pm2 (corto: los logs lo recortan a 10 caracteres)
+    namespace: 'comportarte', // Grupo en pm2: pm2 logs/restart comportarte
     script: 'dist/main.js', // Archivo compilado de NestJS
     node_args: '--import ./dist/instrumentation.js', // Trazas: se cargan antes que la app
     instances: 1, // Usa una sola instancia en modo fork
