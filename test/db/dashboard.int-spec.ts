@@ -141,8 +141,8 @@ describe('Integración: dashboard', () => {
   });
 
   describe('el SQL de cada endpoint corre sobre el esquema real', () => {
+    // business-intelligence/epp (solo administradores) está en bi-epp.int-spec.ts.
     const BY_PLANT = [
-      'business-intelligence/epp',
       'critical-zones',
       'ranking-of-responsibles',
       'average-resolution-time',

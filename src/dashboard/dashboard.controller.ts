@@ -1,5 +1,13 @@
-import { Controller, Get, ParseIntPipe, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 
+import { AdminGuard } from '../shared/guards/admin.guard.js';
 import { UserPlantPipe } from '../shared/pipes/index.js';
 import { DashboardService } from './dashboard.service.js';
 
@@ -52,12 +60,49 @@ export class DashboardController {
     );
   }
 
+  // Análisis de datos de EPP: solo administradores. startDate/endDate
+  // (DD/MM/YYYY) son opcionales: sin ellas, el mes en curso a la fecha.
   @Get('business-intelligence/epp')
+  @UseGuards(AdminGuard)
   findBusinessIntelligenceEpp(
     @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
   ) {
     return this.dashboardService.findBusinessIntelligenceEpp(
       manufacturingPlantId,
+      startDate,
+      endDate,
+    );
+  }
+
+  @Get('business-intelligence/epp/out-of-range')
+  @UseGuards(AdminGuard)
+  findBusinessIntelligenceEppOutOfRange(
+    @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.dashboardService.findBusinessIntelligenceEppOutOfRange(
+      manufacturingPlantId,
+      startDate,
+      endDate,
+    );
+  }
+
+  @Get('business-intelligence/epp/employees/:employeeId')
+  @UseGuards(AdminGuard)
+  findBusinessIntelligenceEppEmployee(
+    @Param('employeeId', ParseIntPipe) employeeId: number,
+    @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.dashboardService.findBusinessIntelligenceEppEmployee(
+      manufacturingPlantId,
+      employeeId,
+      startDate,
+      endDate,
     );
   }
 

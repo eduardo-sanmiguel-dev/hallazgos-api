@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import {
   buildUser,
   createRepositoryMock,
@@ -836,24 +836,244 @@ describe('DashboardService: reglas y resultados de reportes', () => {
     });
     expect(query.mock.calls[0][0]).toContain("date_part('year', CURRENT_DATE)");
   });
-  it('arma los diez reportes EPP y conserva su promedio global', async () => {
-    for (let n = 1; n <= 10; n++) query.mockResolvedValueOnce([{ value: n }]);
+  it('arma el análisis EPP: gráficas, indicadores a la fecha y precios', async () => {
+    for (const n of [1, 3, 4, 8, 9])
+      query.mockResolvedValueOnce([{ chart: n }]);
     query.mockResolvedValueOnce([
-      { gasto_promedio_global_por_empleado: '12.5' },
+      {
+        ini_actual: '2026-10-01',
+        fin_actual: '2026-10-22',
+        ini_anterior: '2026-09-01',
+        fin_anterior: '2026-09-22',
+        gasto_actual: '150.50',
+        gasto_anterior: '100',
+        unidades_actual: '7',
+        unidades_anterior: '5',
+        entregas_actual: '6',
+        entregas_anterior: '4',
+        fuera_de_rango_actual: '2',
+        fuera_de_rango_anterior: '1',
+        empleados_actual: '3',
+        empleados_anterior: '2',
+        primera_vez_actual: '1',
+        primera_vez_anterior: '0',
+        promedio_global: '42.10',
+      },
     ]);
-    const result = await service.findBusinessIntelligenceEpp(1);
-    expect(result.chart1).toEqual([{ value: 1 }]);
-    expect(result.chart10).toEqual([{ value: 10 }]);
-    expect(result.promedioGlobalChart10).toBe('12.5');
-    expect(query).toHaveBeenCalledTimes(11);
+    query.mockResolvedValueOnce([{ has_prices: true }]);
+
+    const result = await service.findBusinessIntelligenceEpp(
+      1,
+      '01/10/2026',
+      '22/10/2026',
+    );
+
+    expect(query).toHaveBeenCalledTimes(7);
+    expect(result).toMatchObject({
+      hasPrices: true,
+      chart1: [{ chart: 1 }],
+      chart3: [{ chart: 3 }],
+      chart4: [{ chart: 4 }],
+      chart8: [{ chart: 8 }],
+      chart9: [{ chart: 9 }],
+      kpis: {
+        periodo: {
+          actual: { desde: '2026-10-01', hasta: '2026-10-22' },
+          anterior: { desde: '2026-09-01', hasta: '2026-09-22' },
+        },
+        actual: {
+          gasto: 150.5,
+          unidades: 7,
+          entregas: 6,
+          fueraDeRango: 2,
+          empleados: 3,
+          primeraVez: 1,
+        },
+        anterior: {
+          gasto: 100,
+          unidades: 5,
+          entregas: 4,
+          fueraDeRango: 1,
+          empleados: 2,
+          primeraVez: 0,
+        },
+        promedioGlobal: 42.1,
+      },
+    });
+    // Ya no se calculan precio vigente, cobertura ni equipos de nuevos.
+    expect(result).not.toHaveProperty('chart2');
+    expect(result).not.toHaveProperty('chart5');
+    expect(result).not.toHaveProperty('chart7');
   });
-  it('el promedio EPP es cero sin datos y un error SQL no entrega resultados parciales', async () => {
-    expect(
-      (await service.findBusinessIntelligenceEpp(1)).promedioGlobalChart10,
-    ).toBe(0);
+  it('envía planta y periodos como parámetros y no pierde entregas sin precio', async () => {
+    query.mockResolvedValue([{}]);
+    await service.findBusinessIntelligenceEpp(7, '01/08/2026', '22/10/2026');
+    const sql = query.mock.calls.map(([text]) => String(text)).join(' ');
+
+    expect(sql).toContain('LEFT JOIN precio_vigente');
+    expect(sql).not.toMatch(/JOIN equipment_cost_history ech/);
+    // Sin valores dentro del SQL: todo viaja como parámetro.
+    expect(sql).not.toContain('CURRENT_DATE');
+    expect(sql).not.toContain('= 7');
+    // 6 consultas con planta + periodo y comparación; la de precios, planta.
+    const params = query.mock.calls.map(([, values]) => values);
+    expect(params.slice(0, 6)).toEqual(
+      Array(6).fill([
+        7,
+        '2026-08-01',
+        '2026-10-22',
+        '2026-05-01',
+        '2026-07-22',
+      ]),
+    );
+    expect(params[6]).toEqual([7]);
+  });
+  it('rechaza un periodo inválido sin consultar la base', async () => {
+    await expect(
+      service.findBusinessIntelligenceEpp(1, '22/10/2026', '01/10/2026'),
+    ).rejects.toThrow(BadRequestException);
+    expect(query).not.toHaveBeenCalled();
+  });
+  it('sin precios ni entregas responde ceros, y un error SQL no entrega resultados parciales', async () => {
+    query.mockResolvedValue([{}]);
+    const empty = await service.findBusinessIntelligenceEpp(1);
+    expect(empty.hasPrices).toBe(false);
+    expect(empty.kpis.actual).toEqual({
+      gasto: 0,
+      unidades: 0,
+      entregas: 0,
+      fueraDeRango: 0,
+      empleados: 0,
+      primeraVez: 0,
+    });
+
     query.mockRejectedValue(Error('SQL failed'));
     await expect(service.findBusinessIntelligenceEpp(1)).rejects.toThrow(
       'SQL failed',
     );
+  });
+  it('fuera de rango: por equipo y por colaborador, con números y anticipación', async () => {
+    query
+      .mockResolvedValueOnce([
+        {
+          equipment_id: 36,
+          equipment_name: 'Guante',
+          entregas: '10',
+          fuera_de_rango: '4',
+          colaboradores: '3',
+          dias_anticipacion_promedio: '12',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          employee_id: 5,
+          name: 'Ana',
+          code: 123,
+          area: 'Producción',
+          position: 'Operador',
+          equipment_id: 36,
+          equipment_name: 'Guante',
+          entregas: '3',
+          fuera_de_rango: '2',
+          dias_anticipacion_promedio: null,
+          ultima_entrega: '2026-10-20',
+        },
+      ]);
+
+    const result = await service.findBusinessIntelligenceEppOutOfRange(
+      1,
+      '01/10/2026',
+      '22/10/2026',
+    );
+
+    expect(query.mock.calls.map(([, params]) => params)).toEqual([
+      [1, '2026-10-01', '2026-10-22'],
+      [1, '2026-10-01', '2026-10-22'],
+    ]);
+    expect(String(query.mock.calls[0][0])).toContain('LAG(ee."deliveryDate")');
+    expect(result).toEqual({
+      periodo: { desde: '2026-10-01', hasta: '2026-10-22' },
+      byEquipment: [
+        {
+          equipmentId: 36,
+          equipmentName: 'Guante',
+          deliveries: 10,
+          outOfRange: 4,
+          employees: 3,
+          averageDaysEarly: 12,
+        },
+      ],
+      byEmployeeEquipment: [
+        {
+          employeeId: 5,
+          name: 'Ana',
+          code: '123',
+          area: 'Producción',
+          position: 'Operador',
+          equipmentId: 36,
+          equipmentName: 'Guante',
+          deliveries: 3,
+          outOfRange: 2,
+          averageDaysEarly: null,
+          lastDelivery: '2026-10-20',
+        },
+      ],
+    });
+  });
+  it('detalle de colaborador: sus entregas con anticipación y quién registró', async () => {
+    query
+      .mockResolvedValueOnce([
+        { id: 5, name: 'Ana', code: 123, area: null, position: null },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: 90,
+          fecha: '2026-10-20',
+          equipment_name: 'Guante',
+          unidades: 1,
+          frecuencia: 15,
+          entrega_anterior: '2026-10-10',
+          fuera_de_rango: true,
+          dias_anticipacion: 5,
+          registro: 'C. Seguridad',
+        },
+      ]);
+
+    const result = await service.findBusinessIntelligenceEppEmployee(
+      1,
+      5,
+      '01/10/2026',
+      '22/10/2026',
+    );
+
+    expect(query.mock.calls[0][1]).toEqual([5, 1]);
+    expect(query.mock.calls[1][1]).toEqual([1, '2026-10-01', '2026-10-22', 5]);
+    expect(result.employee).toEqual({
+      id: 5,
+      name: 'Ana',
+      code: '123',
+      area: null,
+      position: null,
+    });
+    expect(result.deliveries).toEqual([
+      {
+        id: 90,
+        date: '2026-10-20',
+        equipmentName: 'Guante',
+        quantity: 1,
+        frequencyDays: 15,
+        previousDelivery: '2026-10-10',
+        outOfRange: true,
+        daysEarly: 5,
+        registeredBy: 'C. Seguridad',
+      },
+    ]);
+  });
+  it('detalle de colaborador de otra planta: 404 sin consultar sus entregas', async () => {
+    query.mockResolvedValueOnce([]);
+    await expect(
+      service.findBusinessIntelligenceEppEmployee(1, 99),
+    ).rejects.toThrow(NotFoundException);
+    expect(query).toHaveBeenCalledTimes(1);
   });
 });
