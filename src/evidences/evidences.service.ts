@@ -100,6 +100,15 @@ pdfMake.setLocalAccessPolicy((path: string) =>
   resolve(path).startsWith(PDF_FONTS_DIR + sep),
 );
 
+// Tipo de correo, para el log de errores de envío.
+const EMAIL_TYPE_LABELS: Record<string, string> = {
+  create: 'creación',
+  'in-progress': 'en progreso',
+  solution: 'solución',
+  cancel: 'cancelación',
+  reassign: 'reasignación',
+};
+
 @Injectable()
 export class EvidencesService {
   private readonly logger = new Logger(EvidencesService.name);
@@ -568,6 +577,8 @@ export class EvidencesService {
     }
   }
 
+  // Sin comillas: la alerta de OpenObserve manda este texto a Telegram, que
+  // las mostraría escapadas (\"…\").
   private logEmailError(
     type: string,
     evidence: Evidence,
@@ -575,7 +586,7 @@ export class EvidencesService {
     error: unknown,
   ) {
     this.logger.error(
-      `No se pudo enviar el correo "${type}" del hallazgo #${evidence.id} a ${recipient}: ${(error as Error)?.message ?? error}`,
+      `No se pudo enviar el correo de ${EMAIL_TYPE_LABELS[type] ?? type} del hallazgo #${evidence.id} a ${recipient}: ${(error as Error)?.message ?? error}`,
     );
   }
 
