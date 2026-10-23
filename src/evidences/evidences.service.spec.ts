@@ -362,7 +362,7 @@ describe('EvidencesService', () => {
       );
       expect(logError).toHaveBeenCalledWith(
         expect.stringContaining(
-          `No se pudo enviar el correo "create" del hallazgo #900 a el usuario ${responsible.id}: SMTP caído`,
+          `No se pudo enviar el correo de creación del hallazgo #900 a el usuario ${responsible.id}: SMTP caído`,
         ),
       );
     });
@@ -600,8 +600,12 @@ describe('EvidencesService', () => {
       });
       expect(evidences.update).toHaveBeenCalled();
       expect(logError).toHaveBeenCalledWith(
-        expect.stringContaining('"in-progress" del hallazgo #5'),
+        expect.stringContaining(
+          'No se pudo enviar el correo de en progreso del hallazgo #5',
+        ),
       );
+      // Sin comillas: la alerta de Telegram las mostraría escapadas.
+      expect(logError.mock.calls.at(-1)[0]).not.toContain('"');
     });
 
     it('responde 409 si ya se había registrado el inicio (dato inconsistente)', async () => {
