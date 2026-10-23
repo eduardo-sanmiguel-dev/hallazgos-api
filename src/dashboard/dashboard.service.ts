@@ -304,19 +304,23 @@ export class DashboardService {
       GROUP BY p.ini_actual, p.fin_actual, p.ini_anterior, p.fin_anterior;
     `;
 
-    // Si algún equipo activo de la planta tiene precio (sin precios, la UI
-    // oculta todo lo de gasto).
-    const tienePrecios = `
+    // Qué controla la planta en sus equipos activos; la UI oculta lo demás:
+    // - has_prices: algún equipo con precio (si no, todo lo de gasto).
+    // - tracks_frequency: al menos la mitad con frecuencia de entrega (si no,
+    //   lo de fuera de rango; un equipo suelto con frecuencia no basta).
+    const configuracion = `
       WITH ${precioVigente}
-      SELECT EXISTS (
-        SELECT 1 FROM equipment eq
-          JOIN precio_vigente pv ON pv."equipmentId" = eq.id
-        WHERE eq."manufacturingPlantId" = $1
-          AND eq.is_active = TRUE AND pv.price > 0
-      ) AS has_prices;
+      SELECT
+        COALESCE(BOOL_OR(pv.price > 0), FALSE) AS has_prices,
+        COUNT(*) > 0
+          AND COUNT(*) FILTER (WHERE eq.delivery_frequency > 0) * 2 >= COUNT(*)
+          AS tracks_frequency
+      FROM equipment eq
+        LEFT JOIN precio_vigente pv ON pv."equipmentId" = eq.id
+      WHERE eq."manufacturingPlantId" = $1 AND eq.is_active = TRUE;
     `;
 
-    const [chart1, chart3, chart4, chart8, chart9, [kpiRow], [prices]] =
+    const [chart1, chart3, chart4, chart8, chart9, [kpiRow], [config]] =
       await Promise.all([
         ...[
           gastoPorEquipo,
@@ -326,7 +330,7 @@ export class DashboardService {
           participacion,
           indicadores,
         ].map((query) => this.queryWithParams(query, params)),
-        this.queryWithParams(tienePrecios, [manufacturingPlantId]),
+        this.queryWithParams(configuracion, [manufacturingPlantId]),
       ]);
 
     const values = (key: 'actual' | 'anterior') => ({
@@ -339,7 +343,8 @@ export class DashboardService {
     });
 
     return {
-      hasPrices: prices?.has_prices === true,
+      hasPrices: config?.has_prices === true,
+      tracksDeliveryFrequency: config?.tracks_frequency === true,
       kpis: {
         periodo: period,
         actual: values('actual'),
