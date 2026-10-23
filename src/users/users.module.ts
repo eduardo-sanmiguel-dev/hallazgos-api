@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { UsersService } from './users.service.js';
+import { E2eUserSeedService } from './e2e-user-seed.service.js';
 import { UsersController } from './users.controller.js';
 import { User } from './entities/user.entity.js';
 import { ManufacturingPlantsModule } from '../manufacturing-plants/manufacturing-plants.module.js';
@@ -16,7 +17,7 @@ import { ProcessesModule } from '../processes/processes.module.js';
     ProcessesModule,
   ],
   controllers: [UsersController],
-  providers: [UsersService],
+  providers: [UsersService, E2eUserSeedService],
   exports: [TypeOrmModule, UsersService],
 })
 export class UsersModule {}

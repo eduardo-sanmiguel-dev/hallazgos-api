@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RequestContextService } from '../shared/services/request-context.service.js';
 
@@ -10,6 +14,7 @@ import { User } from '../users/entities/user.entity.js';
 import { Evidence } from '../evidences/entities/evidence.entity.js';
 import { MainType } from '../main-types/entities/main-type.entity.js';
 import { groupBy } from '../shared/utils/index.js';
+import { resolveBiEppPeriod } from './bi-epp-period.js';
 
 @Injectable()
 export class DashboardService {
@@ -129,418 +134,434 @@ export class DashboardService {
     return this.manufacturingPlant.manager.query(query);
   }
 
-  async findBusinessIntelligenceEpp(manufacturingPlantId: number) {
-    const query1 = `
-      WITH precio_vigente AS (
-        SELECT DISTINCT ON
-          ( "equipmentId" ) "equipmentId",
-          COALESCE ( price, 0 ) AS price 
-        FROM
-          equipment_cost_history 
-        WHERE
-          "isActive" = TRUE 
-        ORDER BY
-          "equipmentId",
-          "captureDate" DESC 
-        ),
-        entregas AS (
+  /** Hoy en la zona horaria del servidor, como 'YYYY-MM-DD'. */
+  private today() {
+    return new Date().toLocaleDateString('en-CA');
+  }
+
+  /** Consulta con parámetros ($1, $2…) en vez de valores dentro del SQL. */
+  private queryWithParams(query: string, params: unknown[]) {
+    return this.manufacturingPlant.manager.query(query, params);
+  }
+
+  /**
+   * Análisis de datos EPP de una planta (solo administradores) en el periodo
+   * elegido (por omisión, el mes en curso a la fecha) contra su periodo de
+   * comparación (ver resolveBiEppPeriod).
+   * - Precio: el vigente de cada equipo (último registro activo), unido con
+   *   LEFT JOIN para que las entregas de equipos sin precio no desaparezcan de
+   *   los conteos (solo aportan $0 al gasto).
+   * - Las gráficas mensuales y la participación se limitan al periodo.
+   */
+  async findBusinessIntelligenceEpp(
+    manufacturingPlantId: number,
+    startDate?: string,
+    endDate?: string,
+  ) {
+    const period = resolveBiEppPeriod(startDate, endDate, this.today());
+    // $1 planta · $2-$3 periodo actual · $4-$5 periodo de comparación.
+    const params = [
+      manufacturingPlantId,
+      period.actual.desde,
+      period.actual.hasta,
+      period.anterior.desde,
+      period.anterior.hasta,
+    ];
+
+    const precioVigente = `
+      precio_vigente AS (
+        SELECT DISTINCT ON ("equipmentId") "equipmentId", COALESCE(price, 0) AS price
+        FROM equipment_cost_history
+        WHERE "isActive" = TRUE
+        ORDER BY "equipmentId", "captureDate" DESC
+      )`;
+
+    const entregas = `
+      ${precioVigente},
+      entregas AS (
         SELECT
-          eq.ID AS equipment_id,
-          eq.NAME AS equipment_name,
-          ee."deliveryDate",
-          COALESCE ( ee.quantity, 0 ) AS quantity,
-          COALESCE ( pv.price, 0 ) AS price,
-          COALESCE ( ee.quantity, 0 ) * COALESCE ( pv.price, 0 ) AS costo_total 
-        FROM
-          epp_equipment ee
-          JOIN equipment eq ON eq.ID = ee."equipmentId"
-          LEFT JOIN precio_vigente pv ON pv."equipmentId" = eq.ID 
-        WHERE
-          eq."manufacturingPlantId" = ${manufacturingPlantId} 
-          AND ee."isActive" = TRUE 
-        ) SELECT
+          ee."deliveryDate" AS fecha,
+          eq.name AS equipment_name,
+          e."employeeId" AS employee_id,
+          COALESCE(ee.quantity, 0) AS unidades,
+          COALESCE(ee.quantity, 0) * COALESCE(pv.price, 0) AS gasto,
+          COALESCE(ee."outOfRangeDelivery", FALSE) AS fuera_de_rango
+        FROM epp_equipment ee
+          JOIN epp e ON e.id = ee."eppId"
+          JOIN equipment eq ON eq.id = ee."equipmentId"
+          LEFT JOIN precio_vigente pv ON pv."equipmentId" = eq.id
+        WHERE eq."manufacturingPlantId" = $1
+          AND ee."isActive" = TRUE
+      ),
+      periodo AS (
+        SELECT $2::date AS ini_actual, $3::date AS fin_actual,
+               $4::date AS ini_anterior, $5::date AS fin_anterior
+      )`;
+
+    // Filtros sobre `entregas` (alias en) y `periodo` (alias p).
+    const actual = `en.fecha BETWEEN p.ini_actual AND p.fin_actual`;
+    const anterior = `en.fecha BETWEEN p.ini_anterior AND p.fin_anterior`;
+
+    // Gasto y unidades por equipo: periodo vs comparación.
+    const gastoPorEquipo = `
+      WITH ${entregas}
+      SELECT
+        en.equipment_name,
+        COALESCE(SUM(en.gasto) FILTER (WHERE ${actual}), 0) AS gasto_mes_actual,
+        COALESCE(SUM(en.unidades) FILTER (WHERE ${actual}), 0) AS unidades_mes_actual,
+        COALESCE(SUM(en.gasto) FILTER (WHERE ${anterior}), 0) AS gasto_mes_anterior,
+        COALESCE(SUM(en.unidades) FILTER (WHERE ${anterior}), 0) AS unidades_mes_anterior
+      FROM entregas en CROSS JOIN periodo p
+      WHERE ${actual} OR ${anterior}
+      GROUP BY en.equipment_name
+      HAVING SUM(en.gasto) > 0
+      ORDER BY gasto_mes_actual DESC;
+    `;
+
+    // Entregas en rango vs fuera de rango por mes, dentro del periodo.
+    const rangoPorMes = `
+      WITH ${entregas}
+      SELECT
+        TO_CHAR(DATE_TRUNC('month', en.fecha), 'Mon YYYY') AS mes_label,
+        DATE_TRUNC('month', en.fecha) AS mes,
+        COUNT(*) AS total_entregas,
+        COUNT(*) FILTER (WHERE en.fuera_de_rango) AS fuera_de_rango,
+        COUNT(*) FILTER (WHERE NOT en.fuera_de_rango) AS en_rango,
+        ROUND(COUNT(*) FILTER (WHERE en.fuera_de_rango) * 100.0 / COUNT(*), 2) AS pct_fuera_de_rango
+      FROM entregas en CROSS JOIN periodo p
+      WHERE ${actual}
+      GROUP BY DATE_TRUNC('month', en.fecha)
+      ORDER BY mes ASC;
+    `;
+
+    // Unidades y colaboradores por equipo: periodo vs comparación.
+    const unidadesPorEquipo = `
+      WITH ${entregas}
+      SELECT
+        en.equipment_name,
+        COALESCE(SUM(en.unidades) FILTER (WHERE ${actual}), 0) AS unidades_mes_actual,
+        COALESCE(SUM(en.unidades) FILTER (WHERE ${anterior}), 0) AS unidades_mes_anterior,
+        COUNT(DISTINCT en.employee_id) FILTER (WHERE ${actual}) AS empleados_mes_actual,
+        COUNT(DISTINCT en.employee_id) FILTER (WHERE ${anterior}) AS empleados_mes_anterior
+      FROM entregas en CROSS JOIN periodo p
+      WHERE ${actual} OR ${anterior}
+      GROUP BY en.equipment_name
+      ORDER BY unidades_mes_actual DESC;
+    `;
+
+    // Por mes dentro del periodo: gasto, unidades y colaboradores con entrega.
+    const porMes = `
+      WITH ${entregas}
+      SELECT
+        TO_CHAR(DATE_TRUNC('month', en.fecha), 'Mon YYYY') AS mes_label,
+        DATE_TRUNC('month', en.fecha) AS mes_date,
+        COALESCE(SUM(en.gasto), 0) AS gasto_total,
+        COALESCE(SUM(en.unidades), 0) AS unidades_total,
+        COUNT(DISTINCT en.employee_id) AS empleados_con_entrega,
+        COALESCE(ROUND(SUM(en.gasto) / NULLIF(COUNT(DISTINCT en.employee_id), 0), 2), 0) AS gasto_promedio_por_empleado
+      FROM entregas en CROSS JOIN periodo p
+      WHERE ${actual}
+      GROUP BY DATE_TRUNC('month', en.fecha)
+      ORDER BY mes_date ASC;
+    `;
+
+    // Participación de cada equipo en el gasto del periodo.
+    const participacion = `
+      WITH ${entregas}
+      SELECT
+        en.equipment_name,
+        SUM(en.gasto) AS gasto_total,
+        SUM(en.unidades) AS unidades_total,
+        ROUND(SUM(en.gasto) * 100.0 / NULLIF(SUM(SUM(en.gasto)) OVER (), 0), 2) AS pct_del_total
+      FROM entregas en CROSS JOIN periodo p
+      WHERE ${actual}
+      GROUP BY en.equipment_name
+      HAVING SUM(en.gasto) > 0
+      ORDER BY gasto_total DESC;
+    `;
+
+    // Indicadores del periodo y de su comparación; el promedio global es
+    // histórico (referencia fija).
+    const indicadores = `
+      WITH ${entregas},
+      primera AS (SELECT employee_id, MIN(fecha) AS fecha FROM entregas GROUP BY employee_id)
+      SELECT
+        COALESCE(SUM(en.gasto) FILTER (WHERE ${actual}), 0) AS gasto_actual,
+        COALESCE(SUM(en.gasto) FILTER (WHERE ${anterior}), 0) AS gasto_anterior,
+        COALESCE(SUM(en.unidades) FILTER (WHERE ${actual}), 0) AS unidades_actual,
+        COALESCE(SUM(en.unidades) FILTER (WHERE ${anterior}), 0) AS unidades_anterior,
+        COUNT(en.fecha) FILTER (WHERE ${actual}) AS entregas_actual,
+        COUNT(en.fecha) FILTER (WHERE ${anterior}) AS entregas_anterior,
+        COUNT(en.fecha) FILTER (WHERE ${actual} AND en.fuera_de_rango) AS fuera_de_rango_actual,
+        COUNT(en.fecha) FILTER (WHERE ${anterior} AND en.fuera_de_rango) AS fuera_de_rango_anterior,
+        COUNT(DISTINCT en.employee_id) FILTER (WHERE ${actual}) AS empleados_actual,
+        COUNT(DISTINCT en.employee_id) FILTER (WHERE ${anterior}) AS empleados_anterior,
+        (SELECT COUNT(*) FROM primera WHERE primera.fecha BETWEEN p.ini_actual AND p.fin_actual) AS primera_vez_actual,
+        (SELECT COUNT(*) FROM primera WHERE primera.fecha BETWEEN p.ini_anterior AND p.fin_anterior) AS primera_vez_anterior,
+        (SELECT COALESCE(ROUND(SUM(gasto) / NULLIF(COUNT(DISTINCT employee_id), 0), 2), 0) FROM entregas) AS promedio_global
+      FROM periodo p
+        LEFT JOIN entregas en ON ${actual} OR ${anterior}
+      GROUP BY p.ini_actual, p.fin_actual, p.ini_anterior, p.fin_anterior;
+    `;
+
+    // Si algún equipo activo de la planta tiene precio (sin precios, la UI
+    // oculta todo lo de gasto).
+    const tienePrecios = `
+      WITH ${precioVigente}
+      SELECT EXISTS (
+        SELECT 1 FROM equipment eq
+          JOIN precio_vigente pv ON pv."equipmentId" = eq.id
+        WHERE eq."manufacturingPlantId" = $1
+          AND eq.is_active = TRUE AND pv.price > 0
+      ) AS has_prices;
+    `;
+
+    const [chart1, chart3, chart4, chart8, chart9, [kpiRow], [prices]] =
+      await Promise.all([
+        ...[
+          gastoPorEquipo,
+          rangoPorMes,
+          unidadesPorEquipo,
+          porMes,
+          participacion,
+          indicadores,
+        ].map((query) => this.queryWithParams(query, params)),
+        this.queryWithParams(tienePrecios, [manufacturingPlantId]),
+      ]);
+
+    const values = (key: 'actual' | 'anterior') => ({
+      gasto: Number(kpiRow?.[`gasto_${key}`] ?? 0),
+      unidades: Number(kpiRow?.[`unidades_${key}`] ?? 0),
+      entregas: Number(kpiRow?.[`entregas_${key}`] ?? 0),
+      fueraDeRango: Number(kpiRow?.[`fuera_de_rango_${key}`] ?? 0),
+      empleados: Number(kpiRow?.[`empleados_${key}`] ?? 0),
+      primeraVez: Number(kpiRow?.[`primera_vez_${key}`] ?? 0),
+    });
+
+    return {
+      hasPrices: prices?.has_prices === true,
+      kpis: {
+        periodo: period,
+        actual: values('actual'),
+        anterior: values('anterior'),
+        promedioGlobal: Number(kpiRow?.promedio_global ?? 0),
+      },
+      // Gasto y unidades por equipo (periodo vs comparación).
+      chart1,
+      // Entregas en rango / fuera de rango por mes.
+      chart3,
+      // Unidades y colaboradores por equipo (periodo vs comparación).
+      chart4,
+      // Por mes: gasto, unidades, colaboradores y promedio.
+      chart8,
+      // Participación de cada equipo en el gasto del periodo.
+      chart9,
+    };
+  }
+
+  /**
+   * Historial de entregas de la planta con la entrega anterior del mismo
+   * equipo al mismo colaborador y, si fue fuera de rango, cuántos días antes
+   * de tiempo se entregó. $1 planta · $2-$3 periodo.
+   */
+  private readonly historialEpp = `
+    historial AS (
+      SELECT
+        ee.id,
+        ee."deliveryDate" AS fecha,
+        eq.id AS equipment_id,
+        eq.name AS equipment_name,
+        eq.delivery_frequency AS frecuencia,
+        e."employeeId" AS employee_id,
+        e."createById" AS registro_id,
+        COALESCE(ee.quantity, 0) AS unidades,
+        COALESCE(ee."outOfRangeDelivery", FALSE) AS fuera_de_rango,
+        LAG(ee."deliveryDate") OVER (
+          PARTITION BY e."employeeId", eq.id ORDER BY ee."deliveryDate", ee.id
+        ) AS entrega_anterior
+      FROM epp_equipment ee
+        JOIN epp e ON e.id = ee."eppId"
+        JOIN equipment eq ON eq.id = ee."equipmentId"
+      WHERE eq."manufacturingPlantId" = $1
+        AND ee."isActive" = TRUE
+    ),
+    periodo AS (SELECT $2::date AS ini, $3::date AS fin),
+    en_periodo AS (
+      SELECT h.*,
+        CASE WHEN h.fuera_de_rango AND h.entrega_anterior IS NOT NULL AND h.frecuencia > 0
+          THEN (h.entrega_anterior + h.frecuencia) - h.fecha END AS dias_anticipacion
+      FROM historial h CROSS JOIN periodo p
+      WHERE h.fecha BETWEEN p.ini AND p.fin
+    )`;
+
+  /**
+   * Entregas fuera de rango del periodo: por equipo (cuáles y cuánto antes de
+   * tiempo) y por colaborador y equipo (a quién), para el ranking y el filtro
+   * por equipo de la UI.
+   */
+  async findBusinessIntelligenceEppOutOfRange(
+    manufacturingPlantId: number,
+    startDate?: string,
+    endDate?: string,
+  ) {
+    const period = resolveBiEppPeriod(startDate, endDate, this.today());
+    const params = [
+      manufacturingPlantId,
+      period.actual.desde,
+      period.actual.hasta,
+    ];
+
+    const porEquipo = `
+      WITH ${this.historialEpp}
+      SELECT
+        equipment_id,
         equipment_name,
-      -- Mes actual
-        COALESCE ( SUM ( CASE WHEN DATE_TRUNC( 'month', "deliveryDate" ) = DATE_TRUNC( 'month', CURRENT_DATE ) THEN costo_total ELSE 0 END ), 0 ) AS gasto_mes_actual,
-        COALESCE ( SUM ( CASE WHEN DATE_TRUNC( 'month', "deliveryDate" ) = DATE_TRUNC( 'month', CURRENT_DATE ) THEN quantity ELSE 0 END ), 0 ) AS unidades_mes_actual,
-      -- Mes anterior
-        COALESCE (
-          SUM ( CASE WHEN DATE_TRUNC( 'month', "deliveryDate" ) = DATE_TRUNC( 'month', CURRENT_DATE ) - INTERVAL '1 month' THEN costo_total ELSE 0 END ),
-          0 
-        ) AS gasto_mes_anterior,
-        COALESCE (
-          SUM ( CASE WHEN DATE_TRUNC( 'month', "deliveryDate" ) = DATE_TRUNC( 'month', CURRENT_DATE ) - INTERVAL '1 month' THEN quantity ELSE 0 END ),
-          0 
-        ) AS unidades_mes_anterior,
-      -- Diferencia absoluta
-        COALESCE ( SUM ( CASE WHEN DATE_TRUNC( 'month', "deliveryDate" ) = DATE_TRUNC( 'month', CURRENT_DATE ) THEN costo_total ELSE 0 END ), 0 ) - COALESCE (
-          SUM ( CASE WHEN DATE_TRUNC( 'month', "deliveryDate" ) = DATE_TRUNC( 'month', CURRENT_DATE ) - INTERVAL '1 month' THEN costo_total ELSE 0 END ),
-          0 
-        ) AS diferencia,
-      -- Variación porcentual (0 si no hubo gasto el mes anterior)
-        COALESCE (
-        CASE
-            
-          WHEN SUM ( CASE WHEN DATE_TRUNC( 'month', "deliveryDate" ) = DATE_TRUNC( 'month', CURRENT_DATE ) - INTERVAL '1 month' THEN costo_total ELSE 0 END ) = 0 THEN
-        0 ELSE ROUND(
-          (
-            SUM ( CASE WHEN DATE_TRUNC( 'month', "deliveryDate" ) = DATE_TRUNC( 'month', CURRENT_DATE ) THEN costo_total ELSE 0 END ) - SUM ( CASE WHEN DATE_TRUNC( 'month', "deliveryDate" ) = DATE_TRUNC( 'month', CURRENT_DATE ) - INTERVAL '1 month' THEN costo_total ELSE 0 END ) 
-            ) / NULLIF (
-            SUM ( CASE WHEN DATE_TRUNC( 'month', "deliveryDate" ) = DATE_TRUNC( 'month', CURRENT_DATE ) - INTERVAL '1 month' THEN costo_total ELSE 0 END ),
-            0 
-          ) * 100,
-          2 
-        ) 
-        END,
-        0 
-        ) AS variacion_pct 
-      FROM
-        entregas 
-      GROUP BY
-        equipment_name 
-      HAVING
-        SUM ( costo_total ) > 0 
-      ORDER BY
-        gasto_mes_actual DESC;
+        COUNT(*) AS entregas,
+        COUNT(*) FILTER (WHERE fuera_de_rango) AS fuera_de_rango,
+        COUNT(DISTINCT employee_id) FILTER (WHERE fuera_de_rango) AS colaboradores,
+        ROUND(AVG(dias_anticipacion)) AS dias_anticipacion_promedio
+      FROM en_periodo
+      GROUP BY equipment_id, equipment_name
+      HAVING COUNT(*) FILTER (WHERE fuera_de_rango) > 0
+      ORDER BY fuera_de_rango DESC, equipment_name;
     `;
 
-    const query2 = `
+    // Todos los equipos de quienes tuvieron alguna entrega fuera de rango (el
+    // total permite calcular su porcentaje).
+    const porColaborador = `
+      WITH ${this.historialEpp}
       SELECT
-        eq.NAME AS equipment_name,
-      COALESCE ( ech.price, 0 ) AS precio_actual,
-      COALESCE ( ech."captureDate" :: DATE, CURRENT_DATE ) AS fecha_captura 
-      FROM
-        equipment eq
-        LEFT JOIN equipment_cost_history ech ON ech."equipmentId" = eq.ID 
-        AND ech."isActive" = TRUE 
-      WHERE
-        eq."manufacturingPlantId" = ${manufacturingPlantId} 
-        AND eq."is_active" = TRUE 
-      ORDER BY
-        precio_actual DESC;
+        r.employee_id,
+        emp.name,
+        emp.code,
+        area.name AS area,
+        pos.name AS position,
+        r.equipment_id,
+        r.equipment_name,
+        COUNT(*) AS entregas,
+        COUNT(*) FILTER (WHERE r.fuera_de_rango) AS fuera_de_rango,
+        ROUND(AVG(r.dias_anticipacion)) AS dias_anticipacion_promedio,
+        MAX(r.fecha)::text AS ultima_entrega
+      FROM en_periodo r
+        JOIN employee emp ON emp.id = r.employee_id
+        LEFT JOIN employee_area area ON area.id = emp."areaId"
+        LEFT JOIN employee_position pos ON pos.id = emp."positionId"
+      WHERE r.employee_id IN (SELECT employee_id FROM en_periodo WHERE fuera_de_rango)
+      GROUP BY r.employee_id, emp.name, emp.code, area.name, pos.name, r.equipment_id, r.equipment_name
+      ORDER BY emp.name, r.equipment_name;
     `;
 
-    const query3 = `
-      SELECT
-        TO_CHAR( DATE_TRUNC( 'month', ee."deliveryDate" ), 'Mon YYYY' ) AS mes_label,
-        DATE_TRUNC( 'month', ee."deliveryDate" ) AS mes,
-        COUNT ( * ) AS total_entregas,
-        COALESCE ( COUNT ( CASE WHEN ee."outOfRangeDelivery" = TRUE THEN 1 END ), 0 ) AS fuera_de_rango,
-        COALESCE ( COUNT ( CASE WHEN COALESCE ( ee."outOfRangeDelivery", FALSE ) = FALSE THEN 1 END ), 0 ) AS en_rango,
-        COALESCE (
-          ROUND(
-          COUNT ( CASE WHEN ee."outOfRangeDelivery" = TRUE THEN 1 END ) * 100.0 / NULLIF ( COUNT ( * ), 0 ),
-        2 
-        ),
-        0 
-        ) AS pct_fuera_de_rango 
-      FROM
-        epp_equipment ee
-        JOIN equipment eq ON eq.ID = ee."equipmentId" 
-      WHERE
-        eq."manufacturingPlantId" = ${manufacturingPlantId} 
-        AND ee."isActive" = TRUE 
-      GROUP BY
-        DATE_TRUNC( 'month', ee."deliveryDate" ) 
-      ORDER BY
-        mes ASC;
-    `;
-
-    const query4 = `
-      SELECT
-        eq.NAME AS equipment_name,
-        COALESCE (
-          SUM ( CASE WHEN DATE_TRUNC( 'month', ee."deliveryDate" ) = DATE_TRUNC( 'month', CURRENT_DATE ) THEN ee.quantity ELSE 0 END ),
-          0 
-        ) AS unidades_mes_actual,
-        COALESCE (
-          SUM (
-          CASE
-              
-              WHEN DATE_TRUNC( 'month', ee."deliveryDate" ) = DATE_TRUNC( 'month', CURRENT_DATE ) - INTERVAL '1 month' THEN
-              ee.quantity ELSE 0 
-            END 
-            ),
-            0 
-          ) AS unidades_mes_anterior,
-          COALESCE (
-            COUNT ( DISTINCT CASE WHEN DATE_TRUNC( 'month', ee."deliveryDate" ) = DATE_TRUNC( 'month', CURRENT_DATE ) THEN e."employeeId" END ),
-            0 
-          ) AS empleados_mes_actual,
-          COALESCE (
-            COUNT ( DISTINCT CASE WHEN DATE_TRUNC( 'month', ee."deliveryDate" ) = DATE_TRUNC( 'month', CURRENT_DATE ) - INTERVAL '1 month' THEN e."employeeId" END ),
-            0 
-          ) AS empleados_mes_anterior 
-        FROM
-          epp_equipment ee
-          JOIN equipment eq ON eq.ID = ee."equipmentId"
-          JOIN epp e ON e.ID = ee."eppId" 
-        WHERE
-          eq."manufacturingPlantId" = ${manufacturingPlantId} 
-          AND ee."isActive" = TRUE 
-          AND DATE_TRUNC( 'month', ee."deliveryDate" ) IN ( DATE_TRUNC( 'month', CURRENT_DATE ), DATE_TRUNC( 'month', CURRENT_DATE ) - INTERVAL '1 month' ) 
-        GROUP BY
-          eq.NAME 
-        HAVING
-          COALESCE (
-            SUM ( CASE WHEN DATE_TRUNC( 'month', ee."deliveryDate" ) = DATE_TRUNC( 'month', CURRENT_DATE ) THEN ee.quantity ELSE 0 END ),
-            0 
-          ) > 0 
-          OR COALESCE (
-            SUM (
-            CASE
-                
-                WHEN DATE_TRUNC( 'month', ee."deliveryDate" ) = DATE_TRUNC( 'month', CURRENT_DATE ) - INTERVAL '1 month' THEN
-                ee.quantity ELSE 0 
-              END 
-              ),
-              0 
-            ) > 0 
-        ORDER BY
-        unidades_mes_actual DESC;
-    `;
-
-    const query5 = `
-      WITH total_activos AS (
-        SELECT COUNT
-          ( * ) AS total 
-        FROM
-          employees_manufacturing_plants emp
-          JOIN employee e ON e.ID = emp."employeeId" 
-        WHERE
-          emp."manufacturingPlantId" = ${manufacturingPlantId} 
-          AND e."isActive" = TRUE 
-        ),
-        con_entrega_actual AS (
-        SELECT COUNT
-          ( DISTINCT e."employeeId" ) AS cantidad 
-        FROM
-          epp e
-          JOIN epp_equipment ee ON ee."eppId" = e.
-          ID JOIN equipment eq ON eq.ID = ee."equipmentId" 
-        WHERE
-          eq."manufacturingPlantId" = ${manufacturingPlantId} 
-          AND ee."isActive" = TRUE 
-          AND DATE_TRUNC( 'month', ee."deliveryDate" ) = DATE_TRUNC( 'month', CURRENT_DATE ) 
-        ),
-        con_entrega_anterior AS (
-        SELECT COUNT
-          ( DISTINCT e."employeeId" ) AS cantidad 
-        FROM
-          epp e
-          JOIN epp_equipment ee ON ee."eppId" = e.
-          ID JOIN equipment eq ON eq.ID = ee."equipmentId" 
-        WHERE
-          eq."manufacturingPlantId" = ${manufacturingPlantId} 
-          AND ee."isActive" = TRUE 
-          AND DATE_TRUNC( 'month', ee."deliveryDate" ) = DATE_TRUNC( 'month', CURRENT_DATE ) - INTERVAL '1 month' 
-        ) SELECT T
-        .total AS total_empleados_activos,
-        ca.cantidad AS con_entrega_mes_actual,
-        T.total - ca.cantidad AS sin_entrega_mes_actual,
-        COALESCE ( ROUND( ca.cantidad * 100.0 / NULLIF ( T.total, 0 ), 2 ), 0 ) AS pct_con_entrega_actual,
-        COALESCE (
-          ROUND( ( T.total - ca.cantidad ) * 100.0 / NULLIF ( T.total, 0 ), 2 ),
-          0 
-        ) AS pct_sin_entrega_actual,
-        cb.cantidad AS con_entrega_mes_anterior,
-        T.total - cb.cantidad AS sin_entrega_mes_anterior,
-        COALESCE ( ROUND( cb.cantidad * 100.0 / NULLIF ( T.total, 0 ), 2 ), 0 ) AS pct_con_entrega_anterior,
-        COALESCE (
-          ROUND( ( T.total - cb.cantidad ) * 100.0 / NULLIF ( T.total, 0 ), 2 ),
-          0 
-        ) AS pct_sin_entrega_anterior 
-      FROM
-        total_activos T,
-        con_entrega_actual ca,
-        con_entrega_anterior cb;
-    `;
-
-    const query6 = `
-      WITH primera_entrega AS (
-        SELECT
-          e."employeeId",
-          MIN ( ee."deliveryDate" ) AS primera_entrega_fecha 
-        FROM
-          epp e
-          JOIN epp_equipment ee ON ee."eppId" = e.
-          ID JOIN equipment eq ON eq.ID = ee."equipmentId" 
-        WHERE
-          eq."manufacturingPlantId" = ${manufacturingPlantId} 
-          AND ee."isActive" = TRUE 
-        GROUP BY
-          e."employeeId" 
-        ) SELECT COALESCE
-        ( COUNT ( CASE WHEN DATE_TRUNC( 'month', primera_entrega_fecha ) = DATE_TRUNC( 'month', CURRENT_DATE ) THEN 1 END ), 0 ) AS primera_vez_mes_actual,
-        COALESCE ( COUNT ( CASE WHEN DATE_TRUNC( 'month', primera_entrega_fecha ) = DATE_TRUNC( 'month', CURRENT_DATE ) - INTERVAL '1 month' THEN 1 END ), 0 ) AS primera_vez_mes_anterior,
-        COALESCE ( COUNT ( CASE WHEN DATE_TRUNC( 'month', primera_entrega_fecha ) = DATE_TRUNC( 'month', CURRENT_DATE ) THEN 1 END ), 0 ) - COALESCE ( COUNT ( CASE WHEN DATE_TRUNC( 'month', primera_entrega_fecha ) = DATE_TRUNC( 'month', CURRENT_DATE ) - INTERVAL '1 month' THEN 1 END ), 0 ) AS diferencia 
-      FROM
-        primera_entrega;
-    `;
-
-    const query7 = `
-      WITH primera_entrega AS (
-        SELECT
-          e."employeeId",
-          MIN ( ee."deliveryDate" ) AS primera_entrega_fecha 
-        FROM
-          epp e
-          JOIN epp_equipment ee ON ee."eppId" = e.
-          ID JOIN equipment eq ON eq.ID = ee."equipmentId" 
-        WHERE
-          eq."manufacturingPlantId" = ${manufacturingPlantId} 
-          AND ee."isActive" = TRUE 
-        GROUP BY
-          e."employeeId" 
-        ),
-        nuevos_este_mes AS ( SELECT "employeeId" FROM primera_entrega WHERE DATE_TRUNC( 'month', primera_entrega_fecha ) = DATE_TRUNC( 'month', CURRENT_DATE ) ) SELECT
-        eq.NAME AS equipment_name,
-        COALESCE ( COUNT ( DISTINCT e."employeeId" ), 0 ) AS empleados_nuevos_que_lo_recibieron 
-      FROM
-        epp e
-        JOIN epp_equipment ee ON ee."eppId" = e.
-        ID JOIN equipment eq ON eq.ID = ee."equipmentId"
-        JOIN nuevos_este_mes n ON n."employeeId" = e."employeeId" 
-      WHERE
-        eq."manufacturingPlantId" = ${manufacturingPlantId} 
-        AND ee."isActive" = TRUE 
-        AND DATE_TRUNC( 'month', ee."deliveryDate" ) = DATE_TRUNC( 'month', CURRENT_DATE ) 
-      GROUP BY
-        eq.NAME 
-      ORDER BY
-        empleados_nuevos_que_lo_recibieron DESC;
-    `;
-
-    const query8 = `
-      SELECT
-        TO_CHAR( DATE_TRUNC( 'month', ee."deliveryDate" ), 'Mon YYYY' ) AS mes_label,
-        DATE_TRUNC( 'month', ee."deliveryDate" ) AS mes_date,
-        COALESCE ( SUM ( ee.quantity * ech.price ), 0 ) AS gasto_total,
-        COALESCE ( SUM ( ee.quantity ), 0 ) AS unidades_total,
-        COALESCE ( COUNT ( DISTINCT e."employeeId" ), 0 ) AS empleados_con_entrega 
-      FROM
-        epp_equipment ee
-        JOIN epp e ON e.ID = ee."eppId"
-        JOIN equipment eq ON eq.ID = ee."equipmentId"
-        JOIN equipment_cost_history ech ON ech."equipmentId" = eq.ID 
-        AND ech."isActive" = TRUE 
-      WHERE
-        eq."manufacturingPlantId" = ${manufacturingPlantId} 
-        AND ee."isActive" = TRUE 
-      GROUP BY
-        DATE_TRUNC( 'month', ee."deliveryDate" ) 
-      ORDER BY
-        mes_date ASC;
-    `;
-
-    const query9 = `
-      SELECT
-        eq.NAME AS equipment_name,
-        COALESCE ( SUM ( ee.quantity * ech.price ), 0 ) AS gasto_total,
-        COALESCE ( SUM ( ee.quantity ), 0 ) AS unidades_total,
-        COALESCE (
-          ROUND(
-            SUM ( ee.quantity * ech.price ) * 100.0 / NULLIF ( SUM ( SUM ( ee.quantity * ech.price ) ) OVER ( ), 0 ),
-            2 
-          ),
-          0 
-        ) AS pct_del_total 
-      FROM
-        epp_equipment ee
-        JOIN equipment eq ON eq.ID = ee."equipmentId"
-        JOIN equipment_cost_history ech ON ech."equipmentId" = eq.ID 
-        AND ech."isActive" = TRUE 
-      WHERE
-        eq."manufacturingPlantId" = ${manufacturingPlantId} 
-        AND ee."isActive" = TRUE 
-      GROUP BY
-        eq.NAME 
-      ORDER BY
-        gasto_total DESC;
-    `;
-
-    const query10 = `
-      SELECT
-        TO_CHAR( DATE_TRUNC( 'month', ee."deliveryDate" ), 'Mon YYYY' ) AS mes_label,
-        DATE_TRUNC( 'month', ee."deliveryDate" ) AS mes_date,
-        COALESCE ( COUNT ( DISTINCT e."employeeId" ), 0 ) AS empleados_con_entrega,
-        COALESCE ( SUM ( ee.quantity * ech.price ), 0 ) AS gasto_total,
-        COALESCE (
-          ROUND( SUM ( ee.quantity * ech.price ) / NULLIF ( COUNT ( DISTINCT e."employeeId" ), 0 ), 2 ),
-          0 
-        ) AS gasto_promedio_por_empleado 
-      FROM
-        epp_equipment ee
-        JOIN epp e ON e.ID = ee."eppId"
-        JOIN equipment eq ON eq.ID = ee."equipmentId"
-        JOIN equipment_cost_history ech ON ech."equipmentId" = eq.ID 
-        AND ech."isActive" = TRUE 
-      WHERE
-        eq."manufacturingPlantId" = ${manufacturingPlantId} 
-        AND ee."isActive" = TRUE 
-      GROUP BY
-        DATE_TRUNC( 'month', ee."deliveryDate" ) 
-      ORDER BY
-        mes_date ASC;
-    `;
-
-    const promedioGlobalChart10 = `
-      SELECT COALESCE
-        (
-          ROUND( SUM ( ee.quantity * ech.price ) / NULLIF ( COUNT ( DISTINCT e."employeeId" ), 0 ), 2 ),
-          0 
-        ) AS gasto_promedio_global_por_empleado 
-      FROM
-        epp_equipment ee
-        JOIN epp e ON e.ID = ee."eppId"
-        JOIN equipment eq ON eq.ID = ee."equipmentId"
-        JOIN equipment_cost_history ech ON ech."equipmentId" = eq.ID 
-        AND ech."isActive" = TRUE 
-      WHERE
-        eq."manufacturingPlantId" = ${manufacturingPlantId} 
-        AND ee."isActive" = TRUE;
-    `;
-
-    return Promise.all([
-      this.executeQuery(query1),
-      this.executeQuery(query2),
-      this.executeQuery(query3),
-      this.executeQuery(query4),
-      this.executeQuery(query5),
-      this.executeQuery(query6),
-      this.executeQuery(query7),
-      this.executeQuery(query8),
-      this.executeQuery(query9),
-      this.executeQuery(query10),
-      this.executeQuery(promedioGlobalChart10),
-    ]).then(
-      ([
-        Chart1,
-        Chart2,
-        Chart3,
-        Chart4,
-        Chart5,
-        Chart6,
-        Chart7,
-        Chart8,
-        Chart9,
-        Chart10,
-        PromedioGlobalChart10,
-      ]) => ({
-        chart1: Chart1,
-        chart2: Chart2,
-        chart3: Chart3,
-        chart4: Chart4,
-        chart5: Chart5,
-        chart6: Chart6,
-        chart7: Chart7,
-        chart8: Chart8,
-        chart9: Chart9,
-        chart10: Chart10,
-        promedioGlobalChart10:
-          PromedioGlobalChart10[0]?.gasto_promedio_global_por_empleado || 0,
-      }),
+    const [byEquipment, byEmployeeEquipment] = await Promise.all(
+      [porEquipo, porColaborador].map((query) =>
+        this.queryWithParams(query, params),
+      ),
     );
+
+    const toNumber = (value: unknown) =>
+      value === null || value === undefined ? null : Number(value);
+
+    return {
+      periodo: period.actual,
+      byEquipment: byEquipment.map((row) => ({
+        equipmentId: Number(row.equipment_id),
+        equipmentName: row.equipment_name,
+        deliveries: Number(row.entregas),
+        outOfRange: Number(row.fuera_de_rango),
+        employees: Number(row.colaboradores),
+        averageDaysEarly: toNumber(row.dias_anticipacion_promedio),
+      })),
+      byEmployeeEquipment: byEmployeeEquipment.map((row) => ({
+        employeeId: Number(row.employee_id),
+        name: row.name,
+        code: row.code === null ? null : String(row.code),
+        area: row.area,
+        position: row.position,
+        equipmentId: Number(row.equipment_id),
+        equipmentName: row.equipment_name,
+        deliveries: Number(row.entregas),
+        outOfRange: Number(row.fuera_de_rango),
+        averageDaysEarly: toNumber(row.dias_anticipacion_promedio),
+        lastDelivery: row.ultima_entrega,
+      })),
+    };
+  }
+
+  /**
+   * Entregas de un colaborador en el periodo (para el detalle del análisis
+   * fuera de rango): cuándo, qué, la entrega anterior, cuántos días antes de
+   * tiempo y quién la registró. 404 si no es de la planta.
+   */
+  async findBusinessIntelligenceEppEmployee(
+    manufacturingPlantId: number,
+    employeeId: number,
+    startDate?: string,
+    endDate?: string,
+  ) {
+    const period = resolveBiEppPeriod(startDate, endDate, this.today());
+
+    const [employee] = await this.queryWithParams(
+      `
+      SELECT emp.id, emp.name, emp.code, area.name AS area, pos.name AS position
+      FROM employee emp
+        JOIN employees_manufacturing_plants emp_plant ON emp_plant."employeeId" = emp.id
+        LEFT JOIN employee_area area ON area.id = emp."areaId"
+        LEFT JOIN employee_position pos ON pos.id = emp."positionId"
+      WHERE emp.id = $1 AND emp_plant."manufacturingPlantId" = $2;
+    `,
+      [employeeId, manufacturingPlantId],
+    );
+    if (!employee) {
+      throw new NotFoundException(`Colaborador #${employeeId} no encontrado`);
+    }
+
+    const deliveries = await this.queryWithParams(
+      `
+      WITH ${this.historialEpp}
+      SELECT
+        r.id,
+        r.fecha::text AS fecha,
+        r.equipment_name,
+        r.unidades,
+        r.frecuencia,
+        r.entrega_anterior::text AS entrega_anterior,
+        r.fuera_de_rango,
+        r.dias_anticipacion,
+        u.name AS registro
+      FROM en_periodo r
+        LEFT JOIN "user" u ON u.id = r.registro_id
+      WHERE r.employee_id = $4
+      ORDER BY r.fecha DESC, r.id DESC;
+    `,
+      [
+        manufacturingPlantId,
+        period.actual.desde,
+        period.actual.hasta,
+        employeeId,
+      ],
+    );
+
+    return {
+      periodo: period.actual,
+      employee: {
+        id: Number(employee.id),
+        name: employee.name,
+        code: employee.code === null ? null : String(employee.code),
+        area: employee.area,
+        position: employee.position,
+      },
+      deliveries: deliveries.map((row) => ({
+        id: Number(row.id),
+        date: row.fecha,
+        equipmentName: row.equipment_name,
+        quantity: Number(row.unidades),
+        frequencyDays: row.frecuencia === null ? null : Number(row.frecuencia),
+        previousDelivery: row.entrega_anterior,
+        outOfRange: row.fuera_de_rango === true,
+        daysEarly:
+          row.dias_anticipacion === null ? null : Number(row.dias_anticipacion),
+        registeredBy: row.registro,
+      })),
+    };
   }
 
   async findGlobalSummary(manufacturingPlantId: number) {

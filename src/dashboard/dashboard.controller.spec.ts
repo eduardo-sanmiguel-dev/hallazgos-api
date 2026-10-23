@@ -1,5 +1,7 @@
 import {
+  buildAdmin,
   buildManufacturingPlant,
+  buildSupervisor,
   buildUser,
   createHttpTestApp,
   type HttpTestApp,
@@ -10,7 +12,6 @@ import { DashboardService } from './dashboard.service.js';
 
 /** Endpoints que solo reciben la planta (validada con UserPlantPipe). */
 const BY_PLANT: [string, keyof DashboardService][] = [
-  ['business-intelligence/epp', 'findBusinessIntelligenceEpp'],
   ['critical-zones', 'findCriticalZones'],
   ['global-summary', 'findGlobalSummary'],
   ['ranking-of-responsibles', 'findRankingOfResponsibles'],
@@ -73,6 +74,94 @@ describe('DashboardController (HTTP)', () => {
 
   const get = (route: string, query: object = {}) =>
     http.http().get(`/dashboard/${route}`).query(query);
+
+  describe('/business-intelligence/epp (solo administradores)', () => {
+    const route = 'business-intelligence/epp';
+    const plants = [buildManufacturingPlant({ id: 1 })];
+
+    afterEach(() => http.setUser(buildUser({ manufacturingPlants: plants })));
+
+    it.each([
+      ['General', buildUser({ manufacturingPlants: plants })],
+      ['Supervisor', buildSupervisor({ manufacturingPlants: plants })],
+    ])('un usuario %s recibe 403 y no se consulta', async (_, user) => {
+      http.setUser(user);
+      await get(route, { manufacturingPlantId: '1' }).expect(403);
+
+      expect(service.findBusinessIntelligenceEpp).not.toHaveBeenCalled();
+    });
+
+    it('un administrador con una planta propia obtiene los datos', async () => {
+      http.setUser(buildAdmin({ manufacturingPlants: plants }));
+      await get(route, { manufacturingPlantId: '1' }).expect(200);
+
+      expect(service.findBusinessIntelligenceEpp).toHaveBeenCalledWith(
+        1,
+        undefined,
+        undefined,
+      );
+    });
+
+    it('pasa el periodo elegido al servicio', async () => {
+      http.setUser(buildAdmin({ manufacturingPlants: plants }));
+      await get(route, {
+        manufacturingPlantId: '1',
+        startDate: '01/09/2026',
+        endDate: '30/09/2026',
+      }).expect(200);
+
+      expect(service.findBusinessIntelligenceEpp).toHaveBeenCalledWith(
+        1,
+        '01/09/2026',
+        '30/09/2026',
+      );
+    });
+
+    it.each([
+      ['out-of-range', 'findBusinessIntelligenceEppOutOfRange'],
+      ['employees/5', 'findBusinessIntelligenceEppEmployee'],
+    ])(
+      '/%s: General recibe 403 y administrador consulta',
+      async (path, method) => {
+        http.setUser(buildUser({ manufacturingPlants: plants }));
+        await get(`${route}/${path}`, { manufacturingPlantId: '1' }).expect(
+          403,
+        );
+        expect(service[method]).not.toHaveBeenCalled();
+
+        http.setUser(buildAdmin({ manufacturingPlants: plants }));
+        await get(`${route}/${path}`, {
+          manufacturingPlantId: '1',
+          startDate: '01/10/2026',
+          endDate: '22/10/2026',
+        }).expect(200);
+        expect(service[method]).toHaveBeenCalledWith(
+          1,
+          ...(path.startsWith('employees') ? [5] : []),
+          '01/10/2026',
+          '22/10/2026',
+        );
+      },
+    );
+
+    it('el detalle de colaborador exige un id numérico', async () => {
+      http.setUser(buildAdmin({ manufacturingPlants: plants }));
+      await get(`${route}/employees/abc`, { manufacturingPlantId: '1' }).expect(
+        400,
+      );
+      expect(
+        service.findBusinessIntelligenceEppEmployee,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('un administrador con una planta ajena recibe 404 y sin planta 400', async () => {
+      http.setUser(buildAdmin({ manufacturingPlants: plants }));
+      await get(route, { manufacturingPlantId: '2' }).expect(404);
+      await get(route).expect(400);
+
+      expect(service.findBusinessIntelligenceEpp).not.toHaveBeenCalled();
+    });
+  });
 
   describe.each([...BY_PLANT, ...BY_FILTERS])('/%s', (route, method) => {
     it('con una planta propia llama al servicio con el id numérico', async () => {
