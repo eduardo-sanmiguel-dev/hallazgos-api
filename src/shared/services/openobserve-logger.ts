@@ -26,6 +26,15 @@ type QueuedEntry = OpenObserveEntry & {
   service: string;
 };
 
+// Arranque de Nest: ~380 líneas por reinicio ("Mapped route…",
+// "dependencies initialized") que eran el 84 % de los logs en OpenObserve.
+// Se siguen viendo en pm2; sus errores y avisos sí se envían.
+const STARTUP_CONTEXTS = new Set([
+  'RouterExplorer',
+  'InstanceLoader',
+  'RoutesResolver',
+]);
+
 /**
  * Logger de Nest que, además de escribir en consola (pm2), envía cada
  * registro en lotes a OpenObserve por su API de ingesta `_json`. Si
@@ -87,7 +96,7 @@ export class OpenObserveLogger extends ConsoleLogger {
   }
 
   // En producción corre bajo pm2, que ya antepone fecha y hora a cada línea
-  // (`time: true` en ecosystem.config.js): la de Nest saldría repetida.
+  // (`log_date_format` en ecosystem.config.js): la de Nest saldría repetida.
   protected getTimestamp() {
     return '';
   }
@@ -112,6 +121,8 @@ export class OpenObserveLogger extends ConsoleLogger {
       errorStack,
       params,
     );
+
+    if (logLevel === 'log' && context && STARTUP_CONTEXTS.has(context)) return;
 
     for (const message of messages) {
       this.ship({

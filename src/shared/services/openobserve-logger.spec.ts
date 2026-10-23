@@ -88,6 +88,25 @@ describe('OpenObserveLogger', () => {
     });
   });
 
+  it('no envía el arranque de Nest (sí lo imprime), salvo avisos y errores', async () => {
+    const { logger, fetchFn } = createLogger();
+
+    logger.log('Mapped {/api/v1/users, GET} route', 'RouterExplorer');
+    logger.log('TypeOrmModule dependencies initialized', 'InstanceLoader');
+    logger.log('UsersController {/api/v1/users}:', 'RoutesResolver');
+    logger.warn('Ruta duplicada', 'RouterExplorer');
+    logger.log('Running on port: [4000]', 'APP-SERVICE');
+    await logger.flush();
+
+    expect(process.stdout.write).toHaveBeenCalledWith(
+      expect.stringContaining('Mapped {/api/v1/users, GET} route'),
+    );
+    expect(
+      sentBatch(fetchFn).map(({ context }: { context: string }) => context),
+    ).toEqual(['RouterExplorer', 'APP-SERVICE']);
+    expect(sentBatch(fetchFn)[0]).toMatchObject({ level: 'warn' });
+  });
+
   it('convierte errores y objetos en texto', async () => {
     const { logger, fetchFn } = createLogger();
     const circular: Record<string, unknown> = {};
