@@ -86,6 +86,16 @@ export class OpenObserveLogger extends ConsoleLogger {
     await this.flush();
   }
 
+  // En producción corre bajo pm2, que ya antepone fecha y hora a cada línea
+  // (`time: true` en ecosystem.config.js): la de Nest saldría repetida.
+  protected getTimestamp() {
+    return '';
+  }
+
+  protected formatPid(pid: number) {
+    return `[${this.options.prefix}] ${pid}`;
+  }
+
   protected printMessages(
     messages: unknown[],
     context?: string,

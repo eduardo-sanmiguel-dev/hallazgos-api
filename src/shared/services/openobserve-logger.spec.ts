@@ -64,6 +64,16 @@ describe('OpenObserveLogger', () => {
     ]);
   });
 
+  it('no repite la fecha en consola: la pone pm2', () => {
+    const { logger } = createLogger();
+    logger.log('Arrancó', 'APP-SERVICE');
+
+    const [line] = (process.stdout.write as jest.Mock).mock.calls.at(-1);
+    const plain = String(line).replace(/\x1b\[[0-9;]*m/g, '');
+    expect(plain).toBe(`[Nest] ${process.pid}     LOG [APP-SERVICE] Arrancó\n`);
+    expect(plain).not.toMatch(/\d{1,2}\/\d{1,2}\/\d{4}/);
+  });
+
   it('incluye el stack de los errores', async () => {
     const { logger, fetchFn } = createLogger();
 
