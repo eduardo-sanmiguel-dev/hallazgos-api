@@ -13,7 +13,12 @@ import {
 import { AdminGuard } from '../shared/guards/admin.guard.js';
 
 import { UsersService } from './users.service.js';
-import { CreateUserDto, QueryUserDto, UpdateUserDto } from './dto/index.js';
+import {
+  CreateUserDto,
+  QuerySupervisorsDto,
+  QueryUserDto,
+  UpdateUserDto,
+} from './dto/index.js';
 
 @Controller('users')
 export class UsersController {
@@ -39,8 +44,13 @@ export class UsersController {
   }
 
   @Get('/supervisors')
-  getSupervisors() {
-    return this.usersService.getSupervisors();
+  getSupervisors(
+    @Query() { manufacturingPlantId, zoneId }: QuerySupervisorsDto,
+  ) {
+    // Sin filtros, la lista completa como antes (compatibilidad al desplegar).
+    return zoneId
+      ? this.usersService.getZoneSupervisors(manufacturingPlantId, zoneId)
+      : this.usersService.getSupervisors();
   }
 
   @Get(':id')

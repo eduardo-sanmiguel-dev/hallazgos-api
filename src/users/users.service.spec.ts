@@ -579,6 +579,45 @@ describe('UsersService', () => {
     });
   });
 
+  describe('getZoneSupervisors', () => {
+    const me = buildUser({
+      manufacturingPlants: [buildManufacturingPlant({ id: 1 })],
+    });
+
+    it('trae solo los supervisores activos de la zona y planta, sin relaciones', async () => {
+      const rows = [{ id: 5, name: 'Ana', email: 'ana@x.test' }];
+      users.find.mockResolvedValue(rows as never);
+
+      await expect(
+        runAsUser(me, () => service.getZoneSupervisors(1, 10)),
+      ).resolves.toBe(rows);
+
+      const args = users.find.mock.calls[0][0] as {
+        where: Record<string, unknown>;
+        select: unknown;
+        order: unknown;
+        relations?: unknown;
+      };
+      expect(args.where).toMatchObject({
+        isActive: true,
+        role: ROLE_SUPERVISOR,
+        manufacturingPlants: { id: 1 },
+        zones: { id: 10 },
+      });
+      expectExcludes(args.where.email, ['eduardo-supervisor@hotmail.com']);
+      expect(args.select).toEqual({ id: true, name: true, email: true });
+      expect(args.order).toEqual({ name: 'ASC' });
+      expect(args).not.toHaveProperty('relations');
+    });
+
+    it('una planta que no es del usuario responde 404 sin consultar', async () => {
+      await expect(
+        runAsUser(me, () => service.getZoneSupervisors(2, 10)),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(users.find).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getInformationCurrentUser', () => {
     it('devuelve los datos del usuario en sesión', async () => {
       const me = buildUser({ id: 12 });
