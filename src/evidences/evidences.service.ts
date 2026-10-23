@@ -704,7 +704,9 @@ export class EvidencesService {
       evidenceSolution.manufacturingPlant.id,
     );
 
-    await this.notifyByEmail({
+    // En segundo plano, como al crear: son un correo por usuario de la planta
+    // (48 en Tepotzotlán, ~45 s) y nunca lanza; no se hace esperar al usuario.
+    void this.notifyByEmail({
       manufacturingPlant,
       evidenceCurrent: evidenceSolution,
       type: 'solution',
@@ -1680,8 +1682,9 @@ export class EvidencesService {
 
     const usersToNotify = Array.from(usersToNotifyMap.values());
 
+    // En segundo plano: nunca lanza y el cambio ya se guardó.
     if (usersToNotify.length > 0) {
-      await this.sendEmailUsers(usersToNotify, evidenceUpdated, 'reassign', {
+      void this.sendEmailUsers(usersToNotify, evidenceUpdated, 'reassign', {
         reassignedBy: requestUser,
         previousResponsibles,
         currentResponsibles: evidenceUpdated.responsibles,
@@ -1711,7 +1714,8 @@ export class EvidencesService {
       evidence.manufacturingPlant.id,
     );
 
-    await this.notifyByEmail({
+    // En segundo plano, como al cerrar: un correo por usuario de la planta.
+    void this.notifyByEmail({
       manufacturingPlant,
       evidenceCurrent: evidence,
       type: 'cancel',

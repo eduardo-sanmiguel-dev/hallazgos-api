@@ -730,9 +730,21 @@ describe('EvidencesService', () => {
             imgSolution: 'uuid-solution.png',
             solutionDate: result.solutionDate,
           });
+          await flushBackgroundWork();
           expect(mail.sendSolution).toHaveBeenCalled();
         },
       );
+
+      // Son un correo por usuario de la planta (~45 s en Tepotzotlán).
+      it('responde sin esperar a que salgan los correos', async () => {
+        mail.sendSolution.mockReturnValue(new Promise(() => {}));
+
+        await expect(close(supervisor)).resolves.toMatchObject({
+          status: STATUS_CLOSE,
+        });
+        await flushBackgroundWork();
+        expect(mail.sendSolution).toHaveBeenCalled();
+      });
 
       it('sin imagen ni descripción guarda textos vacíos', async () => {
         await expect(close(supervisor, null, '')).resolves.toMatchObject({
@@ -791,9 +803,20 @@ describe('EvidencesService', () => {
             status: STATUS_CANCEL,
             isActive: false,
           });
+          await flushBackgroundWork();
           expect(mail.sendCancel).toHaveBeenCalled();
         },
       );
+
+      it('responde sin esperar a que salgan los correos', async () => {
+        mail.sendCancel.mockReturnValue(new Promise(() => {}));
+
+        await expect(cancel(buildAdmin(inPlant))).resolves.toMatchObject({
+          status: STATUS_CANCEL,
+        });
+        await flushBackgroundWork();
+        expect(mail.sendCancel).toHaveBeenCalled();
+      });
 
       it('lo puede cancelar un correo con permiso de cancelación', async () => {
         await expect(
@@ -875,9 +898,21 @@ describe('EvidencesService', () => {
               responsibles: evidence.responsibles,
             }),
           );
+          await flushBackgroundWork();
           expect(mail.sendReassign).toHaveBeenCalledTimes(2);
         },
       );
+
+      it('responde sin esperar a que salgan los correos', async () => {
+        mail.sendReassign.mockReturnValue(new Promise(() => {}));
+
+        await expect(
+          reassign(supervisor, [newResponsible.id]),
+        ).resolves.toMatchObject({ responsibles: [newResponsible] });
+        await flushBackgroundWork();
+        // Se envían uno tras otro: el primero nunca termina.
+        expect(mail.sendReassign).toHaveBeenCalledTimes(1);
+      });
 
       it.each(FINAL)(
         'responde 409 si el hallazgo está "%s"',
