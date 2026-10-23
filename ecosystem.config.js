@@ -2,7 +2,7 @@
 // devuelve los exports nombrados, por eso `apps` se exporta por nombre.
 export const apps = [
   {
-    name: 'hallazgos-api', // Nombre de la aplicación
+    name: 'api-comp', // Nombre en pm2 (corto: los logs lo recortan a 10 caracteres)
     script: 'dist/main.js', // Archivo compilado de NestJS
     node_args: '--import ./dist/instrumentation.js', // Trazas: se cargan antes que la app
     instances: 1, // Usa una sola instancia en modo fork
