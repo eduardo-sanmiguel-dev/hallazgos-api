@@ -21,6 +21,40 @@ import { ManufacturingPlantsService } from '../manufacturing-plants/manufacturin
 import { ZonesService } from '../zones/zones.service.js';
 import { ProcessesService } from '../processes/processes.service.js';
 import { ManufacturingPlant } from '../manufacturing-plants/entities/manufacturing-plant.entity.js';
+import type { Zone } from '../zones/entities/zone.entity.js';
+import type { Processes } from '../processes/entities/processes.entity.js';
+
+/**
+ * Las relaciones de usuario se cargan con relationLoadStrategy 'query' (una
+ * consulta por relación): con JOIN cada usuario devolvía plantas × zonas ×
+ * procesos filas, miles para un supervisor con muchas zonas. Así llegan
+ * completas, sin el filtro del `where` que el JOIN sí aplicaba (p. ej.
+ * solo plantas activas): esto lo reaplica.
+ */
+const keepMatching = (
+  user: User,
+  filters: {
+    plant?: ((plant: ManufacturingPlant) => boolean) | false;
+    zone?: ((zone: Zone) => boolean) | false;
+    process?: ((process: Processes) => boolean) | false;
+  },
+) => {
+  if (filters.plant && user.manufacturingPlants)
+    user.manufacturingPlants = user.manufacturingPlants.filter(filters.plant);
+  if (filters.zone && user.zones) user.zones = user.zones.filter(filters.zone);
+  if (filters.process && user.processes)
+    user.processes = user.processes.filter(filters.process);
+  return user;
+};
+
+const byName = (a: { name: string }, b: { name: string }) =>
+  a.name.localeCompare(b.name);
+
+/** Plantas y zonas del usuario por nombre, como en los listados. */
+const sortByName = (user: User) => {
+  user.manufacturingPlants?.sort(byName);
+  user.zones?.sort(byName);
+};
 
 @Injectable()
 export class UsersService {
@@ -98,7 +132,7 @@ export class UsersService {
     return this.findAll(query, allowed);
   }
 
-  findAll(queryUserDto: QueryUserDto, allowedPlantIds?: number[]) {
+  async findAll(queryUserDto: QueryUserDto, allowedPlantIds?: number[]) {
     const { name, manufacturingPlantId, rule, zoneId, processId, orderBy } =
       queryUserDto;
     const { page, limit } = queryUserDto;
@@ -144,23 +178,24 @@ export class UsersService {
       return this.findAllPaginated(where, Number(page), Number(limit));
     }
 
-    return this.userRepository.find({
+    const users = await this.userRepository.find({
       where,
       relations: this.listRelations,
-      order: {
-        ...(order
-          ? {
-              [Object.keys(order)[0]]: Object.values(order)[0],
-            }
-          : { id: 'DESC' }),
-        manufacturingPlants: {
-          name: 'ASC',
-        },
-        zones: {
-          name: 'ASC',
-        },
-      },
+      relationLoadStrategy: 'query',
+      order: order ?? { id: 'DESC' },
     });
+
+    for (const user of users) {
+      keepMatching(user, {
+        plant: plantIds && ((plant) => plantIds.includes(Number(plant.id))),
+        zone: zoneId && ((zone) => Number(zone.id) === Number(zoneId)),
+        process:
+          processId && ((process) => Number(process.id) === Number(processId)),
+      });
+      sortByName(user);
+    }
+
+    return users;
   }
 
   private readonly listRelations = [
@@ -171,27 +206,23 @@ export class UsersService {
     'processes.manufacturingPlant',
   ];
 
+  // La tabla de /users solo muestra plantas: zonas y procesos se cargan al
+  // editar (findOne).
   private async findAllPaginated(
     where: FindOptionsWhere<User>[],
     page: number,
     limit: number,
   ) {
-    // Con skip/take solo se ordena por la entidad principal; plantas y zonas
-    // se ordenan después en memoria (mismo resultado que el listado completo).
+    // Con skip/take solo se ordena por la entidad principal; las plantas se
+    // ordenan después en memoria.
     const [data, count] = await this.userRepository.findAndCount({
       where,
-      relations: this.listRelations,
+      relations: ['manufacturingPlants'],
       order: { id: 'DESC' },
       ...(limit !== -1 && { take: limit, skip: (page - 1) * limit }),
     });
 
-    const byName = (a: { name: string }, b: { name: string }) =>
-      a.name.localeCompare(b.name);
-
-    for (const user of data) {
-      user.manufacturingPlants?.sort(byName);
-      user.zones?.sort(byName);
-    }
+    data.forEach(sortByName);
 
     return { data, count };
   }
@@ -233,6 +264,8 @@ export class UsersService {
     });
   }
 
+  // También es el usuario en sesión de cada petición (JwtMiddleware): sus
+  // plantas activas son sus permisos.
   async findOne(id: number): Promise<User> {
     const user = await this.userRepository.findOne({
       where: {
@@ -240,19 +273,14 @@ export class UsersService {
         isActive: true,
         manufacturingPlants: { isActive: true },
       },
-      relations: [
-        'manufacturingPlants',
-        'zones',
-        'zones.manufacturingPlant',
-        'processes',
-        'processes.manufacturingPlant',
-      ],
+      relations: this.listRelations,
+      relationLoadStrategy: 'query',
     });
 
     if (!user)
       throw new NotFoundException(`Usuario con id ${id} no encontrado`);
 
-    return user;
+    return keepMatching(user, { plant: (plant) => plant.isActive });
   }
 
   async findSupervisor({
@@ -344,7 +372,7 @@ export class UsersService {
       (manufacturingPlant) => manufacturingPlant.id,
     );
 
-    return this.userRepository.find({
+    const supervisors = await this.userRepository.find({
       where: {
         isActive: true,
         role: ROLE_SUPERVISOR,
@@ -354,10 +382,17 @@ export class UsersService {
         email: Not(In(['eduardo-supervisor@hotmail.com'])),
       },
       relations: ['manufacturingPlants', 'zones', 'processes'],
+      relationLoadStrategy: 'query',
       order: {
         name: 'ASC',
       },
     });
+
+    return supervisors.map((supervisor) =>
+      keepMatching(supervisor, {
+        plant: (plant) => manufacturingPlantsIds.includes(Number(plant.id)),
+      }),
+    );
   }
 
   async getInformationCurrentUser(): Promise<User> {
@@ -377,12 +412,13 @@ export class UsersService {
         'processes',
         'manufacturingPlants.country',
       ],
+      relationLoadStrategy: 'query',
     });
 
     if (!user)
       throw new NotFoundException(`Usuario con id ${userId} no encontrado`);
 
-    return user;
+    return keepMatching(user, { plant: (plant) => plant.isActive });
   }
 
   async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {

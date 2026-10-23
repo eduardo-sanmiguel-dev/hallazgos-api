@@ -1,0 +1,157 @@
+/**
+ * E2E (app completa + base de pruebas): plantas, zonas y procesos de los
+ * usuarios. Se cargan con una consulta por relación (relationLoadStrategy
+ * 'query') y el servicio reaplica los filtros que antes hacía el JOIN: estas
+ * pruebas cuidan que el resultado siga siendo el mismo.
+ */
+import { User } from '../../src/users/entities/user.entity.js';
+import { ManufacturingPlant } from '../../src/manufacturing-plants/entities/manufacturing-plant.entity.js';
+import { createE2eApp, type E2eApp } from './e2e-app.js';
+
+type UserBody = {
+  email: string;
+  manufacturingPlants: { name: string }[];
+  zones?: { name: string; manufacturingPlant: { name: string } }[];
+  processes?: { name: string; manufacturingPlant: { name: string } }[];
+};
+
+const names = (items: { name: string }[] = []) => items.map((i) => i.name);
+
+describe('E2E: relaciones de usuarios', () => {
+  let e2e: E2eApp;
+  const byEmail = (body: UserBody[], email: string) =>
+    body.find((user) => user.email === email) as UserBody;
+
+  beforeAll(async () => {
+    e2e = await createE2eApp();
+    const { supervisor } = e2e.base.users;
+    const relation = (name: string) =>
+      e2e.dataSource.createQueryBuilder().relation(User, name).of(supervisor);
+
+    // El supervisor también tiene la zona, el proceso y la planta de Colombia.
+    await relation('zones').add(e2e.base.zoneColombia);
+    await relation('processes').add(e2e.base.processColombia);
+    await relation('manufacturingPlants').add(e2e.base.plants.manizales);
+  });
+
+  afterAll(() => e2e?.close());
+
+  it('el listado completo trae plantas, zonas y procesos (con su planta), por nombre', async () => {
+    const res = await e2e.call('get', '/users', e2e.tokens.admin).expect(200);
+    const supervisor = byEmail(res.body, 'supervisor@hallazgos.test');
+
+    expect(names(supervisor.manufacturingPlants)).toEqual([
+      'Manizales',
+      'Tepotzotlán',
+    ]);
+    expect(names(supervisor.zones)).toEqual(['Bodega', 'Pasillo norte']);
+    expect(supervisor.zones?.[1].manufacturingPlant.name).toBe('Tepotzotlán');
+    expect(names(supervisor.processes).sort()).toEqual([
+      'Calidad',
+      'Producción',
+    ]);
+    expect(
+      supervisor.processes?.find((p) => p.name === 'Producción')
+        ?.manufacturingPlant.name,
+    ).toBe('Tepotzotlán');
+  });
+
+  it('filtrar por planta deja en cada usuario solo esa planta', async () => {
+    const { tepotzotlan } = e2e.base.plants;
+    const res = await e2e
+      .call(
+        'get',
+        `/users?manufacturingPlantId=${tepotzotlan.id}`,
+        e2e.tokens.admin,
+      )
+      .expect(200);
+
+    expect(res.body.map((u: UserBody) => u.email)).not.toContain(
+      'general.co@hallazgos.test',
+    );
+    for (const user of res.body as UserBody[]) {
+      expect(names(user.manufacturingPlants)).toEqual(['Tepotzotlán']);
+    }
+    // Zonas y procesos no se filtran por planta (igual que antes).
+    expect(
+      names(byEmail(res.body, 'supervisor@hallazgos.test').zones),
+    ).toHaveLength(2);
+  });
+
+  it('filtrar por zona o proceso deja en el usuario solo esa zona o proceso', async () => {
+    const { zone, process } = e2e.base;
+
+    const byZone = await e2e
+      .call('get', `/users?zoneId=${zone.id}`, e2e.tokens.admin)
+      .expect(200);
+    expect(byZone.body.map((u: UserBody) => u.email)).toEqual([
+      'supervisor@hallazgos.test',
+    ]);
+    expect(names(byZone.body[0].zones)).toEqual(['Pasillo norte']);
+
+    const byProcess = await e2e
+      .call('get', `/users?processId=${process.id}`, e2e.tokens.admin)
+      .expect(200);
+    expect(names(byProcess.body[0].processes)).toEqual(['Producción']);
+  });
+
+  it('el listado paginado (tabla de /users) solo trae plantas', async () => {
+    const res = await e2e
+      .call('get', '/users?page=1&limit=10', e2e.tokens.admin)
+      .expect(200);
+
+    expect(res.body.count).toBe(4);
+    const supervisor = byEmail(res.body.data, 'supervisor@hallazgos.test');
+    expect(names(supervisor.manufacturingPlants)).toEqual([
+      'Manizales',
+      'Tepotzotlán',
+    ]);
+    expect(supervisor).not.toHaveProperty('zones');
+    expect(supervisor).not.toHaveProperty('processes');
+  });
+
+  it('editar un usuario carga sus zonas y procesos (findOne)', async () => {
+    const res = await e2e
+      .call('get', `/users/${e2e.base.users.supervisor.id}`, e2e.tokens.admin)
+      .expect(200);
+
+    expect(names(res.body.zones)).toHaveLength(2);
+    expect(res.body.zones[0].manufacturingPlant).toEqual(
+      expect.objectContaining({ name: expect.any(String) }),
+    );
+    expect(names(res.body.processes)).toHaveLength(2);
+  });
+
+  it('los supervisores traen solo las plantas del usuario en sesión', async () => {
+    const res = await e2e
+      .call('get', '/users/supervisors', e2e.tokens.general)
+      .expect(200);
+
+    const supervisor = byEmail(res.body, 'supervisor@hallazgos.test');
+    expect(names(supervisor.manufacturingPlants)).toEqual(['Tepotzotlán']);
+    expect(names(supervisor.zones)).toHaveLength(2);
+  });
+
+  // Al final: desactiva una planta.
+  it('una planta inactiva no entra en la sesión ni en sus permisos', async () => {
+    await e2e.dataSource
+      .getRepository(ManufacturingPlant)
+      .update(e2e.base.plants.manizales.id, { isActive: false });
+
+    const me = await e2e
+      .call('get', '/users/get-information-current-user', e2e.tokens.admin)
+      .expect(200);
+    expect(names(me.body.manufacturingPlants)).toEqual(['Tepotzotlán']);
+
+    // El admin ya solo ve usuarios de Tepotzotlán.
+    const list = await e2e.call('get', '/users', e2e.tokens.admin).expect(200);
+    expect(list.body.map((u: UserBody) => u.email)).not.toContain(
+      'general.co@hallazgos.test',
+    );
+    expect(
+      names(
+        byEmail(list.body, 'supervisor@hallazgos.test').manufacturingPlants,
+      ),
+    ).toEqual(['Tepotzotlán']);
+  });
+});
