@@ -117,4 +117,27 @@ describe('DTOs de usuarios', () => {
       ]);
     });
   });
+
+  describe('QueryUserDto.zoneIds y view', () => {
+    it('lee zoneIds separados por coma o como arreglo', async () => {
+      const fromComma = plainToInstance(QueryUserDto, { zoneIds: '3, 7' });
+      const fromArray = plainToInstance(QueryUserDto, { zoneIds: ['3'] });
+
+      expect(fromComma.zoneIds).toEqual(['3', '7']);
+      expect(fromArray.zoneIds).toEqual(['3']);
+      await expect(
+        invalidFields(QueryUserDto, { zoneIds: '3,7', view: 'options' }),
+      ).resolves.toEqual([]);
+    });
+
+    it.each([
+      ['zoneIds con texto', { zoneIds: '3,abc' }, 'zoneIds'],
+      ['zoneIds negativos', { zoneIds: '-3' }, 'zoneIds'],
+      ['una view desconocida', { view: 'todo' }, 'view'],
+    ])('responde 400 con %s', async (_c, query, field) => {
+      await expect(invalidFields(QueryUserDto, query)).resolves.toEqual([
+        field,
+      ]);
+    });
+  });
 });

@@ -133,8 +133,16 @@ export class UsersService {
   }
 
   async findAll(queryUserDto: QueryUserDto, allowedPlantIds?: number[]) {
-    const { name, manufacturingPlantId, rule, zoneId, processId, orderBy } =
-      queryUserDto;
+    const {
+      name,
+      manufacturingPlantId,
+      rule,
+      zoneId,
+      zoneIds,
+      processId,
+      orderBy,
+      view,
+    } = queryUserDto;
     const { page, limit } = queryUserDto;
     const search = queryUserDto.search?.trim();
 
@@ -163,6 +171,7 @@ export class UsersService {
         manufacturingPlants: { id: In(plantIds) },
       }),
       ...(rule && { role: rule }),
+      ...(zoneIds?.length && { zones: { id: In(zoneIds.map(Number)) } }),
       ...(zoneId && { zones: { id: In([zoneId]) }, role: ROLE_SUPERVISOR }),
       ...(processId && { processes: { id: In([processId]) } }),
     };
@@ -178,6 +187,14 @@ export class UsersService {
       return this.findAllPaginated(where, Number(page), Number(limit));
     }
 
+    if (view === 'options') {
+      return this.userRepository.find({
+        where,
+        select: { id: true, name: true, email: true, role: true },
+        order: order ?? { name: 'ASC' },
+      });
+    }
+
     const users = await this.userRepository.find({
       where,
       relations: this.listRelations,
@@ -188,7 +205,10 @@ export class UsersService {
     for (const user of users) {
       keepMatching(user, {
         plant: plantIds && ((plant) => plantIds.includes(Number(plant.id))),
-        zone: zoneId && ((zone) => Number(zone.id) === Number(zoneId)),
+        zone:
+          (zoneId && ((zone) => Number(zone.id) === Number(zoneId))) ||
+          (!!zoneIds?.length &&
+            ((zone) => zoneIds.map(Number).includes(Number(zone.id)))),
         process:
           processId && ((process) => Number(process.id) === Number(processId)),
       });

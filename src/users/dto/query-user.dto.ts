@@ -1,10 +1,16 @@
+import { Transform } from 'class-transformer';
 import {
+  IsArray,
+  IsIn,
   IsInt,
+  IsNumberString,
   IsOptional,
   IsPositive,
   IsString,
   Matches,
 } from 'class-validator';
+
+import { parseStringArrayQueryByKey } from '../../shared/utils/index.js';
 
 // Columnas por las que se puede ordenar el listado de usuarios.
 export const USER_SORTABLE_COLUMNS = [
@@ -45,9 +51,23 @@ export class QueryUserDto {
   @IsPositive()
   zoneId: number;
 
+  // Usuarios con alguna de estas zonas (p. ej. responsables en los filtros
+  // de hallazgos). A diferencia de zoneId, no limita el rol.
+  @IsOptional()
+  @Transform(parseStringArrayQueryByKey('zoneIds'))
+  @IsArray()
+  @IsNumberString({ no_symbols: true }, { each: true })
+  zoneIds?: string[];
+
   @IsOptional()
   @IsPositive()
   processId: number;
+
+  // "options": solo id, nombre, correo y rol, sin plantas, zonas ni procesos.
+  // Para selectores: con las relaciones la respuesta pesa megabytes.
+  @IsOptional()
+  @IsIn(['options'])
+  view?: 'options';
 
   @IsOptional()
   @IsString()

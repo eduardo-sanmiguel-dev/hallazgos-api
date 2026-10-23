@@ -132,6 +132,77 @@ describe('E2E: relaciones de usuarios', () => {
     expect(names(supervisor.zones)).toHaveLength(2);
   });
 
+  describe('view=options (selectores)', () => {
+    const emails = (body: UserBody[]) => body.map((u) => u.email);
+
+    it('solo trae id, nombre, correo y rol, una vez por usuario y por nombre', async () => {
+      // El supervisor tiene 2 plantas y 2 zonas: con el JOIN del filtro
+      // podría repetirse.
+      const res = await e2e
+        .call('get', '/users?view=options', e2e.tokens.admin)
+        .expect(200);
+
+      expect(emails(res.body)).toHaveLength(4);
+      expect(new Set(emails(res.body)).size).toBe(4);
+      for (const user of res.body) {
+        expect(Object.keys(user).sort()).toEqual([
+          'email',
+          'id',
+          'name',
+          'role',
+        ]);
+      }
+      const userNames = names(res.body);
+      expect(userNames).toEqual(
+        [...userNames].sort((a, b) => a.localeCompare(b)),
+      );
+    });
+
+    it('respeta la planta pedida y las plantas del usuario en sesión', async () => {
+      const { manizales } = e2e.base.plants;
+
+      const byPlant = await e2e
+        .call(
+          'get',
+          `/users?view=options&manufacturingPlantId=${manizales.id}`,
+          e2e.tokens.admin,
+        )
+        .expect(200);
+      expect(emails(byPlant.body).sort()).toEqual([
+        'admin@hallazgos.test',
+        'general.co@hallazgos.test',
+        'supervisor@hallazgos.test',
+      ]);
+
+      // General solo tiene Tepotzotlán: no ve a General Colombia.
+      const mine = await e2e
+        .call('get', '/users?view=options', e2e.tokens.general)
+        .expect(200);
+      expect(emails(mine.body)).not.toContain('general.co@hallazgos.test');
+    });
+
+    it('zoneIds deja a quienes tienen alguna de esas zonas, sin repetir', async () => {
+      const { zone, zoneColombia, plants } = e2e.base;
+
+      const res = await e2e
+        .call(
+          'get',
+          `/users?view=options&manufacturingPlantId=${plants.tepotzotlan.id}&zoneIds=${zone.id},${zoneColombia.id}`,
+          e2e.tokens.admin,
+        )
+        .expect(200);
+
+      expect(emails(res.body)).toEqual(['supervisor@hallazgos.test']);
+    });
+
+    it.each([
+      ['view desconocida', 'view=todo'],
+      ['zoneIds no numéricos', 'zoneIds=1,abc'],
+    ])('rechaza %s (400)', async (_c, query) => {
+      await e2e.call('get', `/users?${query}`, e2e.tokens.admin).expect(400);
+    });
+  });
+
   // Al final: desactiva una planta.
   it('una planta inactiva no entra en la sesión ni en sus permisos', async () => {
     await e2e.dataSource
