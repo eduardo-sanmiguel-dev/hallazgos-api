@@ -278,6 +278,28 @@ describe('UsersService', () => {
       expect(user.processes).toHaveLength(2);
     });
 
+    it('view=options no carga relaciones: solo id, nombre, correo y rol', async () => {
+      await service.findAll({ view: 'options' } as never);
+
+      const args = lastFindArgs();
+      expect(args.select).toEqual({
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+      });
+      expect(args).not.toHaveProperty('relations');
+      expect(args.order).toEqual({ name: 'ASC' });
+    });
+
+    it('zoneIds filtra por cualquiera de esas zonas sin forzar el rol', async () => {
+      await service.findAll({ zoneIds: ['3', '7'] } as never);
+
+      const [where] = lastFindArgs().where as Record<string, unknown>[];
+      expect(operand((where.zones as { id: unknown }).id)).toEqual([3, 7]);
+      expect(where).not.toHaveProperty('role');
+    });
+
     it('con plantas permitidas deja solo esas en cada usuario', async () => {
       users.find.mockResolvedValue([
         buildUser({
