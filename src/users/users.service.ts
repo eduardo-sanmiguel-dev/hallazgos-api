@@ -415,6 +415,29 @@ export class UsersService {
     );
   }
 
+  /**
+   * Supervisores de una zona de la planta, sin relaciones: el formulario de
+   * nuevo hallazgo los pide al elegir el lugar. Antes descargaba todos con
+   * sus zonas y procesos (~1.5 MB) para filtrarlos en el navegador.
+   * 404 si la planta no es del usuario en sesión.
+   */
+  getZoneSupervisors(manufacturingPlantId: number, zoneId: number) {
+    const plantId =
+      this.requestContext.assertManufacturingPlant(manufacturingPlantId);
+
+    return this.userRepository.find({
+      where: {
+        isActive: true,
+        role: ROLE_SUPERVISOR,
+        manufacturingPlants: { id: plantId },
+        zones: { id: Number(zoneId) },
+        email: Not(In(['eduardo-supervisor@hotmail.com'])),
+      },
+      select: { id: true, name: true, email: true },
+      order: { name: 'ASC' },
+    });
+  }
+
   async getInformationCurrentUser(): Promise<User> {
     const userId = this.requestContext.userId;
 

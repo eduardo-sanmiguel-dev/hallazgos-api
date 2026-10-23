@@ -6,6 +6,7 @@
  */
 import { User } from '../../src/users/entities/user.entity.js';
 import { ManufacturingPlant } from '../../src/manufacturing-plants/entities/manufacturing-plant.entity.js';
+import { Zone } from '../../src/zones/entities/zone.entity.js';
 import { createE2eApp, type E2eApp } from './e2e-app.js';
 
 type UserBody = {
@@ -200,6 +201,65 @@ describe('E2E: relaciones de usuarios', () => {
       ['zoneIds no numéricos', 'zoneIds=1,abc'],
     ])('rechaza %s (400)', async (_c, query) => {
       await e2e.call('get', `/users?${query}`, e2e.tokens.admin).expect(400);
+    });
+  });
+
+  describe('supervisores de una zona (formulario de nuevo hallazgo)', () => {
+    it('trae solo los supervisores de la zona y planta, con id, nombre y correo', async () => {
+      const { plants, zone } = e2e.base;
+      const res = await e2e
+        .call(
+          'get',
+          `/users/supervisors?manufacturingPlantId=${plants.tepotzotlan.id}&zoneId=${zone.id}`,
+          e2e.tokens.general,
+        )
+        .expect(200);
+
+      expect(res.body).toEqual([
+        {
+          id: e2e.base.users.supervisor.id,
+          name: 'Supervisor Pruebas',
+          email: 'supervisor@hallazgos.test',
+        },
+      ]);
+    });
+
+    it('una zona sin supervisores responde vacío', async () => {
+      const { plants, zone } = e2e.base;
+      const other = await e2e.dataSource.getRepository(Zone).save({
+        name: 'Patio',
+        manufacturingPlant: plants.tepotzotlan,
+        createdBy: e2e.base.users.admin,
+      });
+      expect(zone.id).not.toBe(other.id);
+
+      await e2e
+        .call(
+          'get',
+          `/users/supervisors?manufacturingPlantId=${plants.tepotzotlan.id}&zoneId=${other.id}`,
+          e2e.tokens.general,
+        )
+        .expect(200, []);
+    });
+
+    it('una planta que no es del usuario responde 404', async () => {
+      const { plants, zoneColombia } = e2e.base;
+      await e2e
+        .call(
+          'get',
+          `/users/supervisors?manufacturingPlantId=${plants.manizales.id}&zoneId=${zoneColombia.id}`,
+          e2e.tokens.general,
+        )
+        .expect(404);
+    });
+
+    it('sin filtros responde la lista completa, como antes', async () => {
+      const res = await e2e
+        .call('get', '/users/supervisors', e2e.tokens.general)
+        .expect(200);
+
+      const supervisor = byEmail(res.body, 'supervisor@hallazgos.test');
+      expect(supervisor.zones).toBeDefined();
     });
   });
 
