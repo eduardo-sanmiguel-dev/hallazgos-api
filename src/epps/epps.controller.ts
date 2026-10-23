@@ -70,6 +70,18 @@ export class EppsController {
       : this.eppsService.findAll(manufacturingPlantId);
   }
 
+  // Historial de un colaborador: el UI lo pide al expandir su fila.
+  @Get('employees/:employeeId/history')
+  findEmployeeHistory(
+    @Param('employeeId', ParseIntPipe) employeeId: number,
+    @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
+  ) {
+    return this.eppsService.findEmployeeHistory(
+      employeeId,
+      manufacturingPlantId,
+    );
+  }
+
   @Get('validate-delivery-frequency')
   async validateDeliveryFrequency(
     @Query('equipmentId', ParseIntPipe) equipmentId: number,

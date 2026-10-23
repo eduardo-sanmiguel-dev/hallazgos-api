@@ -299,6 +299,7 @@ export class EppsService {
     equipmentId,
     startDate,
     endDate,
+    withHistory,
   }: QueryEppDto) {
     // El ValidationPipe global no transforma: los query params llegan como texto.
     const page = Math.max(1, Number(rawPage) || 1);
@@ -379,6 +380,10 @@ export class EppsService {
       .take(limit)
       .getManyAndCount();
 
+    if (withHistory === 'false') {
+      return { data: employees, count, page, limit };
+    }
+
     // Historial solo de los empleados de esta página.
     const epps = employees.length
       ? await this.eppRepository.find({
@@ -413,6 +418,39 @@ export class EppsService {
     }));
 
     return { data, count, page, limit };
+  }
+
+  /**
+   * Historial de entregas activas de un empleado en la planta, una fila por
+   * equipo entregado (como lo muestra la tabla de EPP al expandir la fila).
+   * 404 si el empleado no es de las plantas del usuario.
+   */
+  async findEmployeeHistory(employeeId: number, manufacturingPlantId: number) {
+    await this.assertEmployeeInUserPlants(employeeId);
+
+    const epps = await this.eppRepository.find({
+      where: { employee: { id: employeeId }, isActive: true },
+      relations: [
+        'createBy',
+        'equipments',
+        'equipments.equipment',
+        'equipments.equipment.manufacturingPlant',
+      ],
+      order: { createdAt: 'ASC', equipments: { id: 'ASC' } },
+    });
+
+    return this.mapActiveEquipments(epps, [
+      Number(manufacturingPlantId),
+    ]).flatMap(({ signature, createBy, equipments }) =>
+      equipments.map(({ id, deliveryDate, observations, equipment }) => ({
+        id,
+        deliveryDate,
+        observations,
+        equipment: { id: equipment.id, name: equipment.name },
+        signature,
+        createBy: createBy && { id: createBy.id, name: createBy.name },
+      })),
+    );
   }
 
   async findAll(manufacturingPlantId: number) {

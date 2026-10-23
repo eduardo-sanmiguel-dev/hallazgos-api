@@ -85,9 +85,24 @@ describe('EppsController (HTTP)', () => {
       );
     });
 
+    it('acepta withHistory=false (la página sin historial)', async () => {
+      service.findPaginated.mockResolvedValue({ data: [], count: 0 } as never);
+
+      await http
+        .http()
+        .get('/epps')
+        .query({ manufacturingPlantId: 1, page: 1, withHistory: 'false' })
+        .expect(200);
+
+      expect(service.findPaginated).toHaveBeenCalledWith(
+        expect.objectContaining({ withHistory: 'false' }),
+      );
+    });
+
     it.each([
       ['una columna de orden no permitida', { orderBy: 'password' }],
       ['una fecha con otro formato', { startDate: '01/10/2026' }],
+      ['withHistory distinto de true/false', { withHistory: 'no' }],
     ])('responde 400 con %s', async (_c, query) => {
       await http
         .http()
@@ -96,6 +111,41 @@ describe('EppsController (HTTP)', () => {
         .expect(400);
 
       expect(service.findPaginated).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('GET /epps/employees/:employeeId/history', () => {
+    it('devuelve el historial del colaborador en la planta propia', async () => {
+      const rows = [{ id: 11, equipment: { id: 3, name: 'Casco' } }];
+      service.findEmployeeHistory.mockResolvedValue(rows as never);
+
+      await http
+        .http()
+        .get('/epps/employees/7/history')
+        .query({ manufacturingPlantId: 1 })
+        .expect(200, rows);
+
+      expect(service.findEmployeeHistory).toHaveBeenCalledWith(7, 1);
+    });
+
+    it.each([
+      ['sin planta', '/epps/employees/7/history', {}, 400],
+      [
+        'con una planta ajena',
+        '/epps/employees/7/history',
+        { manufacturingPlantId: 2 },
+        404,
+      ],
+      [
+        'con un id no numérico',
+        '/epps/employees/x/history',
+        { manufacturingPlantId: 1 },
+        400,
+      ],
+    ])('responde error %s', async (_c, path, query, status) => {
+      await http.http().get(path).query(query).expect(status);
+
+      expect(service.findEmployeeHistory).not.toHaveBeenCalled();
     });
   });
 

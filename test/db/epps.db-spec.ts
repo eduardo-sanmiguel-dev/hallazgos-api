@@ -89,6 +89,48 @@ describe('E2E: EPP y equipos', () => {
     });
   });
 
+  it('con withHistory=false la lista no trae historial; se pide por colaborador', async () => {
+    const list = await e2e
+      .call(
+        'get',
+        '/epps?manufacturingPlantId=1&page=1&limit=10&withHistory=false',
+        e2e.tokens.general,
+      )
+      .expect(200);
+
+    expect(list.body.count).toBe(1);
+    expect(list.body.data[0]).toMatchObject({
+      id: employee.id,
+      name: 'Ana Pérez',
+      position: { name: 'Operador' },
+      area: { name: 'Producción' },
+    });
+    expect(list.body.data[0]).not.toHaveProperty('epps');
+
+    const history = await e2e
+      .call(
+        'get',
+        `/epps/employees/${employee.id}/history?manufacturingPlantId=1`,
+        e2e.tokens.general,
+      )
+      .expect(200);
+
+    expect(history.body).toEqual([
+      {
+        id: expect.any(Number),
+        // Mismo formato que tenía el historial dentro de la lista.
+        deliveryDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+        observations: 'talla M',
+        equipment: { id: casco.id, name: 'Casco' },
+        signature: SIGNATURE,
+        createBy: {
+          id: e2e.base.users.general.id,
+          name: e2e.base.users.general.name,
+        },
+      },
+    ]);
+  });
+
   it('recién entregado: la frecuencia indica cuándo se puede volver a entregar', async () => {
     const res = await e2e
       .call(
@@ -117,6 +159,23 @@ describe('E2E: EPP y equipos', () => {
   });
 
   describe('plantas ajenas y errores', () => {
+    it('el historial de un colaborador de otra planta, o de una planta ajena, responde 404', async () => {
+      await e2e
+        .call(
+          'get',
+          `/epps/employees/${employeeColombia.id}/history?manufacturingPlantId=1`,
+          e2e.tokens.general,
+        )
+        .expect(404);
+      await e2e
+        .call(
+          'get',
+          `/epps/employees/${employee.id}/history?manufacturingPlantId=2`,
+          e2e.tokens.general,
+        )
+        .expect(404);
+    });
+
     it('entregar a un empleado de otra planta responde 404', async () => {
       await e2e
         .call('post', '/epps', e2e.tokens.general)

@@ -483,12 +483,103 @@ describe('EppsService', () => {
       expect(qb().andWhere).toHaveBeenCalledTimes(1);
     });
 
+    it('con withHistory=false responde la página sin consultar el historial', async () => {
+      const result = await service.findPaginated({
+        manufacturingPlantId: 1,
+        withHistory: 'false',
+      });
+
+      expect(result).toEqual({
+        data: [{ id: 1 }, { id: 2 }],
+        count: 2,
+        page: 1,
+        limit: 10,
+      });
+      expect(epps.find).not.toHaveBeenCalled();
+    });
+
     it('sin empleados en la página no consulta el historial', async () => {
       qb().getManyAndCount.mockResolvedValue([[], 0]);
 
       await expect(
         service.findPaginated({ manufacturingPlantId: 1 }),
       ).resolves.toMatchObject({ data: [], count: 0 });
+      expect(epps.find).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findEmployeeHistory', () => {
+    const history = () =>
+      as(() => service.findEmployeeHistory(7, 1)) as Promise<
+        Record<string, unknown>[]
+      >;
+
+    beforeEach(() => employees.exists.mockResolvedValue(true));
+
+    it('una fila por equipo activo de la planta, con la firma y quién entregó', async () => {
+      epps.find.mockResolvedValue([
+        buildEpp(
+          {
+            id: 1,
+            signature: 'data:firma-1',
+            createBy: { id: 10, name: 'Ana', email: 'ana@x.test' } as never,
+          },
+          [
+            {
+              id: 11,
+              isActive: true,
+              deliveryDate: '2026-01-05' as never,
+              observations: 'Talla M',
+              equipment: {
+                id: 3,
+                name: 'Casco',
+                price: 100,
+                manufacturingPlant: { id: 1 },
+              } as never,
+            },
+            { id: 12, isActive: false },
+            {
+              id: 13,
+              isActive: true,
+              equipment: {
+                id: 4,
+                name: 'Guante',
+                manufacturingPlant: { id: 2 },
+              } as never,
+            },
+          ],
+        ),
+        buildEpp({ id: 2, isActive: false }),
+      ]);
+
+      await expect(history()).resolves.toEqual([
+        {
+          id: 11,
+          deliveryDate: '2026-01-05',
+          observations: 'Talla M',
+          equipment: { id: 3, name: 'Casco' },
+          signature: 'data:firma-1',
+          createBy: { id: 10, name: 'Ana' },
+        },
+      ]);
+    });
+
+    it('consulta solo las entregas activas del empleado, en orden de registro', async () => {
+      epps.find.mockResolvedValue([]);
+
+      await expect(history()).resolves.toEqual([]);
+      expect(epps.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { employee: { id: 7 }, isActive: true },
+          order: { createdAt: 'ASC', equipments: { id: 'ASC' } },
+        }),
+      );
+    });
+
+    it('responde 404 si el empleado no es de las plantas del usuario', async () => {
+      employees.exists.mockResolvedValue(false);
+
+      await expect(history()).rejects.toBeInstanceOf(NotFoundException);
       expect(epps.find).not.toHaveBeenCalled();
     });
   });

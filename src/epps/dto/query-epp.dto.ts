@@ -71,4 +71,11 @@ export class QueryEppDto {
   @IsOptional()
   @Matches(DATE_ONLY, { message: 'endDate debe tener formato YYYY-MM-DD' })
   endDate?: string;
+
+  // "false": la página sin historial (firmas incluidas pesan); el UI lo pide
+  // por colaborador al expandir la fila (GET /epps/employees/:id/history).
+  // Sin el parámetro se incluye, como antes (compatibilidad al desplegar).
+  @IsOptional()
+  @IsIn(['true', 'false'])
+  withHistory?: 'true' | 'false';
 }
