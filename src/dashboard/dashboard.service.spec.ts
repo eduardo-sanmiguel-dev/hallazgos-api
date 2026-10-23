@@ -860,7 +860,7 @@ describe('DashboardService: reglas y resultados de reportes', () => {
         promedio_global: '42.10',
       },
     ]);
-    query.mockResolvedValueOnce([{ has_prices: true }]);
+    query.mockResolvedValueOnce([{ has_prices: true, tracks_frequency: true }]);
 
     const result = await service.findBusinessIntelligenceEpp(
       1,
@@ -871,6 +871,7 @@ describe('DashboardService: reglas y resultados de reportes', () => {
     expect(query).toHaveBeenCalledTimes(7);
     expect(result).toMatchObject({
       hasPrices: true,
+      tracksDeliveryFrequency: true,
       chart1: [{ chart: 1 }],
       chart3: [{ chart: 3 }],
       chart4: [{ chart: 4 }],
@@ -938,6 +939,7 @@ describe('DashboardService: reglas y resultados de reportes', () => {
     query.mockResolvedValue([{}]);
     const empty = await service.findBusinessIntelligenceEpp(1);
     expect(empty.hasPrices).toBe(false);
+    expect(empty.tracksDeliveryFrequency).toBe(false);
     expect(empty.kpis.actual).toEqual({
       gasto: 0,
       unidades: 0,

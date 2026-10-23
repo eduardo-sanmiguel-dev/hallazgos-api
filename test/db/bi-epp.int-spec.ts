@@ -7,6 +7,8 @@
  * - Las entregas de equipos sin precio cuentan en unidades y colaboradores
  *   (antes las gráficas mensuales las perdían) y suman $0 al gasto.
  * - hasPrices: una planta sin precios capturados oculta lo de gasto en la UI.
+ * - tracksDeliveryFrequency: sin frecuencias en al menos la mitad de sus
+ *   equipos, la UI oculta lo de fuera de rango.
  */
 import {
   Employee,
@@ -71,10 +73,11 @@ describe('Integración: análisis de datos EPP', () => {
       name: string,
       plant = tepotzotlan,
       price?: number,
+      deliveryFrequency: number | null = 30,
     ) => {
       const saved = await repo(Equipment).save({
         name,
-        deliveryFrequency: 30,
+        deliveryFrequency: deliveryFrequency as number,
         manufacturingPlant: plant,
         createdBy: base.users.admin,
       });
@@ -91,6 +94,10 @@ describe('Integración: análisis de datos EPP', () => {
     const lentes = await equipment('Lentes'); // sin precio
     const guantes = await equipment('Guantes', manizales, 0);
     const botas = await equipment('Botas', manizales); // cada 30 días
+    // Manizales: 2 de 5 equipos con frecuencia (menos de la mitad).
+    for (const name of ['Casco', 'Lentes', 'Overol']) {
+      await equipment(name, manizales, undefined, null);
+    }
 
     const deliver = async (
       emp: Employee,
@@ -198,6 +205,9 @@ describe('Integración: análisis de datos EPP', () => {
 
     expect(tepotzotlan.hasPrices).toBe(true);
     expect(manizales.hasPrices).toBe(false);
+    // Tepotzotlán: todos sus equipos con frecuencia; Manizales: 2 de 5.
+    expect(tepotzotlan.tracksDeliveryFrequency).toBe(true);
+    expect(manizales.tracksDeliveryFrequency).toBe(false);
     expect(manizales.kpis.actual.unidades).toBe(3);
     for (const removed of ['chart2', 'chart5', 'chart6', 'chart7']) {
       expect(tepotzotlan).not.toHaveProperty(removed);
