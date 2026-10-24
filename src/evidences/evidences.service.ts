@@ -100,6 +100,13 @@ pdfMake.setLocalAccessPolicy((path: string) =>
   resolve(path).startsWith(PDF_FONTS_DIR + sep),
 );
 
+/** Clasificación que no exige foto: se reporta con descripción. */
+export const isUnsafeBehaviorType = (mainTypeName = '') =>
+  mainTypeName.toLocaleLowerCase().includes('comportamiento inseguro');
+
+export const MISSING_EVIDENCE_MESSAGE =
+  'Debe capturar o adjuntar una imagen como evidencia del hallazgo';
+
 // Tipo de correo, para el log de errores de envío.
 const EMAIL_TYPE_LABELS: Record<string, string> = {
   create: 'creación',
@@ -456,6 +463,12 @@ export class EvidencesService {
       await this.manufacturingPlantsService.findOne(manufacturingPlantId);
 
     const mainType = await this.mainTypesService.findOne(typeHallazgo);
+
+    // La evidencia es obligatoria salvo en "comportamiento inseguro" (misma
+    // regla que la UI). Antes la UI podía saltársela y el API no lo validaba.
+    if (!file && !isUnsafeBehaviorType(mainType.name)) {
+      throw new BadRequestException(MISSING_EVIDENCE_MESSAGE);
+    }
 
     const secondaryType = await this.secondaryTypesService.findOne(type);
 
