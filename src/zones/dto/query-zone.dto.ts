@@ -3,6 +3,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsBoolean,
+  IsIn,
   IsOptional,
   IsPositive,
   IsString,
@@ -45,4 +46,11 @@ export class QueryZoneDto {
   @IsOptional()
   @IsInt()
   limit?: number;
+
+  // "options": id y nombre, con id y nombre de su planta y área. Para
+  // selectores y filtros: con quién la creó/editó y la planta completa
+  // eran ~220 KB.
+  @IsOptional()
+  @IsIn(['options'])
+  view?: 'options';
 }
