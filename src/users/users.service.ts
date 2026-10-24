@@ -25,11 +25,10 @@ import type { Zone } from '../zones/entities/zone.entity.js';
 import type { Processes } from '../processes/entities/processes.entity.js';
 
 /**
- * Las relaciones de usuario se cargan con relationLoadStrategy 'query' (una
- * consulta por relación): con JOIN cada usuario devolvía plantas × zonas ×
- * procesos filas, miles para un supervisor con muchas zonas. Así llegan
- * completas, sin el filtro del `where` que el JOIN sí aplicaba (p. ej.
- * solo plantas activas): esto lo reaplica.
+ * Zonas y procesos se cargan aparte (loadAssignments): con un solo JOIN cada
+ * usuario devolvía plantas × zonas × procesos filas, miles para un
+ * supervisor con muchas zonas. Así llegan completas, sin el filtro del
+ * `where` (p. ej. solo la zona filtrada): esto lo reaplica.
  */
 const keepMatching = (
   user: User,
@@ -195,12 +194,14 @@ export class UsersService {
       });
     }
 
-    const users = await this.userRepository.find({
-      where,
-      relations: this.listRelations,
-      relationLoadStrategy: 'query',
-      order: order ?? { id: 'DESC' },
-    });
+    const users = await this.loadAssignments(
+      await this.userRepository.find({
+        where,
+        relations: ['manufacturingPlants'],
+        order: order ?? { id: 'DESC' },
+      }),
+      this.listRelations,
+    );
 
     for (const user of users) {
       keepMatching(user, {
@@ -213,6 +214,38 @@ export class UsersService {
           processId && ((process) => Number(process.id) === Number(processId)),
       });
       sortByName(user);
+    }
+
+    return users;
+  }
+
+  /**
+   * Zonas y procesos de los usuarios, una relación por consulta y una tras
+   * otra. Con relationLoadStrategy 'query', TypeORM 0.3 lanzaba esas
+   * consultas en paralelo sobre la misma conexión: pg lo marca obsoleto
+   * ("client is already executing a query") y dejará de funcionar en pg 9.
+   * `relations` acepta anidadas, p. ej. 'zones.manufacturingPlant'.
+   */
+  private async loadAssignments(users: User[], relations: string[]) {
+    if (!users.length) return users;
+
+    const byId = new Map(users.map((user) => [user.id, user]));
+    const ids = [...byId.keys()];
+
+    for (const relation of ['zones', 'processes'] as const) {
+      const nested = relations.filter(
+        (name) => name === relation || name.startsWith(`${relation}.`),
+      );
+      if (!nested.length) continue;
+
+      const rows = await this.userRepository.find({
+        where: { id: In(ids) },
+        relations: nested,
+      });
+      for (const row of rows) {
+        const user = byId.get(row.id);
+        if (user) user[relation] = row[relation] as never;
+      }
     }
 
     return users;
@@ -293,13 +326,13 @@ export class UsersService {
         isActive: true,
         manufacturingPlants: { isActive: true },
       },
-      relations: this.listRelations,
-      relationLoadStrategy: 'query',
+      relations: ['manufacturingPlants'],
     });
 
     if (!user)
       throw new NotFoundException(`Usuario con id ${id} no encontrado`);
 
+    await this.loadAssignments([user], this.listRelations);
     return keepMatching(user, { plant: (plant) => plant.isActive });
   }
 
@@ -392,21 +425,23 @@ export class UsersService {
       (manufacturingPlant) => manufacturingPlant.id,
     );
 
-    const supervisors = await this.userRepository.find({
-      where: {
-        isActive: true,
-        role: ROLE_SUPERVISOR,
-        manufacturingPlants: {
-          id: In(manufacturingPlantsIds),
+    const supervisors = await this.loadAssignments(
+      await this.userRepository.find({
+        where: {
+          isActive: true,
+          role: ROLE_SUPERVISOR,
+          manufacturingPlants: {
+            id: In(manufacturingPlantsIds),
+          },
+          email: Not(In(['eduardo-supervisor@hotmail.com'])),
         },
-        email: Not(In(['eduardo-supervisor@hotmail.com'])),
-      },
-      relations: ['manufacturingPlants', 'zones', 'processes'],
-      relationLoadStrategy: 'query',
-      order: {
-        name: 'ASC',
-      },
-    });
+        relations: ['manufacturingPlants'],
+        order: {
+          name: 'ASC',
+        },
+      }),
+      ['zones', 'processes'],
+    );
 
     return supervisors.map((supervisor) =>
       keepMatching(supervisor, {
@@ -449,18 +484,13 @@ export class UsersService {
           isActive: true,
         },
       },
-      relations: [
-        'manufacturingPlants',
-        'zones',
-        'processes',
-        'manufacturingPlants.country',
-      ],
-      relationLoadStrategy: 'query',
+      relations: ['manufacturingPlants', 'manufacturingPlants.country'],
     });
 
     if (!user)
       throw new NotFoundException(`Usuario con id ${userId} no encontrado`);
 
+    await this.loadAssignments([user], ['zones', 'processes']);
     return keepMatching(user, { plant: (plant) => plant.isActive });
   }
 
