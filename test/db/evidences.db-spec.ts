@@ -7,6 +7,8 @@ import { join } from 'path';
 import request from 'supertest';
 
 import { Evidence } from '../../src/evidences/entities/evidence.entity.js';
+import { MainType } from '../../src/main-types/entities/main-type.entity.js';
+import { SecondaryType } from '../../src/secondary-types/entities/secondary-type.entity.js';
 import { APP_KEY, createE2eApp, type E2eApp } from './e2e-app.js';
 import { saveEvidence, STATUSES } from './fixtures.js';
 
@@ -61,6 +63,7 @@ describe('E2E: hallazgos', () => {
       const res = await e2e
         .call('post', '/evidences', e2e.tokens.general)
         .field(fields())
+        .attach('file', PNG, 'evidencia.png')
         .expect(201);
 
       // El endpoint responde "ok"; el hallazgo se revisa en la base.
@@ -81,6 +84,48 @@ describe('E2E: hallazgos', () => {
       expect(created.responsibles.map(({ email }) => email)).toEqual([
         'supervisor@hallazgos.test',
       ]);
+    });
+
+    it('sin evidencia en una condición insegura responde 400 sin crear', async () => {
+      const before = await e2e.dataSource.getRepository(Evidence).count();
+
+      const res = await e2e
+        .call('post', '/evidences', e2e.tokens.general)
+        .field(fields())
+        .expect(400);
+
+      expect(res.body.message).toBe(
+        'Debe capturar o adjuntar una imagen como evidencia del hallazgo',
+      );
+      expect(await e2e.dataSource.getRepository(Evidence).count()).toBe(before);
+    });
+
+    it('un comportamiento inseguro se crea sin evidencia (solo descripción)', async () => {
+      const mainType = await e2e.dataSource
+        .getRepository(MainType)
+        .save({ name: 'Comportamiento inseguro' });
+      const secondaryType = await e2e.dataSource
+        .getRepository(SecondaryType)
+        .save({ name: 'No usa EPP', mainType });
+
+      await e2e
+        .call('post', '/evidences', e2e.tokens.general)
+        .field({
+          ...fields(),
+          typeHallazgo: String(mainType.id),
+          type: String(secondaryType.id),
+        })
+        .expect(201);
+
+      const [created] = await e2e.dataSource.getRepository(Evidence).find({
+        order: { id: 'DESC' },
+        take: 1,
+        relations: ['mainType'],
+      });
+      expect(created).toMatchObject({
+        imgEvidence: '',
+        mainType: { name: 'Comportamiento inseguro' },
+      });
     });
 
     it('en una planta ajena responde 404 sin crear', async () => {

@@ -81,6 +81,7 @@ describe('EvidencesService', () => {
   let usersService: jest.Mocked<UsersService>;
   let mail: jest.Mocked<MailService>;
   let zones: jest.Mocked<ZonesService>;
+  let mainTypesService: jest.Mocked<MainTypesService>;
   let logError: jest.SpyInstance;
   let logWarn: jest.SpyInstance;
   // "Tabla" de hallazgos: findOne aplica el filtro de plantas como la base.
@@ -124,10 +125,14 @@ describe('EvidencesService', () => {
     usersService = testing.get(UsersService);
     mail = testing.get(MailService);
     zones = testing.get(ZonesService);
+    mainTypesService = testing.get(MainTypesService);
 
     plants.findOne.mockResolvedValue(plant);
     plants.getColombianPlantsIds.mockResolvedValue([2]);
-    testing.get(MainTypesService).findOne.mockResolvedValue({ id: 1 } as never);
+    mainTypesService.findOne.mockResolvedValue({
+      id: 1,
+      name: 'Condición insegura',
+    } as never);
     testing
       .get(SecondaryTypesService)
       .findOne.mockResolvedValue({ id: 2 } as never);
@@ -262,7 +267,12 @@ describe('EvidencesService', () => {
       });
     });
 
-    it('sin archivo, sin descripción ni prioridad guarda valores vacíos', async () => {
+    it('un comportamiento inseguro sin archivo, descripción ni prioridad guarda valores vacíos', async () => {
+      mainTypesService.findOne.mockResolvedValue({
+        id: 1,
+        name: 'Comportamiento inseguro',
+      } as never);
+
       await create({ description: '', priorityDays: undefined }, null);
 
       expect(savedEvidence()).toMatchObject({
@@ -270,6 +280,17 @@ describe('EvidencesService', () => {
         description: '',
         priorityDays: null,
       });
+    });
+
+    // Antes la UI podía saltarse la foto y el API no lo validaba.
+    it('en otra clasificación sin evidencia responde 400 y no guarda nada', async () => {
+      await expect(create({}, null)).rejects.toThrow(
+        new BadRequestException(
+          'Debe capturar o adjuntar una imagen como evidencia del hallazgo',
+        ),
+      );
+      expect(evidences.save).not.toHaveBeenCalled();
+      expect(mail.sendCreate).not.toHaveBeenCalled();
     });
 
     it('la fecha de creación es la de la planta: México usa la hora del servidor', async () => {
