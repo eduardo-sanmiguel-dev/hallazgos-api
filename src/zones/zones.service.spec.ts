@@ -141,6 +141,37 @@ describe('ZonesService', () => {
       expect(where().manufacturingPlant.id.value).toEqual([1, 2]);
     });
 
+    it('view=options: id y nombre con planta y área, sin quién la creó, mismos filtros', async () => {
+      await service.findAll({
+        manufacturingPlantId: 1,
+        withArea: true,
+        view: 'options',
+      } as never);
+
+      const args = zones.find.mock.calls[0][0] as {
+        relations: string[];
+        select: unknown;
+        order: unknown;
+      };
+      expect(args.relations).toEqual(['manufacturingPlant', 'area']);
+      expect(args.select).toEqual({
+        id: true,
+        name: true,
+        manufacturingPlant: { id: true, name: true },
+        area: { id: true, name: true },
+      });
+      expect(args.order).toEqual({ id: 'DESC' });
+      expect(where().manufacturingPlant.id.value).toEqual([1]);
+      expect(where().area).toEqual({ isActive: true });
+    });
+
+    it('view=options no se pagina aunque lleguen page y limit', async () => {
+      await service.findAll({ page: 1, limit: 10, view: 'options' } as never);
+
+      expect(zones.find).toHaveBeenCalled();
+      expect(zones.findAndCount).not.toHaveBeenCalled();
+    });
+
     it('con page y limit responde paginado', async () => {
       zones.findAndCount.mockResolvedValue([[], 0]);
 

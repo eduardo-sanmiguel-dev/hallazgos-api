@@ -13,9 +13,18 @@ describeCrudContract({
     invalid: [['sin planta', { name: 'Pasillo' }]],
   },
   list: {
-    query: { withArea: 'false', manufacturingPlantNames: 'Tepotzotlán' },
+    query: {
+      withArea: 'false',
+      manufacturingPlantNames: 'Tepotzotlán',
+      view: 'options',
+    },
     // "false" se lee como false (no como texto no vacío).
-    expected: { withArea: false, manufacturingPlantNames: ['Tepotzotlán'] },
+    expected: {
+      withArea: false,
+      manufacturingPlantNames: ['Tepotzotlán'],
+      view: 'options',
+    },
+    invalid: [['con una view desconocida', { view: 'todo' }]],
   },
   findOne: true,
   update: { valid: { name: 'Pasillo norte' } },

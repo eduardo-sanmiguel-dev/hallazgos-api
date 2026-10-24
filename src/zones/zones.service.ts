@@ -74,6 +74,7 @@ export class ZonesService {
       areaId,
       page,
       limit,
+      view,
     } = queryZoneDto;
 
     const manufacturingPlantIds = [];
@@ -115,6 +116,19 @@ export class ZonesService {
         id: 'DESC',
       },
     };
+
+    if (view === 'options') {
+      return this.zoneRepository.find({
+        ...options,
+        relations: ['manufacturingPlant', 'area'],
+        select: {
+          id: true,
+          name: true,
+          manufacturingPlant: { id: true, name: true },
+          area: { id: true, name: true },
+        },
+      });
+    }
 
     return page && limit
       ? findPaginated(this.zoneRepository, options, page, limit)
