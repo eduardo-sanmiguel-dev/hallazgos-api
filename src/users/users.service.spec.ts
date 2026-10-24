@@ -200,11 +200,45 @@ describe('UsersService', () => {
     it('lista solo usuarios activos, del más reciente al más antiguo', async () => {
       await service.findAll({} as never);
 
-      const { where, order, relationLoadStrategy } = lastFindArgs();
+      const { where, order, relations, relationLoadStrategy } = lastFindArgs();
       expect(where).toEqual([{ isActive: true }]);
       expect(order).toEqual({ id: 'DESC' });
-      // Una consulta por relación: con JOIN serían plantas × zonas × procesos filas.
-      expect(relationLoadStrategy).toBe('query');
+      // Solo plantas en la principal: con JOIN de todo serían plantas ×
+      // zonas × procesos filas. Zonas y procesos van aparte.
+      expect(relations).toEqual(['manufacturingPlants']);
+      expect(relationLoadStrategy).toBeUndefined();
+    });
+
+    // pg marca obsoleto (y quitará en pg 9) consultar en una conexión que ya
+    // está ejecutando otra: TypeORM lo hacía con relationLoadStrategy 'query'.
+    it('carga zonas y procesos aparte, una consulta tras otra (nunca en paralelo)', async () => {
+      let inFlight = 0;
+      let maxInFlight = 0;
+      users.find.mockImplementation((async () => {
+        inFlight++;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        inFlight--;
+        return [
+          buildUser({
+            id: 9,
+            zones: [{ id: 10, name: 'Almacén' }] as never,
+            processes: [{ id: 20, name: 'Producción' }] as never,
+          }),
+        ];
+      }) as never);
+
+      const [user] = (await service.findAll({} as never)) as User[];
+
+      expect(users.find.mock.calls.map(([args]) => args.relations)).toEqual([
+        ['manufacturingPlants'],
+        ['zones', 'zones.manufacturingPlant'],
+        ['processes', 'processes.manufacturingPlant'],
+      ]);
+      expect(users.find.mock.calls[1][0].where).toMatchObject({ id: {} });
+      expect(maxInFlight).toBe(1);
+      expect(user.zones.map(({ id }) => id)).toEqual([10]);
+      expect(user.processes.map(({ id }) => id)).toEqual([20]);
     });
 
     it('ordena las plantas y zonas de cada usuario por nombre', async () => {
@@ -464,7 +498,17 @@ describe('UsersService', () => {
       users.findOne.mockResolvedValue(user);
 
       await expect(service.findOne(9)).resolves.toBe(user);
-      expect(users.findOne.mock.calls[0][0].relationLoadStrategy).toBe('query');
+      expect(users.findOne.mock.calls[0][0]).toMatchObject({
+        relations: ['manufacturingPlants'],
+      });
+      expect(users.findOne.mock.calls[0][0]).not.toHaveProperty(
+        'relationLoadStrategy',
+      );
+      // Zonas y procesos (con su planta), en consultas aparte.
+      expect(users.find.mock.calls.map(([args]) => args.relations)).toEqual([
+        ['zones', 'zones.manufacturingPlant'],
+        ['processes', 'processes.manufacturingPlant'],
+      ]);
     });
 
     // Es el usuario en sesión: sus plantas son sus permisos.
