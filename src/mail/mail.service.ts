@@ -9,6 +9,7 @@ import {
 } from '../shared/utils/index.js';
 import { Evidence } from '../evidences/entities/evidence.entity.js';
 import { ENV_DEVELOPMENT } from '../shared/constants/index.js';
+import { priorityLabel } from '../shared/constants/priority.js';
 import { User } from '../users/entities/user.entity.js';
 
 // Carpeta local de imágenes (src/mail o dist/mail → <proyecto>/public/...).
@@ -32,20 +33,8 @@ const localImagePath = (fileName: string) => {
   return join(LOCAL_EVIDENCE_IMAGES_DIR, fileName);
 };
 
-const PRIORITY_OPTIONS = [
-  { name: 'Inmediato', days: 2 },
-  { name: 'Corto plazo', days: 8 },
-  { name: 'Mediano plazo', days: 15 },
-  { name: 'Largo plazo', days: 30 },
-];
-
-const getPriorityLabel = (priorityDays?: number | null) => {
-  if (!priorityDays) return '';
-  const option = PRIORITY_OPTIONS.find((item) => item.days === priorityDays);
-  return option
-    ? `${option.name} (${option.days} dias)`
-    : `${priorityDays} dias`;
-};
+// Mismo mapeo que el dashboard (shared/constants/priority).
+const getPriorityLabel = priorityLabel;
 
 const getRemainingDays = (
   createdAt?: Date | null,

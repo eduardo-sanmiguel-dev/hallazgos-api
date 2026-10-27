@@ -1,9 +1,6 @@
-import {
-  Injectable,
-  type NestMiddleware,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, type NestMiddleware } from '@nestjs/common';
 import { JwtService } from '../../auth/jwt.service.js';
+import { sessionEndedException } from '../errors/error-codes.js';
 
 import type { Request, Response, NextFunction } from 'express';
 
@@ -27,7 +24,7 @@ export class JwtMiddleware implements NestMiddleware {
     }
 
     if (!token) {
-      throw new UnauthorizedException('Credenciales no válidas');
+      throw sessionEndedException();
     }
 
     try {
@@ -37,7 +34,7 @@ export class JwtMiddleware implements NestMiddleware {
       req.user = { ...user } as User;
       next();
     } catch (error) {
-      throw new UnauthorizedException('Credenciales no válidas');
+      throw sessionEndedException();
     }
   }
 }

@@ -30,6 +30,12 @@ export class MainType {
   })
   isActive: boolean;
 
+  // Foto de evidencia obligatoria al crear y al cerrar hallazgos de esta
+  // clasificación (false: "Comportamiento inseguro", se reporta con texto).
+  @Column({ name: 'requires_evidence', default: true })
+  @Field(() => Boolean, { defaultValue: true })
+  requiresEvidence: boolean;
+
   @CreateDateColumn()
   @Field(() => Date)
   createdAt: Date;

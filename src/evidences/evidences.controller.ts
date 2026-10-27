@@ -19,6 +19,8 @@ import {
 
 import type { Response } from 'express';
 
+import { Idempotent } from '../idempotency/idempotency.interceptor.js';
+
 import { EvidencesService } from './evidences.service.js';
 import {
   CommentEvidenceDto,
@@ -33,6 +35,7 @@ export class EvidencesController {
   constructor(private readonly evidencesService: EvidencesService) {}
 
   @Post()
+  @Idempotent()
   @UseInterceptors(FileInterceptor('file', imageUploadOptions('evidence')))
   create(
     @Body() createEvidenceDto: CreateEvidenceDto,
@@ -42,6 +45,7 @@ export class EvidencesController {
   }
 
   @Post('/solution/:id')
+  @Idempotent()
   @UseInterceptors(FileInterceptor('file', imageUploadOptions('solution')))
   saveSolution(
     @UploadedFile(ImageFileValidationPipe) file: Express.Multer.File,
@@ -52,6 +56,7 @@ export class EvidencesController {
   }
 
   @Post('/process/:id')
+  @Idempotent()
   @UseInterceptors(FileInterceptor('file', imageUploadOptions('process')))
   saveProcessStart(
     @UploadedFile(ImageFileValidationPipe) file: Express.Multer.File,
@@ -61,6 +66,7 @@ export class EvidencesController {
   }
 
   @Post('/add/comment/:id')
+  @Idempotent()
   addComment(@Param('id') id: string, @Body() comment: CommentEvidenceDto) {
     return this.evidencesService.addComment(+id, comment);
   }
@@ -93,6 +99,7 @@ export class EvidencesController {
   }
 
   @Patch('reassign/:id')
+  @Idempotent()
   reassignResponsibles(
     @Param('id') id: string,
     @Body() reassignResponsiblesDto: ReassignResponsiblesDto,
@@ -104,6 +111,7 @@ export class EvidencesController {
   }
 
   @Delete(':id')
+  @Idempotent()
   remove(@Param('id') id: string) {
     return this.evidencesService.remove(+id);
   }

@@ -22,12 +22,12 @@ export class QueryGembaWalkDto {
   // Rango [startDate, endDate) sobre la fecha programada del evento.
   @IsOptional()
   @IsISO8601({ strict: true })
-  @Matches(ISO_WITH_OFFSET, { message: 'startDate debe incluir zona horaria' })
+  @Matches(ISO_WITH_OFFSET, { message: 'La fecha debe incluir la zona horaria.' })
   startDate?: string;
 
   @IsOptional()
   @IsISO8601({ strict: true })
-  @Matches(ISO_WITH_OFFSET, { message: 'endDate debe incluir zona horaria' })
+  @Matches(ISO_WITH_OFFSET, { message: 'La fecha debe incluir la zona horaria.' })
   endDate?: string;
 
   // Coincidencia exacta con el nombre de zona / ubicación.
@@ -64,10 +64,10 @@ export class QueryWalkCalendarDto {
   manufacturingPlantId: number;
 
   @IsISO8601({ strict: true })
-  @Matches(ISO_WITH_OFFSET, { message: 'startDate debe incluir zona horaria' })
+  @Matches(ISO_WITH_OFFSET, { message: 'La fecha debe incluir la zona horaria.' })
   startDate: string;
 
   @IsISO8601({ strict: true })
-  @Matches(ISO_WITH_OFFSET, { message: 'endDate debe incluir zona horaria' })
+  @Matches(ISO_WITH_OFFSET, { message: 'La fecha debe incluir la zona horaria.' })
   endDate: string;
 }

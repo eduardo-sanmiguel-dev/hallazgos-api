@@ -28,11 +28,11 @@ export class FiltersCiaelDto {
 
   // Rango inclusivo sobre eventDate (columna date, sin zona horaria).
   @IsOptional()
-  @Matches(DATE_ONLY, { message: 'startDate debe tener formato YYYY-MM-DD' })
+  @Matches(DATE_ONLY, { message: 'Fecha no válida (formato AAAA-MM-DD).' })
   startDate?: string;
 
   @IsOptional()
-  @Matches(DATE_ONLY, { message: 'endDate debe tener formato YYYY-MM-DD' })
+  @Matches(DATE_ONLY, { message: 'Fecha no válida (formato AAAA-MM-DD).' })
   endDate?: string;
 
   @IsOptional()

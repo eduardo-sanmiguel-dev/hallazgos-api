@@ -2,13 +2,13 @@ import {
   type INestApplication,
   type Provider,
   type Type,
-  ValidationPipe,
 } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { NextFunction, Request, Response } from 'express';
 import request, { Test as SupertestTest } from 'supertest';
 
-import { QueryFailedExceptionFilter } from '../../src/shared/filters/query-failed-exception.filter.js';
+import { createValidationPipe } from '../../src/shared/errors/validation-errors.js';
+import { ApiExceptionFilter } from '../../src/shared/filters/api-exception.filter.js';
 import { RequestContextService } from '../../src/shared/services/request-context.service.js';
 import { User } from '../../src/users/entities/user.entity.js';
 
@@ -43,15 +43,8 @@ export const createHttpTestApp = async ({
     if (session.user) req.user = session.user;
     RequestContextService.run(req, next);
   });
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-      transformOptions: { enableImplicitConversion: true },
-    }),
-  );
-  app.useGlobalFilters(new QueryFailedExceptionFilter());
+  app.useGlobalPipes(createValidationPipe());
+  app.useGlobalFilters(new ApiExceptionFilter());
   // Escucha una sola vez: con un servidor sin escuchar, supertest hace
   // listen/close en cada petición y peticiones seguidas pueden cortarse
   // (ECONNRESET intermitente en descargas lentas).

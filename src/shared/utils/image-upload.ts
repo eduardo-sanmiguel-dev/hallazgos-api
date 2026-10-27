@@ -13,7 +13,7 @@ export const EVIDENCE_IMAGES_DIR = './public/static/images/evidences';
 
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2 MB
 
-// Mismos tipos que ya se suben (UI y móvil): jpg/jpeg, png y webp.
+// Mismos tipos que ya sube la UI: jpg/jpeg, png y webp.
 const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
 
 const INVALID_IMAGE_MESSAGE = 'Solo se permiten imágenes JPG, PNG o WEBP';

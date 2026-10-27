@@ -27,7 +27,7 @@ class CreateExtinguisherInspectionEvaluationDto {
   @IsString()
   @Length(1, 50)
   @Matches(/^[a-zA-Z0-9-]+$/, {
-    message: 'extinguisherNumber must be alphanumeric and may include hyphens',
+    message: 'Solo puede tener letras, números y guiones.',
   })
   extinguisherNumber: string;
 

@@ -1,5 +1,9 @@
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ImageFileValidationPipe, imageUploadOptions } from '../shared/utils/index.js';
+import {
+  ImageFileValidationPipe,
+  imageUploadOptions,
+} from '../shared/utils/index.js';
+import { Idempotent } from '../idempotency/idempotency.interceptor.js';
 import {
   Controller,
   Get,
@@ -21,6 +25,7 @@ export class IcsController {
   constructor(private readonly icsService: IcsService) {}
 
   @Post()
+  @Idempotent()
   @UseInterceptors(FileInterceptor('file', imageUploadOptions('evidence')))
   create(
     @Body() createIcsDto: CreateIcsDto,

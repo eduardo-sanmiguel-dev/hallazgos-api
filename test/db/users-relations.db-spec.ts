@@ -7,6 +7,7 @@
 import { User } from '../../src/users/entities/user.entity.js';
 import { ManufacturingPlant } from '../../src/manufacturing-plants/entities/manufacturing-plant.entity.js';
 import { Zone } from '../../src/zones/entities/zone.entity.js';
+import { UsersService } from '../../src/users/users.service.js';
 import { createE2eApp, type E2eApp } from './e2e-app.js';
 
 type UserBody = {
@@ -284,5 +285,40 @@ describe('E2E: relaciones de usuarios', () => {
         byEmail(list.body, 'supervisor@hallazgos.test').manufacturingPlants,
       ),
     ).toEqual(['Tepotzotlán']);
+  });
+  // Los avisos de la planta 3 van solo a una lista fija; la lista trae
+  // mayúsculas ("Aholguin@…") y en la base los correos están en minúsculas.
+  it('planta 3: avisa a los de la lista sin distinguir mayúsculas', async () => {
+    const plants = e2e.dataSource.getRepository(ManufacturingPlant);
+    const plant3 = await plants.save({
+      name: 'Planta 3',
+      link: 'https://maps.test/planta-3',
+      lat: 19.7,
+      lng: -99.2,
+    });
+    // seedBaseData reinicia los ids: Tepotzotlán 1, Manizales 2.
+    expect(plant3.id).toBe(3);
+
+    const users = e2e.dataSource.getRepository(User);
+    const inPlant3 = (email: string, isActive = true) =>
+      users.save({
+        name: email,
+        email,
+        password: 'x',
+        role: 'General',
+        isActive,
+        manufacturingPlants: [plant3],
+      });
+    await inPlant3('aholguin@hada.com.co');
+    await inPlant3('sst@hadamexico.com');
+    await inPlant3('btorres@hadainternational.com', false);
+    await inPlant3('fuera.de.lista@hada.com.co');
+
+    const recipients = await e2e.app.get(UsersService).findAllByPlant(3);
+
+    expect(recipients.map(({ email }) => email).sort()).toEqual([
+      'aholguin@hada.com.co',
+      'sst@hadamexico.com',
+    ]);
   });
 });

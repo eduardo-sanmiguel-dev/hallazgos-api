@@ -14,6 +14,7 @@ import {
   STATUS_IN_PROGRESS,
   STATUS_OPEN,
 } from '../shared/constants/index.js';
+import { PRIORITY_DAYS_BY_NAME } from '../shared/constants/priority.js';
 import { MainType } from '../main-types/entities/main-type.entity.js';
 import { ManufacturingPlant } from '../manufacturing-plants/entities/manufacturing-plant.entity.js';
 import { Processes } from '../processes/entities/processes.entity.js';
@@ -47,12 +48,10 @@ export class EvidencesSeedService implements OnApplicationBootstrap {
 
   private readonly fallbackUserId = 1;
 
-  private readonly priorityByLabel: Record<string, number> = {
-    inmediato: 2,
-    'corto plazo': 8,
-    'mediano plazo': 15,
-    'largo plazo': 30,
-  };
+  // Mismo mapeo que el dashboard y los correos. La carga del 4-may-2026 (ids
+  // 3176-3496) corrió con el anterior (Inmediato = 8); sus días no se
+  // cambiaron.
+  private readonly priorityByLabel = PRIORITY_DAYS_BY_NAME;
 
   constructor(
     @InjectRepository(Evidence)

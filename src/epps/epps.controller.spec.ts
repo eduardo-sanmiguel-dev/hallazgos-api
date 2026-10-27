@@ -257,6 +257,7 @@ describe('EppsController (HTTP)', () => {
 
       await http.http().get('/epps/download/file/7').expect(404, {
         statusCode: 404,
+        code: 'NOT_FOUND',
         message: 'El empleado #7 no tiene EPP registrados',
         error: 'Not Found',
       });

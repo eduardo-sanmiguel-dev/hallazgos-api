@@ -65,11 +65,11 @@ export class QueryEppDto {
 
   // Rango inclusivo sobre deliveryDate de las entregas activas (columna date).
   @IsOptional()
-  @Matches(DATE_ONLY, { message: 'startDate debe tener formato YYYY-MM-DD' })
+  @Matches(DATE_ONLY, { message: 'Fecha no válida (formato AAAA-MM-DD).' })
   startDate?: string;
 
   @IsOptional()
-  @Matches(DATE_ONLY, { message: 'endDate debe tener formato YYYY-MM-DD' })
+  @Matches(DATE_ONLY, { message: 'Fecha no válida (formato AAAA-MM-DD).' })
   endDate?: string;
 
   // "false": la página sin historial (firmas incluidas pesan); el UI lo pide

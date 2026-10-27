@@ -21,12 +21,12 @@ export class QueryGembaWalkCalendarDto {
   // Rango [startDate, endDate) de instantes reales.
   @IsOptional()
   @IsISO8601({ strict: true })
-  @Matches(ISO_WITH_OFFSET, { message: 'startDate debe incluir zona horaria' })
+  @Matches(ISO_WITH_OFFSET, { message: 'La fecha debe incluir la zona horaria.' })
   startDate?: string;
 
   @IsOptional()
   @IsISO8601({ strict: true })
-  @Matches(ISO_WITH_OFFSET, { message: 'endDate debe incluir zona horaria' })
+  @Matches(ISO_WITH_OFFSET, { message: 'La fecha debe incluir la zona horaria.' })
   endDate?: string;
 
   @IsOptional()

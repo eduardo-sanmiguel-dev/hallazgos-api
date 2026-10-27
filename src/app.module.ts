@@ -65,6 +65,7 @@ import { GembaWalkCalendarModule } from './gemba-walk-calendar/gemba-walk-calend
 import { GembaWalkEvaluationsModule } from './gemba-walk-evaluations/gemba-walk-evaluations.module.js';
 import { GembaWalksModule } from './gemba-walks/gemba-walks.module.js';
 import { HealthModule } from './health/health.module.js';
+import { IdempotencyModule } from './idempotency/idempotency.module.js';
 import { EvidenceImageAccessMiddleware } from './evidences/evidence-image-access.middleware.js';
 
 @Module({
@@ -186,6 +187,7 @@ import { EvidenceImageAccessMiddleware } from './evidences/evidence-image-access
     GembaWalkEvaluationsModule,
     GembaWalksModule,
     HealthModule,
+    IdempotencyModule,
     RequestContextModule,
   ],
   controllers: [],
@@ -216,6 +218,10 @@ export class AppModule implements NestModule {
         { path: 'auth/login', method: RequestMethod.POST },
         { path: 'auth/login-restore-password', method: RequestMethod.POST },
         { path: 'auth/forgot-password', method: RequestMethod.POST },
+        // Solo borra la cookie: debe funcionar con la sesión ya terminada
+        // (token vencido o usuario desactivado); si no, la UI no podría
+        // limpiarla y "/" la devolvería al dashboard una y otra vez.
+        { path: 'auth/logout', method: RequestMethod.POST },
         healthRoute,
       )
       .forRoutes('/');

@@ -72,7 +72,7 @@ export class QueryUserDto {
   @IsOptional()
   @IsString()
   @Matches(USER_ORDER_BY_PATTERN, {
-    message: `orderBy debe tener el formato campo|asc o campo|desc, con campo en: ${USER_SORTABLE_COLUMNS.join(', ')}`,
+    message: `Debe tener el formato campo|asc o campo|desc, con campo en: ${USER_SORTABLE_COLUMNS.join(', ')}`,
   })
   orderBy: string;
 

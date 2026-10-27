@@ -100,10 +100,10 @@ describe('E2E: hallazgos', () => {
       expect(await e2e.dataSource.getRepository(Evidence).count()).toBe(before);
     });
 
-    it('un comportamiento inseguro se crea sin evidencia (solo descripción)', async () => {
+    it('una clasificación sin foto obligatoria se crea sin evidencia (solo descripción)', async () => {
       const mainType = await e2e.dataSource
         .getRepository(MainType)
-        .save({ name: 'Comportamiento inseguro' });
+        .save({ name: 'Comportamiento inseguro', requiresEvidence: false });
       const secondaryType = await e2e.dataSource
         .getRepository(SecondaryType)
         .save({ name: 'No usa EPP', mainType });
@@ -198,6 +198,7 @@ describe('E2E: hallazgos', () => {
       const again = await e2e
         .call('post', `/evidences/solution/${id}`, e2e.tokens.supervisor)
         .field({ descriptionSolution: 'Otra vez' })
+        .attach('file', PNG, 'solucion.png')
         .expect(409);
       expect(again.body.message).toMatch(/porque está en estado "Cerrado"/);
 
@@ -209,6 +210,46 @@ describe('E2E: hallazgos', () => {
       expect(commented.body.comments.map(({ comment }) => comment)).toEqual([
         'Gracias',
       ]);
+    });
+
+    it('cerrar sin imagen: 400 si la clasificación exige foto; 201 si no', async () => {
+      const { id } = await saveEvidence(e2e.dataSource, e2e.base);
+      e2e.mail.sendSolution.mockClear();
+
+      const rejected = await e2e
+        .call('post', `/evidences/solution/${id}`, e2e.tokens.supervisor)
+        .field({ descriptionSolution: 'Sin foto' })
+        .expect(400);
+      expect(rejected.body.message).toBe(
+        'Debe capturar o adjuntar una imagen como evidencia del hallazgo',
+      );
+      const stillOpen = await e2e.dataSource
+        .getRepository(Evidence)
+        .findOneByOrFail({ id });
+      expect(stillOpen.status).toBe(STATUSES.open);
+      expect(e2e.mail.sendSolution).not.toHaveBeenCalled();
+
+      const withoutPhoto = await e2e.dataSource
+        .getRepository(MainType)
+        .save({ name: 'E2E sin foto al cerrar', requiresEvidence: false });
+      const { id: textOnlyId } = await saveEvidence(e2e.dataSource, e2e.base, {
+        imgEvidence: '',
+        mainType: withoutPhoto,
+      });
+
+      const closed = await e2e
+        .call(
+          'post',
+          `/evidences/solution/${textOnlyId}`,
+          e2e.tokens.supervisor,
+        )
+        .field({ descriptionSolution: 'Se habló con el equipo' })
+        .expect(201);
+      expect(closed.body).toMatchObject({
+        status: STATUSES.closed,
+        imgSolution: '',
+        descriptionSolution: 'Se habló con el equipo',
+      });
     });
 
     it('cancelar: un General 403; el administrador cancela; cancelar de nuevo 409', async () => {
