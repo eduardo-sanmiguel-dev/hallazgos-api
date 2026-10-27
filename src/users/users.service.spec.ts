@@ -462,20 +462,29 @@ describe('UsersService', () => {
   });
 
   describe('findAllByPlant', () => {
-    it('en la planta 3 solo devuelve la lista fija de correos autorizados', async () => {
+    it('en la planta 3 solo devuelve la lista fija de correos, sin distinguir mayúsculas', async () => {
       await service.findAllByPlant(3);
 
       const { where } = users.find.mock.calls[0][0] as {
         where: Record<string, unknown>;
       };
-      expect(operand(where.email)).toEqual([
-        'strujillo@hadamexico.com',
-        'Dspaggiari@hadamexico.com',
-        'Aholguin@hada.com.co',
-        'Cvelasquez@hada.com.co',
-        'sst@hadamexico.com',
-        'Btorres@hadainternational.com',
-      ]);
+      const filter = where.email as FindOperator<unknown>;
+      expect(filter.type).toBe('raw');
+      expect(where).toMatchObject({
+        isActive: true,
+        manufacturingPlants: { id: 3 },
+      });
+      // La consulta real se prueba en test/db/users-relations.db-spec.ts.
+      expect(filter.objectLiteralParameters).toEqual({
+        plant3Emails: [
+          'strujillo@hadamexico.com',
+          'dspaggiari@hadamexico.com',
+          'aholguin@hada.com.co',
+          'cvelasquez@hada.com.co',
+          'sst@hadamexico.com',
+          'btorres@hadainternational.com',
+        ],
+      });
     });
 
     it('en otras plantas devuelve los activos de la planta sin las cuentas de prueba', async () => {

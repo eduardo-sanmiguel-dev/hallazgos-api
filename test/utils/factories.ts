@@ -57,7 +57,7 @@ export const buildEvidence = (overrides: Partial<Evidence> = {}): Evidence =>
     createdAt: new Date('2026-10-01T15:00:00Z'),
     updatedAt: new Date('2026-10-01T15:00:00Z'),
     manufacturingPlant: buildManufacturingPlant({ id: 1 }),
-    mainType: { id: 1, name: 'Condición insegura' },
+    mainType: { id: 1, name: 'Condición insegura', requiresEvidence: true },
     secondaryType: { id: 2, name: 'Orden y limpieza' },
     zone: { id: 3, name: 'Almacén' },
     process: { id: 4, name: 'Producción' },

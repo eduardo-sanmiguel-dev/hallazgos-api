@@ -9,6 +9,7 @@ import { buildUser } from '../../../test/utils/index.js';
 import { User } from '../../users/entities/user.entity.js';
 import { UsersService } from '../../users/users.service.js';
 import { JwtMiddleware } from './jwt.middleware.js';
+import { sessionEndedException } from '../errors/error-codes.js';
 
 const SECRET = 'secreto-de-pruebas';
 
@@ -86,7 +87,7 @@ describe('JwtMiddleware', () => {
 
     await expect(
       middleware.use(request(input), response, next),
-    ).rejects.toThrow(new UnauthorizedException('Credenciales no válidas'));
+    ).rejects.toThrow(sessionEndedException());
     expect(next).not.toHaveBeenCalled();
     expect(usersService.findOne).not.toHaveBeenCalled();
   });
@@ -107,13 +108,24 @@ describe('JwtMiddleware', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
+  it('el 401 lleva el código SESSION_EXPIRED para que la UI avise antes de ir al login', async () => {
+    const error = await middleware
+      .use(request({ cookie: 'no-es-un-jwt' }), response, jest.fn())
+      .catch((caught: UnauthorizedException) => caught);
+
+    expect((error as UnauthorizedException).getResponse()).toEqual({
+      message: 'Tu sesión terminó. Inicia sesión de nuevo.',
+      code: 'SESSION_EXPIRED',
+    });
+  });
+
   it('debe lanzar UnauthorizedException si el usuario del token ya no existe o está inactivo', async () => {
     usersService.findOne.mockRejectedValue(new NotFoundException());
     const next = jest.fn();
 
     await expect(
       middleware.use(request({ cookie: jwtService.create(7) }), response, next),
-    ).rejects.toThrow(new UnauthorizedException('Credenciales no válidas'));
+    ).rejects.toThrow(sessionEndedException());
     expect(next).not.toHaveBeenCalled();
   });
 });

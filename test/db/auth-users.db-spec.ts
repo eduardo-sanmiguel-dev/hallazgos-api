@@ -39,7 +39,25 @@ describe('E2E: auth', () => {
       const res = await e2e.call('post', '/auth/login').send(body).expect(401);
 
       expect(res.body.message).toBe('Credenciales no válidas');
+      // Distinto de la sesión terminada: la UI no muestra el diálogo.
+      expect(res.body.code).toBe('INVALID_CREDENTIALS');
     });
+
+    it.each([
+      ['sin token', undefined],
+      ['con un token que no es válido', 'no-es-un-jwt'],
+    ])(
+      'una petición %s responde 401 SESSION_EXPIRED con el mensaje de sesión terminada',
+      async (_c, token) => {
+        const res = await e2e.call('get', '/zones', token).expect(401);
+
+        expect(res.body).toMatchObject({
+          statusCode: 401,
+          code: 'SESSION_EXPIRED',
+          message: 'Tu sesión terminó. Inicia sesión de nuevo.',
+        });
+      },
+    );
 
     it('sin datos responde 400', async () => {
       await e2e.call('post', '/auth/login').send({}).expect(400);
@@ -47,6 +65,23 @@ describe('E2E: auth', () => {
   });
 
   describe('app key y sesión', () => {
+    it.each([
+      ['sin sesión', undefined],
+      ['con un token que ya no sirve', 'no-es-un-jwt'],
+    ])(
+      'logout %s borra la cookie (la UI la limpia tras "Tu sesión terminó")',
+      async (_c, token) => {
+        const res = await e2e
+          .call('post', '/auth/logout', token)
+          .set('Cookie', 'token=vencido')
+          .expect(201);
+
+        expect(String(res.headers['set-cookie'])).toMatch(
+          /token=;.*Max-Age=0/,
+        );
+      },
+    );
+
     it('sin app key responde 400 aunque la ruta sea pública', async () => {
       await request(e2e.server)
         .post('/api/v1/auth/login')

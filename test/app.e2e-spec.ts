@@ -1,8 +1,4 @@
-import {
-  type INestApplication,
-  NotFoundException,
-  ValidationPipe,
-} from '@nestjs/common';
+import { type INestApplication, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { ThrottlerModule } from '@nestjs/throttler';
 import request from 'supertest';
@@ -10,6 +6,8 @@ import { DataSource } from 'typeorm';
 import type { NextFunction, Request, Response } from 'express';
 
 import { AuthController } from '../src/auth/auth.controller.js';
+import { createValidationPipe } from '../src/shared/errors/validation-errors.js';
+import { ApiExceptionFilter } from '../src/shared/filters/api-exception.filter.js';
 import { AuthService } from '../src/auth/auth.service.js';
 import { DashboardController } from '../src/dashboard/dashboard.controller.js';
 import { DashboardService } from '../src/dashboard/dashboard.service.js';
@@ -94,15 +92,9 @@ describe('API (e2e)', () => {
       req.user = sessionUser;
       RequestContextService.run(req, next);
     });
-    // Misma configuración de validación que main.ts.
-    nestApp.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        transform: true,
-        transformOptions: { enableImplicitConversion: true },
-      }),
-    );
+    // Misma validación y formato de error que main.ts.
+    nestApp.useGlobalPipes(createValidationPipe());
+    nestApp.useGlobalFilters(new ApiExceptionFilter());
     await nestApp.init();
     return nestApp;
   };
@@ -366,7 +358,7 @@ describe('API (e2e)', () => {
 
       const response = await restore({ email, password }).expect(400);
 
-      expect(JSON.stringify(response.body.message)).toContain('token');
+      expect(response.body.errors).toEqual({ token: 'Dato obligatorio.' });
       expect(authService.loginRestorePassword).not.toHaveBeenCalled();
     });
 

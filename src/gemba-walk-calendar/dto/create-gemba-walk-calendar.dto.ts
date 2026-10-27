@@ -21,7 +21,7 @@ export class CreateGembaWalkCalendarEventDto {
   @IsNotEmpty()
   @IsISO8601({ strict: true })
   @Matches(ISO_WITH_OFFSET, {
-    message: 'scheduledAt debe incluir zona horaria',
+    message: 'La fecha debe incluir la zona horaria.',
   })
   scheduledAt: string;
 

@@ -6,7 +6,14 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { RequestContextService } from '../shared/services/request-context.service.js';
 
-import { type FindOptionsWhere, ILike, In, Not, Repository } from 'typeorm';
+import {
+  type FindOptionsWhere,
+  ILike,
+  In,
+  Not,
+  Raw,
+  Repository,
+} from 'typeorm';
 import * as argon2 from 'argon2';
 
 import {
@@ -54,6 +61,16 @@ const sortByName = (user: User) => {
   user.manufacturingPlants?.sort(byName);
   user.zones?.sort(byName);
 };
+
+/** Únicos destinatarios de los avisos de la planta 3 (pendiente: configuración). */
+export const PLANT_3_RECIPIENT_EMAILS = [
+  'strujillo@hadamexico.com',
+  'Dspaggiari@hadamexico.com',
+  'Aholguin@hada.com.co',
+  'Cvelasquez@hada.com.co',
+  'sst@hadamexico.com',
+  'Btorres@hadainternational.com',
+];
 
 @Injectable()
 export class UsersService {
@@ -288,14 +305,13 @@ export class UsersService {
           manufacturingPlants: {
             id: plantId,
           },
-          email: In([
-            'strujillo@hadamexico.com',
-            'Dspaggiari@hadamexico.com',
-            'Aholguin@hada.com.co',
-            'Cvelasquez@hada.com.co',
-            'sst@hadamexico.com',
-            'Btorres@hadainternational.com',
-          ]),
+          // Sin distinguir mayúsculas: la lista trae "Dspaggiari@…" y en la
+          // base están en minúsculas, así que antes se quedaban sin aviso.
+          email: Raw((alias) => `LOWER(${alias}) IN (:...plant3Emails)`, {
+            plant3Emails: PLANT_3_RECIPIENT_EMAILS.map((email) =>
+              email.toLowerCase(),
+            ),
+          }),
         },
       });
     }

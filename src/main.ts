@@ -1,5 +1,5 @@
 import { registerEvidenceImageAccess } from './evidences/evidence-image-access.middleware.js';
-import { ConsoleLogger, Logger, ValidationPipe } from '@nestjs/common';
+import { ConsoleLogger, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -9,7 +9,8 @@ import helmet from 'helmet';
 
 //import { ClusterService } from 'cluster.service';
 import { AppModule } from './app.module.js';
-import { QueryFailedExceptionFilter } from './shared/filters/query-failed-exception.filter.js';
+import { createValidationPipe } from './shared/errors/validation-errors.js';
+import { ApiExceptionFilter } from './shared/filters/api-exception.filter.js';
 import { httpAccessLog } from './shared/middlewares/http-access-log.middleware.js';
 import {
   createOpenObserveLogger,
@@ -57,18 +58,9 @@ async function bootstrap() {
     }),
   );
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      // Los controladores reciben la instancia del DTO (con sus tipos) en
-      // lugar de un objeto plano; los valores ya llegaban convertidos.
-      transform: true,
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
-    }),
-  );
+  // Validación de DTOs (whitelist, transformación) con los errores en
+  // español y por campo (ver shared/errors/validation-errors.ts).
+  app.useGlobalPipes(createValidationPipe());
 
   app.use(cookieParser());
   if (observeLogger) app.use(httpAccessLog(observeLogger));
@@ -79,9 +71,9 @@ async function bootstrap() {
 
   app.setGlobalPrefix('/api/v1');
 
-  // Solo errores de base de datos no manejados: mensaje explícito en español
-  // en lugar de "Internal server error".
-  app.useGlobalFilters(new QueryFailedExceptionFilter());
+  // Formato único de error: mensaje en español, código y errores por campo;
+  // los 500 llevan una referencia que también queda en el log.
+  app.useGlobalFilters(new ApiExceptionFilter());
 
   const port = configService.get<number>('port');
   const environment = configService.get<string>('environment');

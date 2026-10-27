@@ -1,1 +1,1 @@
-export * from './query-failed-exception.filter.js';
+export * from './api-exception.filter.js';

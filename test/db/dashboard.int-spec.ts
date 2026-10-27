@@ -99,6 +99,34 @@ describe('Integración: dashboard', () => {
       ]);
     });
 
+    // Mismo mapeo que la UI y los correos: 2 días es Inmediato (Crítico) y
+    // 8 días es Corto plazo (Alto). Antes el dashboard los tenía al revés.
+    it('priority-intervention-by-filters etiqueta los plazos como la UI', async () => {
+      const { body } = await get(
+        `priority-intervention-by-filters?${filters()}`,
+      );
+
+      expect(
+        body.seriesData.map(({ name, days, y }) => ({ name, days, y })),
+      ).toEqual([
+        { name: 'Inmediato', days: 2, y: 1 },
+        { name: 'Corto plazo', days: 8, y: 1 },
+        { name: 'Mediano plazo', days: 15, y: 0 },
+        { name: 'Largo plazo', days: 30, y: 0 },
+      ]);
+    });
+
+    it('risk-level-by-filters: 2 días es Crítico y 8 días es Alto', async () => {
+      const { body } = await get(`risk-level-by-filters?${filters()}`);
+
+      expect(body.seriesData.map(({ name, y }) => ({ name, y }))).toEqual([
+        { name: 'Bajo', y: 0 },
+        { name: 'Medio', y: 0 },
+        { name: 'Alto', y: 1 },
+        { name: 'Critico', y: 1 },
+      ]);
+    });
+
     it('status-by-filters por área y por responsable', async () => {
       const byArea = await get(
         `status-by-filters?${filters({ areaIds: String(e2e.base.area.id) })}`,

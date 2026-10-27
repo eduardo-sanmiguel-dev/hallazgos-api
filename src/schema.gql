@@ -21,6 +21,7 @@ type MainType {
   id: ID!
   name: String!
   isActive: Boolean!
+  requiresEvidence: Boolean!
   createdAt: DateTime!
   updatedAt: DateTime!
   secondaryTypes: [SecondaryType!]!

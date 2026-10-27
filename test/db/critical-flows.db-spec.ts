@@ -12,6 +12,7 @@ import { Equipment } from '../../src/equipments/entities/index.js';
 import { Genre } from '../../src/genres/entities/genre.entity.js';
 import { Epp, EppEquipment } from '../../src/epps/entities/index.js';
 import { Evidence } from '../../src/evidences/entities/evidence.entity.js';
+import { MainType } from '../../src/main-types/entities/main-type.entity.js';
 import { createE2eApp, type E2eApp } from './e2e-app.js';
 import { saveEvidence, STATUSES } from './fixtures.js';
 
@@ -281,8 +282,19 @@ describe('Flujos críticos con PostgreSQL', () => {
     expect(await e2e.dataSource.getRepository(Epp).count()).toBe(before);
   });
 
+  // Estas pruebas cierran sin imagen: usan una clasificación sin foto
+  // obligatoria para probar solo la concurrencia.
+  const saveCloseableEvidence = async () => {
+    const mainTypes = e2e.dataSource.getRepository(MainType);
+    const name = 'E2E cierre sin foto';
+    const mainType =
+      (await mainTypes.findOneBy({ name })) ??
+      (await mainTypes.save({ name, requiresEvidence: false }));
+    return saveEvidence(e2e.dataSource, e2e.base, { mainType });
+  };
+
   it('dos cierres concurrentes solo permiten una transición y una notificación por destinatario', async () => {
-    const evidence = await saveEvidence(e2e.dataSource, e2e.base);
+    const evidence = await saveCloseableEvidence();
     e2e.mail.sendSolution.mockClear();
     const results = await Promise.all(
       [1, 2].map((i) =>
@@ -312,7 +324,7 @@ describe('Flujos críticos con PostgreSQL', () => {
   });
 
   it('cerrar y cancelar simultáneamente no sobrescriben un estado final', async () => {
-    const evidence = await saveEvidence(e2e.dataSource, e2e.base);
+    const evidence = await saveCloseableEvidence();
     const [close, cancel] = await Promise.all([
       e2e
         .call(
@@ -336,7 +348,7 @@ describe('Flujos críticos con PostgreSQL', () => {
   });
 
   it('reasignar y cerrar a la vez nunca reabre el hallazgo', async () => {
-    const evidence = await saveEvidence(e2e.dataSource, e2e.base);
+    const evidence = await saveCloseableEvidence();
     const [close, reassign] = await Promise.all([
       e2e
         .call(

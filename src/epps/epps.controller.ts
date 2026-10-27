@@ -26,6 +26,7 @@ import {
   removeTempDir,
 } from '../shared/utils/index.js';
 import { UserPlantPipe } from '../shared/pipes/index.js';
+import { Idempotent } from '../idempotency/idempotency.interceptor.js';
 import { CreateEppDto, QueryEppDto, UpdateEppDto } from './dto/index.js';
 import { EppsService } from './epps.service.js';
 //import { writeFileSync } from 'fs';
@@ -54,6 +55,7 @@ export class EppsController {
   constructor(private readonly eppsService: EppsService) {}
 
   @Post()
+  @Idempotent()
   create(@Body() createEppDto: CreateEppDto) {
     return this.eppsService.create(createEppDto);
   }

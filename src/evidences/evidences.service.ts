@@ -100,10 +100,6 @@ pdfMake.setLocalAccessPolicy((path: string) =>
   resolve(path).startsWith(PDF_FONTS_DIR + sep),
 );
 
-/** Clasificación que no exige foto: se reporta con descripción. */
-export const isUnsafeBehaviorType = (mainTypeName = '') =>
-  mainTypeName.toLocaleLowerCase().includes('comportamiento inseguro');
-
 export const MISSING_EVIDENCE_MESSAGE =
   'Debe capturar o adjuntar una imagen como evidencia del hallazgo';
 
@@ -464,9 +460,8 @@ export class EvidencesService {
 
     const mainType = await this.mainTypesService.findOne(typeHallazgo);
 
-    // La evidencia es obligatoria salvo en "comportamiento inseguro" (misma
-    // regla que la UI). Antes la UI podía saltársela y el API no lo validaba.
-    if (!file && !isUnsafeBehaviorType(mainType.name)) {
+    // La foto es obligatoria según la clasificación (bandera del catálogo).
+    if (!file && mainType.requiresEvidence) {
       throw new BadRequestException(MISSING_EVIDENCE_MESSAGE);
     }
 
@@ -704,10 +699,21 @@ export class EvidencesService {
       );
     }
 
+    // Misma regla que al crear: la clasificación decide si la foto es obligatoria.
+    if (!file && evidence.mainType.requiresEvidence) {
+      throw new BadRequestException(MISSING_EVIDENCE_MESSAGE);
+    }
+
     const colombianIds =
       await this.manufacturingPlantsService.getColombianPlantsIds();
     const solutionDate = getColombiaNow(
       colombianIds,
+      evidence.manufacturingPlant.id,
+    );
+
+    // Antes de guardar: después del cambio de estado nada debe fallar (un
+    // reintento con la misma clave de idempotencia no sabría si se guardó).
+    const manufacturingPlant = await this.manufacturingPlantsService.findOne(
       evidence.manufacturingPlant.id,
     );
 
@@ -722,10 +728,6 @@ export class EvidencesService {
         status: STATUS_CLOSE,
         updatedAt: solutionDate,
       },
-    );
-
-    const manufacturingPlant = await this.manufacturingPlantsService.findOne(
-      evidenceSolution.manufacturingPlant.id,
     );
 
     // En segundo plano, como al crear: son un correo por usuario de la planta
@@ -1727,15 +1729,19 @@ export class EvidencesService {
       );
     }
 
+    const current = await this.findOne(id);
+
+    // Antes de guardar, igual que al cerrar: después del cambio de estado
+    // nada debe fallar.
+    const manufacturingPlant = await this.manufacturingPlantsService.findOne(
+      current.manufacturingPlant.id,
+    );
+
     const evidence = await this.transition(
-      await this.findOne(id),
+      current,
       [STATUS_OPEN, STATUS_IN_PROGRESS],
       'cancelar',
       { isActive: false, status: STATUS_CANCEL, updatedAt: new Date() },
-    );
-
-    const manufacturingPlant = await this.manufacturingPlantsService.findOne(
-      evidence.manufacturingPlant.id,
     );
 
     // En segundo plano, como al cerrar: un correo por usuario de la planta.

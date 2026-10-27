@@ -14,6 +14,11 @@ import { User } from '../users/entities/user.entity.js';
 import { Evidence } from '../evidences/entities/evidence.entity.js';
 import { MainType } from '../main-types/entities/main-type.entity.js';
 import { groupBy } from '../shared/utils/index.js';
+import {
+  PRIORITY_LEVELS,
+  RISK_LEVELS,
+  riskLevelSqlCase,
+} from '../shared/constants/priority.js';
 import { resolveBiEppPeriod } from './bi-epp-period.js';
 
 @Injectable()
@@ -1142,13 +1147,6 @@ export class DashboardService {
 
     mainTypeIds = await this.resolveScopedMainTypeIds(mainTypeIds);
 
-    const priorityDefinition = [
-      { name: 'Corto plazo', days: 2, color: '#F9A825' },
-      { name: 'Inmediato', days: 8, color: '#D32F2F' },
-      { name: 'Mediano plazo', days: 15, color: '#1565C0' },
-      { name: 'Largo plazo', days: 30, color: '#2E7D32' },
-    ];
-
     const buildBaseQuery = () => {
       const query = this.evidenceRepository
         .createQueryBuilder('evidence')
@@ -1268,7 +1266,7 @@ export class DashboardService {
       {},
     );
 
-    const seriesData = priorityDefinition.map((item) => ({
+    const seriesData = PRIORITY_LEVELS.map((item) => ({
       name: item.name,
       days: item.days,
       y: totalsByPriorityDays[item.days] || 0,
@@ -1364,26 +1362,7 @@ export class DashboardService {
 
     mainTypeIds = await this.resolveScopedMainTypeIds(mainTypeIds);
 
-    const riskDefinition = [
-      { name: 'Bajo', color: '#7CB342' },
-      { name: 'Medio', color: '#FFEB3B' },
-      { name: 'Alto', color: '#FF9800' },
-      { name: 'Critico', color: '#F44336' },
-    ];
-
-    const riskCase = `
-      CASE
-        WHEN COALESCE(evidence."priorityDays", 0) <= 0 THEN NULL
-        WHEN evidence."priorityDays" = 30 THEN 'Bajo'
-        WHEN evidence."priorityDays" = 15 THEN 'Medio'
-        WHEN evidence."priorityDays" = 2 THEN 'Alto'
-        WHEN evidence."priorityDays" = 8 THEN 'Critico'
-        WHEN evidence."priorityDays" > 30 THEN 'Bajo'
-        WHEN evidence."priorityDays" > 15 THEN 'Medio'
-        WHEN evidence."priorityDays" > 8 THEN 'Alto'
-        ELSE 'Critico'
-      END
-    `;
+    const riskCase = riskLevelSqlCase('evidence."priorityDays"');
 
     const buildBaseQuery = () => {
       const query = this.evidenceRepository
@@ -1532,7 +1511,7 @@ export class DashboardService {
       return acc;
     }, {});
 
-    const seriesData = riskDefinition.map((item) => ({
+    const seriesData = RISK_LEVELS.map((item) => ({
       name: item.name,
       y: totalsByRisk[item.name] || 0,
       color: item.color,

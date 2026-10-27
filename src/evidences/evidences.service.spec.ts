@@ -132,6 +132,7 @@ describe('EvidencesService', () => {
     mainTypesService.findOne.mockResolvedValue({
       id: 1,
       name: 'Condición insegura',
+      requiresEvidence: true,
     } as never);
     testing
       .get(SecondaryTypesService)
@@ -267,10 +268,11 @@ describe('EvidencesService', () => {
       });
     });
 
-    it('un comportamiento inseguro sin archivo, descripción ni prioridad guarda valores vacíos', async () => {
+    it('una clasificación sin foto obligatoria, sin archivo, descripción ni prioridad guarda valores vacíos', async () => {
       mainTypesService.findOne.mockResolvedValue({
         id: 1,
         name: 'Comportamiento inseguro',
+        requiresEvidence: false,
       } as never);
 
       await create({ description: '', priorityDays: undefined }, null);
@@ -283,7 +285,7 @@ describe('EvidencesService', () => {
     });
 
     // Antes la UI podía saltarse la foto y el API no lo validaba.
-    it('en otra clasificación sin evidencia responde 400 y no guarda nada', async () => {
+    it('con foto obligatoria y sin evidencia responde 400 y no guarda nada', async () => {
       await expect(create({}, null)).rejects.toThrow(
         new BadRequestException(
           'Debe capturar o adjuntar una imagen como evidencia del hallazgo',
@@ -291,6 +293,20 @@ describe('EvidencesService', () => {
       );
       expect(evidences.save).not.toHaveBeenCalled();
       expect(mail.sendCreate).not.toHaveBeenCalled();
+    });
+
+    // Decide la bandera, no el nombre: renombrar la clasificación no cambia nada.
+    it('un "comportamiento inseguro" con la bandera en true también exige la foto', async () => {
+      mainTypesService.findOne.mockResolvedValue({
+        id: 1,
+        name: 'Comportamiento inseguro',
+        requiresEvidence: true,
+      } as never);
+
+      await expect(create({}, null)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(evidences.save).not.toHaveBeenCalled();
     });
 
     it('la fecha de creación es la de la planta: México usa la hora del servidor', async () => {
@@ -771,11 +787,31 @@ describe('EvidencesService', () => {
         expect(mail.sendSolution).toHaveBeenCalled();
       });
 
-      it('sin imagen ni descripción guarda textos vacíos', async () => {
+      it('sin foto obligatoria, sin imagen ni descripción guarda textos vacíos', async () => {
+        evidence.mainType.requiresEvidence = false;
+
         await expect(close(supervisor, null, '')).resolves.toMatchObject({
           imgSolution: '',
           descriptionSolution: '',
         });
+      });
+
+      // Misma regla que al crear: la clasificación decide.
+      it('con foto obligatoria y sin imagen responde 400 sin cerrar ni avisar', async () => {
+        await expect(close(supervisor, null)).rejects.toThrow(
+          new BadRequestException(
+            'Debe capturar o adjuntar una imagen como evidencia del hallazgo',
+          ),
+        );
+        expect(evidences.update).not.toHaveBeenCalled();
+        await flushBackgroundWork();
+        expect(mail.sendSolution).not.toHaveBeenCalled();
+      });
+
+      it('sin permiso responde 403 antes de revisar la imagen', async () => {
+        await expect(close(reporter, null)).rejects.toBeInstanceOf(
+          ForbiddenException,
+        );
       });
 
       it.each(FINAL)(

@@ -1,9 +1,9 @@
 /**
  * App completa (AppModule) contra la base de pruebas, configurada como en
- * main.ts: prefijo /api/v1, cookies, ValidationPipe y filtro de errores de BD.
+ * main.ts: prefijo /api/v1, cookies, ValidationPipe y filtro de errores.
  * Lo único simulado es el envío de correos.
  */
-import { type INestApplication, ValidationPipe } from '@nestjs/common';
+import { type INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
@@ -12,7 +12,8 @@ import { DataSource } from 'typeorm';
 import { registerEvidenceImageAccess } from '../../src/evidences/evidence-image-access.middleware.js';
 import { AppModule } from '../../src/app.module.js';
 import { MailService } from '../../src/mail/mail.service.js';
-import { QueryFailedExceptionFilter } from '../../src/shared/filters/query-failed-exception.filter.js';
+import { createValidationPipe } from '../../src/shared/errors/validation-errors.js';
+import { ApiExceptionFilter } from '../../src/shared/filters/api-exception.filter.js';
 import { seedBaseData, TEST_PASSWORD } from './fixtures.js';
 import { recreateTestSchema } from './test-database.js';
 
@@ -37,18 +38,11 @@ export const createE2eApp = async () => {
     .compile();
 
   const app: INestApplication = moduleRef.createNestApplication();
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-      transformOptions: { enableImplicitConversion: true },
-    }),
-  );
+  app.useGlobalPipes(createValidationPipe());
   app.use(cookieParser());
   registerEvidenceImageAccess(app);
   app.setGlobalPrefix('/api/v1');
-  app.useGlobalFilters(new QueryFailedExceptionFilter());
+  app.useGlobalFilters(new ApiExceptionFilter());
   await app.listen(0, '127.0.0.1');
 
   const dataSource = moduleRef.get(DataSource);

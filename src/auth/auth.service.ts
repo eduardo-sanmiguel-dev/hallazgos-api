@@ -13,6 +13,7 @@ import { LoginAuthDto } from './dto/login-auth.dto.js';
 import { RestorePasswordDto } from './dto/restore-password.dto.js';
 import { JwtService } from './jwt.service.js';
 import { MailService } from '../mail/mail.service.js';
+import { apiError, ERROR_CODES } from '../shared/errors/error-codes.js';
 
 // Vida de la cookie de sesión, en SEGUNDOS (como espera `cookie.serialize`);
 // igual que la del token de sesión.
@@ -82,11 +83,15 @@ export class AuthService {
     if (!user) {
       this.dummyHash ??= argon2.hash('contraseña-de-relleno');
       await argon2.verify(await this.dummyHash, password).catch(() => false);
-      throw new UnauthorizedException(INVALID_CREDENTIALS);
+      throw new UnauthorizedException(
+        apiError(INVALID_CREDENTIALS, ERROR_CODES.invalidCredentials),
+      );
     }
 
     if (!(await argon2.verify(user.password, password))) {
-      throw new UnauthorizedException(INVALID_CREDENTIALS);
+      throw new UnauthorizedException(
+        apiError(INVALID_CREDENTIALS, ERROR_CODES.invalidCredentials),
+      );
     }
 
     // Después de validar la contraseña: solo quien la conoce sabe si a la
