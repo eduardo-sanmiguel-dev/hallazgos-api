@@ -101,7 +101,7 @@ describe('EmergencyTeamsService', () => {
     teams.findOne.mockResolvedValue(null);
 
     await expect(as(async () => service.findOne(2))).rejects.toThrow(
-      new NotFoundException('Emergency team with id 2 not found'),
+      new NotFoundException('Equipo de emergencia #2 no encontrado'),
     );
   });
 

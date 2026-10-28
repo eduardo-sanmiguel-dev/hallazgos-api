@@ -291,7 +291,7 @@ describe('EppsService', () => {
       employees.findOne.mockResolvedValue(null);
 
       await expect(as(() => service.create(dto))).rejects.toThrow(
-        new NotFoundException('Employee with ID 7 not found.'),
+        new NotFoundException('Colaborador #7 no encontrado.'),
       );
       const [{ where }] = employees.findOne.mock.calls[0] as [
         { where: { manufacturingPlants: { id: unknown } } },
@@ -599,7 +599,7 @@ describe('EppsService', () => {
 
     it('una entrega de otra planta o inexistente responde 404', async () => {
       await expect(as(() => service.findOne(50))).rejects.toThrow(
-        new NotFoundException('EPP with ID 50 not found.'),
+        new NotFoundException('Entrega de EPP #50 no encontrada.'),
       );
     });
   });

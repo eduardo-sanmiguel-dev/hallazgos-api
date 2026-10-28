@@ -271,7 +271,7 @@ export class ExtinguisherInspectionsService {
 
     if (!extinguisherInspection) {
       throw new NotFoundException(
-        `Extinguisher inspection with id ${id} not found`,
+        `Inspección de extintores #${id} no encontrada`,
       );
     }
 
@@ -416,7 +416,7 @@ export class ExtinguisherInspectionsService {
 
     if (!extinguisherInspection) {
       throw new NotFoundException(
-        `Extinguisher inspection with id ${id} not found`,
+        `Inspección de extintores #${id} no encontrada`,
       );
     }
 

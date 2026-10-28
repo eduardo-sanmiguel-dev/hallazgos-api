@@ -156,6 +156,37 @@ const describeQueryFailed = (exception: QueryFailedError): Described => {
 };
 
 /**
+ * Errores 4xx de Express que no son HttpException: el lector del cuerpo
+ * (body-parser) los lanza con `status` y `expose`, por ejemplo un cuerpo de
+ * más de 100 KB (413, `entity.too.large`) o un JSON mal formado (400). Antes
+ * llegaban como 500 genérico.
+ */
+interface ClientHttpError {
+  status: number;
+  expose: boolean;
+  type?: string;
+  message?: string;
+}
+
+const isClientHttpError = (
+  exception: unknown,
+): exception is ClientHttpError => {
+  const error = exception as Partial<ClientHttpError> | null;
+  return (
+    typeof error?.status === 'number' &&
+    error.status >= 400 &&
+    error.status < 500 &&
+    error.expose === true
+  );
+};
+
+const describeClientHttpError = (exception: ClientHttpError): Described => ({
+  statusCode: exception.status,
+  code: CODE_BY_STATUS[exception.status] ?? `HTTP_${exception.status}`,
+  message: FRAMEWORK_MESSAGES[exception.status] ?? FRAMEWORK_MESSAGES[400],
+});
+
+/**
  * Formato único de error del API REST (ver ApiErrorBody): mensaje en español,
  * código estable y, en validación, errores por campo. Los errores 500 llevan
  * una referencia corta; el detalle técnico queda solo en el log.
@@ -177,12 +208,14 @@ export class ApiExceptionFilter implements ExceptionFilter {
         ? describeHttpException(exception)
         : exception instanceof QueryFailedError
           ? describeQueryFailed(exception)
-          : {
-              statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-              code: ERROR_CODES.internalError,
-              message: '',
-              logDetail: (exception as Error)?.message ?? String(exception),
-            };
+          : isClientHttpError(exception)
+            ? describeClientHttpError(exception)
+            : {
+                statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+                code: ERROR_CODES.internalError,
+                message: '',
+                logDetail: (exception as Error)?.message ?? String(exception),
+              };
 
     const { statusCode, code, errors, logDetail } = described;
     const isInternal = statusCode >= 500;
