@@ -57,7 +57,7 @@ export class IcsService {
     });
     if (count !== ids.length)
       throw new NotFoundException(
-        'Empleado no encontrado en la planta seleccionada',
+        'Uno o más colaboradores no pertenecen a la planta seleccionada.',
       );
     let imgEvidence = '';
 
@@ -70,7 +70,7 @@ export class IcsService {
     // Antes se guardaban personas correctas y porcentaje negativos.
     if (totalIncorrectPeople > totalPeople) {
       throw new BadRequestException(
-        'Las personas con comportamiento incorrecto no pueden ser más que el total de personas',
+        'Las personas que no cumplen con el estándar no pueden ser más que las personas totales.',
       );
     }
 
@@ -176,7 +176,7 @@ export class IcsService {
     });
 
     if (!ics) {
-      throw new NotFoundException(`Ics with id ${id} not found`);
+      throw new NotFoundException(`Registro de ICS #${id} no encontrado`);
     }
 
     return ics;

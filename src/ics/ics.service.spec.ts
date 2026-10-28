@@ -98,7 +98,7 @@ describe('IcsService', () => {
         as(() => service.create({ ...dto, totalPeople: 1 }, undefined)),
       ).rejects.toThrow(
         new BadRequestException(
-          'Las personas con comportamiento incorrecto no pueden ser más que el total de personas',
+          'Las personas que no cumplen con el estándar no pueden ser más que las personas totales.',
         ),
       );
       expect(ics.save).not.toHaveBeenCalled();
@@ -108,7 +108,7 @@ describe('IcsService', () => {
   it('rechaza empleados ajenos sin guardar el ICS', async () => {
     (ics.manager.count as jest.Mock).mockResolvedValueOnce(0);
     await expect(as(() => service.create(dto, undefined))).rejects.toThrow(
-      'Empleado no encontrado',
+      'Uno o más colaboradores no pertenecen a la planta seleccionada.',
     );
     expect(ics.save).not.toHaveBeenCalled();
   });
@@ -177,7 +177,7 @@ describe('IcsService', () => {
   describe('findOne y remove', () => {
     it('inexistente responde 404', async () => {
       await expect(as(async () => service.findOne(3))).rejects.toThrow(
-        new NotFoundException('Ics with id 3 not found'),
+        new NotFoundException('Registro de ICS #3 no encontrado'),
       );
     });
 

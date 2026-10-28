@@ -106,12 +106,14 @@ describe('RulesOfLifeController (HTTP)', () => {
       providers: [mockProvider(RulesOfLifeService)],
     });
     const service = http.get(RulesOfLifeService);
-    service.seed.mockResolvedValue({ message: 'Seeded successfully' });
+    service.seed.mockResolvedValue({
+      message: 'Catálogo de reglas de vida cargado.',
+    });
 
     await http
       .http()
       .post('/rules-of-life/seed')
-      .expect(201, { message: 'Seeded successfully' });
+      .expect(201, { message: 'Catálogo de reglas de vida cargado.' });
     await http.close();
   });
 });

@@ -40,7 +40,7 @@ describe('RulesOfLifeService.seed', () => {
 
   it('carga las 18 áreas, las 8 reglas de vida y sus estándares', async () => {
     await expect(service.seed()).resolves.toEqual({
-      message: 'Seeded successfully',
+      message: 'Catálogo de reglas de vida cargado.',
     });
 
     expect(storedAreas).toHaveLength(18);
