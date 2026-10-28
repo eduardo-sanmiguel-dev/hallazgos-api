@@ -7,6 +7,7 @@ import {
   QueryWalkCalendarDto,
   StartGembaWalkDto,
 } from './dto/index.js';
+import { Idempotent } from '../idempotency/idempotency.interceptor.js';
 import { GembaWalksService } from './gemba-walks.service.js';
 
 // Registro de recorridos. Sin edición ni eliminación.
@@ -38,7 +39,10 @@ export class GembaWalksController {
     return this.gembaWalksService.start(startGembaWalkDto);
   }
 
+  // Un reintento con la misma clave (borrador reenviado, corte de señal)
+  // devuelve el recorrido ya registrado en lugar de "ya tiene un recorrido".
   @Post()
+  @Idempotent()
   create(@Body() createGembaWalkDto: CreateGembaWalkDto) {
     return this.gembaWalksService.create(createGembaWalkDto);
   }
