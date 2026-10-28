@@ -30,23 +30,26 @@ import { Zone } from '../zones/entities/zone.entity.js';
 import { Ciael } from './entities/ciael.entity.js';
 import { CiaelsService } from './ciaels.service.js';
 
-/** Catálogos que create valida (todos deben existir y estar activos). */
+/**
+ * Catálogos que create valida (todos deben existir y estar activos) y el
+ * mensaje del 404, con el id del dto de abajo.
+ */
 const CATALOGS = {
-  manufacturingPlantId: [ManufacturingPlant, 'ManufacturingPlant'],
-  typeOfEventId: [TypesOfEvent, 'TypesOfEvent'],
-  employeeId: [Employee, 'Employee'],
-  cieDiagnosisId: [CieDiagnosis, 'CieDiagnosis'],
-  zoneId: [Zone, 'Zone'],
-  bodyPartId: [BodyPart, 'BodyPart'],
-  atAgentId: [AtAgent, 'AtAgent'],
-  typeOfInjuryId: [TypeOfInjury, 'TypeOfInjury'],
-  atMechanismId: [AtMechanism, 'AtMechanism'],
-  workingDayId: [WorkingDay, 'WorkingDay'],
-  typeOfLinkId: [TypeOfLink, 'TypeOfLink'],
-  accidentPositionId: [AccidentPosition, 'AccidentPosition'],
-  associatedTaskId: [AssociatedTask, 'AssociatedTask'],
-  riskFactorId: [RiskFactor, 'RiskFactor'],
-  natureOfEventsId: [NatureOfEvent, 'NatureOfEvent'],
+  manufacturingPlantId: [ManufacturingPlant, 'Planta #1 no encontrada'],
+  typeOfEventId: [TypesOfEvent, 'Tipo de evento #2 no encontrado'],
+  employeeId: [Employee, 'Colaborador #3 no encontrado'],
+  cieDiagnosisId: [CieDiagnosis, 'Diagnóstico CIE #4 no encontrado'],
+  zoneId: [Zone, 'Zona #6 no encontrada'],
+  bodyPartId: [BodyPart, 'Parte del cuerpo #7 no encontrada'],
+  atAgentId: [AtAgent, 'Agente AT #8 no encontrado'],
+  typeOfInjuryId: [TypeOfInjury, 'Tipo de lesión #9 no encontrado'],
+  atMechanismId: [AtMechanism, 'Mecanismo del AT #10 no encontrado'],
+  workingDayId: [WorkingDay, 'Jornada #11 no encontrada'],
+  typeOfLinkId: [TypeOfLink, 'Tipo de vinculación #12 no encontrado'],
+  accidentPositionId: [AccidentPosition, 'Cargo #5 no encontrado'],
+  associatedTaskId: [AssociatedTask, 'Tarea asociada #14 no encontrada'],
+  riskFactorId: [RiskFactor, 'Factor de riesgo #16 no encontrado'],
+  natureOfEventsId: [NatureOfEvent, 'Naturaleza del evento #17 no encontrada'],
 } as const;
 
 describe('CiaelsService', () => {
@@ -171,15 +174,11 @@ describe('CiaelsService', () => {
     });
 
     it.each(Object.entries(CATALOGS))(
-      'si no existe %s responde 404 sin guardar',
-      async (field, [entity, label]) => {
+      'si no existe %s responde 404 en español sin guardar',
+      async (_field, [entity, message]) => {
         repo(entity as new () => ObjectLiteral).findOne.mockResolvedValue(null);
 
-        await expect(create()).rejects.toThrow(
-          new NotFoundException(
-            `${label} with id ${dto[field as keyof typeof dto]} not found`,
-          ),
-        );
+        await expect(create()).rejects.toThrow(new NotFoundException(message));
         expect(ciaels.save).not.toHaveBeenCalled();
       },
     );
@@ -188,7 +187,7 @@ describe('CiaelsService', () => {
       const { machineId: _omit, ...withoutMachine } = dto;
 
       await expect(create(withoutMachine)).rejects.toThrow(
-        new BadRequestException('Machine id or name is required'),
+        new BadRequestException('Selecciona la máquina o equipo.'),
       );
     });
 
@@ -196,7 +195,7 @@ describe('CiaelsService', () => {
       repo(Machine).findOne.mockResolvedValue(null);
 
       await expect(create()).rejects.toThrow(
-        new NotFoundException('Machine with id 13 not found'),
+        new NotFoundException('Máquina o equipo #13 no encontrado'),
       );
     });
 
@@ -219,7 +218,7 @@ describe('CiaelsService', () => {
       repo(User).findOne.mockResolvedValue(null);
 
       await expect(create()).rejects.toThrow(
-        new NotFoundException('AreaLeader with id 15 not found'),
+        new NotFoundException('Líder de área #15 no encontrado'),
       );
     });
 
@@ -237,7 +236,7 @@ describe('CiaelsService', () => {
       );
 
       await expect(create({ ...dto, managerId: 20 })).rejects.toThrow(
-        new NotFoundException('Manager with id 20 not found'),
+        new NotFoundException('Gestor en turno #20 no encontrado'),
       );
     });
 
@@ -340,7 +339,7 @@ describe('CiaelsService', () => {
       ciaels.findOne.mockResolvedValue(null);
 
       await expect(service.findOne(5)).rejects.toThrow(
-        new NotFoundException('Ciael with id 5 not found'),
+        new NotFoundException('Registro CIAEL #5 no encontrado'),
       );
     });
   });

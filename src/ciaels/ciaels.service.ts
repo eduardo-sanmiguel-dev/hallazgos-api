@@ -197,7 +197,7 @@ export class CiaelsService {
 
     // Falta de datos: 400 (antes respondía 404).
     if (!machineId && !machineName) {
-      throw new BadRequestException(`Machine id or name is required`);
+      throw new BadRequestException('Selecciona la máquina o equipo.');
     }
 
     const manufacturingPlant = await this.manufacturingPlantRepository.findOne({
@@ -206,7 +206,7 @@ export class CiaelsService {
 
     if (!manufacturingPlant) {
       throw new NotFoundException(
-        `ManufacturingPlant with id ${manufacturingPlantId} not found`,
+        `Planta #${manufacturingPlantId} no encontrada`,
       );
     }
 
@@ -216,7 +216,7 @@ export class CiaelsService {
 
     if (!typeOfEvent) {
       throw new NotFoundException(
-        `TypesOfEvent with id ${typeOfEventId} not found`,
+        `Tipo de evento #${typeOfEventId} no encontrado`,
       );
     }
 
@@ -225,7 +225,7 @@ export class CiaelsService {
     });
 
     if (!employee) {
-      throw new NotFoundException(`Employee with id ${employeeId} not found`);
+      throw new NotFoundException(`Colaborador #${employeeId} no encontrado`);
     }
 
     const cieDiagnosis = await this.cieDiagnosisRepository.findOne({
@@ -234,7 +234,7 @@ export class CiaelsService {
 
     if (!cieDiagnosis) {
       throw new NotFoundException(
-        `CieDiagnosis with id ${cieDiagnosisId} not found`,
+        `Diagnóstico CIE #${cieDiagnosisId} no encontrado`,
       );
     }
 
@@ -243,7 +243,7 @@ export class CiaelsService {
     });
 
     if (!zone) {
-      throw new NotFoundException(`Zone with id ${zoneId} not found`);
+      throw new NotFoundException(`Zona #${zoneId} no encontrada`);
     }
 
     const bodyPart = await this.bodyPartRepository.findOne({
@@ -251,7 +251,9 @@ export class CiaelsService {
     });
 
     if (!bodyPart) {
-      throw new NotFoundException(`BodyPart with id ${bodyPartId} not found`);
+      throw new NotFoundException(
+        `Parte del cuerpo #${bodyPartId} no encontrada`,
+      );
     }
 
     // Antes se buscaba en el catálogo de partes del cuerpo.
@@ -260,7 +262,7 @@ export class CiaelsService {
     });
 
     if (!atAgent) {
-      throw new NotFoundException(`AtAgent with id ${atAgentId} not found`);
+      throw new NotFoundException(`Agente AT #${atAgentId} no encontrado`);
     }
 
     const typeOfInjury = await this.typeOfInjuryRepository.findOne({
@@ -269,7 +271,7 @@ export class CiaelsService {
 
     if (!typeOfInjury) {
       throw new NotFoundException(
-        `TypeOfInjury with id ${typeOfInjuryId} not found`,
+        `Tipo de lesión #${typeOfInjuryId} no encontrado`,
       );
     }
 
@@ -279,7 +281,7 @@ export class CiaelsService {
 
     if (!atMechanism) {
       throw new NotFoundException(
-        `AtMechanism with id ${atMechanismId} not found`,
+        `Mecanismo del AT #${atMechanismId} no encontrado`,
       );
     }
 
@@ -288,9 +290,7 @@ export class CiaelsService {
     });
 
     if (!workingDay) {
-      throw new NotFoundException(
-        `WorkingDay with id ${workingDayId} not found`,
-      );
+      throw new NotFoundException(`Jornada #${workingDayId} no encontrada`);
     }
 
     const typeOfLink = await this.typeOfLinkRepository.findOne({
@@ -299,7 +299,7 @@ export class CiaelsService {
 
     if (!typeOfLink) {
       throw new NotFoundException(
-        `TypeOfLink with id ${typeOfLinkId} not found`,
+        `Tipo de vinculación #${typeOfLinkId} no encontrado`,
       );
     }
 
@@ -308,9 +308,7 @@ export class CiaelsService {
     });
 
     if (!accidentPosition) {
-      throw new NotFoundException(
-        `AccidentPosition with id ${accidentPositionId} not found`,
-      );
+      throw new NotFoundException(`Cargo #${accidentPositionId} no encontrado`);
     }
 
     let machine: Machine;
@@ -319,7 +317,9 @@ export class CiaelsService {
         where: { id: machineId, isActive: true },
       });
       if (!machine) {
-        throw new NotFoundException(`Machine with id ${machineId} not found`);
+        throw new NotFoundException(
+          `Máquina o equipo #${machineId} no encontrado`,
+        );
       }
     } else if (machineName) {
       machine = await this.machineRepository.save({ name: machineName });
@@ -331,7 +331,7 @@ export class CiaelsService {
 
     if (!associatedTask) {
       throw new NotFoundException(
-        `AssociatedTask with id ${associatedTaskId} not found`,
+        `Tarea asociada #${associatedTaskId} no encontrada`,
       );
     }
 
@@ -341,7 +341,7 @@ export class CiaelsService {
 
     if (!areaLeader) {
       throw new NotFoundException(
-        `AreaLeader with id ${areaLeaderId} not found`,
+        `Líder de área #${areaLeaderId} no encontrado`,
       );
     }
 
@@ -351,7 +351,7 @@ export class CiaelsService {
 
     if (!riskFactor) {
       throw new NotFoundException(
-        `RiskFactor with id ${riskFactorId} not found`,
+        `Factor de riesgo #${riskFactorId} no encontrado`,
       );
     }
 
@@ -361,7 +361,7 @@ export class CiaelsService {
 
     if (!natureOfEvent) {
       throw new NotFoundException(
-        `NatureOfEvent with id ${natureOfEventsId} not found`,
+        `Naturaleza del evento #${natureOfEventsId} no encontrada`,
       );
     }
 
@@ -372,7 +372,9 @@ export class CiaelsService {
       });
 
       if (!manager) {
-        throw new NotFoundException(`Manager with id ${managerId} not found`);
+        throw new NotFoundException(
+          `Gestor en turno #${managerId} no encontrado`,
+        );
       }
     }
 
@@ -511,7 +513,7 @@ export class CiaelsService {
 
     // Antes respondía 200 sin cuerpo.
     if (!ciael) {
-      throw new NotFoundException(`Ciael with id ${id} not found`);
+      throw new NotFoundException(`Registro CIAEL #${id} no encontrado`);
     }
 
     return ciael;
@@ -522,12 +524,12 @@ export class CiaelsService {
   }
 
   remove(id: number) {
-    return `This action removes a #${id} ciael`;
+    return `Esta acción elimina el registro CIAEL #${id}`;
   }
 
   async seed() {
     return {
-      message: 'Seed method called',
+      message: 'Se llamó al método seed',
     };
   }
 }
