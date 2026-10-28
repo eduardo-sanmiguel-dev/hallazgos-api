@@ -24,19 +24,22 @@ pnpm test:db:cov    # lo mismo, con cobertura de dashboard.service (umbral 90/70
   abierta al cerrar la app.
 - Cada archivo corre en su propio proceso (`workerIdleMemoryLimit`): al
   encadenar varias apps en el mismo proceso Jest se caía de forma
-  intermitente (código nativo en Windows).
+  intermitente (código nativo en Windows). Por eso, **una sola app
+  (`createE2eApp`) por archivo**: dos `describe` que la crean cada uno
+  ponen dos apps en el mismo proceso.
 
 ## Archivos
 
-| Archivo                          | Contenido                                                                       |
-| -------------------------------- | ------------------------------------------------------------------------------- |
-| `schema.db-spec.ts`              | La base es la de pruebas; esquema y datos base.                                 |
-| `auth-users.db-spec.ts`          | Login, app key, sesión (401), usuarios (400/404).                               |
-| `evidences.db-spec.ts`           | Crear, ver, estados (403/409), comentar, cancelar, GraphQL, descargas.          |
-| `epps.db-spec.ts`                | Entregas de EPP, frecuencia, formato Excel, equipos, plantas ajenas (404).      |
-| `ciaels.db-spec.ts`              | CIAEL y sus 13 catálogos.                                                       |
-| `gemba-extinguishers.db-spec.ts` | Recorrido Gemba completo (observador) e inspecciones de extintores.             |
-| `dashboard.int-spec.ts`          | SQL del dashboard: valores, todos los endpoints, filtros y fugas entre plantas. |
+| Archivo                               | Contenido                                                                       |
+| ------------------------------------- | ------------------------------------------------------------------------------- |
+| `schema.db-spec.ts`                   | La base es la de pruebas; esquema y datos base.                                 |
+| `auth-users.db-spec.ts`               | Login, app key, sesión (401), usuarios (400/404).                               |
+| `evidences.db-spec.ts`                | Crear, ver, estados (403/409), comentar, cancelar, GraphQL, descargas.          |
+| `epps.db-spec.ts`                     | Entregas de EPP, frecuencia, formato Excel, equipos, plantas ajenas (404).      |
+| `ciaels.db-spec.ts`                   | CIAEL y sus 13 catálogos.                                                       |
+| `gemba-walk.db-spec.ts`               | Recorrido Gemba completo (observador), comprobante y calendario.                |
+| `extinguisher-inspections.db-spec.ts` | Inspecciones de extintores: alta, formato Excel, validaciones y 404.            |
+| `dashboard.int-spec.ts`               | SQL del dashboard: valores, todos los endpoints, filtros y fugas entre plantas. |
 
 Requisito: PostgreSQL local corriendo (el mismo de desarrollo) y un usuario
 con permiso para crear bases (`CREATEDB`).

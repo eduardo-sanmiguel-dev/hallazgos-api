@@ -108,7 +108,7 @@ describe('EppsService', () => {
 
     it('busca el equipo solo en las plantas del usuario (ajeno → 404)', async () => {
       await expect(validate()).rejects.toThrow(
-        new NotFoundException('El equipo con id 3 no existe.'),
+        new NotFoundException('Equipo #3 no encontrado.'),
       );
       const [{ where }] = equipments.findOne.mock.calls[0] as [
         { where: { manufacturingPlant: { id: unknown } } },
@@ -304,7 +304,7 @@ describe('EppsService', () => {
       equipments.findOne.mockResolvedValue(null);
 
       await expect(as(() => service.create(dto))).rejects.toThrow(
-        new NotFoundException('Equipo con ID 3 no encontrado.'),
+        new NotFoundException('Equipo #3 no encontrado.'),
       );
       expect(epps.save).not.toHaveBeenCalled();
     });
@@ -625,7 +625,7 @@ describe('EppsService', () => {
 
     it('un renglón de otra planta o inexistente responde 404 sin borrar', async () => {
       await expect(as(() => service.removeHistory(9))).rejects.toThrow(
-        new NotFoundException('Registro de historial con ID 9 no encontrado.'),
+        new NotFoundException('Registro de historial #9 no encontrado.'),
       );
       const [{ where }] = eppEquipments.findOne.mock.calls[0] as [
         {

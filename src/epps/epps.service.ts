@@ -102,7 +102,7 @@ export class EppsService {
     });
 
     if (!equipment) {
-      throw new NotFoundException(`El equipo con id ${equipmentId} no existe.`);
+      throw new NotFoundException(`Equipo #${equipmentId} no encontrado.`);
     }
 
     const lastEpp = await historyRepository.findOne({
@@ -195,9 +195,7 @@ export class EppsService {
               Number(plant.id) === Number(current.manufacturingPlant.id),
           )
         ) {
-          throw new NotFoundException(
-            `Equipo con ID ${equipment.id} no encontrado.`,
-          );
+          throw new NotFoundException(`Equipo #${equipment.id} no encontrado.`);
         }
         const frequency = current.deliveryFrequency
           ? await this.validateDeliveryFrequency(
@@ -535,7 +533,7 @@ export class EppsService {
 
       if (!equipmentHistory) {
         throw new NotFoundException(
-          `Registro de historial con ID ${equipmentHistoryId} no encontrado.`,
+          `Registro de historial #${equipmentHistoryId} no encontrado.`,
         );
       }
 
