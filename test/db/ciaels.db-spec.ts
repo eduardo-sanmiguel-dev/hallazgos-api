@@ -176,7 +176,7 @@ describe('E2E: CIAEL', () => {
     await e2e
       .call('post', '/ciaels', e2e.tokens.admin)
       .send({ ...ciael(), atAgentId: inactive.id })
-      .expect(404, /AtAgent with id/);
+      .expect(404, /Agente AT #\d+ no encontrado/);
   });
 
   it('lista paginada con filtros y descarga Excel', async () => {

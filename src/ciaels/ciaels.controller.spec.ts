@@ -138,9 +138,16 @@ describe('CiaelsController (HTTP)', () => {
     });
 
     it('sin campos obligatorios responde 400', async () => {
-      await http.http().post('/ciaels').send({ description: 'x' }).expect(400);
+      const res = await http
+        .http()
+        .post('/ciaels')
+        .send({ description: 'x' })
+        .expect(400);
 
       expect(service.create).not.toHaveBeenCalled();
+      // Error por campo, con la etiqueta de la pantalla en el resumen.
+      expect(res.body.errors).toHaveProperty('accidentPositionId');
+      expect(res.body.message).toContain('Nombre del cargo');
     });
   });
 

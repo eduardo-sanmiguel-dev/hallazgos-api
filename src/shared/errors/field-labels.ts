@@ -124,7 +124,8 @@ export const FIELD_LABELS: Record<string, string> = {
   // CIAEL
   eventDate: 'Fecha del evento',
   typeOfEventId: 'Tipo de evento',
-  accidentPositionId: 'Puesto',
+  // Como en la pantalla.
+  accidentPositionId: 'Nombre del cargo',
   areaLeaderId: 'Líder de área',
   associatedTaskId: 'Tarea asociada',
   atAgentId: 'Agente AT',
