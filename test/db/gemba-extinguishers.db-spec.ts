@@ -2,6 +2,8 @@
  * E2E (app completa + base de pruebas): Gemba Walk e inspecciones de
  * extintores.
  */
+import { randomUUID } from 'crypto';
+
 import { binaryParser } from '../utils/index.js';
 import { createE2eApp, type E2eApp } from './e2e-app.js';
 
@@ -98,19 +100,32 @@ describe('E2E: Gemba Walk', () => {
       })
       .expect(400);
 
+    const body = {
+      gembaWalkCalendarId: eventId,
+      startToken: start.body.startToken,
+      results: evaluationIds.map((id, i) => ({
+        gembaWalkEvaluationId: id,
+        isCompliant: i === 0,
+        comments: i === 0 ? '' : 'Pasillo obstruido',
+      })),
+    };
+    const key = randomUUID();
     const walk = await e2e
       .call('post', '/gemba-walk/walks', e2e.tokens.supervisor)
-      .send({
-        gembaWalkCalendarId: eventId,
-        startToken: start.body.startToken,
-        results: evaluationIds.map((id, i) => ({
-          gembaWalkEvaluationId: id,
-          isCompliant: i === 0,
-          comments: i === 0 ? '' : 'Pasillo obstruido',
-        })),
-      })
+      .set('Idempotency-Key', key)
+      .send(body)
       .expect(201);
     expect(walk.body.results).toHaveLength(2);
+
+    // Reintento con la misma clave (p. ej. borrador reenviado tras un corte):
+    // el mismo recorrido, sin registrar otro ni responder "ya registrado".
+    const retry = await e2e
+      .call('post', '/gemba-walk/walks', e2e.tokens.supervisor)
+      .set('Idempotency-Key', key)
+      .send(body)
+      .expect(201);
+    expect(retry.headers['idempotent-replayed']).toBe('true');
+    expect(retry.body.id).toBe(walk.body.id);
 
     // El mismo evento no se registra dos veces.
     await e2e
