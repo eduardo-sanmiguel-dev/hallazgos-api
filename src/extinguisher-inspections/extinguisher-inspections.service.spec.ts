@@ -230,7 +230,7 @@ describe('ExtinguisherInspectionsService', () => {
       inspections.queryBuilder.getOne.mockResolvedValue(null);
 
       await expect(as(async () => service.findOne(30))).rejects.toThrow(
-        new NotFoundException('Extinguisher inspection with id 30 not found'),
+        new NotFoundException('Inspección de extintores #30 no encontrada'),
       );
     });
   });

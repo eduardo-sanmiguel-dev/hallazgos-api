@@ -26,6 +26,7 @@ import {
   removeTempDir,
 } from '../shared/utils/index.js';
 import { UserPlantPipe } from '../shared/pipes/index.js';
+import { signatureImagePosition } from './epp-signature-image.js';
 import { Idempotent } from '../idempotency/idempotency.interceptor.js';
 import { CreateEppDto, QueryEppDto, UpdateEppDto } from './dto/index.js';
 import { EppsService } from './epps.service.js';
@@ -188,10 +189,17 @@ export class EppsController {
               extension: 'png',
             });
 
-            worksheet.addImage(imageId, {
-              tl: { col: 5, row: currentIdx },
-              ext: { width: 100, height: 25 },
-            });
+            // Firmas nuevas con su proporción y centradas; las anteriores,
+            // estiradas como siempre (ver epp-signature-image).
+            worksheet.addImage(
+              imageId,
+              // Los tipos de ExcelJS no incluyen el ancla con desplazamientos
+              // (nativeColOff), que la librería sí acepta.
+              signatureImagePosition(
+                base64,
+                currentIdx,
+              ) as unknown as ExcelJS.ImagePosition,
+            );
           }
 
           const imageIdBanner = workbook.addImage({

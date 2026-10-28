@@ -151,6 +151,53 @@ describe('ApiExceptionFilter', () => {
     });
   });
 
+  describe('errores del lector del cuerpo (body-parser)', () => {
+    // Express los lanza con status y expose, sin ser HttpException.
+    const bodyParserError = (status: number, type: string) =>
+      Object.assign(new Error('request entity too large'), {
+        status,
+        statusCode: status,
+        expose: true,
+        type,
+      });
+
+    it('un cuerpo de más del límite responde 413 en español, no 500', () => {
+      const { status, body } = respond(
+        bodyParserError(413, 'entity.too.large'),
+      );
+
+      expect(status).toBe(413);
+      expect(body).toEqual({
+        statusCode: 413,
+        code: 'PAYLOAD_TOO_LARGE',
+        message: 'La información enviada es demasiado grande.',
+        error: 'Payload Too Large',
+      });
+      expect(logError).not.toHaveBeenCalled();
+    });
+
+    it('un JSON mal formado responde 400', () => {
+      const { status, body } = respond(
+        bodyParserError(400, 'entity.parse.failed'),
+      );
+
+      expect(status).toBe(400);
+      expect(body).toMatchObject({
+        code: 'BAD_REQUEST',
+        message: 'La solicitud no es válida.',
+      });
+    });
+
+    it('un error con status 5xx o sin expose sigue siendo 500 con referencia', () => {
+      const { status, body } = respond(
+        Object.assign(new Error('x'), { status: 413, expose: false }),
+      );
+
+      expect(status).toBe(500);
+      expect(body.ref).toMatch(REF);
+    });
+  });
+
   describe('errores 500', () => {
     it('mensaje genérico con referencia; el detalle solo en el log con la misma referencia', () => {
       const { status, body } = respond(

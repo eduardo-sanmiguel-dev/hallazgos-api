@@ -296,7 +296,7 @@ export class EmployeesService {
     });
 
     if (!employee) {
-      throw new NotFoundException(`Employee with id ${id} not found`);
+      throw new NotFoundException(`Colaborador #${id} no encontrado`);
     }
 
     return employee;
@@ -307,7 +307,7 @@ export class EmployeesService {
       where: { id: positionId, isActive: true },
     });
     if (!position) {
-      throw new NotFoundException(`Position with id ${positionId} not found`);
+      throw new NotFoundException(`Puesto #${positionId} no encontrado`);
     }
     return position;
   }

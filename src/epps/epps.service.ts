@@ -164,7 +164,7 @@ export class EppsService {
         : null;
       if (!employee)
         throw new NotFoundException(
-          `Employee with ID ${employeeId} not found.`,
+          `Colaborador #${employeeId} no encontrado.`,
         );
 
       // Serializa las entregas del mismo empleado para que ambas no lean el
@@ -175,7 +175,7 @@ export class EppsService {
       });
       if (!locked)
         throw new NotFoundException(
-          `Employee with ID ${employeeId} not found.`,
+          `Colaborador #${employeeId} no encontrado.`,
         );
 
       const rows = [];
@@ -493,14 +493,15 @@ export class EppsService {
     });
 
     if (!epp) {
-      throw new NotFoundException(`EPP with ID ${id} not found.`);
+      throw new NotFoundException(`Entrega de EPP #${id} no encontrada.`);
     }
 
     const visible = this.mapActiveEquipments(
       [epp],
       this.requestContext.manufacturingPlantIds,
     )[0];
-    if (!visible) throw new NotFoundException(`EPP with ID ${id} not found.`);
+    if (!visible)
+      throw new NotFoundException(`Entrega de EPP #${id} no encontrada.`);
     return visible;
   }
 

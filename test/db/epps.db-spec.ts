@@ -183,6 +183,21 @@ describe('E2E: EPP y equipos', () => {
         .expect(404);
     });
 
+    it('un cuerpo de más de 100 KB (p. ej. una firma enorme) responde 413 en español, no 500', async () => {
+      const res = await e2e
+        .call('post', '/epps', e2e.tokens.general)
+        .send({
+          ...delivery(employee.id, casco.id),
+          signature: `data:image/png;base64,${'A'.repeat(150_000)}`,
+        })
+        .expect(413);
+
+      expect(res.body).toMatchObject({
+        code: 'PAYLOAD_TOO_LARGE',
+        message: 'La información enviada es demasiado grande.',
+      });
+    });
+
     it('entregar un equipo de otra planta responde 404', async () => {
       await e2e
         .call('post', '/epps', e2e.tokens.general)

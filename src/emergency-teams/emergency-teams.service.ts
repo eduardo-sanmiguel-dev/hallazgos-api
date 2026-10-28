@@ -113,7 +113,7 @@ export class EmergencyTeamsService {
     });
 
     if (!emergencyTeam) {
-      throw new NotFoundException(`Emergency team with id ${id} not found`);
+      throw new NotFoundException(`Equipo de emergencia #${id} no encontrado`);
     }
     return emergencyTeam;
   }
