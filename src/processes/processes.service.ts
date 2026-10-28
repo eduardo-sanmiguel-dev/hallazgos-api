@@ -87,7 +87,7 @@ export class ProcessesService {
     });
 
     if (!processes) {
-      throw new NotFoundException(`Proceso con ID ${id} no encontrado`);
+      throw new NotFoundException(`Proceso #${id} no encontrado`);
     }
 
     return processes;
