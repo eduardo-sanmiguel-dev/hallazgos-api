@@ -79,7 +79,7 @@ export class SafetyDataFilesService implements OnModuleInit {
   }
 
   findOne(id: number) {
-    return `This action returns a #${id} safetyDataFile`;
+    return `Esta acción devuelve la hoja de datos #${id}`;
   }
 
   update(id: number, updateSafetyDataFileDto: UpdateSafetyDataFileDto) {
@@ -87,6 +87,6 @@ export class SafetyDataFilesService implements OnModuleInit {
   }
 
   remove(id: number) {
-    return `This action removes a #${id} safetyDataFile`;
+    return `Esta acción elimina la hoja de datos #${id}`;
   }
 }

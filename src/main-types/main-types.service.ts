@@ -54,7 +54,7 @@ export class MainTypesService {
     });
 
     if (!mainType) {
-      throw new NotFoundException(`Criterio con ID ${id} no encontrado`);
+      throw new NotFoundException(`Criterio #${id} no encontrado`);
     }
 
     return mainType;
