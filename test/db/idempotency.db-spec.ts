@@ -98,6 +98,11 @@ describe('E2E: idempotencia de envíos', () => {
     const retry = await createEvidence(key, body).expect(201);
 
     expect(retry.text).toBe(first.text);
+    // El id del hallazgo, y el aviso de que ya se había guardado solo en el
+    // reintento (la UI muestra "Ya se había guardado (hallazgo #N)").
+    expect(retry.body).toEqual({ id: expect.any(Number) });
+    expect(first.headers['idempotent-replayed']).toBeUndefined();
+    expect(retry.headers['idempotent-replayed']).toBe('true');
     expect(await countByDescription(body.description)).toBe(1);
     expect(await settledCalls(e2e.mail.sendCreate)).toBe(emails);
     expect(await storedKey(key)).toMatchObject({
@@ -309,7 +314,8 @@ describe('E2E: idempotencia de envíos', () => {
       },
     );
 
-    expect(result).toEqual({ status: 201, text: 'ok' });
+    expect(result.status).toBe(201);
+    expect(JSON.parse(result.text)).toHaveProperty('id');
     expect(await countByDescription(body.description)).toBe(1);
   });
 });

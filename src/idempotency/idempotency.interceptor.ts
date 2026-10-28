@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { HTTP_CODE_METADATA } from '@nestjs/common/constants.js';
 import { Reflector } from '@nestjs/core';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { from, mergeMap, type Observable, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { QueryFailedError } from 'typeorm';
@@ -23,6 +23,8 @@ import { IdempotencyService } from './idempotency.service.js';
 
 const IDEMPOTENT = 'idempotent';
 export const IDEMPOTENCY_HEADER = 'idempotency-key';
+/** En la respuesta de un reintento que ya se había procesado. */
+export const REPLAYED_HEADER = 'Idempotent-Replayed';
 
 /**
  * Marca un endpoint que crea registros o manda correos: con el header
@@ -113,6 +115,12 @@ export class IdempotencyInterceptor implements NestInterceptor {
     switch (claim.kind) {
       case 'done':
         // Misma respuesta y mismo estatus (el del endpoint) que el primero.
+        // El header avisa a la UI que ya se había guardado antes (borrador
+        // reenviado, reintento tras un corte).
+        context
+          .switchToHttp()
+          .getResponse<Response>()
+          .setHeader(REPLAYED_HEADER, 'true');
         return of(claim.response);
       case 'processing':
         throw new ConflictException(

@@ -33,6 +33,8 @@ const buildRequest = (headers: Record<string, string> = {}) =>
     user: { id: 7 },
   });
 
+const response = { setHeader: jest.fn() };
+
 const contextFor = (
   req: ReturnType<typeof buildRequest>,
   handler: () => void = Controller.prototype.marked,
@@ -40,7 +42,10 @@ const contextFor = (
   ({
     getType: () => 'http',
     getHandler: () => handler,
-    switchToHttp: () => ({ getRequest: () => req }),
+    switchToHttp: () => ({
+      getRequest: () => req,
+      getResponse: () => response,
+    }),
   }) as unknown as ExecutionContext;
 
 describe('IdempotencyInterceptor', () => {
@@ -106,6 +111,7 @@ describe('IdempotencyInterceptor', () => {
 
   it('clave nueva: ejecuta el endpoint y guarda la respuesta con su estatus (ruta sin query)', async () => {
     service.claim.mockResolvedValue({ kind: 'new' });
+    response.setHeader.mockClear();
 
     await expect(run()).resolves.toBe('ok');
     expect(service.claim).toHaveBeenCalledWith(
@@ -114,6 +120,7 @@ describe('IdempotencyInterceptor', () => {
       'POST /api/v1/evidences',
     );
     expect(service.complete).toHaveBeenCalledWith(7, KEY, 201, 'ok');
+    expect(response.setHeader).not.toHaveBeenCalled();
   });
 
   it('clave terminada: devuelve la respuesta guardada sin ejecutar el endpoint y después de leer el cuerpo', async () => {
@@ -124,6 +131,11 @@ describe('IdempotencyInterceptor', () => {
     await expect(run(req)).resolves.toEqual({ id: 9 });
     expect(next.handle).not.toHaveBeenCalled();
     expect(req.readableEnded).toBe(true);
+    // Avisa a la UI que ya se había guardado.
+    expect(response.setHeader).toHaveBeenCalledWith(
+      'Idempotent-Replayed',
+      'true',
+    );
   });
 
   it.each([
