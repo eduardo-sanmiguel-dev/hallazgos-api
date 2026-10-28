@@ -998,7 +998,7 @@ export class DashboardService {
     mainTypeIds?: number[],
   ) {
     if (!manufacturingPlantId) {
-      throw new BadRequestException('manufacturingPlantId es obligatorio');
+      throw new BadRequestException('Selecciona una planta.');
     }
 
     if (!startDate || !endDate) {
@@ -1120,7 +1120,7 @@ export class DashboardService {
     mainTypeIds?: number[],
   ) {
     if (!manufacturingPlantId) {
-      throw new BadRequestException('manufacturingPlantId es obligatorio');
+      throw new BadRequestException('Selecciona una planta.');
     }
 
     if (!startDate || !endDate) {
@@ -1335,7 +1335,7 @@ export class DashboardService {
     mainTypeIds?: number[],
   ) {
     if (!manufacturingPlantId) {
-      throw new BadRequestException('manufacturingPlantId es obligatorio');
+      throw new BadRequestException('Selecciona una planta.');
     }
 
     if (!startDate || !endDate) {
@@ -1538,7 +1538,7 @@ export class DashboardService {
     mainTypeIds?: number[],
   ) {
     if (!manufacturingPlantId) {
-      throw new BadRequestException('manufacturingPlantId es obligatorio');
+      throw new BadRequestException('Selecciona una planta.');
     }
 
     if (!startDate || !endDate) {
@@ -1660,7 +1660,7 @@ export class DashboardService {
     mainTypeIds?: number[],
   ) {
     if (!manufacturingPlantId) {
-      throw new BadRequestException('manufacturingPlantId es obligatorio');
+      throw new BadRequestException('Selecciona una planta.');
     }
 
     if (!startDate || !endDate) {
@@ -1780,7 +1780,7 @@ export class DashboardService {
     mainTypeIds?: number[],
   ) {
     if (!manufacturingPlantId) {
-      throw new BadRequestException('manufacturingPlantId es obligatorio');
+      throw new BadRequestException('Selecciona una planta.');
     }
 
     if (!startDate || !endDate) {
@@ -1981,7 +1981,7 @@ export class DashboardService {
     mainTypeIds?: number[],
   ) {
     if (!manufacturingPlantId) {
-      throw new BadRequestException('manufacturingPlantId es obligatorio');
+      throw new BadRequestException('Selecciona una planta.');
     }
 
     if (!startDate || !endDate) {
@@ -2084,7 +2084,7 @@ export class DashboardService {
     mainTypeIds?: number[],
   ) {
     if (!manufacturingPlantId) {
-      throw new BadRequestException('manufacturingPlantId es obligatorio');
+      throw new BadRequestException('Selecciona una planta.');
     }
 
     if (!startDate || !endDate) {
@@ -2428,7 +2428,7 @@ export class DashboardService {
     mainTypeIds?: number[],
   ) {
     if (!manufacturingPlantId) {
-      throw new BadRequestException('manufacturingPlantId es obligatorio');
+      throw new BadRequestException('Selecciona una planta.');
     }
 
     if (!startDate || !endDate) {
@@ -2609,7 +2609,7 @@ export class DashboardService {
     mainTypeIds?: number[],
   ) {
     if (!manufacturingPlantId) {
-      throw new BadRequestException('manufacturingPlantId es obligatorio');
+      throw new BadRequestException('Selecciona una planta.');
     }
 
     if (!startDate || !endDate) {
@@ -2766,7 +2766,7 @@ export class DashboardService {
     mainTypeIds?: number[],
   ) {
     if (!manufacturingPlantId) {
-      throw new BadRequestException('manufacturingPlantId es obligatorio');
+      throw new BadRequestException('Selecciona una planta.');
     }
 
     if (!startDate || !endDate) {
@@ -2900,7 +2900,7 @@ export class DashboardService {
     mainTypeIds?: number[],
   ) {
     if (!manufacturingPlantId) {
-      throw new BadRequestException('manufacturingPlantId es obligatorio');
+      throw new BadRequestException('Selecciona una planta.');
     }
 
     if (!startDate || !endDate) {

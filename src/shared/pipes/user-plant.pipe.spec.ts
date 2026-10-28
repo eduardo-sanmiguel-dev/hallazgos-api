@@ -45,7 +45,7 @@ describe('UserPlantPipe', () => {
     ['negativa', '-1'],
   ])('una planta %s responde 400', async (_c, value) => {
     await expect(transform(value)).rejects.toThrow(
-      new BadRequestException('manufacturingPlantId es obligatorio'),
+      new BadRequestException('Selecciona una planta.'),
     );
   });
 

@@ -237,7 +237,7 @@ describe('DashboardService: reglas y resultados de reportes', () => {
   ];
   describe.each(filterMethods)('validación de %s', (method) => {
     it.each([
-      [0, start, end, 'manufacturingPlantId'],
+      [0, start, end, 'Selecciona una planta.'],
       [1, '', end, 'obligatorias'],
       [1, start, '', 'obligatorias'],
       [1, '31/02/2026', end, 'formato'],
