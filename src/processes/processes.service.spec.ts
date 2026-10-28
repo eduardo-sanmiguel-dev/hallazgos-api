@@ -92,7 +92,7 @@ describe('ProcessesService', () => {
       processes.findOne.mockResolvedValue(null);
 
       await expect(service.findOne(3)).rejects.toThrow(
-        new NotFoundException('Proceso con ID 3 no encontrado'),
+        new NotFoundException('Proceso #3 no encontrado'),
       );
     });
 
