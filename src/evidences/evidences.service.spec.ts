@@ -238,7 +238,7 @@ describe('EvidencesService', () => {
     const savedEvidence = () => evidences.save.mock.calls[0][0] as Evidence;
 
     it('crea un hallazgo abierto con quien reporta, supervisores y responsables', async () => {
-      await expect(create()).resolves.toBe('ok');
+      await expect(create()).resolves.toEqual({ id: 900 });
 
       expect(savedEvidence()).toMatchObject({
         status: STATUS_OPEN,
@@ -391,7 +391,7 @@ describe('EvidencesService', () => {
         if (user.id === responsible.id) throw new Error('SMTP caído');
       });
 
-      await expect(create()).resolves.toBe('ok');
+      await expect(create()).resolves.toEqual({ id: 900 });
 
       await expect(background.rejections()).resolves.toEqual([]);
       expect(mail.sendCreate).toHaveBeenCalledWith(
@@ -408,7 +408,7 @@ describe('EvidencesService', () => {
       const background = trackBackgroundEmails(service);
       usersService.findAllByPlant.mockResolvedValue([]);
 
-      await expect(create()).resolves.toBe('ok');
+      await expect(create()).resolves.toEqual({ id: 900 });
 
       await expect(background.rejections()).resolves.toEqual([]);
       expect(logWarn).toHaveBeenCalledWith(
@@ -422,7 +422,7 @@ describe('EvidencesService', () => {
       const background = trackBackgroundEmails(service);
       usersService.findAllByPlant.mockRejectedValue(new Error('BD caída'));
 
-      await expect(create()).resolves.toBe('ok');
+      await expect(create()).resolves.toEqual({ id: 900 });
 
       await expect(background.rejections()).resolves.toEqual([]);
       expect(logError).toHaveBeenCalledWith(
@@ -438,7 +438,7 @@ describe('EvidencesService', () => {
         return reporter;
       });
 
-      await expect(create()).resolves.toBe('ok');
+      await expect(create()).resolves.toEqual({ id: 900 });
 
       await expect(background.rejections()).resolves.toEqual([]);
       expect(mail.sendCreate).not.toHaveBeenCalled();

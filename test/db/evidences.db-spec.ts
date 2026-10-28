@@ -66,13 +66,13 @@ describe('E2E: hallazgos', () => {
         .attach('file', PNG, 'evidencia.png')
         .expect(201);
 
-      // El endpoint responde "ok"; el hallazgo se revisa en la base.
-      expect(res.text).toBe('ok');
       const [created] = await e2e.dataSource.getRepository(Evidence).find({
         order: { id: 'DESC' },
         take: 1,
         relations: ['supervisors', 'responsibles'],
       });
+      // Responde el id del hallazgo (antes, el texto "ok").
+      expect(res.body).toEqual({ id: created.id });
       expect(created).toMatchObject({
         status: STATUSES.open,
         description: 'Derrame en pasillo',

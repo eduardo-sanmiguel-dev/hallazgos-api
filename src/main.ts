@@ -44,8 +44,9 @@ async function bootstrap() {
   app.enableCors({
     origin: configService.get<string>('frontendUrl') || 'http://localhost:3000',
     credentials: true,
-    // El front lee el nombre del archivo de las descargas desde este header.
-    exposedHeaders: ['Content-Disposition'],
+    // El front lee el nombre del archivo de las descargas y si un envío ya
+    // se había procesado (reintento con la misma clave de idempotencia).
+    exposedHeaders: ['Content-Disposition', 'Idempotent-Replayed'],
   });
 
   // Cabeceras de seguridad. La API solo responde JSON y archivos, así que no

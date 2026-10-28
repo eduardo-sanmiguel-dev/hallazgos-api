@@ -528,7 +528,9 @@ export class EvidencesService {
       type: typeEmail,
     });
 
-    return 'ok';
+    // Antes respondía el texto "ok". El id deja que la UI diga qué hallazgo
+    // quedó guardado, también cuando un reintento ya se había procesado.
+    return { id: evidenceCurrent.id };
   }
 
   async sendEmailUsers(
