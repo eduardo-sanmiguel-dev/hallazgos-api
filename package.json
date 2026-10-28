@@ -107,5 +107,5 @@
     "typescript": "^6.0.3",
     "typescript7": "npm:typescript@^7.0.2"
   },
-  "packageManager": "pnpm@12.15.0"
+  "packageManager": "pnpm@12.16.1"
 }
