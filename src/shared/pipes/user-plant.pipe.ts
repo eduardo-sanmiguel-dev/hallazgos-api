@@ -30,7 +30,7 @@ export class UserPlantPipe implements PipeTransform<unknown, number> {
     const plantId = Number(value);
 
     if (isMissing(value) || !Number.isInteger(plantId) || plantId <= 0) {
-      throw new BadRequestException('manufacturingPlantId es obligatorio');
+      throw new BadRequestException('Selecciona una planta.');
     }
 
     const [allowed] = scopePlantIds(
