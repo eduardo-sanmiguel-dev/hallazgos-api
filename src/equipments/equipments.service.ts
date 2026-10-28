@@ -70,7 +70,7 @@ export class EquipmentsService {
 
   async seed() {
     return {
-      message: 'Equipments seeded successfully',
+      message: 'Carga inicial de equipos completada.',
     };
   }
 
@@ -156,7 +156,7 @@ export class EquipmentsService {
     });
 
     if (!equipment) {
-      throw new NotFoundException(`Equipo con id ${id} no encontrado.`);
+      throw new NotFoundException(`Equipo #${id} no encontrado`);
     }
 
     return equipment;

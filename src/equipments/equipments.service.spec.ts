@@ -87,7 +87,7 @@ describe('EquipmentsService', () => {
       arrange();
 
       await expect(as(() => service.findOne(5))).rejects.toThrow(
-        new NotFoundException('Equipo con id 5 no encontrado.'),
+        new NotFoundException('Equipo #5 no encontrado'),
       );
     });
   });

@@ -53,7 +53,7 @@ describe('MainTypesService', () => {
 
     types.findOne.mockResolvedValue(null);
     await expect(service.findOne(1)).rejects.toThrow(
-      new NotFoundException('Criterio con ID 1 no encontrado'),
+      new NotFoundException('Criterio #1 no encontrado'),
     );
   });
 

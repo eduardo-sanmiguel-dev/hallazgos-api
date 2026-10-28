@@ -73,7 +73,7 @@ export class SecondaryTypesService {
     });
 
     if (!SecondaryType) {
-      throw new NotFoundException(`Tipo de critero con ID ${id} no encontrado`);
+      throw new NotFoundException(`Tipo de criterio #${id} no encontrado`);
     }
 
     return SecondaryType;

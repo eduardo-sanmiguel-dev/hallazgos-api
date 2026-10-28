@@ -48,7 +48,7 @@ export class SafetyDataFilesController {
     const fileName = basename(name ?? '');
 
     if (!fileName || fileName !== name) {
-      throw new NotFoundException('File not found');
+      throw new NotFoundException('Archivo no encontrado.');
     }
 
     const filePath = safeFilePath(
@@ -57,7 +57,7 @@ export class SafetyDataFilesController {
     );
 
     if (!filePath) {
-      throw new NotFoundException('File not found');
+      throw new NotFoundException('Archivo no encontrado.');
     }
 
     res.sendFile(filePath);
