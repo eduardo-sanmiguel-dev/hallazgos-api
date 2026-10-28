@@ -130,7 +130,7 @@ export class UsersService {
         allowed.includes(Number(plant.id)),
       )
     ) {
-      throw new NotFoundException(`Usuario con id ${id} no encontrado`);
+      throw new NotFoundException(`Usuario #${id} no encontrado`);
     }
     return user;
   }
@@ -345,8 +345,7 @@ export class UsersService {
       relations: ['manufacturingPlants'],
     });
 
-    if (!user)
-      throw new NotFoundException(`Usuario con id ${id} no encontrado`);
+    if (!user) throw new NotFoundException(`Usuario #${id} no encontrado`);
 
     await this.loadAssignments([user], this.listRelations);
     return keepMatching(user, { plant: (plant) => plant.isActive });
@@ -503,8 +502,7 @@ export class UsersService {
       relations: ['manufacturingPlants', 'manufacturingPlants.country'],
     });
 
-    if (!user)
-      throw new NotFoundException(`Usuario con id ${userId} no encontrado`);
+    if (!user) throw new NotFoundException(`Usuario #${userId} no encontrado`);
 
     await this.loadAssignments([user], ['zones', 'processes']);
     return keepMatching(user, { plant: (plant) => plant.isActive });

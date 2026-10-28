@@ -146,7 +146,7 @@ export class ZonesService {
     });
 
     if (!zone) {
-      throw new NotFoundException(`Zona con ID ${id} no encontrada`);
+      throw new NotFoundException(`Zona #${id} no encontrada`);
     }
 
     return zone;

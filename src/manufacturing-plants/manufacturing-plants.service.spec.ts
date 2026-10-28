@@ -107,7 +107,7 @@ describe('ManufacturingPlantsService', () => {
 
     it('inexistente responde 404', async () => {
       await expect(service.findOne(1)).rejects.toThrow(
-        new NotFoundException('Planta con ID 1 no encontrada'),
+        new NotFoundException('Planta #1 no encontrada'),
       );
     });
 

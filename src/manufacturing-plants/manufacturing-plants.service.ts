@@ -55,7 +55,7 @@ export class ManufacturingPlantsService {
     });
 
     if (!manufacturingPlant) {
-      throw new NotFoundException(`Planta con ID ${id} no encontrada`);
+      throw new NotFoundException(`Planta #${id} no encontrada`);
     }
 
     return manufacturingPlant;

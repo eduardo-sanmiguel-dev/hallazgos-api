@@ -186,7 +186,7 @@ describe('ZonesService', () => {
       zones.findOne.mockResolvedValue(null);
 
       await expect(service.findOne(7)).rejects.toThrow(
-        new NotFoundException('Zona con ID 7 no encontrada'),
+        new NotFoundException('Zona #7 no encontrada'),
       );
     });
 

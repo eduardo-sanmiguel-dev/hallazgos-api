@@ -85,6 +85,8 @@ export class EmployeesService {
     repository: Repository<T>,
     id: number | undefined,
     label: string,
+    // "Área" es femenino: "Área #N no encontrada".
+    feminine = false,
   ): Promise<T | undefined> {
     if (!id) return undefined;
 
@@ -93,7 +95,9 @@ export class EmployeesService {
     });
 
     if (!found) {
-      throw new NotFoundException(`${label} con id ${id} no encontrado`);
+      throw new NotFoundException(
+        `${label} #${id} no encontrad${feminine ? 'a' : 'o'}`,
+      );
     }
 
     return found;
@@ -118,6 +122,7 @@ export class EmployeesService {
       this.employeeAreaRepository,
       areaId,
       'Área',
+      true,
     );
     const position = await this.findCatalog(
       this.employeePositionRepository,
@@ -154,7 +159,7 @@ export class EmployeesService {
   private handleDuplicateCode(error: any, code: number | string): never {
     if (error.code === '23505') {
       throw new ConflictException(
-        `Ya existe un empleado con el código ${code}. Si no aparece en la lista, puede estar inactivo.`,
+        `Ya existe un colaborador con el código ${code}. Si no aparece en la lista, puede estar inactivo.`,
       );
     }
 
@@ -332,8 +337,12 @@ export class EmployeesService {
     // Lo que no se envía conserva su valor actual (antes, sin areaId se
     // asignaba cualquier área y sin plantas respondía 500).
     const area =
-      (await this.findCatalog(this.employeeAreaRepository, areaId, 'Área')) ??
-      employee.area;
+      (await this.findCatalog(
+        this.employeeAreaRepository,
+        areaId,
+        'Área',
+        true,
+      )) ?? employee.area;
     const position =
       (await this.findCatalog(
         this.employeePositionRepository,
@@ -378,6 +387,6 @@ export class EmployeesService {
   async seed() {
     this.zoneRepository;
 
-    return { message: 'Seed completed successfully2' };
+    return { message: 'Carga inicial de colaboradores completada.' };
   }
 }
