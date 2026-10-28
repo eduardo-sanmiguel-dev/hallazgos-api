@@ -97,9 +97,9 @@ describe('EmployeesService', () => {
     });
 
     it.each([
-      ['área', () => areas, 'Área con id 4 no encontrado'],
-      ['puesto', () => positions, 'Puesto con id 5 no encontrado'],
-      ['género', () => genres, 'Género con id 6 no encontrado'],
+      ['área', () => areas, 'Área #4 no encontrada'],
+      ['puesto', () => positions, 'Puesto #5 no encontrado'],
+      ['género', () => genres, 'Género #6 no encontrado'],
     ])(
       'un %s inexistente responde 404 (antes se guardaba vacío)',
       async (_c, repo, message) => {
@@ -117,7 +117,7 @@ describe('EmployeesService', () => {
 
       await expect(as(() => service.create(dto))).rejects.toThrow(
         new ConflictException(
-          'Ya existe un empleado con el código 123. Si no aparece en la lista, puede estar inactivo.',
+          'Ya existe un colaborador con el código 123. Si no aparece en la lista, puede estar inactivo.',
         ),
       );
     });
@@ -316,7 +316,7 @@ describe('EmployeesService', () => {
       areas.findOne.mockResolvedValue(null);
 
       await expect(as(() => service.update(7, { areaId: 99 }))).rejects.toThrow(
-        new NotFoundException('Área con id 99 no encontrado'),
+        new NotFoundException('Área #99 no encontrada'),
       );
     });
 

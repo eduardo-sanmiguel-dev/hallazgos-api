@@ -82,7 +82,7 @@ describe('AreasService', () => {
 
       await expect(as(() => service.create(dto))).rejects.toThrow(
         new BadRequestException(
-          'Ya existe un area activa con ese nombre en la planta seleccionada',
+          'Ya existe un área activa con ese nombre en la planta seleccionada',
         ),
       );
     });
@@ -91,7 +91,7 @@ describe('AreasService', () => {
       qb().getOne.mockResolvedValueOnce(null).mockResolvedValueOnce(stored());
 
       await expect(as(() => service.create(dto))).rejects.toThrow(
-        /Ya existe un area inactiva con ese nombre/,
+        /Ya existe un área inactiva con ese nombre/,
       );
     });
   });
@@ -123,7 +123,7 @@ describe('AreasService', () => {
       areas.findOne.mockResolvedValue(null);
 
       await expect(service.findOne(4)).rejects.toThrow(
-        new NotFoundException('Area con ID 4 no encontrado'),
+        new NotFoundException('Área #4 no encontrada'),
       );
     });
 
@@ -131,7 +131,7 @@ describe('AreasService', () => {
       areas.findOne.mockResolvedValue(stored({ isActive: false }));
 
       await expect(service.findOne(4)).rejects.toThrow(
-        new BadRequestException('El area con ID 4 esta inactiva'),
+        new BadRequestException('El área #4 está inactiva'),
       );
       await expect(service.findOne(4, false)).resolves.toMatchObject({ id: 4 });
     });

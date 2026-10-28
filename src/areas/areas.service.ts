@@ -48,7 +48,7 @@ export class AreasService {
 
     if (existing) {
       throw new BadRequestException(
-        'Ya existe un area activa con ese nombre en la planta seleccionada',
+        'Ya existe un área activa con ese nombre en la planta seleccionada',
       );
     }
 
@@ -68,7 +68,7 @@ export class AreasService {
 
     if (existingInactive) {
       throw new BadRequestException(
-        'Ya existe un area inactiva con ese nombre en la planta seleccionada. Reactivela o use otro nombre',
+        'Ya existe un área inactiva con ese nombre en la planta seleccionada. Reactívela o use otro nombre',
       );
     }
   }
@@ -133,11 +133,11 @@ export class AreasService {
     });
 
     if (!area) {
-      throw new NotFoundException(`Area con ID ${id} no encontrado`);
+      throw new NotFoundException(`Área #${id} no encontrada`);
     }
 
     if (isActive && !area.isActive) {
-      throw new BadRequestException(`El area con ID ${id} esta inactiva`);
+      throw new BadRequestException(`El área #${id} está inactiva`);
     }
 
     return area;

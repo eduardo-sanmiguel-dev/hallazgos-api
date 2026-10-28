@@ -541,7 +541,7 @@ describe('UsersService', () => {
       users.findOne.mockResolvedValue(null);
 
       await expect(service.findOne(9)).rejects.toThrow(
-        new NotFoundException('Usuario con id 9 no encontrado'),
+        new NotFoundException('Usuario #9 no encontrado'),
       );
     });
   });
