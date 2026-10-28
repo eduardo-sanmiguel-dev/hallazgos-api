@@ -193,15 +193,15 @@ export class RulesOfLifeService {
       }
     }
 
-    return { message: 'Seeded successfully' };
+    return { message: 'Catálogo de reglas de vida cargado.' };
   }
 
   findAll() {
-    return `This action returns all rulesOfLife`;
+    return `Esta acción devuelve todas las reglas de vida`;
   }
 
   findOne(id: number) {
-    return `This action returns a #${id} rulesOfLife`;
+    return `Esta acción devuelve la regla de vida #${id}`;
   }
 
   update(id: number, updateRulesOfLifeDto: UpdateRulesOfLifeDto) {
@@ -209,6 +209,6 @@ export class RulesOfLifeService {
   }
 
   remove(id: number) {
-    return `This action removes a #${id} rulesOfLife`;
+    return `Esta acción elimina la regla de vida #${id}`;
   }
 }
