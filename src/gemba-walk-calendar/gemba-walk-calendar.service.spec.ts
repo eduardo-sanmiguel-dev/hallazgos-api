@@ -116,7 +116,7 @@ describe('GembaWalkCalendarService', () => {
         ]),
       ).rejects.toThrow(
         new BadRequestException(
-          'Zona(s) con ID 8, 9 no encontrada(s) o inactiva(s)',
+          'Zona(s) #8, #9 no encontrada(s) o inactiva(s)',
         ),
       );
     });
@@ -223,7 +223,7 @@ describe('GembaWalkCalendarService', () => {
 
     it('inexistente responde 404', async () => {
       await expect(as(async () => service.findOne(1))).rejects.toThrow(
-        new NotFoundException('Evento con ID 1 no encontrado'),
+        new NotFoundException('Evento #1 no encontrado'),
       );
     });
 
@@ -231,7 +231,7 @@ describe('GembaWalkCalendarService', () => {
       calendars.findOne.mockResolvedValue(stored({ isActive: false }));
 
       await expect(as(async () => service.findOne(1))).rejects.toThrow(
-        new BadRequestException('El evento con ID 1 esta inactivo'),
+        new BadRequestException('El evento #1 está inactivo'),
       );
       await expect(
         as(async () => service.findOne(1, false)),
@@ -294,9 +294,7 @@ describe('GembaWalkCalendarService', () => {
 
     it('un evento inexistente o inactivo responde 404', async () => {
       await expect(update([{ id: 1 }, { id: 9 }])).rejects.toThrow(
-        new NotFoundException(
-          'Evento(s) con ID 9 no encontrado(s) o inactivo(s)',
-        ),
+        new NotFoundException('Evento(s) #9 no encontrado(s) o inactivo(s)'),
       );
     });
 
@@ -307,7 +305,7 @@ describe('GembaWalkCalendarService', () => {
       ]);
 
       await expect(update([{ id: 1 }])).rejects.toThrow(
-        new BadRequestException('No se pueden editar eventos pasados (ID 1)'),
+        new BadRequestException('No se pueden editar eventos pasados (#1)'),
       );
     });
   });
@@ -327,7 +325,7 @@ describe('GembaWalkCalendarService', () => {
       calendars.findOne.mockResolvedValue(stored({ scheduledAt: at(-1) }));
 
       await expect(as(() => service.remove(1))).rejects.toThrow(
-        new BadRequestException('No se pueden eliminar eventos pasados (ID 1)'),
+        new BadRequestException('No se pueden eliminar eventos pasados (#1)'),
       );
     });
   });

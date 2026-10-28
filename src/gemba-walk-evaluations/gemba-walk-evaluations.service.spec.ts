@@ -143,7 +143,7 @@ describe('GembaWalkEvaluationsService', () => {
       evaluations.findOne.mockResolvedValue(null);
 
       await expect(as(async () => service.findOne(4))).rejects.toThrow(
-        new NotFoundException('Concepto con ID 4 no encontrado'),
+        new NotFoundException('Concepto #4 no encontrado'),
       );
     });
 
@@ -151,7 +151,7 @@ describe('GembaWalkEvaluationsService', () => {
       evaluations.findOne.mockResolvedValue(stored({ isActive: false }));
 
       await expect(as(async () => service.findOne(4))).rejects.toThrow(
-        new BadRequestException('El concepto con ID 4 esta inactivo'),
+        new BadRequestException('El concepto #4 está inactivo'),
       );
     });
   });

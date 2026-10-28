@@ -140,11 +140,11 @@ export class GembaWalkZonesService {
     });
 
     if (!gembaWalkZone) {
-      throw new NotFoundException(`Zona con ID ${id} no encontrada`);
+      throw new NotFoundException(`Zona #${id} no encontrada`);
     }
 
     if (isActive && !gembaWalkZone.isActive) {
-      throw new BadRequestException(`La zona con ID ${id} esta inactiva`);
+      throw new BadRequestException(`La zona #${id} está inactiva`);
     }
 
     return gembaWalkZone;

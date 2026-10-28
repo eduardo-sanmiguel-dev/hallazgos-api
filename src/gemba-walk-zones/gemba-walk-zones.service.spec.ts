@@ -143,7 +143,7 @@ describe('GembaWalkZonesService', () => {
       zones.findOne.mockResolvedValue(null);
 
       await expect(as(async () => service.findOne(3))).rejects.toThrow(
-        new NotFoundException('Zona con ID 3 no encontrada'),
+        new NotFoundException('Zona #3 no encontrada'),
       );
     });
 
@@ -151,7 +151,7 @@ describe('GembaWalkZonesService', () => {
       zones.findOne.mockResolvedValue(stored({ isActive: false }));
 
       await expect(as(async () => service.findOne(3))).rejects.toThrow(
-        new BadRequestException('La zona con ID 3 esta inactiva'),
+        new BadRequestException('La zona #3 está inactiva'),
       );
       await expect(
         as(async () => service.findOne(3, false)),
