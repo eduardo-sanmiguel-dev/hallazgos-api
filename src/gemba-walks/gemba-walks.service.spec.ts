@@ -202,7 +202,7 @@ describe('GembaWalksService', () => {
         as(observer, () =>
           service.findAvailableEvents({ manufacturingPlantId: 1 }),
         ),
-      ).rejects.toThrow(new NotFoundException('Planta con ID 1 no encontrada'));
+      ).rejects.toThrow(new NotFoundException('Planta #1 no encontrada'));
     });
   });
 
@@ -250,7 +250,7 @@ describe('GembaWalksService', () => {
       calendars.findOne.mockResolvedValue(found());
 
       await expect(start()).rejects.toThrow(
-        new NotFoundException('Evento con ID 5 no encontrado o inactivo'),
+        new NotFoundException('Evento #5 no encontrado o inactivo'),
       );
     });
 
@@ -622,7 +622,7 @@ describe('GembaWalksService', () => {
 
     it('uno ajeno o inexistente responde 404', async () => {
       await expect(as(observer, () => service.findOne(70))).rejects.toThrow(
-        new NotFoundException('Recorrido con ID 70 no encontrado'),
+        new NotFoundException('Recorrido #70 no encontrado'),
       );
     });
 

@@ -68,7 +68,7 @@ export class GembaWalkObserversService {
 
     if (missingIds.length) {
       throw new NotFoundException(
-        `Usuario(s) con ID ${missingIds.join(', ')} no encontrado(s)`,
+        `Usuario(s) ${missingIds.map((id) => `#${id}`).join(', ')} no encontrado(s)`,
       );
     }
 
@@ -189,11 +189,11 @@ export class GembaWalkObserversService {
     });
 
     if (!gembaWalkObserver) {
-      throw new NotFoundException(`Observador con ID ${id} no encontrado`);
+      throw new NotFoundException(`Observador #${id} no encontrado`);
     }
 
     if (isActive && !gembaWalkObserver.isActive) {
-      throw new BadRequestException(`El observador con ID ${id} esta inactivo`);
+      throw new BadRequestException(`El observador #${id} está inactivo`);
     }
 
     return gembaWalkObserver;

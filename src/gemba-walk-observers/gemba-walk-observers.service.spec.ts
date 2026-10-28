@@ -115,7 +115,7 @@ describe('GembaWalkObserversService', () => {
       users.find.mockResolvedValue([inPlant(20)]);
 
       await expect(create([20, 21])).rejects.toThrow(
-        new NotFoundException('Usuario(s) con ID 21 no encontrado(s)'),
+        new NotFoundException('Usuario(s) #21 no encontrado(s)'),
       );
     });
 
@@ -180,7 +180,7 @@ describe('GembaWalkObserversService', () => {
   describe('findOne', () => {
     it('inexistente responde 404', async () => {
       await expect(as(async () => service.findOne(8))).rejects.toThrow(
-        new NotFoundException('Observador con ID 8 no encontrado'),
+        new NotFoundException('Observador #8 no encontrado'),
       );
     });
 
@@ -188,7 +188,7 @@ describe('GembaWalkObserversService', () => {
       observers.findOne.mockResolvedValue(stored({ isActive: false }));
 
       await expect(as(async () => service.findOne(8))).rejects.toThrow(
-        new BadRequestException('El observador con ID 8 esta inactivo'),
+        new BadRequestException('El observador #8 está inactivo'),
       );
       await expect(
         as(async () => service.findOne(8, false)),

@@ -148,11 +148,11 @@ export class GembaWalkEvaluationsService {
       });
 
     if (!gembaWalkEvaluation) {
-      throw new NotFoundException(`Concepto con ID ${id} no encontrado`);
+      throw new NotFoundException(`Concepto #${id} no encontrado`);
     }
 
     if (isActive && !gembaWalkEvaluation.isActive) {
-      throw new BadRequestException(`El concepto con ID ${id} esta inactivo`);
+      throw new BadRequestException(`El concepto #${id} está inactivo`);
     }
 
     return gembaWalkEvaluation;

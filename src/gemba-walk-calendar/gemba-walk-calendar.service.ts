@@ -71,7 +71,7 @@ export class GembaWalkCalendarService {
 
     if (missingIds.length) {
       throw new BadRequestException(
-        `Zona(s) con ID ${missingIds.join(', ')} no encontrada(s) o inactiva(s)`,
+        `Zona(s) ${missingIds.map((id) => `#${id}`).join(', ')} no encontrada(s) o inactiva(s)`,
       );
     }
   }
@@ -229,11 +229,11 @@ export class GembaWalkCalendarService {
     });
 
     if (!gembaWalkCalendar) {
-      throw new NotFoundException(`Evento con ID ${id} no encontrado`);
+      throw new NotFoundException(`Evento #${id} no encontrado`);
     }
 
     if (isActive && !gembaWalkCalendar.isActive) {
-      throw new BadRequestException(`El evento con ID ${id} esta inactivo`);
+      throw new BadRequestException(`El evento #${id} está inactivo`);
     }
 
     return gembaWalkCalendar;
@@ -261,7 +261,7 @@ export class GembaWalkCalendarService {
 
     if (missingIds.length) {
       throw new NotFoundException(
-        `Evento(s) con ID ${missingIds.join(', ')} no encontrado(s) o inactivo(s)`,
+        `Evento(s) ${missingIds.map((id) => `#${id}`).join(', ')} no encontrado(s) o inactivo(s)`,
       );
     }
 
@@ -271,7 +271,7 @@ export class GembaWalkCalendarService {
 
     if (pastIds.length) {
       throw new BadRequestException(
-        `No se pueden editar eventos pasados (ID ${pastIds.join(', ')})`,
+        `No se pueden editar eventos pasados (${pastIds.map((id) => `#${id}`).join(', ')})`,
       );
     }
 
@@ -317,7 +317,7 @@ export class GembaWalkCalendarService {
 
     if (gembaWalkCalendar.scheduledAt.getTime() <= Date.now()) {
       throw new BadRequestException(
-        `No se pueden eliminar eventos pasados (ID ${id})`,
+        `No se pueden eliminar eventos pasados (#${id})`,
       );
     }
 

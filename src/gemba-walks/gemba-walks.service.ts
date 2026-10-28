@@ -128,7 +128,7 @@ export class GembaWalksService {
 
     if (!manufacturingPlant) {
       throw new NotFoundException(
-        `Planta con ID ${manufacturingPlantId} no encontrada`,
+        `Planta #${manufacturingPlantId} no encontrada`,
       );
     }
 
@@ -193,7 +193,7 @@ export class GembaWalksService {
 
     if (!gembaWalkCalendar || !gembaWalkCalendar.gembaWalkZone.isActive) {
       throw new NotFoundException(
-        `Evento con ID ${gembaWalkCalendarId} no encontrado o inactivo`,
+        `Evento #${gembaWalkCalendarId} no encontrado o inactivo`,
       );
     }
 
@@ -549,7 +549,7 @@ export class GembaWalksService {
     });
 
     if (!gembaWalk) {
-      throw new NotFoundException(`Recorrido con ID ${id} no encontrado`);
+      throw new NotFoundException(`Recorrido #${id} no encontrado`);
     }
 
     this.assertUserPlant(
