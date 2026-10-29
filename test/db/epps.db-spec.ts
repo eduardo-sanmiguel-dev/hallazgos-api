@@ -198,6 +198,19 @@ describe('E2E: EPP y equipos', () => {
       });
     });
 
+    it('un JSON mal formado responde 400 en español, sin el texto del lector', async () => {
+      const res = await e2e
+        .call('post', '/epps', e2e.tokens.general)
+        .set('Content-Type', 'application/json')
+        .send('{"employeeId": 1,')
+        .expect(400);
+
+      expect(res.body).toMatchObject({
+        code: 'BAD_REQUEST',
+        message: 'La solicitud no es válida.',
+      });
+    });
+
     it('entregar un equipo de otra planta responde 404', async () => {
       await e2e
         .call('post', '/epps', e2e.tokens.general)

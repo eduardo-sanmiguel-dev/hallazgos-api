@@ -50,8 +50,15 @@ const FRAMEWORK_MESSAGES: Record<number, string> = {
     'Demasiados intentos. Espera un minuto e intenta de nuevo.',
 };
 
+// Texto de JSON.parse (cuerpo mal formado). Desde @nestjs/platform-express
+// 12.3, el adaptador lo convierte en BadRequestException con ese texto en
+// inglés y sin el error original.
+const JSON_PARSE_ERROR =
+  /in JSON at position \d+|Unexpected end of JSON input|is not valid JSON/;
+
 const isFrameworkMessage = (status: number, message: string) =>
   message === STATUS_CODES[status] ||
+  (status === HttpStatus.BAD_REQUEST && JSON_PARSE_ERROR.test(message)) ||
   message === 'Forbidden resource' ||
   /^Cannot (GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) /.test(message) ||
   /^Validation failed/.test(message) ||
@@ -85,6 +92,13 @@ interface Described {
 }
 
 const describeHttpException = (exception: HttpException): Described => {
+  // Desde @nestjs/platform-express 12.3, los errores del lector del cuerpo
+  // (p. ej. 413 "request entity too large") llegan como HttpException con el
+  // original en `cause`: se describen igual que antes, en español.
+  if (isClientHttpError(exception.cause)) {
+    return describeClientHttpError(exception.cause);
+  }
+
   const statusCode = exception.getStatus();
   const response = exception.getResponse();
   const body =
