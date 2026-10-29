@@ -64,6 +64,8 @@ type Evidence {
   zone: Zone!
   process: Processes
   user: User!
+  startedBy: User
+  closedBy: User
   supervisors: [User!]!
   responsibles: [User!]!
   comments: [Comment!]!

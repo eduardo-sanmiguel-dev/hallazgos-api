@@ -154,6 +154,8 @@ export class EvidencesService {
     'responsibles',
     'comments',
     'process',
+    'startedBy',
+    'closedBy',
   ];
 
   getPermissionsConfig() {
@@ -729,6 +731,8 @@ export class EvidencesService {
         descriptionSolution: descriptionSolution || '',
         status: STATUS_CLOSE,
         updatedAt: solutionDate,
+        // Quién lo cerró (antes no se registraba).
+        closedBy: { id: requestUser.id, name: requestUser.name } as User,
       },
     );
 
@@ -783,6 +787,8 @@ export class EvidencesService {
         startProcessDate,
         status: STATUS_IN_PROGRESS,
         updatedAt: startProcessDate,
+        // Quién lo inició (antes no se registraba).
+        startedBy: { id: requestUser.id, name: requestUser.name } as User,
       },
     );
 
@@ -873,6 +879,27 @@ export class EvidencesService {
    * Filtros que realmente se aplicaron (los del DTO, con la misma lógica de
    * findAll), con nombres legibles y en el mismo orden y textos de la pantalla.
    */
+  /**
+   * Nombre de las descargas de hallazgos (Excel y PDF):
+   * Hallazgos_<Planta|Todas>[_+Nfiltros]_AAAA-MM-DD_HHmm_UTC±HH.<extensión>
+   */
+  private downloadFileName(
+    {
+      plantName,
+      extraFiltersCount,
+    }: { plantName?: string | null; extraFiltersCount: number },
+    timeZone: string,
+    downloadedAt: Date,
+    extension: 'xlsx' | 'pdf',
+  ) {
+    return `${[
+      'Hallazgos',
+      plantName ? sanitizeFileNamePart(plantName, 'Planta') : 'Todas',
+      ...(extraFiltersCount > 0 ? [`+${extraFiltersCount}filtros`] : []),
+      buildFileNameTimestamp(timeZone, downloadedAt),
+    ].join('_')}.${extension}`;
+  }
+
   private async buildExcelFilters(queryEvidenceDto: QueryEvidenceDto) {
     const {
       id,
@@ -1178,16 +1205,12 @@ export class EvidencesService {
 
       filtersSheet.freezePanes(0, 1);
 
-      const fileName = `${[
-        'Hallazgos',
-        excelFilters.plantName
-          ? sanitizeFileNamePart(excelFilters.plantName, 'Planta')
-          : 'Todas',
-        ...(excelFilters.extraFiltersCount > 0
-          ? [`+${excelFilters.extraFiltersCount}filtros`]
-          : []),
-        buildFileNameTimestamp(timeZone, downloadedAt),
-      ].join('_')}.xlsx`;
+      const fileName = this.downloadFileName(
+        excelFilters,
+        timeZone,
+        downloadedAt,
+        'xlsx',
+      );
 
       const buffer = await workbook.outputAsync();
       res.setHeader(
@@ -1202,6 +1225,15 @@ export class EvidencesService {
     }
 
     if (type === 'pdf') {
+      // Mismo nombre que el Excel (planta, filtros extra y hora local).
+      const timeZone = resolveTimeZone(queryEvidenceDto.timeZone);
+      const fileName = this.downloadFileName(
+        await this.buildExcelFilters(queryEvidenceDto),
+        timeZone,
+        new Date(),
+        'pdf',
+      );
+
       const styles: StyleDictionary = {
         header: {
           fontSize: 22,
@@ -1244,14 +1276,17 @@ export class EvidencesService {
 
       const notFoundImage = uploadStaticImage('image-not-found.png');
 
+      // Ruta relativa a public/static/images: con "/" al inicio,
+      // safeFilePath la rechaza como absoluta y todas las fotos salían como
+      // "imagen no encontrada".
       for (const evidence of datos) {
         const imgSolution =
           uploadStaticImage(
-            evidence.imgSolution ? `/evidences/${evidence.imgSolution}` : '',
+            evidence.imgSolution ? `evidences/${evidence.imgSolution}` : '',
           ) || notFoundImage;
         const imgEvidence =
           uploadStaticImage(
-            evidence.imgEvidence ? `/evidences/${evidence.imgEvidence}` : '',
+            evidence.imgEvidence ? `evidences/${evidence.imgEvidence}` : '',
           ) || notFoundImage;
 
         dataPdf.push([
@@ -1301,7 +1336,7 @@ export class EvidencesService {
 
       res.writeHead(200, {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': 'attachment;filename="Hallazgos.pdf"',
+        'Content-Disposition': buildAttachmentContentDisposition(fileName),
         'Content-Length': pdf.length,
       });
       res.end(pdf);

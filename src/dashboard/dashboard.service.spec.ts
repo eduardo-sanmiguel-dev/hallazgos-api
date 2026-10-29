@@ -258,6 +258,56 @@ describe('DashboardService: reglas y resultados de reportes', () => {
       },
     );
   });
+  describe('findStatusByFilters: comparación con el periodo anterior', () => {
+    it('cuenta también el periodo anterior equivalente (mismos días del mes previo)', async () => {
+      qb()
+        .getRawMany.mockResolvedValueOnce([
+          { status: 'Abierto', total: '3' },
+          { status: 'Cerrado', total: '2' },
+        ])
+        .mockResolvedValueOnce([{ status: 'Cerrado', total: '4' }]);
+      const result = await invoke(
+        'findStatusByFilters',
+        1,
+        '01/10/2026',
+        '22/10/2026',
+      );
+      expect(result).toMatchObject({
+        total: 5,
+        periodo: {
+          actual: { desde: '2026-10-01', hasta: '2026-10-22' },
+          anterior: { desde: '2026-09-01', hasta: '2026-09-22' },
+        },
+        anterior: {
+          total: 4,
+          seriesData: expect.arrayContaining([{ name: 'Cerrado', y: 4 }]),
+        },
+      });
+      // El segundo conteo usa el rango anterior, de 00:00 a 23:59:59.999.
+      const ranges = qb()
+        .andWhere.mock.calls.filter(([, params]) => params?.startDate)
+        .map(([, params]) => params as { startDate: Date; endDate: Date });
+      expect(ranges).toHaveLength(2);
+      expect([
+        ranges[1].startDate.getDate(),
+        ranges[1].startDate.getMonth(),
+        ranges[1].endDate.getDate(),
+        ranges[1].endDate.getHours(),
+      ]).toEqual([1, 8, 22, 23]);
+    });
+
+    it('sin comparación si el rango pasa de 3 años (como antes, sin error)', async () => {
+      const result = await invoke(
+        'findStatusByFilters',
+        1,
+        '01/01/2020',
+        '30/04/2026',
+      );
+      expect(result).toMatchObject({ periodo: null, anterior: null });
+      expect(qb().getRawMany).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('acepta un 29 de febrero real y rechaza parámetros de fecha repetidos', async () => {
     await expect(
       invoke('findStatusByFilters', 1, '29/02/2024', '29/02/2024'),

@@ -271,6 +271,13 @@ export class MailService {
         descripcion: evidenceCurrent.description,
         descripcionSolucion: evidenceCurrent.descriptionSolution,
         userWhoCreated: evidenceCurrent.user.name,
+        // Quién lo inició y quién lo cerró (vacío en hallazgos anteriores a
+        // que se registrara; la plantilla omite la fila).
+        startedBy: evidenceCurrent.startedBy?.name || '',
+        startProcessDate: evidenceCurrent.startProcessDate
+          ? stringToDateWithTime(evidenceCurrent.startProcessDate)
+          : '',
+        closedBy: evidenceCurrent.closedBy?.name || '',
         createdAt: stringToDateWithTime(evidenceCurrent.createdAt),
         supervisor: evidenceCurrent.supervisors
           .map((supervisor) => supervisor.name)

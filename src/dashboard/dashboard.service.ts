@@ -1025,90 +1025,137 @@ export class DashboardService {
 
     mainTypeIds = await this.resolveScopedMainTypeIds(mainTypeIds);
 
-    const buildBaseQuery = () => {
-      const query = this.evidenceRepository
-        .createQueryBuilder('evidence')
-        .leftJoin('evidence.zone', 'zone')
-        .select('evidence.status', 'status')
-        .addSelect('COUNT(*)', 'total')
-        .where('evidence."manufacturingPlantId" = :manufacturingPlantId', {
-          manufacturingPlantId,
-        })
-        .andWhere('evidence."createdAt" BETWEEN :startDate AND :endDate', {
-          startDate: parsedStartDate,
-          endDate: parsedEndDate,
-        });
+    // Conteo por estatus en un rango (el elegido o el de comparación).
+    const countByStatus = async (rangeStart: Date, rangeEnd: Date) => {
+      const buildBaseQuery = () => {
+        const query = this.evidenceRepository
+          .createQueryBuilder('evidence')
+          .leftJoin('evidence.zone', 'zone')
+          .select('evidence.status', 'status')
+          .addSelect('COUNT(*)', 'total')
+          .where('evidence."manufacturingPlantId" = :manufacturingPlantId', {
+            manufacturingPlantId,
+          })
+          .andWhere('evidence."createdAt" BETWEEN :startDate AND :endDate', {
+            startDate: rangeStart,
+            endDate: rangeEnd,
+          });
 
-      if (areaIds && areaIds.length > 0) {
-        query.andWhere('zone."areaId" IN (:...areaIds)', {
-          areaIds,
-        });
-      }
+        if (areaIds && areaIds.length > 0) {
+          query.andWhere('zone."areaId" IN (:...areaIds)', {
+            areaIds,
+          });
+        }
 
-      if (mainTypeIds && mainTypeIds.length > 0) {
-        query.andWhere('evidence."mainTypeId" IN (:...mainTypeIds)', {
-          mainTypeIds,
-        });
-      }
+        if (mainTypeIds && mainTypeIds.length > 0) {
+          query.andWhere('evidence."mainTypeId" IN (:...mainTypeIds)', {
+            mainTypeIds,
+          });
+        }
 
-      return query;
-    };
+        return query;
+      };
 
-    let rows: { status: string; total: string }[] = [];
+      let rows: { status: string; total: string }[] = [];
 
-    if (responsibleIds && responsibleIds.length > 0) {
-      const rowsByResponsibles = await buildBaseQuery()
-        .innerJoin(
-          'evidence_responsibles_user',
-          'eru',
-          'eru."evidenceId" = evidence.id',
-        )
-        .andWhere('eru."userId" IN (:...responsibleIds)', {
-          responsibleIds,
-        })
-        .groupBy('evidence.status')
-        .getRawMany<{ status: string; total: string }>();
-
-      if (rowsByResponsibles.length > 0) {
-        rows = rowsByResponsibles;
-      } else {
-        rows = await buildBaseQuery()
+      if (responsibleIds && responsibleIds.length > 0) {
+        const rowsByResponsibles = await buildBaseQuery()
           .innerJoin(
-            'evidence_supervisors_user',
-            'esu',
-            'esu."evidenceId" = evidence.id',
+            'evidence_responsibles_user',
+            'eru',
+            'eru."evidenceId" = evidence.id',
           )
-          .andWhere('esu."userId" IN (:...responsibleIds)', {
+          .andWhere('eru."userId" IN (:...responsibleIds)', {
             responsibleIds,
           })
           .groupBy('evidence.status')
           .getRawMany<{ status: string; total: string }>();
+
+        if (rowsByResponsibles.length > 0) {
+          rows = rowsByResponsibles;
+        } else {
+          rows = await buildBaseQuery()
+            .innerJoin(
+              'evidence_supervisors_user',
+              'esu',
+              'esu."evidenceId" = evidence.id',
+            )
+            .andWhere('esu."userId" IN (:...responsibleIds)', {
+              responsibleIds,
+            })
+            .groupBy('evidence.status')
+            .getRawMany<{ status: string; total: string }>();
+        }
+      } else {
+        rows = await buildBaseQuery()
+          .groupBy('evidence.status')
+          .getRawMany<{ status: string; total: string }>();
       }
-    } else {
-      rows = await buildBaseQuery()
-        .groupBy('evidence.status')
-        .getRawMany<{ status: string; total: string }>();
-    }
 
-    const statusOrder = ['Abierto', 'En progreso', 'Cerrado', 'Cancelado'];
-    const totalsByStatus = rows.reduce<Record<string, number>>((acc, row) => {
-      acc[row.status] = Number(row.total);
-      return acc;
-    }, {});
+      const statusOrder = ['Abierto', 'En progreso', 'Cerrado', 'Cancelado'];
+      const totalsByStatus = rows.reduce<Record<string, number>>((acc, row) => {
+        acc[row.status] = Number(row.total);
+        return acc;
+      }, {});
 
-    const seriesData = statusOrder.map((status) => ({
-      name: status,
-      y: totalsByStatus[status] || 0,
-    }));
+      const seriesData = statusOrder.map((status) => ({
+        name: status,
+        y: totalsByStatus[status] || 0,
+      }));
 
-    const total = seriesData.reduce((acc, item) => acc + item.y, 0);
+      return {
+        total: seriesData.reduce((acc, item) => acc + item.y, 0),
+        seriesData,
+      };
+    };
+
+    const { total, seriesData } = await countByStatus(
+      parsedStartDate,
+      parsedEndDate,
+    );
+
+    // Periodo de comparación, con la misma regla que el análisis EPP
+    // (resolveBiEppPeriod). Para los indicadores del dashboard; si el rango
+    // no admite comparación (más de 3 años), sin ella.
+    const periodo = this.comparisonPeriod(startDate, endDate);
+    const anterior = periodo
+      ? await countByStatus(
+          this.parseDateFilter(
+            this.isoToDdMmYyyy(periodo.anterior.desde),
+            'La fecha de inicio',
+          ),
+          this.parseDateFilter(
+            this.isoToDdMmYyyy(periodo.anterior.hasta),
+            'La fecha de fin',
+            true,
+          ),
+        )
+      : null;
 
     return {
       total,
       startDate,
       endDate,
       seriesData,
+      periodo,
+      anterior,
     };
+  }
+
+  /** Periodo elegido y su comparación, o null si no la admite. */
+  private comparisonPeriod(startDate: string, endDate: string) {
+    try {
+      return resolveBiEppPeriod(startDate, endDate, this.today());
+    } catch (error) {
+      if (error instanceof BadRequestException) return null;
+      throw error;
+    }
+  }
+
+  /** 'YYYY-MM-DD' → 'DD/MM/YYYY' (formato de los filtros). */
+  private isoToDdMmYyyy(iso: string) {
+    const [year, month, day] = iso.split('-');
+    return `${day}/${month}/${year}`;
   }
 
   async findPriorityInterventionByFilters(

@@ -99,6 +99,25 @@ describe('Integración: dashboard', () => {
       ]);
     });
 
+    it('status-by-filters cuenta también el periodo anterior de igual duración', async () => {
+      // Un inicio que no sea día 1 (con día 1 se compara contra el mes
+      // anterior): el anterior son los 26 días previos, con el abierto de
+      // hace 40 días.
+      const days = new Date(now.getTime() - 25 * DAY).getDate() === 1 ? 27 : 26;
+      const startDate = ddmmyyyy(new Date(now.getTime() - (days - 1) * DAY));
+      const { body } = await get(
+        `status-by-filters?${filters({ startDate, endDate: ddmmyyyy(now) })}`,
+      );
+
+      expect(body.total).toBe(4);
+      expect(body.periodo.actual.hasta).toBe(now.toLocaleDateString('en-CA'));
+      expect(body.anterior.total).toBe(1);
+      expect(body.anterior.seriesData).toContainEqual({
+        name: 'Abierto',
+        y: 1,
+      });
+    });
+
     // Mismo mapeo que la UI y los correos: 2 días es Inmediato (Crítico) y
     // 8 días es Corto plazo (Alto). Antes el dashboard los tenía al revés.
     it('priority-intervention-by-filters etiqueta los plazos como la UI', async () => {
