@@ -9,6 +9,7 @@ import request from 'supertest';
 import { Evidence } from '../../src/evidences/entities/evidence.entity.js';
 import { MainType } from '../../src/main-types/entities/main-type.entity.js';
 import { SecondaryType } from '../../src/secondary-types/entities/secondary-type.entity.js';
+import { binaryParser } from '../utils/index.js';
 import { APP_KEY, createE2eApp, type E2eApp } from './e2e-app.js';
 import { saveEvidence, STATUSES } from './fixtures.js';
 
@@ -221,6 +222,21 @@ describe('E2E: hallazgos', () => {
         descriptionSolution: 'Se limpió',
       });
 
+      // Queda registrado quién lo inició y quién lo cerró (en la base y en la
+      // respuesta), sin tocar a quien lo reportó.
+      const supervisorId = e2e.base.users.supervisor.id;
+      expect(started.body.startedBy).toMatchObject({ id: supervisorId });
+      expect(closed.body.closedBy).toMatchObject({ id: supervisorId });
+      const [row] = await e2e.dataSource.query(
+        `SELECT "startedById", "closedById", "userId" FROM "evidence" WHERE id = $1`,
+        [id],
+      );
+      expect(row).toEqual({
+        startedById: supervisorId,
+        closedById: supervisorId,
+        userId: e2e.base.users.general.id,
+      });
+
       const again = await e2e
         .call('post', `/evidences/solution/${id}`, e2e.tokens.supervisor)
         .field({ descriptionSolution: 'Otra vez' })
@@ -408,6 +424,26 @@ describe('E2E: hallazgos', () => {
       await e2e
         .call('get', '/evidences/download/csv', e2e.tokens.general)
         .expect(400);
+    });
+
+    it('el PDF incluye las fotos de los hallazgos (no la de "imagen no encontrada")', async () => {
+      const res = await e2e
+        .call(
+          'get',
+          '/evidences/download/pdf?timeZone=America/Mexico_City',
+          e2e.tokens.general,
+        )
+        .buffer(true)
+        .parse(binaryParser)
+        .expect(200);
+
+      expect(res.headers['content-disposition']).toMatch(
+        /filename="Hallazgos_Todas_.*\.pdf"/,
+      );
+      const pdf = (res.body as Buffer).toString('latin1');
+      // Las fotos subidas en estas pruebas son PNG de 1x1; la de "imagen no
+      // encontrada" mide 225x225. Antes todas salían como esta última.
+      expect(pdf).toMatch(/\/Width 1\b/);
     });
   });
 });

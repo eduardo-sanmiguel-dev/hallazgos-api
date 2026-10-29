@@ -619,6 +619,19 @@ describe('EvidencesService', () => {
       });
     });
 
+    it('registra quién lo inició (el usuario de la sesión)', async () => {
+      const result = await start(supervisor);
+
+      expectGuardedUpdate(5, [STATUS_OPEN], {
+        startedBy: expect.objectContaining({ id: supervisor.id }),
+      });
+      expect(result.startedBy).toMatchObject({
+        id: supervisor.id,
+        name: supervisor.name,
+      });
+      expect(result.closedBy).toBeUndefined();
+    });
+
     it('avisa a quien reportó, indicando quién lo inició', async () => {
       await start(supervisor);
 
@@ -770,6 +783,11 @@ describe('EvidencesService', () => {
             status: STATUS_CLOSE,
             imgSolution: 'uuid-solution.png',
             solutionDate: result.solutionDate,
+            // Quién lo cerró (el usuario de la sesión).
+            closedBy: expect.objectContaining({
+              id: supervisor.id,
+              name: supervisor.name,
+            }),
           });
           await flushBackgroundWork();
           expect(mail.sendSolution).toHaveBeenCalled();
@@ -1614,10 +1632,36 @@ describe('EvidencesService', () => {
           200,
           expect.objectContaining({
             'Content-Type': 'application/pdf',
-            'Content-Disposition': 'attachment;filename="Hallazgos.pdf"',
+            // Mismo nombre que el Excel: sin planta, "Todas".
+            'Content-Disposition': expect.stringMatching(
+              /filename="Hallazgos_Todas_\d{4}-\d{2}-\d{2}_\d{4}_UTC[+-]\d{2}.*\.pdf"/,
+            ),
           }),
         );
         expect(body.subarray(0, 4).toString()).toBe('%PDF');
+      });
+
+      it('se nombra como el Excel: planta, filtros extra y hora local', async () => {
+        const query = {
+          manufacturingPlantId: 1,
+          statuses: 'Abierto',
+          startDate: '01/10/2026',
+          timeZone: 'America/Bogota',
+        };
+        const pdfRes = await download('pdf', query);
+        await ended(pdfRes);
+        const pdfName = (
+          pdfRes.writeHead.mock.calls[0][1] as Record<string, string>
+        )['Content-Disposition'];
+        const xlsxName = dispositionOf(await download('xlsx', query));
+
+        expect(pdfName).toMatch(
+          /filename="Hallazgos_Tepotzotl.*_\+2filtros_\d{4}-\d{2}-\d{2}_\d{4}_UTC-05\.pdf"/,
+        );
+        // Misma lógica: solo cambia la extensión (y, si cambió el minuto, la hora).
+        const stem = (name: string) =>
+          /filename="(Hallazgos_[^_]+_\+2filtros)_/.exec(name)?.[1];
+        expect(stem(pdfName)).toBe(stem(xlsxName));
       });
 
       it('sin resultados también responde un PDF (antes respondía 500)', async () => {

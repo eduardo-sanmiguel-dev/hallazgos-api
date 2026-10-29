@@ -99,6 +99,26 @@
                   {{supervisor}}
                 </td>
               </tr>
+              {{#if startedBy}}
+                <tr>
+                  <td
+                    style='padding: 0 16px 14px 16px; font-size: 14px; line-height: 22px;'
+                  >
+                    <strong>Iniciado por:</strong>
+                    {{startedBy}}
+                  </td>
+                </tr>
+              {{/if}}
+              {{#if closedBy}}
+                <tr>
+                  <td
+                    style='padding: 0 16px 14px 16px; font-size: 14px; line-height: 22px;'
+                  >
+                    <strong>Cerrado por:</strong>
+                    {{closedBy}}
+                  </td>
+                </tr>
+              {{/if}}
               {{#if priorityLabel}}
                 <tr>
                   <td
@@ -117,6 +137,16 @@
                   {{createdAt}}
                 </td>
               </tr>
+              {{#if startProcessDate}}
+                <tr>
+                  <td
+                    style='padding: 0 16px 14px 16px; font-size: 14px; line-height: 22px;'
+                  >
+                    <strong>Fecha de inicio de proceso:</strong>
+                    {{startProcessDate}}
+                  </td>
+                </tr>
+              {{/if}}
               <tr>
                 <td
                   style='padding: 0 16px 14px 16px; font-size: 14px; line-height: 22px;'

@@ -10,6 +10,7 @@ import {
   OneToMany,
   ManyToMany,
   JoinTable,
+  JoinColumn,
   Index,
   type Relation,
 } from 'typeorm';
@@ -136,6 +137,27 @@ export class Evidence {
   @Field(() => User)
   @Index()
   user: Relation<User>;
+
+  // Quién pasó el hallazgo a "En progreso" y quién lo cerró. Nulos en los
+  // anteriores a esta columna (no se registraba). Ver la migración
+  // AddStartedAndClosedByToEvidence1793000000000.
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({
+    name: 'startedById',
+    foreignKeyConstraintName: 'FK_evidence_startedById',
+  })
+  @Index('IDX_evidence_startedById')
+  @Field(() => User, { nullable: true })
+  startedBy?: Relation<User> | null;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({
+    name: 'closedById',
+    foreignKeyConstraintName: 'FK_evidence_closedById',
+  })
+  @Index('IDX_evidence_closedById')
+  @Field(() => User, { nullable: true })
+  closedBy?: Relation<User> | null;
 
   @ManyToMany(() => User)
   @JoinTable()

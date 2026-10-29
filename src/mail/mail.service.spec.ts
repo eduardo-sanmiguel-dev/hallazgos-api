@@ -220,6 +220,37 @@ describe('MailService', () => {
       });
     });
 
+    it('incluye quién lo inició (con la fecha) y quién lo cerró', async () => {
+      await service.sendSolution({
+        user: recipient,
+        evidenceCurrent: evidence({
+          startProcessDate: new Date(2026, 9, 21, 9, 30),
+          solutionDate: new Date(2026, 9, 22, 10, 0),
+          startedBy: { id: 11, name: 'Ana Supervisora' } as never,
+          closedBy: { id: 12, name: 'Luis Responsable' } as never,
+        }),
+      });
+
+      expect(sent().context).toMatchObject({
+        startedBy: 'Ana Supervisora',
+        startProcessDate: '21 de octubre de 2026 9:30',
+        closedBy: 'Luis Responsable',
+      });
+    });
+
+    it('en hallazgos sin ese registro, los campos van vacíos', async () => {
+      await service.sendSolution({
+        user: recipient,
+        evidenceCurrent: evidence({ solutionDate: new Date() }),
+      });
+
+      expect(sent().context).toMatchObject({
+        startedBy: '',
+        startProcessDate: '',
+        closedBy: '',
+      });
+    });
+
     it('resuelto después de la prioridad: fuera de tiempo con los días de retraso', async () => {
       await service.sendSolution({
         user: recipient,
