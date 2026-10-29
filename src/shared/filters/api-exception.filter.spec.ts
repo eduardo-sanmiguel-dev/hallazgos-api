@@ -2,6 +2,7 @@ import {
   type ArgumentsHost,
   BadRequestException,
   ForbiddenException,
+  HttpException,
   HttpStatus,
   InternalServerErrorException,
   Logger,
@@ -186,6 +187,53 @@ describe('ApiExceptionFilter', () => {
         code: 'BAD_REQUEST',
         message: 'La solicitud no es válida.',
       });
+    });
+
+    // Desde @nestjs/platform-express 12.3 el adaptador los envuelve: el 413
+    // llega como HttpException con el original en `cause`, y el JSON mal
+    // formado como BadRequestException con el texto de JSON.parse.
+    it('envuelto por Nest (cause): el 413 sigue en español', () => {
+      const { status, body } = respond(
+        new HttpException('request entity too large', 413, {
+          cause: bodyParserError(413, 'entity.too.large'),
+        }),
+      );
+
+      expect(status).toBe(413);
+      expect(body).toMatchObject({
+        code: 'PAYLOAD_TOO_LARGE',
+        message: 'La información enviada es demasiado grande.',
+      });
+    });
+
+    it.each([
+      'Expected double-quoted property name in JSON at position 17 (line 1 column 18)',
+      'Unexpected token } in JSON at position 1',
+      'Unexpected end of JSON input',
+      `Unexpected token 'x', "x" is not valid JSON`,
+    ])(
+      'JSON mal formado convertido por Nest ("%s"): 400 en español',
+      (text) => {
+        const { status, body } = respond(new BadRequestException(text));
+
+        expect(status).toBe(400);
+        expect(body).toMatchObject({
+          code: 'BAD_REQUEST',
+          message: 'La solicitud no es válida.',
+        });
+      },
+    );
+
+    it('un 400 propio que menciona JSON conserva su mensaje', () => {
+      const { body } = respond(
+        new BadRequestException(
+          'El archivo JSON de la plantilla no es válido.',
+        ),
+      );
+
+      expect(body.message).toBe(
+        'El archivo JSON de la plantilla no es válido.',
+      );
     });
 
     it('un error con status 5xx o sin expose sigue siendo 500 con referencia', () => {
