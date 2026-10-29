@@ -142,6 +142,32 @@ describe('E2E: hallazgos', () => {
         .expect(400);
       await e2e.call('post', '/evidences').field(fields()).expect(401);
     });
+
+    it('una subida cortada a la mitad responde 400 en español, sin crear', async () => {
+      const repository = e2e.dataSource.getRepository(Evidence);
+      const before = await repository.count();
+      // Multipart sin el cierre: así llega si se pierde la señal a la mitad.
+      const truncated = Buffer.concat([
+        Buffer.from(
+          '--e2e-corte\r\n' +
+            'Content-Disposition: form-data; name="file"; filename="evidencia.png"\r\n' +
+            'Content-Type: image/png\r\n\r\n',
+        ),
+        PNG,
+      ]);
+
+      const res = await e2e
+        .call('post', '/evidences', e2e.tokens.general)
+        .set('Content-Type', 'multipart/form-data; boundary=e2e-corte')
+        .send(truncated)
+        .expect(400);
+
+      expect(res.body).toMatchObject({
+        code: 'BAD_REQUEST',
+        message: 'La subida de la foto se interrumpió. Intenta de nuevo.',
+      });
+      expect(await repository.count()).toBe(before);
+    });
   });
 
   describe('ver', () => {
