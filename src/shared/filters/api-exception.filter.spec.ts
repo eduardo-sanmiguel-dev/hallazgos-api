@@ -8,6 +8,7 @@ import {
   Logger,
   NotFoundException,
   PayloadTooLargeException,
+  UnsupportedMediaTypeException,
 } from '@nestjs/common';
 import { ThrottlerException } from '@nestjs/throttler';
 import { QueryFailedError } from 'typeorm';
@@ -149,6 +150,61 @@ describe('ApiExceptionFilter', () => {
       expect(
         respond(new BadRequestException(['Uno.', 'Dos.'])).body.message,
       ).toBe('Uno. Dos.');
+    });
+  });
+
+  describe('errores al recibir la foto (multer y busboy)', () => {
+    // Así los entrega @nestjs/platform-express (transformException): 400 con
+    // el texto de la librería y, en multer, " - campo" al final.
+    it.each([
+      'Multipart: Unexpected end of form',
+      'Multipart: Unexpected end of file',
+    ])('subida cortada ("%s"): se interrumpió, en español', (text) => {
+      const { status, body } = respond(new BadRequestException(text));
+
+      expect(status).toBe(400);
+      expect(body).toMatchObject({
+        code: 'BAD_REQUEST',
+        message: 'La subida de la foto se interrumpió. Intenta de nuevo.',
+      });
+    });
+
+    it.each([
+      'Multipart: Malformed part header',
+      'Multipart: Boundary not found',
+      'Unexpected file field - foto',
+      'Too many files',
+      'Too many parts',
+      'Field name missing',
+      'Field value too long - descripcion',
+    ])(
+      'otro error de la subida ("%s"): mensaje genérico en español',
+      (text) => {
+        const { body } = respond(new BadRequestException(text));
+
+        expect(body.message).toBe(
+          'No se pudo recibir la foto. Revisa que sea un solo archivo e intenta de nuevo.',
+        );
+      },
+    );
+
+    it('tipo de contenido no soportado (415): mensaje genérico en español', () => {
+      const { status, body } = respond(
+        new UnsupportedMediaTypeException('Unsupported content type'),
+      );
+
+      expect(status).toBe(415);
+      expect(body.message).toBe(
+        'No se pudo recibir la foto. Revisa que sea un solo archivo e intenta de nuevo.',
+      );
+    });
+
+    it('un 400 propio que empieza parecido conserva su mensaje', () => {
+      const { body } = respond(
+        new BadRequestException('Too many requests de prueba en español'),
+      );
+
+      expect(body.message).toBe('Too many requests de prueba en español');
     });
   });
 

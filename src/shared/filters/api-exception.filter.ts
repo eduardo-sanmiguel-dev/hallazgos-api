@@ -68,6 +68,20 @@ const isFrameworkMessage = (status: number, message: string) =>
 // Fotos de evidencia: multer responde 413 "File too large" sobre el límite.
 const PHOTO_TOO_LARGE = 'La foto pesa más de 2 MB.';
 
+// Errores al recibir la foto (multipart). Nest los convierte en 400 (o 415)
+// con el texto de busboy o multer, sin el error original: se reconocen por
+// ese texto (las mismas constantes que usa @nestjs/platform-express).
+// La subida cortada a la mitad (p. ej. se perdió la señal):
+const UPLOAD_INTERRUPTED_ERROR = /^Multipart: Unexpected end of (form|file)$/;
+const UPLOAD_INTERRUPTED =
+  'La subida de la foto se interrumpió. Intenta de nuevo.';
+// Los demás (partes de más, campo inesperado, cabecera mal formada…); multer
+// agrega " - campo" al final.
+const UPLOAD_ERROR =
+  /^(Multipart: |Too many (parts|files|fields)\b|Field name (too long|missing|nesting too deep|array index too large)\b|Field value too long\b|Unexpected (file )?field\b|Invalid field name\b|Unsupported content type$)/;
+const UPLOAD_FAILED =
+  'No se pudo recibir la foto. Revisa que sea un solo archivo e intenta de nuevo.';
+
 // Sin 0/O ni 1/I: se dicta por teléfono sin confusiones.
 const REF_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 
@@ -125,6 +139,10 @@ const describeHttpException = (exception: HttpException): Described => {
     rawMessage === 'File too large'
   ) {
     message = PHOTO_TOO_LARGE;
+  } else if (UPLOAD_INTERRUPTED_ERROR.test(rawMessage)) {
+    message = UPLOAD_INTERRUPTED;
+  } else if (UPLOAD_ERROR.test(rawMessage)) {
+    message = UPLOAD_FAILED;
   } else if (!rawMessage || isFrameworkMessage(statusCode, rawMessage)) {
     message = FRAMEWORK_MESSAGES[statusCode] ?? FRAMEWORK_MESSAGES[400];
   }
