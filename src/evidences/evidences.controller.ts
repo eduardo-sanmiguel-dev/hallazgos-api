@@ -71,6 +71,13 @@ export class EvidencesController {
     return this.evidencesService.addComment(+id, comment);
   }
 
+  // Lista de hallazgos con filtros; con page y limit responde
+  // { data, count } (lista de la UI), sin ellos todos.
+  @Get()
+  findAll(@Query() queryEvidenceDto: QueryEvidenceDto) {
+    return this.evidencesService.findAll(queryEvidenceDto);
+  }
+
   @Get('/permissions/config')
   getPermissionsConfig() {
     return this.evidencesService.getPermissionsConfig();

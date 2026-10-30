@@ -13,7 +13,7 @@ import { RequestContextService } from '../shared/services/request-context.servic
 import {
   Between,
   type EntityTarget,
-  type FindOptionsWhere,
+  type FindManyOptions,
   In,
   LessThanOrEqual,
   Repository,
@@ -47,7 +47,6 @@ import { ZonesService } from '../zones/zones.service.js';
 import { UsersService } from '../users/users.service.js';
 import { User } from '../users/entities/user.entity.js';
 import { MailService } from '../mail/mail.service.js';
-import { ParamsArgs } from './inputs/args/index.js';
 import {
   CommentEvidenceDto,
   CreateEvidenceDto,
@@ -70,6 +69,7 @@ import {
   toWallClock,
   wallClockToExcelSerial,
   scopePlantIds,
+  findPaginated,
 } from '../shared/utils/index.js';
 import { MainType } from '../main-types/entities/main-type.entity.js';
 import { SecondaryType } from '../secondary-types/entities/secondary-type.entity.js';
@@ -1044,7 +1044,12 @@ export class EvidencesService {
       );
     }
 
-    const datos = await this.findAll(queryEvidenceDto);
+    // Siempre todos los que cumplen los filtros (sin paginar).
+    const datos = (await this.findAll({
+      ...queryEvidenceDto,
+      page: undefined,
+      limit: undefined,
+    })) as Evidence[];
 
     if (type === 'xlsx') {
       const timeZone = resolveTimeZone(queryEvidenceDto.timeZone);
@@ -1366,7 +1371,10 @@ export class EvidencesService {
       statuses,
       startDate,
       endDate,
+      page,
+      limit,
     } = queryEvidenceDto;
+    const paginated = !!page && !!limit;
 
     const scopedEvidenceIds = this.parseEvidenceIds(ids);
 
@@ -1438,7 +1446,9 @@ export class EvidencesService {
     );
 
     // Sin plantas propias o pidiendo una planta ajena: sin resultados.
-    if (!manufacturingPlantsIds.length) return [];
+    if (!manufacturingPlantsIds.length) {
+      return paginated ? { data: [], count: 0 } : [];
+    }
 
     const createdAtFilter = this.buildCreatedAtFilter(startDate, endDate);
     const scopedZoneFilter = {
@@ -1446,7 +1456,7 @@ export class EvidencesService {
       ...(uniqueAreaIds.length > 0 && { area: { id: In(uniqueAreaIds) } }),
     };
 
-    const evidences = await this.evidenceRepository.find({
+    const options: FindManyOptions<Evidence> = {
       where: {
         //isActive: true,
         ...(uniqueEvidenceIds.length > 0 && { id: In(uniqueEvidenceIds) }),
@@ -1476,152 +1486,13 @@ export class EvidencesService {
       order: {
         id: 'DESC',
       },
-    });
-
-    return evidences;
-  }
-
-  async findAllGraphql(
-    paramsArgs: ParamsArgs,
-    userId: number,
-  ): Promise<{
-    data: Evidence[];
-    count: number;
-  }> {
-    const {
-      id,
-      ids,
-      manufacturingPlantId,
-      mainTypeId,
-      mainTypeIds,
-      secondaryTypeId,
-      secondaryTypeIds,
-      areaId,
-      areaIds,
-      zoneId,
-      zoneIds,
-      processId,
-      processIds,
-      responsibleId,
-      responsibleIds,
-      limit,
-      page,
-      status,
-      statuses,
-      startDate,
-      endDate,
-    } = paramsArgs;
-
-    const scopedEvidenceIds = ids && ids.length > 0 ? ids : [];
-
-    if (id) {
-      scopedEvidenceIds.push(id);
-    }
-
-    const uniqueEvidenceIds = Array.from(new Set(scopedEvidenceIds));
-
-    const scopedMainTypeIds =
-      mainTypeIds && mainTypeIds.length > 0
-        ? mainTypeIds
-        : mainTypeId
-          ? [mainTypeId]
-          : [];
-
-    const scopedSecondaryTypeIds =
-      secondaryTypeIds && secondaryTypeIds.length > 0
-        ? secondaryTypeIds
-        : secondaryTypeId
-          ? [secondaryTypeId]
-          : [];
-
-    const scopedAreaIds =
-      areaIds && areaIds.length > 0 ? areaIds : areaId ? [areaId] : [];
-
-    const scopedZoneIds =
-      zoneIds && zoneIds.length > 0 ? zoneIds : zoneId ? [zoneId] : [];
-
-    const scopedProcessIds =
-      processIds && processIds.length > 0
-        ? processIds
-        : processId
-          ? [processId]
-          : [];
-
-    const scopedResponsibleIds =
-      responsibleIds && responsibleIds.length > 0
-        ? responsibleIds
-        : responsibleId
-          ? [responsibleId]
-          : [];
-
-    const scopedStatuses =
-      statuses && statuses.length > 0 ? statuses : status ? [status] : [];
-
-    const user = await this.usersService.findOne(userId);
-
-    const { manufacturingPlants } = user;
-
-    const manufacturingPlantsIds = scopePlantIds(
-      manufacturingPlants,
-      manufacturingPlantId,
-    );
-
-    // Sin plantas propias o pidiendo una planta ajena: sin resultados.
-    if (!manufacturingPlantsIds.length) return { data: [], count: 0 };
-
-    const createdAtFilter = this.buildCreatedAtFilter(startDate, endDate);
-    const scopedZoneFilter = {
-      ...(scopedZoneIds.length > 0 && { id: In(scopedZoneIds) }),
-      ...(scopedAreaIds.length > 0 && { area: { id: In(scopedAreaIds) } }),
     };
 
-    const where: FindOptionsWhere<Evidence> = {
-      //isActive: true,
-      ...(uniqueEvidenceIds.length > 0 && { id: In(uniqueEvidenceIds) }),
-      manufacturingPlant: {
-        id: In(manufacturingPlantsIds),
-        isActive: true,
-      },
-      ...(scopedMainTypeIds.length > 0 && {
-        mainType: { id: In(scopedMainTypeIds) },
-      }),
-      ...(scopedSecondaryTypeIds.length > 0 && {
-        secondaryType: { id: In(scopedSecondaryTypeIds) },
-      }),
-      ...(Object.keys(scopedZoneFilter).length > 0 && {
-        zone: scopedZoneFilter,
-      }),
-      ...(scopedProcessIds.length > 0 && {
-        process: { id: In(scopedProcessIds) },
-      }),
-      ...(scopedResponsibleIds.length > 0 && {
-        responsibles: { id: In(scopedResponsibleIds) },
-      }),
-      ...(scopedStatuses.length > 0 && { status: In(scopedStatuses) }),
-      ...(createdAtFilter && { createdAt: createdAtFilter }),
-    };
-
-    const numRows = await this.evidenceRepository.count({
-      where,
-    });
-
-    const limitNumber = Number(limit);
-
-    const numPerPage = limitNumber;
-    // const numPages = Math.ceil(numRows / numPerPage);
-    const skip = (Number(page) - 1) * numPerPage;
-
-    const evidences = await this.evidenceRepository.find({
-      where,
-      ...(limitNumber === -1 ? {} : { take: limitNumber }),
-      ...(limitNumber === -1 ? {} : { skip }),
-      relations: this.relations,
-      order: {
-        id: 'DESC',
-      },
-    });
-
-    return { data: evidences, count: numRows };
+    // Con página y límite, la lista de hallazgos ({ data, count }); sin
+    // ellos, todos (descargas de Excel y PDF).
+    return paginated
+      ? findPaginated(this.evidenceRepository, options, page, limit)
+      : this.evidenceRepository.find(options);
   }
 
   /**

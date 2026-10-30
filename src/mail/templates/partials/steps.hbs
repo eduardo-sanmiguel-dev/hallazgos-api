@@ -1,0 +1,21 @@
+{{! Seguimiento: una barra por paso (verde = hecho, acento = actual, gris =
+    pendiente) con fecha y persona. }}
+{{> heading text="Seguimiento"}}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr>
+    {{#each steps}}
+      <td valign="top" width="33%" style="padding: 0 {{#unless @last}}8px{{/unless}} 0 0;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+          <tr>
+            <td height="6" bgcolor="{{color}}" style="height: 6px; background-color: {{color}}; border-radius: 3px; font-size: 0; line-height: 0;">&nbsp;</td>
+          </tr>
+        </table>
+        <p style="margin: 10px 0 0 0; font-size: 14px; line-height: 19px; font-weight: 700; color: {{labelColor}};">{{label}}</p>
+        <p style="margin: 3px 0 0 0; font-size: 12px; line-height: 17px; color: #6b7a71;">{{date}}</p>
+        {{#if person}}
+          <p style="margin: 1px 0 0 0; font-size: 12px; line-height: 17px; color: #6b7a71;">{{person}}</p>
+        {{/if}}
+      </td>
+    {{/each}}
+  </tr>
+</table>

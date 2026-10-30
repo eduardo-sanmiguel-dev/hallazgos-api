@@ -85,7 +85,6 @@ export class IdempotencyInterceptor implements NestInterceptor {
     context: ExecutionContext,
     next: CallHandler,
   ): Promise<Observable<unknown>> {
-    if (context.getType() !== 'http') return next.handle();
     if (!this.reflector.get<boolean>(IDEMPOTENT, context.getHandler())) {
       return next.handle();
     }

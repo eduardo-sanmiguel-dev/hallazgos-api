@@ -1,5 +1,3 @@
-import { Field, ID, ObjectType } from '@nestjs/graphql';
-
 import {
   Entity,
   Column,
@@ -20,30 +18,23 @@ import { Area } from '../../areas/entities/area.entity.js';
 
 @Entity({ name: 'zones' })
 @Index(['name', 'manufacturingPlant'], { unique: true })
-@ObjectType()
 export class Zone {
   @PrimaryGeneratedColumn()
-  @Field(() => ID)
   id: number;
 
   @Column()
-  @Field(() => String)
   name: string;
 
   @Column({ default: true })
-  @Field(() => Boolean)
   isActive: boolean;
 
   @CreateDateColumn()
-  //@Field(() => Date)
   createdAt: Date;
 
   @UpdateDateColumn()
-  //@Field(() => Date)
   updatedAt: Date;
 
   @OneToMany(() => Evidence, (evidence) => evidence.zone)
-  //@Field(() => [Evidence])
   evidences: Relation<Evidence[]>;
 
   @ManyToOne(() => User)
@@ -53,19 +44,16 @@ export class Zone {
   updatedBy?: Relation<User>;
 
   @ManyToOne(() => User, (user) => user.zones)
-  //@Field(() => User)
   user: Relation<User>;
 
   @ManyToOne(
     () => ManufacturingPlant,
     (manufacturingPlant) => manufacturingPlant.zones,
   )
-  //@Field(() => ManufacturingPlant)
   @Index('IDX_zones_manufacturingPlantId')
   manufacturingPlant: Relation<ManufacturingPlant>;
 
   @ManyToOne(() => Area, (area) => area.zones)
-  @Field(() => Area, { nullable: true })
   @Index('IDX_zones_areaId')
   area: Relation<Area>;
 

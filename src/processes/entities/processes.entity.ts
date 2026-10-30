@@ -1,5 +1,3 @@
-import { Field, ID, ObjectType } from '@nestjs/graphql';
-
 import {
   Entity,
   Column,
@@ -18,41 +16,32 @@ import { User } from '../../users/entities/user.entity.js';
 
 @Entity({ name: 'processes' })
 @Index(['name', 'manufacturingPlant'], { unique: true })
-@ObjectType()
 export class Processes {
   @PrimaryGeneratedColumn()
-  @Field(() => ID)
   id: number;
 
   @Column()
-  @Field(() => String)
   name: string;
 
   @Column({ default: true })
-  @Field(() => Boolean)
   isActive: boolean;
 
   @CreateDateColumn()
-  //@Field(() => Date)
   createdAt: Date;
 
   @UpdateDateColumn()
-  //@Field(() => Date)
   updatedAt: Date;
 
   @OneToMany(() => Evidence, (evidence) => evidence.zone)
-  //@Field(() => [Evidence])
   evidences: Relation<Evidence[]>;
 
   @ManyToOne(() => User, (user) => user.processes)
-  //@Field(() => User)
   user: Relation<User>;
 
   @ManyToOne(
     () => ManufacturingPlant,
     (manufacturingPlant) => manufacturingPlant.zones,
   )
-  //@Field(() => ManufacturingPlant)
   @Index('IDX_processes_manufacturingPlantId')
   manufacturingPlant: Relation<ManufacturingPlant>;
 }

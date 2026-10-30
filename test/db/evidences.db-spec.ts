@@ -4,13 +4,11 @@
 import { readdirSync, statSync, unlinkSync } from 'fs';
 import { join } from 'path';
 
-import request from 'supertest';
-
 import { Evidence } from '../../src/evidences/entities/evidence.entity.js';
 import { MainType } from '../../src/main-types/entities/main-type.entity.js';
 import { SecondaryType } from '../../src/secondary-types/entities/secondary-type.entity.js';
 import { binaryParser } from '../utils/index.js';
-import { APP_KEY, createE2eApp, type E2eApp } from './e2e-app.js';
+import { createE2eApp, type E2eApp } from './e2e-app.js';
 import { saveEvidence, STATUSES } from './fixtures.js';
 
 // PNG de 1x1 para las imágenes de proceso y solución.
@@ -366,15 +364,7 @@ describe('E2E: hallazgos', () => {
   });
 
   describe('listas y descargas', () => {
-    // GraphQL no lleva el prefijo /api/v1.
-    const graphql = (token?: string) => {
-      const req = request(e2e.server)
-        .post('/graphql')
-        .set('x-app-key', APP_KEY());
-      return token ? req.set('Authorization', `Bearer ${token}`) : req;
-    };
-
-    it('la lista de GraphQL solo trae hallazgos de las plantas del usuario', async () => {
+    it('la lista solo trae hallazgos de las plantas del usuario', async () => {
       await saveEvidence(e2e.dataSource, e2e.base, {
         manufacturingPlant: e2e.base.plants.manizales,
         zone: e2e.base.zoneColombia,
@@ -384,31 +374,36 @@ describe('E2E: hallazgos', () => {
         responsibles: [],
       });
 
-      const query = {
-        query:
-          '{ evidences(page: 1, limit: -1) { count data { id manufacturingPlant { name } } } }',
-      };
-      const general = await graphql(e2e.tokens.general).send(query).expect(200);
-      const colombia = await graphql(e2e.tokens.generalColombia)
-        .send(query)
-        .expect(200);
+      const list = (token: string) =>
+        e2e.call('get', '/evidences?page=1&limit=-1', token).expect(200);
+      const general = await list(e2e.tokens.general);
+      const colombia = await list(e2e.tokens.generalColombia);
 
       const plantsOf = (res) =>
         new Set(
-          res.body.data.evidences.data.map(
+          res.body.data.map(
             ({ manufacturingPlant }) => manufacturingPlant.name,
           ),
         );
       expect([...plantsOf(general)]).toEqual(['Tepotzotlán']);
       expect([...plantsOf(colombia)]).toEqual(['Manizales']);
+      expect(general.body.count).toBe(general.body.data.length);
     });
 
-    it('GraphQL sin sesión responde error', async () => {
-      const res = await graphql().send({
-        query: '{ evidences(page: 1, limit: 10) { count } }',
-      });
+    it('la lista pagina: page y limit con el total', async () => {
+      const all = await e2e
+        .call('get', '/evidences?page=1&limit=-1', e2e.tokens.general)
+        .expect(200);
+      const firstPage = await e2e
+        .call('get', '/evidences?page=1&limit=1', e2e.tokens.general)
+        .expect(200);
 
-      expect(JSON.stringify(res.body)).toMatch(/Token no encontrado/);
+      expect(firstPage.body.count).toBe(all.body.count);
+      expect(firstPage.body.data).toHaveLength(Math.min(1, all.body.count));
+    });
+
+    it('la lista sin sesión responde 401', async () => {
+      await e2e.call('get', '/evidences?page=1&limit=10').expect(401);
     });
 
     it('descarga Excel 200 y un tipo desconocido 400', async () => {

@@ -409,18 +409,6 @@ describe('ApiExceptionFilter', () => {
     });
   });
 
-  it('en GraphQL no responde por HTTP: devuelve la excepción para que la maneje GraphQL', () => {
-    const switchToHttp = jest.fn();
-    const host = {
-      getType: () => 'graphql',
-      switchToHttp,
-    } as unknown as ArgumentsHost;
-    const error = queryError({ code: '23505' });
-
-    expect(filter.catch(error, host)).toBe(error);
-    expect(switchToHttp).not.toHaveBeenCalled();
-  });
-
   it('si la respuesta ya se envió (descarga a medias) solo registra el error', () => {
     const { host, response } = httpHost();
     response.headersSent = true;

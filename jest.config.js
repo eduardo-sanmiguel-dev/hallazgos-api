@@ -171,10 +171,6 @@ export default {
     '!**/*.interfaces.ts',
     '!**/interfaces/**',
     '!**/*.enum.ts',
-    // Clases de argumentos y tipos de GraphQL: son el equivalente de los DTOs
-    // (solo decoradores; sus funciones de tipo se ejecutan al armar el schema).
-    '!**/inputs/**',
-    '!**/types/**',
     '!main.ts',
     // Arranque de las trazas (se carga con --import antes que la app).
     '!instrumentation.ts',

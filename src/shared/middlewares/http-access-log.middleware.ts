@@ -22,8 +22,6 @@ export const httpAccessLog =
       const durationMs = Math.round(
         Number(process.hrtime.bigint() - start) / 1e6,
       );
-      const operation = (req.body as { operationName?: unknown } | undefined)
-        ?.operationName;
 
       logger.ship({
         level: status >= 500 ? 'error' : status >= 400 ? 'warn' : 'log',
@@ -34,7 +32,6 @@ export const httpAccessLog =
         status,
         duration_ms: durationMs,
         ip: req.ip,
-        ...(typeof operation === 'string' && { graphql_operation: operation }),
       });
     });
 

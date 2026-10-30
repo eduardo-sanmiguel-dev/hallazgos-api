@@ -17,7 +17,6 @@ import { SecondaryTypesModule } from '../secondary-types/secondary-types.module.
 import { ZonesModule } from '../zones/zones.module.js';
 import { UsersModule } from '../users/users.module.js';
 import { Comment } from './entities/comments.entity.js';
-import { EvidencesResolver } from './evidences.resolver.js';
 import { ProcessesModule } from '../processes/processes.module.js';
 
 @Module({
@@ -41,7 +40,7 @@ import { ProcessesModule } from '../processes/processes.module.js';
     ProcessesModule,
   ],
   controllers: [EvidencesController],
-  providers: [EvidencesService, EvidencesResolver],
+  providers: [EvidencesService],
   exports: [TypeOrmModule, EvidencesService],
 })
 export class EvidencesModule {}

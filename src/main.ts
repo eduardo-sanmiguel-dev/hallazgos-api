@@ -50,8 +50,8 @@ async function bootstrap() {
   });
 
   // Cabeceras de seguridad. La API solo responde JSON y archivos, así que no
-  // necesita CSP (el playground de GraphQL usa scripts en línea), y el front
-  // (otro origen) carga imágenes y PDFs de aquí: CORP debe ser cross-origin.
+  // necesita CSP, y el front (otro origen) carga imágenes y PDFs de aquí:
+  // CORP debe ser cross-origin.
   app.use(
     helmet({
       contentSecurityPolicy: false,

@@ -50,6 +50,11 @@ describe('MailService', () => {
       ...overrides,
     });
   const sent = () => sendMail.mock.calls[0][0];
+  // Fotos adjuntas, sin los logos (van en todos los correos).
+  const photoCids = (mail = sent()) =>
+    mail.attachments
+      .map(({ cid }) => cid)
+      .filter((cid) => !cid.startsWith('logo'));
 
   beforeEach(() => setup());
 
@@ -70,7 +75,8 @@ describe('MailService', () => {
       expect(sent()).toMatchObject({
         to: 'ana@hallazgos.test',
         from: '"Hada app (hallazgo creado)" <app@hallazgos.test>',
-        subject: 'Tepotzotlán - Condición insegura',
+        // Mismo asunto en todos los avisos del hallazgo: una conversación.
+        subject: 'Hallazgo #42 · Tepotzotlán - Condición insegura',
         template: './create',
         context: {
           id: 42,
@@ -85,6 +91,8 @@ describe('MailService', () => {
             path: join(LOCAL_EVIDENCE_IMAGES_DIR, 'uuid-evidence.png'),
             cid: 'imgEvidence',
           },
+          { cid: 'logoHada' },
+          { cid: 'logoComportarte' },
         ],
       });
     });
@@ -104,7 +112,7 @@ describe('MailService', () => {
         priorityLabel: '',
         remainingDays: '',
       });
-      expect(sendMail.mock.calls[1][0]).not.toHaveProperty('attachments');
+      expect(photoCids(sendMail.mock.calls[1][0])).toEqual([]);
     });
 
     it('si el envío falla lo registra y no lanza', async () => {
@@ -175,7 +183,7 @@ describe('MailService', () => {
         previousResponsibles: 'Sin responsables previos',
         currentResponsibles: 'Sin responsables asignados',
       });
-      expect(sent()).not.toHaveProperty('attachments');
+      expect(photoCids()).toEqual([]);
     });
 
     it('un error de envío se propaga (lo registra quien llama)', async () => {
@@ -214,7 +222,7 @@ describe('MailService', () => {
       expect(solutionImage.path).not.toContain('mail..');
       expect(sent().context).toMatchObject({
         descripcionSolucion: 'Se limpió',
-        resolutionDays: '2 dias',
+        resolutionDays: '2 días',
         resolutionStatus: 'En tiempo',
         resolutionOnTime: true,
       });
@@ -262,11 +270,11 @@ describe('MailService', () => {
       });
 
       expect(sent().context).toMatchObject({
-        resolutionDays: '20 dias',
-        resolutionStatus: 'Fuera de tiempo (12 dias)',
+        resolutionDays: '20 días',
+        resolutionStatus: 'Fuera de tiempo (12 días)',
         resolutionOnTime: false,
       });
-      expect(sent().attachments).toEqual([]);
+      expect(photoCids()).toEqual([]);
     });
 
     it('sin prioridad siempre está en tiempo; sin fecha de solución no hay resolución', async () => {
@@ -283,7 +291,7 @@ describe('MailService', () => {
       });
 
       expect(sendMail.mock.calls[0][0].context).toMatchObject({
-        resolutionDays: '1 dia',
+        resolutionDays: '1 día',
         resolutionStatus: '',
         resolutionOnTime: true,
       });
@@ -341,6 +349,8 @@ describe('MailService', () => {
       expect(sent().attachments.map(({ cid }) => cid)).toEqual([
         'imgEvidence',
         'imgProcess',
+        'logoHada',
+        'logoComportarte',
       ]);
     });
 
@@ -351,7 +361,7 @@ describe('MailService', () => {
         evidenceCurrent: evidence({ imgEvidence: '', imgProcess: null }),
       });
 
-      expect(sent().attachments).toEqual([]);
+      expect(photoCids()).toEqual([]);
     });
   });
 
@@ -377,7 +387,7 @@ describe('MailService', () => {
         evidenceCurrent: evidence({ imgEvidence: '' }),
       });
 
-      expect(sent()).not.toHaveProperty('attachments');
+      expect(photoCids()).toEqual([]);
     });
   });
 

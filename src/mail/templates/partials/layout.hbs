@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="es" xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <meta name="color-scheme" content="light" />
+    <meta name="supported-color-schemes" content="light" />
+    <title>{{title}}</title>
+    {{! css-inline quita los <style>; este (media queries) debe quedarse. }}
+    <style data-css-inline="keep">
+      /* Celular: menos margen y las columnas se apilan. */
+      @media only screen and (max-width: 620px) {
+        .px { padding-left: 22px !important; padding-right: 22px !important; }
+        .stack { display: block !important; width: 100% !important; box-sizing: border-box; }
+        .stack-gap { padding: 0 0 10px 0 !important; }
+        .fluid { width: 100% !important; max-width: 100% !important; height: auto !important; }
+        .hero-title { font-size: 28px !important; line-height: 34px !important; }
+      }
+    </style>
+    <!--[if mso]>
+      <style>
+        table, td, p, h1, a { font-family: 'Segoe UI', Arial, sans-serif !important; }
+      </style>
+    <![endif]-->
+  </head>
+  <body style="margin: 0; padding: 0; background-color: #eef2ec; -webkit-text-size-adjust: 100%;">
+    {{! Vista previa en la bandeja; el relleno evita que se cuele el cuerpo. }}
+    <div style="display: none; max-height: 0; overflow: hidden; opacity: 0; color: transparent; mso-hide: all;">
+      {{preheader}}&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;
+    </div>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#eef2ec" style="background-color: #eef2ec;">
+      <tr>
+        <td align="center" style="padding: 28px 12px 36px 12px;">
+          <!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" align="center"><tr><td><![endif]-->
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+
+            {{! Marca }}
+            <tr>
+              <td style="padding: 0 6px 18px 6px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td valign="middle">
+                      <img src="cid:logoHada" width="104" alt="Hada International" style="display: block; width: 104px; height: auto; border: 0;" />
+                    </td>
+                    <td valign="middle" align="right" style="font-size: 11px; line-height: 16px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #6b7a71;">
+                      {{theme.kicker}}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            {{! Tarjeta }}
+            <tr>
+              <td bgcolor="#ffffff" style="background-color: #ffffff; border: 1px solid #e1e8df; border-radius: 20px; overflow: hidden;">
+
+                {{! Encabezado: verde profundo de la marca con el acento del aviso. }}
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td height="6" bgcolor="{{theme.accent}}" style="height: 6px; font-size: 0; line-height: 0; background-color: {{theme.accent}};">&nbsp;</td>
+                  </tr>
+                  <tr>
+                    <td class="px" bgcolor="#10291a" style="background-color: #10291a; padding: 30px 36px 34px 36px;">
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                          <td bgcolor="{{theme.accent}}" style="background-color: {{theme.accent}}; border-radius: 999px; padding: 5px 12px; font-size: 11px; line-height: 14px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #ffffff;">
+                            {{theme.eyebrow}}
+                          </td>
+                        </tr>
+                      </table>
+                      <h1 class="hero-title" style="margin: 18px 0 0 0; font-size: 34px; line-height: 40px; font-weight: 800; letter-spacing: -0.02em; color: #ffffff;">
+                        {{title}}
+                      </h1>
+                      {{#if subtitle}}
+                        <p style="margin: 8px 0 0 0; font-size: 16px; line-height: 24px; color: #c9dfbf;">
+                          {{subtitle}}
+                        </p>
+                      {{/if}}
+                    </td>
+                  </tr>
+                </table>
+
+                {{! Contenido de cada aviso }}
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td class="px" style="padding: 30px 36px 34px 36px; color: #3d4b43;">
+                      {{> @partial-block}}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            {{! Pie }}
+            <tr>
+              <td align="center" style="padding: 30px 16px 0 16px;">
+                <img src="cid:logoComportarte" width="168" alt="ComportArte" style="display: block; width: 168px; height: auto; border: 0;" />
+                <p style="margin: 16px 0 0 0; font-size: 12px; line-height: 19px; color: #6b7a71;">
+                  Mensaje automático de ComportArte. Por favor no respondas a este correo.
+                </p>
+                <p style="margin: 6px 0 0 0; font-size: 11px; line-height: 17px; color: #94a199;">
+                  © {{year}} Hada International · La magia de hacerlo bien.
+                </p>
+              </td>
+            </tr>
+          </table>
+          <!--[if mso]></td></tr></table><![endif]-->
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

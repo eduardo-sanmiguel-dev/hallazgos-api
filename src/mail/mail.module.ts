@@ -1,11 +1,9 @@
-import { join } from 'path';
-
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MailerModule } from '@nestjs-modules/mailer';
-import { HandlebarsAdapter } from '@nestjs-modules/mailer/adapters/handlebars.adapter';
 
 import { MailService } from './mail.service.js';
+import { mailTemplateConfig } from './mail.templates.js';
 
 @Global()
 @Module({
@@ -37,13 +35,7 @@ import { MailService } from './mail.service.js';
           /*defaults: {
             from: `Hallazgos App`,
           },*/
-          template: {
-            dir: join(import.meta.dirname, 'templates'),
-            adapter: new HandlebarsAdapter(),
-            options: {
-              strict: true,
-            },
-          },
+          ...mailTemplateConfig(),
         };
       },
       inject: [ConfigService],

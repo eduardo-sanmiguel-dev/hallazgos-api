@@ -8,8 +8,6 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { GraphQLModule } from '@nestjs/graphql';
-import { ApolloDriver, type ApolloDriverConfig } from '@nestjs/apollo';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 
@@ -91,56 +89,6 @@ import { EvidenceImageAccessMiddleware } from './evidences/evidence-image-access
         synchronize: false,
         migrationsRun: true,
         migrations: [join(import.meta.dirname, 'migrations', '*{.ts,.js}')],
-      }),
-    }),
-    GraphQLModule.forRootAsync<ApolloDriverConfig>({
-      driver: ApolloDriver,
-      imports: [ConfigModule, AuthModule],
-      inject: [ConfigService, JwtService],
-      useFactory: async (
-        configService: ConfigService,
-        jwtService: JwtService,
-      ) => ({
-        // En pruebas (NODE_ENV=test) el esquema se genera en memoria para no
-        // reescribir src/schema.gql en cada corrida.
-        autoSchemaFile:
-          configService.get<string>('environment') === 'test'
-            ? true
-            : join(process.cwd(), 'src/schema.gql'),
-        introspection:
-          configService.get<string>('environment') !== 'production',
-        async context({ req }) {
-          const appKey = configService.get<string>('appKey');
-
-          const appKeyHeader = req.headers['x-app-key'];
-
-          if (!appKeyHeader) {
-            throw Error('API Key es requerido');
-          }
-
-          if (appKeyHeader !== appKey) {
-            throw Error('API Key es inválido');
-          }
-
-          let token = '';
-
-          token = req.cookies['token'] ? `${req.cookies['token']}` : '';
-
-          if (!token) {
-            token = `${req.headers['authorization']}`.split('Bearer ')[1] || '';
-          }
-
-          if (!token) {
-            throw Error('Token no encontrado');
-          }
-
-          try {
-            const { userId } = await jwtService.verify(token);
-            return { user: { userId } };
-          } catch {
-            throw Error('Credenciales no válidas');
-          }
-        },
       }),
     }),
     ServeStaticModule.forRoot({

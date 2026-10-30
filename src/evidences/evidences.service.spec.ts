@@ -532,33 +532,59 @@ describe('EvidencesService', () => {
     });
   });
 
-  describe('findAllGraphql (lista de Hallazgos del UI)', () => {
-    const findAllGraphql = (user: User, args = {}) => {
-      usersService.findOne.mockResolvedValue(user);
-      return service.findAllGraphql(
-        { page: 1, limit: 10, ...args } as never,
-        user.id,
+  describe('findAll paginado (lista de Hallazgos del UI)', () => {
+    const findPage = (user: User, query = {}) =>
+      runAsUser(user, () =>
+        service.findAll({ page: 1, limit: 10, ...query } as never),
       );
-    };
 
     it('con una planta ajena responde vacío sin consultar la base', async () => {
       await expect(
-        findAllGraphql(reporter, { manufacturingPlantId: 2 }),
+        findPage(reporter, { manufacturingPlantId: 2 }),
       ).resolves.toEqual({ data: [], count: 0 });
-      expect(evidences.find).not.toHaveBeenCalled();
-      expect(evidences.count).not.toHaveBeenCalled();
+      expect(evidences.findAndCount).not.toHaveBeenCalled();
     });
 
     it('sin filtro de planta consulta solo las plantas del usuario', async () => {
-      await findAllGraphql(reporter);
+      await findPage(reporter);
 
-      const [{ where }] = evidences.find.mock.calls[0];
+      const [{ where }] = evidences.findAndCount.mock.calls[0];
       expect(
         operand(
           (where as { manufacturingPlant: { id: unknown } }).manufacturingPlant
             .id,
         ),
       ).toEqual([1]);
+    });
+
+    it('pagina con skip/take y devuelve el total', async () => {
+      const row = buildEvidence({ id: 5 });
+      evidences.findAndCount.mockResolvedValue([[row], 42]);
+
+      await expect(findPage(reporter, { page: 3, limit: 10 })).resolves.toEqual(
+        { data: [row], count: 42 },
+      );
+      expect(evidences.findAndCount.mock.calls[0][0]).toMatchObject({
+        skip: 20,
+        take: 10,
+      });
+      expect(evidences.find).not.toHaveBeenCalled();
+    });
+
+    it('limit -1 devuelve todo sin paginar (con el total)', async () => {
+      await findPage(reporter, { limit: -1 });
+
+      const [options] = evidences.findAndCount.mock.calls[0];
+      expect(options).not.toHaveProperty('take');
+      expect(options).not.toHaveProperty('skip');
+    });
+
+    it('sin página ni límite devuelve la lista completa (descargas)', async () => {
+      await expect(
+        runAsUser(reporter, () => service.findAll({} as never)),
+      ).resolves.toEqual([]);
+      expect(evidences.find).toHaveBeenCalled();
+      expect(evidences.findAndCount).not.toHaveBeenCalled();
     });
   });
 
@@ -1410,67 +1436,6 @@ describe('EvidencesService', () => {
         );
         expect(evidences.find).not.toHaveBeenCalled();
       });
-    });
-  });
-
-  describe('C5: filtros y paginación de findAllGraphql', () => {
-    const run = (args: object) => {
-      usersService.findOne.mockResolvedValue(reporter);
-      evidences.count.mockResolvedValue(42);
-      return service.findAllGraphql(
-        { page: 1, limit: 10, ...args } as never,
-        reporter.id,
-      );
-    };
-    const call = () => evidences.find.mock.calls[0][0];
-
-    it('las listas tienen prioridad sobre el valor simple', async () => {
-      await run({
-        mainTypeId: 1,
-        mainTypeIds: [2, 3],
-        secondaryTypeId: 4,
-        areaId: 5,
-        zoneIds: [6],
-        processId: 7,
-        responsibleIds: [8],
-        status: 'Abierto',
-        id: 9,
-        ids: [10],
-      });
-
-      const w = call().where as Record<string, Record<string, unknown>>;
-      expect(operand(w.mainType.id)).toEqual([2, 3]);
-      expect(operand(w.secondaryType.id)).toEqual([4]);
-      expect(operand((w.zone.area as { id: unknown }).id)).toEqual([5]);
-      expect(operand(w.zone.id)).toEqual([6]);
-      expect(operand(w.process.id)).toEqual([7]);
-      expect(operand(w.responsibles.id)).toEqual([8]);
-      expect(operand(w.status)).toEqual(['Abierto']);
-      expect(operand(w.id)).toEqual([10, 9]);
-    });
-
-    it('pagina con skip/take y devuelve el total', async () => {
-      await expect(run({ page: 3, limit: 10 })).resolves.toMatchObject({
-        count: 42,
-      });
-
-      expect(call()).toMatchObject({ skip: 20, take: 10 });
-    });
-
-    it('limit -1 devuelve todo sin paginar', async () => {
-      await run({ limit: -1 });
-
-      expect(call()).not.toHaveProperty('take');
-      expect(call()).not.toHaveProperty('skip');
-    });
-
-    it('aplica el filtro de fechas', async () => {
-      await run({ endDate: '15/10/2026' });
-
-      const where = call().where as Record<string, unknown>;
-      expect((where.createdAt as FindOperator<Date>).type).toBe(
-        'lessThanOrEqual',
-      );
     });
   });
 

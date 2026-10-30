@@ -45,19 +45,6 @@ describe('httpAccessLog', () => {
     });
   });
 
-  it('agrega la operación de GraphQL', () => {
-    const { finish } = run({
-      method: 'POST',
-      originalUrl: '/graphql',
-      body: { operationName: 'Evidences' },
-    });
-    finish();
-
-    expect(ship).toHaveBeenCalledWith(
-      expect.objectContaining({ graphql_operation: 'Evidences' }),
-    );
-  });
-
   it.each([
     [404, 'warn'],
     [500, 'error'],

@@ -23,7 +23,7 @@ import { mkdtempSync, readdirSync, rmSync } from 'fs';
 import { diskStorage } from 'multer';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { lastValueFrom, of, throwError } from 'rxjs';
+import { lastValueFrom, throwError } from 'rxjs';
 import request from 'supertest';
 
 import {
@@ -223,14 +223,6 @@ describe('DeleteUploadsOnErrorInterceptor (unidad)', () => {
     ).rejects.toBe(error);
     expect(logError).not.toHaveBeenCalled();
     logError.mockRestore();
-  });
-
-  it('fuera de HTTP (GraphQL) no interviene', async () => {
-    const context = { getType: () => 'graphql' } as unknown as ExecutionContext;
-
-    await expect(
-      lastValueFrom(interceptor.intercept(context, { handle: () => of('ok') })),
-    ).resolves.toBe('ok');
   });
 
   it('uploadedFiles reúne file, files (lista) y files (por campo), solo con ruta', () => {

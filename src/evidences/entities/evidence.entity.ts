@@ -1,5 +1,3 @@
-import { Field, ID, Int, ObjectType } from '@nestjs/graphql';
-
 import {
   Entity,
   Column,
@@ -24,117 +22,73 @@ import { Comment } from './comments.entity.js';
 import { Processes } from '../../processes/entities/processes.entity.js';
 
 @Entity()
-@ObjectType()
 export class Evidence {
   @PrimaryGeneratedColumn()
-  @Field(() => ID)
   id: number;
 
   @Column()
-  @Field(() => String)
   imgEvidence: string;
 
   @Column({ default: '' })
-  @Field(() => String, {
-    defaultValue: '',
-  })
   imgSolution: string;
 
   @Column({ type: 'int', nullable: true, default: null })
-  @Field(() => Int, {
-    defaultValue: null,
-    nullable: true,
-  })
   priorityDays?: number;
 
   @Column({ default: '' })
-  @Field(() => String, {
-    defaultValue: '',
-    nullable: true,
-  })
   imgProcess: string;
 
   @Column({ default: null })
-  @Field(() => Date, {
-    defaultValue: null,
-    nullable: true,
-  })
   @Index()
   startProcessDate: Date;
 
   @Column({ default: null })
-  @Field(() => Date, {
-    defaultValue: null,
-    nullable: true,
-  })
   @Index()
   solutionDate: Date;
 
   @Column({ default: '' })
-  @Field(() => String, {
-    defaultValue: '',
-    nullable: true,
-  })
   description: string;
 
   @Column({ default: '' })
-  @Field(() => String, {
-    defaultValue: '',
-    nullable: true,
-  })
   descriptionSolution: string;
 
   @Column()
-  @Field(() => String)
   @Index()
   status: string;
 
   @Column({ default: true })
-  @Field(() => Boolean, {
-    defaultValue: true,
-  })
   isActive: boolean;
 
   @CreateDateColumn()
-  @Field(() => Date)
   createdAt: Date;
 
   @UpdateDateColumn()
-  @Field(() => Date)
   updatedAt: Date;
 
   @ManyToOne(
     () => ManufacturingPlant,
     (manufacturingPlant) => manufacturingPlant.evidences,
   )
-  @Field(() => ManufacturingPlant)
   @Index()
   manufacturingPlant: Relation<ManufacturingPlant>;
 
   @ManyToOne(() => MainType, (mainType) => mainType.evidences)
-  @Field(() => MainType)
   @Index()
   mainType: Relation<MainType>;
 
   @ManyToOne(() => SecondaryType, (secondaryType) => secondaryType.evidences)
-  @Field(() => SecondaryType)
   @Index()
   secondaryType: Relation<SecondaryType>;
 
   @ManyToOne(() => Zone, (zone) => zone.evidences)
-  @Field(() => Zone)
   @Index()
   zone: Relation<Zone>;
 
   @ManyToOne(() => Processes, (process) => process.evidences)
-  @Field(() => Processes, {
-    nullable: true,
-  })
   @Index()
   process?: Relation<Processes>;
 
   @ManyToOne(() => User, (user) => user.evidences)
-  @Field(() => User)
   @Index()
   user: Relation<User>;
 
@@ -147,7 +101,6 @@ export class Evidence {
     foreignKeyConstraintName: 'FK_evidence_startedById',
   })
   @Index('IDX_evidence_startedById')
-  @Field(() => User, { nullable: true })
   startedBy?: Relation<User> | null;
 
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
@@ -156,20 +109,16 @@ export class Evidence {
     foreignKeyConstraintName: 'FK_evidence_closedById',
   })
   @Index('IDX_evidence_closedById')
-  @Field(() => User, { nullable: true })
   closedBy?: Relation<User> | null;
 
   @ManyToMany(() => User)
   @JoinTable()
-  @Field(() => [User])
   supervisors: Relation<User[]>;
 
   @ManyToMany(() => User)
   @JoinTable()
-  @Field(() => [User])
   responsibles: Relation<User[]>;
 
   @OneToMany(() => Comment, (comment) => comment.evidence)
-  @Field(() => [Comment])
   comments: Relation<Comment[]>;
 }

@@ -1,183 +1,51 @@
-<table
-  role='presentation'
-  cellpadding='0'
-  cellspacing='0'
-  width='100%'
-  style='background-color: #f3f5f4; margin: 0; padding: 24px 12px; font-family: Arial, Helvetica, sans-serif;'
->
-  <tr>
-    <td align='center'>
-      <table
-        role='presentation'
-        cellpadding='0'
-        cellspacing='0'
-        width='100%'
-        style='max-width: 620px; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #d9e6dc;'
-      >
-        <tr>
-          <td
-            style='background: linear-gradient(90deg, #66b529 0%, #7fcc3a 100%); padding: 24px; color: #ffffff;'
-          >
-            <h1
-              style='margin: 0; font-size: 24px; line-height: 30px; font-weight: 700;'
-            >Detalles del hallazgo #{{id}}</h1>
-            <p style='margin: 8px 0 0 0; font-size: 14px; line-height: 20px;'>
-              Se actualizaron los responsables del hallazgo.
-            </p>
-          </td>
-        </tr>
+{{#> layout}}
+  <p style="margin: 0; font-size: 16px; line-height: 26px; color: #3d4b43;">
+    <strong style="color: #13221a;">{{reassignedBy}}</strong> cambió los responsables de este
+    hallazgo el {{reassignedAt}}.
+  </p>
 
-        <tr>
-          <td style='padding: 24px; color: #233129;'>
-            <table
-              role='presentation'
-              cellpadding='0'
-              cellspacing='0'
-              width='100%'
-              style='background-color: #f8fbf6; border: 1px solid #d9e6dc; border-radius: 8px;'
-            >
-              <tr>
-                <td
-                  style='padding: 14px 16px; font-size: 14px; line-height: 22px;'
-                >
-                  <strong>Planta:</strong>
-                  {{manufacturingPlant}}
-                </td>
-              </tr>
-              <tr>
-                <td
-                  style='padding: 0 16px 14px 16px; font-size: 14px; line-height: 22px;'
-                >
-                  <strong>{{mainType}}:</strong>
-                  {{secondaryType}}
-                </td>
-              </tr>
-              <tr>
-                <td
-                  style='padding: 0 16px 14px 16px; font-size: 14px; line-height: 22px;'
-                >
-                  <strong>Lugar:</strong>
-                  {{zone}}
-                </td>
-              </tr>
+  {{> heading text="Responsables"}}
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td class="stack stack-gap" width="46%" valign="top">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f5f8f3" style="background-color: #f5f8f3; border: 1px solid #e6ece4; border-radius: 14px;">
+          <tr>
+            <td style="padding: 14px 16px;">
+              <p style="margin: 0; font-size: 10px; line-height: 14px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #6b7a71;">Antes</p>
+              <p style="margin: 6px 0 0 0; font-size: 15px; line-height: 22px; color: #6b7a71; text-decoration: line-through;">{{previousResponsibles}}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+      <td class="stack stack-gap" width="8%" align="center" valign="middle" style="font-size: 22px; line-height: 22px; font-weight: 700; color: {{theme.accent}};">&rarr;</td>
+      <td class="stack" width="46%" valign="top">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f4f0fd" style="background-color: #f4f0fd; border: 1px solid {{theme.accent}}; border-radius: 14px;">
+          <tr>
+            <td style="padding: 14px 16px;">
+              <p style="margin: 0; font-size: 10px; line-height: 14px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: {{theme.accent}};">Ahora</p>
+              <p style="margin: 6px 0 0 0; font-size: 15px; line-height: 22px; font-weight: 700; color: #13221a;">{{currentResponsibles}}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 
-              {{#if descripcion}}
-                <tr>
-                  <td
-                    style='padding: 0 16px 14px 16px; font-size: 14px; line-height: 22px;'
-                  >
-                    <strong>Lo que se observó:</strong>
-                    {{descripcion}}
-                  </td>
-                </tr>
-              {{/if}}
-
-              <tr>
-                <td
-                  style='padding: 0 16px 14px 16px; font-size: 14px; line-height: 22px;'
-                >
-                  <strong>Creado por:</strong>
-                  {{userWhoCreated}}
-                </td>
-              </tr>
-              <tr>
-                <td
-                  style='padding: 0 16px 14px 16px; font-size: 14px; line-height: 22px;'
-                >
-                  <strong>Reasignado por:</strong>
-                  {{reassignedBy}}
-                </td>
-              </tr>
-              <tr>
-                <td
-                  style='padding: 0 16px 14px 16px; font-size: 14px; line-height: 22px;'
-                >
-                  <strong>Responsables anteriores:</strong>
-                  {{previousResponsibles}}
-                </td>
-              </tr>
-              <tr>
-                <td
-                  style='padding: 0 16px 14px 16px; font-size: 14px; line-height: 22px;'
-                >
-                  <strong>Responsables actuales:</strong>
-                  {{currentResponsibles}}
-                </td>
-              </tr>
-              {{#if priorityLabel}}
-                <tr>
-                  <td
-                    style='padding: 0 16px 14px 16px; font-size: 14px; line-height: 22px;'
-                  >
-                    <strong>Prioridad:</strong>
-                    {{priorityLabel}}
-                  </td>
-                </tr>
-              {{/if}}
-              <tr>
-                <td
-                  style='padding: 0 16px 14px 16px; font-size: 14px; line-height: 22px;'
-                >
-                  <strong>Fecha de creación:</strong>
-                  {{createdAt}}
-                </td>
-              </tr>
-              <tr>
-                <td
-                  style='padding: 0 16px 16px 16px; font-size: 14px; line-height: 22px;'
-                >
-                  <strong>Fecha de reasignación:</strong>
-                  {{reassignedAt}}
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        <tr>
-          <td style='padding: 0 24px 20px 24px;'>
-            <p
-              style='margin: 0 0 10px 0; font-size: 14px; line-height: 22px; color: #233129; font-weight: 700;'
-            >Hallazgo</p>
-            <img
-              src='cid:imgEvidence'
-              alt='Imagen del hallazgo'
-              style='width: 100%; max-width: 520px; height: auto; border-radius: 8px; border: 1px solid #d9e6dc; display: block;'
-            />
-          </td>
-        </tr>
-
-        <tr>
-          <td style='padding: 0 24px 20px 24px;'>
-            <table
-              role='presentation'
-              cellpadding='0'
-              cellspacing='0'
-              width='100%'
-              style='background-color: #eef7e8; border-radius: 8px;'
-            >
-              <tr>
-                <td
-                  style='padding: 14px 16px; font-size: 12px; line-height: 18px; color: #415448;'
-                >
-                  Este correo fue generado automaticamente por el sistema
-                  ComportArte. Por favor, no respondas a este mensaje.
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        <tr>
-          <td align='center' style='padding: 8px 24px 24px 24px;'>
-            <img
-              src='https://api.comportarte.com/static/images/login/logo-inferior.png'
-              alt='ComportArte'
-              style='max-width: 260px; width: 100%; height: auto; border: 0; display: block;'
-            />
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-</table>
+  {{> tiles}}
+  {{> cta}}
+  {{#if descripcion}}
+    {{> heading text="Lo que se observó"}}
+    {{> quote text=descripcion color=theme.accent}}
+  {{/if}}
+  {{#if photoPair}}
+    {{> heading text=photoPair.heading}}
+    {{> photo-pair photoPair}}
+  {{else}}
+    {{#if photo}}
+      {{> heading text=photo.heading}}
+      {{> photo photo}}
+    {{/if}}
+  {{/if}}
+  {{> steps}}
+  {{> details}}
+{{/layout}}
