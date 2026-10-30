@@ -1,4 +1,5 @@
 import {
+  IsInt,
   IsOptional,
   IsPositive,
   IsString,
@@ -91,6 +92,16 @@ export class QueryEvidenceDto {
   @IsString()
   @Matches(/^\d{2}\/\d{2}\/\d{4}$/)
   endDate: string;
+
+  // Listado paginado (lista de hallazgos). Sin ellos, todos (descargas).
+  @IsOptional()
+  @IsPositive()
+  page?: number;
+
+  // -1 = sin límite (todos los registros)
+  @IsOptional()
+  @IsInt()
+  limit?: number;
 
   // Zona IANA del navegador (ej. America/Bogota). Solo afecta el formato del
   // Excel; si no llega o no es válida se usa America/Mexico_City.

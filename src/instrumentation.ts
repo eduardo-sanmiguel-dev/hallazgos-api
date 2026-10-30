@@ -2,7 +2,7 @@
  * Trazas de OpenTelemetry hacia OpenObserve (solo producción).
  *
  * Se carga antes que la app con `node --import ./dist/instrumentation.js`
- * (ver ecosystem.config.js): en ESM, http, express, graphql y pg solo se
+ * (ver ecosystem.config.js): en ESM, http, express y pg solo se
  * instrumentan si el hook se registra antes de importarlos. Sin
  * NODE_ENV=production u OBSERVE_* no hace nada.
  */
@@ -23,16 +23,7 @@ if (NODE_ENV === 'production' && OBSERVE_ENDPOINT && OBSERVE_AUTH_HEADER) {
   // orden de evaluación de los imports circulares entre entidades y Nest
   // falla al arrancar (CircularDependencyException en @InjectRepository).
   register({
-    include: [
-      'http',
-      'https',
-      'node:http',
-      'node:https',
-      'express',
-      'pg',
-      'graphql',
-      /[\\/]node_modules[\\/]graphql[\\/]/,
-    ],
+    include: ['http', 'https', 'node:http', 'node:https', 'express', 'pg'],
   });
 
   // Import dinámico: fuera de producción ni siquiera se cargan.
@@ -41,14 +32,12 @@ if (NODE_ENV === 'production' && OBSERVE_ENDPOINT && OBSERVE_AUTH_HEADER) {
     { OTLPTraceExporter },
     { HttpInstrumentation },
     { ExpressInstrumentation },
-    { GraphQLInstrumentation },
     { PgInstrumentation },
   ] = await Promise.all([
     import('@opentelemetry/sdk-node'),
     import('@opentelemetry/exporter-trace-otlp-http'),
     import('@opentelemetry/instrumentation-http'),
     import('@opentelemetry/instrumentation-express'),
-    import('@opentelemetry/instrumentation-graphql'),
     import('@opentelemetry/instrumentation-pg'),
   ]);
 
@@ -65,11 +54,6 @@ if (NODE_ENV === 'production' && OBSERVE_ENDPOINT && OBSERVE_AUTH_HEADER) {
           !!request.url?.startsWith('/api/v1/health'),
       }),
       new ExpressInstrumentation(),
-      new GraphQLInstrumentation({
-        // Un span por resolver con lógica, no por cada campo de cada fila.
-        mergeItems: true,
-        ignoreTrivialResolveSpans: true,
-      }),
       new PgInstrumentation({
         // Solo consultas dentro de una petición (no las de tareas cron), y
         // sin los valores de los parámetros: pueden traer datos personales.

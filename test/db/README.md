@@ -35,7 +35,7 @@ pnpm test:db:cov    # lo mismo, con cobertura de dashboard.service (umbral 90/70
 | `schema.db-spec.ts`                   | La base es la de pruebas; esquema y datos base.                                 |
 | `auth.db-spec.ts`                     | Login, app key, sesión (401) y recuperación de contraseña.                      |
 | `users.db-spec.ts`                    | Usuarios (400/404).                                                             |
-| `evidences.db-spec.ts`                | Crear, ver, estados (403/409), comentar, cancelar, GraphQL, descargas.          |
+| `evidences.db-spec.ts`                | Crear, ver, estados (403/409), comentar, cancelar, lista, descargas.            |
 | `epps.db-spec.ts`                     | Entregas de EPP, frecuencia, formato Excel, equipos, plantas ajenas (404).      |
 | `ciaels.db-spec.ts`                   | CIAEL y sus 13 catálogos.                                                       |
 | `gemba-walk.db-spec.ts`               | Recorrido Gemba completo (observador), comprobante y calendario.                |

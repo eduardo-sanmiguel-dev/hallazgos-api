@@ -228,9 +228,6 @@ export class ApiExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger('ApiExceptionFilter');
 
   catch(exception: unknown, host: ArgumentsHost) {
-    // GraphQL (useEvidences) maneja sus errores por su lado.
-    if (host.getType() !== 'http') return exception;
-
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();

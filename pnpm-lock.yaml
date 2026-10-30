@@ -171,18 +171,12 @@ importers:
 
   .:
     dependencies:
-      '@apollo/server':
-        specifier: ^5.0.0
-        version: 5.5.1(graphql@16.14.2)(supports-color@8.1.1)
       '@as-integrations/express5':
         specifier: ^1.1.2
         version: 1.1.2(@apollo/server@5.5.1(graphql@16.14.2)(supports-color@8.1.1))(express@5.3.0(supports-color@8.1.1))
       '@nestjs-modules/mailer':
         specifier: ^3.0.2
         version: 3.0.2(@nestjs/common@12.3.2(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@12.3.2)(handlebars@4.7.10)(nodemailer@10.2.1)
-      '@nestjs/apollo':
-        specifier: ^14.0.0
-        version: 14.1.1(@apollo/server@5.5.1(graphql@16.14.2)(supports-color@8.1.1))(@as-integrations/express5@1.1.2(@apollo/server@5.5.1(graphql@16.14.2)(supports-color@8.1.1))(express@5.3.0(supports-color@8.1.1)))(@nestjs/common@12.3.2(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@12.3.2)(@nestjs/graphql@14.1.0(@nestjs/common@12.3.2(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@12.3.2)(class-transformer@0.5.1)(class-validator@0.15.1)(graphql@16.14.2)(reflect-metadata@0.2.2)(typescript@6.0.3))(graphql@16.14.2)
       '@nestjs/common':
         specifier: ^12.0.0
         version: 12.3.2(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
@@ -192,9 +186,6 @@ importers:
       '@nestjs/core':
         specifier: ^12.0.0
         version: 12.3.2(@nestjs/common@12.3.2(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/platform-express@12.3.2)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@nestjs/graphql':
-        specifier: ^14.0.0
-        version: 14.1.0(@nestjs/common@12.3.2(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@12.3.2)(class-transformer@0.5.1)(class-validator@0.15.1)(graphql@16.14.2)(reflect-metadata@0.2.2)(typescript@6.0.3)
       '@nestjs/mapped-types':
         specifier: ^12.0.0
         version: 12.0.0(@nestjs/common@12.3.2(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)
@@ -225,9 +216,6 @@ importers:
       '@opentelemetry/instrumentation-express':
         specifier: ^0.72.0
         version: 0.72.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1)
-      '@opentelemetry/instrumentation-graphql':
-        specifier: ^0.72.0
-        version: 0.72.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1)
       '@opentelemetry/instrumentation-http':
         specifier: ^0.300.0
         version: 0.300.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1)
@@ -255,9 +243,6 @@ importers:
       exceljs:
         specifier: ^4.4.0
         version: 4.4.0
-      graphql:
-        specifier: ^16.9.0
-        version: 16.14.2
       handlebars:
         specifier: ^4.7.10
         version: 4.7.10
@@ -1332,28 +1317,6 @@ packages:
       pug:
         optional: true
 
-  '@nestjs/apollo@14.1.1':
-    resolution: {integrity: sha512-2rh9yF89jvgv17n1Jm4FpsFRUrLIb7uayw2MxsBEfAHAZs16D8NR5BPxmQ0Td1551/mU/Ic9awpTCNskWxxWkg==}
-    peerDependencies:
-      '@apollo/gateway': ^2.0.0
-      '@apollo/server': ^5.0.0
-      '@apollo/subgraph': ^2.0.0
-      '@as-integrations/express5': ^1.1.2
-      '@as-integrations/fastify': ^3.1.0
-      '@nestjs/common': ^12.0.0
-      '@nestjs/core': ^12.0.0
-      '@nestjs/graphql': ^14.0.0
-      graphql: ^16.10.0 || ^17.0.0
-    peerDependenciesMeta:
-      '@apollo/gateway':
-        optional: true
-      '@apollo/subgraph':
-        optional: true
-      '@as-integrations/express5':
-        optional: true
-      '@as-integrations/fastify':
-        optional: true
-
   '@nestjs/cli@12.0.11':
     resolution: {integrity: sha512-ExNgbKfhwMNXCV6FbQQnQOcxuubkDPcpYXUh+jkFn5Xm+WkdP+wjYS0KqyZgFSfpY24mST6y50UOEHVsvQME1A==}
     engines: {node: '>= 20.11'}
@@ -1420,30 +1383,6 @@ packages:
       '@nestjs/platform-express':
         optional: true
       '@nestjs/websockets':
-        optional: true
-
-  '@nestjs/graphql@14.1.0':
-    resolution: {integrity: sha512-bBxBDNDSfTKS5GV0AJ/hHQF1r9Rfq8Arn0ZGYsvWj7h7bC2+aJHJmHcDYJW5R7tAJcAxj462HlqmuKM1NC3iUw==}
-    peerDependencies:
-      '@apollo/subgraph': ^2.9.3
-      '@nestjs/common': ^12.0.0
-      '@nestjs/core': ^12.0.0
-      class-transformer: '*'
-      class-validator: '*'
-      graphql: ^16.11.0 || ^17.0.0
-      reflect-metadata: ^0.1.13 || ^0.2.0
-      ts-morph: ^20.0.0 || ^21.0.0 || ^24.0.0 || ^25.0.0 || ^26.0.0 || ^27.0.0 || ^28.0.0
-      typescript: ^5.5.0 || ^6.0.0
-    peerDependenciesMeta:
-      '@apollo/subgraph':
-        optional: true
-      class-transformer:
-        optional: true
-      class-validator:
-        optional: true
-      ts-morph:
-        optional: true
-      typescript:
         optional: true
 
   '@nestjs/mapped-types@12.0.0':
@@ -1644,12 +1583,6 @@ packages:
 
   '@opentelemetry/instrumentation-express@0.72.0':
     resolution: {integrity: sha512-YV1T099/8acoA7giEBWm8NJJy+zyMElFkf5DGGcNsBftrA1TLVpctAKBUaV97TOXa+RlglwmxqtOPsF5+KCbzA==}
-    engines: {node: '>=22.15.0'}
-    peerDependencies:
-      '@opentelemetry/api': ^1.3.0
-
-  '@opentelemetry/instrumentation-graphql@0.72.0':
-    resolution: {integrity: sha512-kyDJXU6t3rPYkY94riEk8MuhTZZ9stNzd5vQ3EYRpFSCdrRwP8gWSSoFnRJVhFWIruC6d5/JdqVFKUjmJ65p+g==}
     engines: {node: '>=22.15.0'}
     peerDependencies:
       '@opentelemetry/api': ^1.3.0
@@ -2821,10 +2754,6 @@ packages:
   chardet@2.2.0:
     resolution: {integrity: sha512-rddelWYNPRrXq6PtNEN2S3f6t9ILzvqaN5pVgi4kqt9jHQaXIial9PznB5iSPVlQSLNaaH22ItWz3EJtQ10+OA==}
 
-  chokidar@4.0.3:
-    resolution: {integrity: sha512-Qgzu8kfBvo+cA4962jnP1KkS6Dop5NS6g7R5LFYJr4b8Ub94PPQXUksCw9PvXoeXPRRddRNC5C1JQUR2SMGtnA==}
-    engines: {node: '>= 14.16.0'}
-
   chokidar@5.0.0:
     resolution: {integrity: sha512-TQMmc3w+5AxjpL8iIiwebF73dRDF4fBIieAqGn9RGCWaEVwQ6Fb2cGe31Yns0RRIzii5goJ1Y7xbMwo1TxMplw==}
     engines: {node: '>= 20.19.0'}
@@ -3549,28 +3478,6 @@ packages:
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
 
-  graphql-tag@2.12.7:
-    resolution: {integrity: sha512-xnE/NFzy+0eIesvAsREJZ284zTl/wYuBAvpsFSDhRGRdRHdnE90M21Q3xAWyYInb0J756c6x0pIQ62+vtvOs1Q==}
-    engines: {node: '>=10'}
-    peerDependencies:
-      graphql: ^0.9.0 || ^0.10.0 || ^0.11.0 || ^0.12.0 || ^0.13.0 || ^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0
-
-  graphql-ws@6.3.0:
-    resolution: {integrity: sha512-qBAXPtFjWHF3QypDyNcBp8Rycd+rmofxUSJsu3bGI9QMMq7pImKBSLSg9hZ2ojIMbJ54T/LPjKBIeOUoJbNBnQ==}
-    engines: {node: '>=20'}
-    peerDependencies:
-      '@fastify/websocket': ^10 || ^11
-      crossws: ~0.3 || ~0.4
-      graphql: ^15.10.1 || ^16 || ^17
-      ws: ^8
-    peerDependenciesMeta:
-      '@fastify/websocket':
-        optional: true
-      crossws:
-        optional: true
-      ws:
-        optional: true
-
   graphql@16.14.2:
     resolution: {integrity: sha512-Chq1s4CY7jmh8gO2qvLIJyfCDIN+EHLFW/9iShnp1z8FjBQMoodWP1kDC36VAMXXIvAjj4ARa7ntfAV2BrjsbA==}
     engines: {node: ^12.22.0 || ^14.16.0 || ^16.0.0 || >=17.0.0}
@@ -3868,9 +3775,6 @@ packages:
     resolution: {integrity: sha512-HGYWWS/ehqTV3xN10i23tkPkpH46MLCIMFNCaaKNavAXTF1RkqxawEPtnjnGZ6XKSInBKkiOA5BKS+aZiY3AvA==}
     engines: {node: '>=8'}
 
-  iterall@1.3.0:
-    resolution: {integrity: sha512-QZ9qOMdF+QLHxy1QIpUHUU1D5pS2CG2P69LF6L6CPjPYA/XMOmKV3PZpawHoAjHNyB0swdVTRxdYT4tbBbxqwg==}
-
   iterare@1.2.1:
     resolution: {integrity: sha512-RKYVTCjAnRthyJes037NX/IiqeidgN1xc3j1RjFfECFp28A1GVwK9nA+i0rJPaHqSZwygLzRnFlzUuHFoWWy+Q==}
     engines: {node: '>=6'}
@@ -4148,9 +4052,6 @@ packages:
 
   lodash.isundefined@3.0.1:
     resolution: {integrity: sha512-MXB1is3s899/cD8jheYYE2V9qTHwKvt+npCwpD+1Sxm3Q3cECXCiYHjeHWXNwr6Q0SOBPrYUDxendrO6goVTEA==}
-
-  lodash.omit@4.18.0:
-    resolution: {integrity: sha512-hZXIupXdHtocTnvIJ2aCd2vxKYtxex6gbiGuPvgBRnFQO9yu3AtmDAbVuCXcSsQx3INo/1g71OktlFFA/ES8Xg==}
 
   lodash.once@4.1.1:
     resolution: {integrity: sha512-Sb487aTOCr9drQVL8pIxOzVhafOjZN9UU54hiN8PU3uAiSV7lx1yYNpbNmex2PK6dSJoNTSJUUswT651yww3Mg==}
@@ -4679,10 +4580,6 @@ packages:
 
   readdir-glob@1.1.3:
     resolution: {integrity: sha512-v05I2k7xN8zXvPD9N+z/uhXPaj0sUFCe2rcWZIpBsqxfP7xXFQ0tipAd/wjj1YxWyWtUS5IDJpOG82JKt2EAVA==}
-
-  readdirp@4.1.2:
-    resolution: {integrity: sha512-GDhwkLfywWL2s6vEjyhri+eXmfH6j1L7JE27WhqLeYzoh/A3DBaYGEj2H/HFZCn/kMfim73FXxEJTw06WtxQwg==}
-    engines: {node: '>= 14.18.0'}
 
   readdirp@5.1.1:
     resolution: {integrity: sha512-Kko+Y5XQ6fM+Ce3dq3m9YGxnacYZYl9cA1wZjaF3Vbry2L3i1qVg8+CAgNPsXRArPMUMCaOR7oa9Nqntc43JKA==}
@@ -5369,18 +5266,6 @@ packages:
   write-file-atomic@5.0.1:
     resolution: {integrity: sha512-+QU2zd6OTD8XWIJCbffaiQeH9U73qIqafo1x6V1snCWYGJf6cVE0cDR4D8xRzcEnfI21IFrUPzPGtcPf8AC+Rw==}
     engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
-
-  ws@8.22.0:
-    resolution: {integrity: sha512-Ydggc987+RO0AnWtZ/7Wq9FtNvcrL1b/RO0ud9mWjUPgDrsAAwQSF51sm2hm1XofbU/4jkpGEsLFsZZxU+1DOg==}
-    engines: {node: '>=10.0.0'}
-    peerDependencies:
-      bufferutil: ^4.0.1
-      utf-8-validate: '>=5.0.2'
-    peerDependenciesMeta:
-      bufferutil:
-        optional: true
-      utf-8-validate:
-        optional: true
 
   xlsx-populate@1.21.0:
     resolution: {integrity: sha512-8v2Gm8BehXo6LU7KT802QoXTPkYY1SKk5V8g/UuYZnNB3JzXqud/P99Pxr2yXeKyt+sKlCatmidz6jQNie1hRw==}
@@ -6467,19 +6352,6 @@ snapshots:
     optionalDependencies:
       handlebars: 4.7.10
 
-  '@nestjs/apollo@14.1.1(@apollo/server@5.5.1(graphql@16.14.2)(supports-color@8.1.1))(@as-integrations/express5@1.1.2(@apollo/server@5.5.1(graphql@16.14.2)(supports-color@8.1.1))(express@5.3.0(supports-color@8.1.1)))(@nestjs/common@12.3.2(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@12.3.2)(@nestjs/graphql@14.1.0(@nestjs/common@12.3.2(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@12.3.2)(class-transformer@0.5.1)(class-validator@0.15.1)(graphql@16.14.2)(reflect-metadata@0.2.2)(typescript@6.0.3))(graphql@16.14.2)':
-    dependencies:
-      '@apollo/server': 5.5.1(graphql@16.14.2)(supports-color@8.1.1)
-      '@nestjs/common': 12.3.2(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
-      '@nestjs/core': 12.3.2(@nestjs/common@12.3.2(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/platform-express@12.3.2)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@nestjs/graphql': 14.1.0(@nestjs/common@12.3.2(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@12.3.2)(class-transformer@0.5.1)(class-validator@0.15.1)(graphql@16.14.2)(reflect-metadata@0.2.2)(typescript@6.0.3)
-      graphql: 16.14.2
-      iterall: 1.3.0
-      lodash.omit: 4.18.0
-      tslib: 2.8.1
-    optionalDependencies:
-      '@as-integrations/express5': 1.1.2(@apollo/server@5.5.1(graphql@16.14.2)(supports-color@8.1.1))(express@5.3.0(supports-color@8.1.1))
-
   '@nestjs/cli@12.0.11(@swc/cli@0.8.1(@swc/core@1.16.20(@swc/helpers@0.5.23))(chokidar@5.0.0)(supports-color@8.1.1))(@swc/core@1.16.20(@swc/helpers@0.5.23))(@types/node@24.19.2)(prettier@3.9.10)':
     dependencies:
       '@angular-devkit/core': 22.2.3(chokidar@5.0.0)
@@ -6541,34 +6413,6 @@ snapshots:
       uid: 2.0.2
     optionalDependencies:
       '@nestjs/platform-express': 12.3.2(@nestjs/common@12.3.2(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@12.3.2)(supports-color@8.1.1)
-
-  '@nestjs/graphql@14.1.0(@nestjs/common@12.3.2(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@12.3.2)(class-transformer@0.5.1)(class-validator@0.15.1)(graphql@16.14.2)(reflect-metadata@0.2.2)(typescript@6.0.3)':
-    dependencies:
-      '@graphql-tools/merge': 9.2.8(graphql@16.14.2)
-      '@graphql-tools/schema': 10.1.5(graphql@16.14.2)
-      '@graphql-tools/utils': 12.1.0(graphql@16.14.2)
-      '@nestjs/common': 12.3.2(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1)
-      '@nestjs/core': 12.3.2(@nestjs/common@12.3.2(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/platform-express@12.3.2)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@nestjs/mapped-types': 12.0.0(@nestjs/common@12.3.2(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)
-      chokidar: 4.0.3
-      es-toolkit: 1.52.0
-      graphql: 16.14.2
-      graphql-tag: 2.12.7(graphql@16.14.2)
-      graphql-ws: 6.3.0(graphql@16.14.2)(ws@8.22.0)
-      normalize-path: 3.0.0
-      reflect-metadata: 0.2.2
-      tinyglobby: 0.2.17
-      tslib: 2.8.1
-      ws: 8.22.0
-    optionalDependencies:
-      class-transformer: 0.5.1
-      class-validator: 0.15.1
-      typescript: 6.0.3
-    transitivePeerDependencies:
-      - '@fastify/websocket'
-      - bufferutil
-      - crossws
-      - utf-8-validate
 
   '@nestjs/mapped-types@12.0.0(@nestjs/common@12.3.2(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)':
     dependencies:
@@ -6759,13 +6603,6 @@ snapshots:
       '@opentelemetry/core': 3.0.0(@opentelemetry/api@1.10.0)
       '@opentelemetry/instrumentation': 0.300.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1)
       '@opentelemetry/semantic-conventions': 1.43.0
-    transitivePeerDependencies:
-      - supports-color
-
-  '@opentelemetry/instrumentation-graphql@0.72.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1)':
-    dependencies:
-      '@opentelemetry/api': 1.10.0
-      '@opentelemetry/instrumentation': 0.300.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
 
@@ -7957,10 +7794,6 @@ snapshots:
 
   chardet@2.2.0: {}
 
-  chokidar@4.0.3:
-    dependencies:
-      readdirp: 4.1.2
-
   chokidar@5.0.0:
     dependencies:
       readdirp: 5.1.1
@@ -8801,17 +8634,6 @@ snapshots:
 
   graceful-fs@4.2.11: {}
 
-  graphql-tag@2.12.7(graphql@16.14.2):
-    dependencies:
-      graphql: 16.14.2
-      tslib: 2.8.1
-
-  graphql-ws@6.3.0(graphql@16.14.2)(ws@8.22.0):
-    dependencies:
-      graphql: 16.14.2
-    optionalDependencies:
-      ws: 8.22.0
-
   graphql@16.14.2: {}
 
   handlebars@4.7.10:
@@ -9088,8 +8910,6 @@ snapshots:
     dependencies:
       html-escaper: 2.0.2
       istanbul-lib-report: 3.0.1
-
-  iterall@1.3.0: {}
 
   iterare@1.2.1: {}
 
@@ -9554,8 +9374,6 @@ snapshots:
   lodash.isstring@4.0.1: {}
 
   lodash.isundefined@3.0.1: {}
-
-  lodash.omit@4.18.0: {}
 
   lodash.once@4.1.1: {}
 
@@ -10037,8 +9855,6 @@ snapshots:
   readdir-glob@1.1.3:
     dependencies:
       minimatch: 5.1.9
-
-  readdirp@4.1.2: {}
 
   readdirp@5.1.1: {}
 
@@ -10858,8 +10674,6 @@ snapshots:
     dependencies:
       imurmurhash: 0.1.4
       signal-exit: 4.1.0
-
-  ws@8.22.0: {}
 
   xlsx-populate@1.21.0:
     dependencies:

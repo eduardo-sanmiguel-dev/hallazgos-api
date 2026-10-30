@@ -39,8 +39,6 @@ export class DeleteUploadsOnErrorInterceptor implements NestInterceptor {
   private readonly logger = new Logger(DeleteUploadsOnErrorInterceptor.name);
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
-    if (context.getType() !== 'http') return next.handle();
-
     const req = context.switchToHttp().getRequest<Request>();
 
     return next

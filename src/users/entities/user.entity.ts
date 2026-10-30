@@ -1,5 +1,3 @@
-import { Field, ID, ObjectType } from '@nestjs/graphql';
-
 import * as argon2 from 'argon2';
 import {
   Entity,
@@ -25,67 +23,53 @@ import { Epp } from '../../epps/entities/epp.entity.js';
 import { Ics } from '../../ics/entities/ics.entity.js';
 
 @Entity()
-@ObjectType()
 export class User {
   @PrimaryGeneratedColumn()
-  @Field(() => ID)
   id: number;
 
   @Column()
-  @Field(() => String)
   name: string;
 
   @Column({ unique: true })
-  @Field(() => String)
   email: string;
 
   @Column({ select: false })
-  @Field(() => String)
   password: string;
 
   @Column()
-  @Field(() => String)
   role: string;
 
   @Column({ default: true })
-  @Field(() => Boolean)
   isActive: boolean;
 
   @CreateDateColumn()
-  @Field(() => Date)
   createdAt: Date;
 
   @UpdateDateColumn()
-  @Field(() => Date)
   updatedAt: Date;
 
   @ManyToMany(() => ManufacturingPlant)
   @JoinTable({
     name: 'user_manufacturing_plants',
   })
-  @Field(() => [ManufacturingPlant])
   manufacturingPlants: Relation<ManufacturingPlant[]>;
 
   @ManyToMany(() => Zone)
   @JoinTable({
     name: 'user_zones',
   })
-  @Field(() => [Zone])
   zones: Relation<Zone[]>;
 
   @ManyToMany(() => Processes)
   @JoinTable({
     name: 'user_processes',
   })
-  @Field(() => [Processes])
   processes: Relation<Processes[]>;
 
   @OneToMany(() => Evidence, (evidence) => evidence.user)
-  @Field(() => [Evidence])
   evidences: Relation<Evidence[]>;
 
   @OneToMany(() => Comment, (evidence) => evidence.user)
-  @Field(() => [Comment])
   comments: Relation<Comment[]>;
 
   @OneToMany(() => Ics, (ics) => ics.createdBy)

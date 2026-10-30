@@ -1,5 +1,3 @@
-import { Field, ID, ObjectType } from '@nestjs/graphql';
-
 import {
   Entity,
   Column,
@@ -28,55 +26,41 @@ import { Equipment } from '../../equipments/entities/index.js';
 import { Employee } from '../../employees/entities/index.js';
 import { Ics } from '../../ics/entities/ics.entity.js';
 @Entity()
-@ObjectType()
 export class ManufacturingPlant {
   @PrimaryGeneratedColumn()
-  @Field(() => ID)
   id: number;
 
   @Column({ unique: true })
-  @Field(() => String)
   name: string;
 
   @Column({ unique: true })
-  @Field(() => String)
   link: string;
 
   @Column('decimal', { unique: true })
-  @Field(() => Number)
   lat: number;
 
   @Column('decimal', { unique: true })
-  @Field(() => Number)
   lng: number;
 
   @Column({ default: true })
-  @Field(() => Boolean, {
-    defaultValue: true,
-  })
   isActive: boolean;
 
   @CreateDateColumn()
-  @Field(() => Date)
   createdAt: Date;
 
   @UpdateDateColumn()
-  @Field(() => Date)
   updatedAt: Date;
 
   @OneToMany(() => Evidence, (evidence) => evidence.manufacturingPlant)
-  @Field(() => [Evidence])
   evidences: Relation<Evidence[]>;
 
   @OneToMany(() => Zone, (zone) => zone.manufacturingPlant)
-  @Field(() => [Zone])
   zones: Relation<Zone[]>;
 
   @OneToMany(() => Area, (area) => area.manufacturingPlant)
   areas: Relation<Area[]>;
 
   @OneToMany(() => Processes, (processes) => processes.manufacturingPlant)
-  @Field(() => [Processes])
   processes: Relation<Processes[]>;
 
   @ManyToOne(() => Country, (country) => country.manufacturingPlants)
