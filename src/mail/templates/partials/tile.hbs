@@ -1,16 +1,16 @@
 {{! Indicador: etiqueta, valor destacado (con un punto de color) y una nota.
     `t` viene de mail.view.ts (TileView); `pad` separa las tarjetas. }}
 <td class="stack stack-gap" width="{{width}}" valign="top" style="padding: {{pad}};">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f5f8f3" style="background-color: #f5f8f3; border: 1px solid #e6ece4; border-radius: 14px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f9fafb" style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 14px;">
     <tr>
       <td style="padding: 14px 16px 15px 16px;">
-        <p style="margin: 0; font-size: 10px; line-height: 14px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #6b7a71;">
+        <p style="margin: 0; font-size: 10px; line-height: 14px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #6b7280;">
           {{label}}
         </p>
         <p style="margin: 6px 0 0 0; font-size: 17px; line-height: 23px; font-weight: 800; color: {{t.valueColor}};">
           <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: {{t.dot}}; vertical-align: middle; margin: -2px 7px 0 0;"></span>{{t.value}}
         </p>
-        <p style="margin: 3px 0 0 0; font-size: 12px; line-height: 17px; color: #6b7a71;">
+        <p style="margin: 3px 0 0 0; font-size: 12px; line-height: 17px; color: #6b7280;">
           {{t.hint}}
         </p>
       </td>
