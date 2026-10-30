@@ -1008,6 +1008,18 @@ describe('EvidencesService', () => {
         },
       );
 
+      // Antes no se registraba quién reasignaba.
+      it('registra quién reasignó y cuándo', async () => {
+        await reassign(supervisor, [newResponsible.id]);
+
+        expect(evidences.save).toHaveBeenCalledWith(
+          expect.objectContaining({
+            reassignedBy: { id: supervisor.id },
+            reassignedAt: expect.any(Date),
+          }),
+        );
+      });
+
       it('responde sin esperar a que salgan los correos', async () => {
         mail.sendReassign.mockReturnValue(new Promise(() => {}));
 

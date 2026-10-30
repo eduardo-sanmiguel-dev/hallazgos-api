@@ -74,13 +74,13 @@ describe('MailService', () => {
 
       expect(sent()).toMatchObject({
         to: 'ana@hallazgos.test',
-        from: '"Hada app (hallazgo creado)" <app@hallazgos.test>',
+        from: '"ComportArte (hallazgo creado)" <app@hallazgos.test>',
         // Mismo asunto en todos los avisos del hallazgo: una conversación.
         subject: 'Hallazgo #42 · Tepotzotlán - Condición insegura',
         template: './create',
         context: {
           id: 42,
-          supervisor: 'S1 / S2',
+          supervisor: 'S1, S2',
           userWhoCreated: 'Quien reporta',
           priorityLabel: 'Corto plazo (8 dias)',
           remainingDays: '5',
@@ -165,7 +165,7 @@ describe('MailService', () => {
         context: {
           reassignedBy: 'Supervisor Uno',
           previousResponsibles: 'R1',
-          currentResponsibles: 'R2 / R3',
+          currentResponsibles: 'R2, R3',
         },
       });
     });
@@ -374,9 +374,9 @@ describe('MailService', () => {
       });
 
       expect(sent()).toMatchObject({
-        from: '"Hada app (hallazgo cancelado)" <app@hallazgos.test>',
+        from: '"ComportArte (hallazgo cancelado)" <app@hallazgos.test>',
         template: './cancel',
-        context: { cancelledByName: 'Supervisor Uno', supervisor: 'S1 / S2' },
+        context: { cancelledByName: 'Supervisor Uno', supervisor: 'S1, S2' },
       });
     });
 
@@ -396,6 +396,7 @@ describe('MailService', () => {
 
     expect(sent()).toMatchObject({
       to: 'ana@hallazgos.test',
+      from: '"ComportArte (restablecimiento de contraseña)" <app@hallazgos.test>',
       subject: 'Restablecimiento de contraseña',
       template: './forgot-password',
       context: {

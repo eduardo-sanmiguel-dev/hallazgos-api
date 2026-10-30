@@ -324,6 +324,28 @@ describe('E2E: hallazgos', () => {
         .send({ responsibleIds: [e2e.base.users.admin.id] })
         .expect(200);
     });
+
+    it('guarda quién reasignó y cuándo; sin reasignar, nulos', async () => {
+      const { id } = await saveEvidence(e2e.dataSource, e2e.base);
+      const detail = () =>
+        e2e.call('get', `/evidences/${id}`, e2e.tokens.admin).expect(200);
+
+      expect((await detail()).body).toMatchObject({
+        reassignedBy: null,
+        reassignedAt: null,
+      });
+
+      await e2e
+        .call('patch', `/evidences/reassign/${id}`, e2e.tokens.supervisor)
+        .send({ responsibleIds: [e2e.base.users.admin.id] })
+        .expect(200);
+
+      const { body } = await detail();
+      expect(body.reassignedBy).toMatchObject({
+        id: e2e.base.users.supervisor.id,
+      });
+      expect(new Date(body.reassignedAt).getTime()).not.toBeNaN();
+    });
   });
 
   describe('imágenes de peticiones rechazadas', () => {

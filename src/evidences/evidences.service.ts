@@ -156,6 +156,7 @@ export class EvidencesService {
     'process',
     'startedBy',
     'closedBy',
+    'reassignedBy',
   ];
 
   getPermissionsConfig() {
@@ -1577,6 +1578,14 @@ export class EvidencesService {
       }
     }
 
+    // Hora local de la planta, como startProcessDate.
+    const colombianIds =
+      await this.manufacturingPlantsService.getColombianPlantsIds();
+    const reassignedAt = getColombiaNow(
+      colombianIds,
+      evidence.manufacturingPlant.id,
+    );
+
     await this.evidenceRepository.manager.transaction(async (manager) => {
       const repository = manager.getRepository(Evidence);
       const current = await repository.findOne({
@@ -1601,6 +1610,9 @@ export class EvidencesService {
         id: evidence.id,
         responsibles: nextResponsibles,
         updatedAt: new Date(),
+        // Quién hizo esta reasignación (antes no se registraba).
+        reassignedBy: { id: requestUser.id } as User,
+        reassignedAt,
       });
     });
 

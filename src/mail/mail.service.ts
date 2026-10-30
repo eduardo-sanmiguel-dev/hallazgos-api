@@ -98,7 +98,8 @@ const getResolution = (
   };
 };
 
-const names = (users: User[]) => users.map(({ name }) => name).join(' / ');
+// Separados con coma, como en los detalles del correo (antes " / ").
+const names = (users: User[]) => users.map(({ name }) => name).join(', ');
 
 type ImageField = 'imgEvidence' | 'imgProcess' | 'imgSolution';
 
@@ -126,6 +127,11 @@ export class MailService {
       return 'eduardo-266@hotmail.com';
     }
     return '';
+  }
+
+  /** Remitente con el nombre del sistema y el aviso: "ComportArte (…)". */
+  private sender(notice: string) {
+    return `"ComportArte (${notice})" <${this.MAIL_USER_APP}>`;
   }
 
   /**
@@ -211,6 +217,28 @@ export class MailService {
       : null;
   }
 
+  /**
+   * Foto del hallazgo y, si ya pasó por "En progreso", la del avance
+   * (reasignado y cancelado: el hallazgo puede estar en cualquiera).
+   */
+  private progressPhotos(evidence: Evidence) {
+    return photosView(evidence.imgProcess ? 'Antes y avance' : 'Evidencia', [
+      this.evidencePhoto(evidence),
+      this.processPhoto(evidence),
+    ]);
+  }
+
+  /** Foto con la que se pasó a "En progreso" (avance). */
+  private processPhoto(evidence: Evidence) {
+    return evidence.imgProcess
+      ? {
+          cid: 'imgProcess',
+          caption: 'Avance',
+          color: MAIL_THEMES.inProgress.accent,
+        }
+      : null;
+  }
+
   async sendCreate({
     user,
     evidenceCurrent,
@@ -227,7 +255,7 @@ export class MailService {
     await this.mailerService
       .sendMail({
         to: this.emailTest || user.email,
-        from: `"Hada app (hallazgo creado)" <${this.MAIL_USER_APP}>`,
+        from: this.sender('hallazgo creado'),
         subject: this.subject(evidenceCurrent),
         template: './create',
         context: {
@@ -275,7 +303,7 @@ export class MailService {
 
     await this.mailerService.sendMail({
       to: this.emailTest || user.email,
-      from: `"Hada app (hallazgo reasignado)" <${this.MAIL_USER_APP}>`,
+      from: this.sender('hallazgo reasignado'),
       subject: this.subject(evidenceCurrent),
       template: './reassign',
       context: {
@@ -295,10 +323,13 @@ export class MailService {
           ['Plazo', deadlineTile(base.remainingDays)],
           ['Registrado', dateTile(evidenceCurrent.createdAt)],
         ]),
-        ...photosView('Evidencia', [this.evidencePhoto(evidenceCurrent)]),
+        ...this.progressPhotos(evidenceCurrent),
       },
       attachments: [
-        ...this.imageAttachments(evidenceCurrent, ['imgEvidence']),
+        ...this.imageAttachments(evidenceCurrent, [
+          'imgEvidence',
+          'imgProcess',
+        ]),
         ...LOGO_ATTACHMENTS,
       ],
     });
@@ -321,7 +352,7 @@ export class MailService {
 
     await this.mailerService.sendMail({
       to: this.emailTest || user.email,
-      from: `"Hada app (hallazgo solucionado)" <${this.MAIL_USER_APP}>`,
+      from: this.sender('hallazgo solucionado'),
       subject: this.subject(evidenceCurrent),
       template: './solution',
       context: {
@@ -356,20 +387,28 @@ export class MailService {
           ['Prioridad', priorityTile(evidenceCurrent.priorityDays)],
           ['Solucionado', dateTile(evidenceCurrent.solutionDate)],
         ]),
-        ...photosView('Antes y después', [
-          this.evidencePhoto(evidenceCurrent),
-          evidenceCurrent.imgSolution
-            ? {
-                cid: 'imgSolution',
-                caption: 'Solución',
-                color: MAIL_THEMES.solution.accent,
-              }
-            : null,
-        ]),
+        // Hallazgo, avance (si pasó por "En progreso") y solución.
+        ...photosView(
+          evidenceCurrent.imgProcess
+            ? 'Antes, avance y después'
+            : 'Antes y después',
+          [
+            this.evidencePhoto(evidenceCurrent),
+            this.processPhoto(evidenceCurrent),
+            evidenceCurrent.imgSolution
+              ? {
+                  cid: 'imgSolution',
+                  caption: 'Solución',
+                  color: MAIL_THEMES.solution.accent,
+                }
+              : null,
+          ],
+        ),
       },
       attachments: [
         ...this.imageAttachments(evidenceCurrent, [
           'imgEvidence',
+          'imgProcess',
           'imgSolution',
         ]),
         ...LOGO_ATTACHMENTS,
@@ -392,7 +431,7 @@ export class MailService {
 
     await this.mailerService.sendMail({
       to: this.emailTest || user.email,
-      from: `"Hada app (hallazgo en progreso)" <${this.MAIL_USER_APP}>`,
+      from: this.sender('hallazgo en progreso'),
       subject: this.subject(evidence),
       template: './in-progress',
       context: {
@@ -409,13 +448,7 @@ export class MailService {
         ]),
         ...photosView('Antes y avance', [
           this.evidencePhoto(evidence),
-          evidence.imgProcess
-            ? {
-                cid: 'imgProcess',
-                caption: 'Avance',
-                color: MAIL_THEMES.inProgress.accent,
-              }
-            : null,
+          this.processPhoto(evidence),
         ]),
       },
       attachments: [
@@ -443,7 +476,7 @@ export class MailService {
 
     await this.mailerService.sendMail({
       to: this.emailTest || user.email,
-      from: `"Hada app (hallazgo cancelado)" <${this.MAIL_USER_APP}>`,
+      from: this.sender('hallazgo cancelado'),
       subject: this.subject(evidenceCurrent),
       template: './cancel',
       context: {
@@ -458,10 +491,13 @@ export class MailService {
           ['Cancelado', dateTile(now)],
           ['Registrado', dateTile(evidenceCurrent.createdAt)],
         ]),
-        ...photosView('Evidencia', [this.evidencePhoto(evidenceCurrent)]),
+        ...this.progressPhotos(evidenceCurrent),
       },
       attachments: [
-        ...this.imageAttachments(evidenceCurrent, ['imgEvidence']),
+        ...this.imageAttachments(evidenceCurrent, [
+          'imgEvidence',
+          'imgProcess',
+        ]),
         ...LOGO_ATTACHMENTS,
       ],
     });
@@ -470,7 +506,7 @@ export class MailService {
   async sendForgotPassword(email: string, token: string) {
     await this.mailerService.sendMail({
       to: this.emailTest || email,
-      from: `"Hada app (restablecimiento de contraseña)" <${this.MAIL_USER_APP}>`,
+      from: this.sender('restablecimiento de contraseña'),
       subject: 'Restablecimiento de contraseña',
       template: './forgot-password',
       context: {
