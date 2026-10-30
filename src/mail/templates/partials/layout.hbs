@@ -24,27 +24,29 @@
       </style>
     <![endif]-->
   </head>
-  <body style="margin: 0; padding: 0; background-color: #eef2ec; -webkit-text-size-adjust: 100%;">
+  <body style="margin: 0; padding: 0; background-color: #f3f4f6; -webkit-text-size-adjust: 100%;">
     {{! Vista previa en la bandeja; el relleno evita que se cuele el cuerpo. }}
     <div style="display: none; max-height: 0; overflow: hidden; opacity: 0; color: transparent; mso-hide: all;">
       {{preheader}}&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;
     </div>
 
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#eef2ec" style="background-color: #eef2ec;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f3f4f6" style="background-color: #f3f4f6;">
       <tr>
         <td align="center" style="padding: 28px 12px 36px 12px;">
           <!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" align="center"><tr><td><![endif]-->
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
 
-            {{! Marca }}
+            {{! Marca. El logo trae su fondo blanco: el modo oscuro de Outlook
+                invierte los fondos, no las imágenes, y "International" (gris)
+                dejaba de leerse. }}
             <tr>
               <td style="padding: 0 6px 18px 6px;">
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                   <tr>
                     <td valign="middle">
-                      <img src="cid:logoHada" width="104" alt="Hada International" style="display: block; width: 104px; height: auto; border: 0;" />
+                      <img src="cid:logoHada" width="128" alt="Hada International" style="display: block; width: 128px; height: auto; border: 0;" />
                     </td>
-                    <td valign="middle" align="right" style="font-size: 11px; line-height: 16px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #6b7a71;">
+                    <td valign="middle" align="right" style="font-size: 11px; line-height: 16px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #6b7280;">
                       {{theme.kicker}}
                     </td>
                   </tr>
@@ -54,7 +56,7 @@
 
             {{! Tarjeta }}
             <tr>
-              <td bgcolor="#ffffff" style="background-color: #ffffff; border: 1px solid #e1e8df; border-radius: 20px; overflow: hidden;">
+              <td bgcolor="#ffffff" style="background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 20px; overflow: hidden;">
 
                 {{! Encabezado sobre la tarjeta (sin bloque de color): franja y
                     etiqueta con el color del estatus, como en la UI. }}
@@ -71,11 +73,11 @@
                           </td>
                         </tr>
                       </table>
-                      <h1 class="hero-title" style="margin: 18px 0 0 0; font-size: 34px; line-height: 40px; font-weight: 800; letter-spacing: -0.02em; color: #13221a;">
+                      <h1 class="hero-title" style="margin: 18px 0 0 0; font-size: 34px; line-height: 40px; font-weight: 800; letter-spacing: -0.02em; color: #111827;">
                         {{title}}
                       </h1>
                       {{#if subtitle}}
-                        <p style="margin: 8px 0 0 0; font-size: 16px; line-height: 24px; color: #5b6b61;">
+                        <p style="margin: 8px 0 0 0; font-size: 16px; line-height: 24px; color: #4b5563;">
                           {{subtitle}}
                         </p>
                       {{/if}}
@@ -86,7 +88,7 @@
                 {{! Contenido de cada aviso }}
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                   <tr>
-                    <td class="px" style="padding: 30px 36px 34px 36px; color: #3d4b43;">
+                    <td class="px" style="padding: 30px 36px 34px 36px; color: #374151;">
                       {{> @partial-block}}
                     </td>
                   </tr>
@@ -98,10 +100,10 @@
             <tr>
               <td align="center" style="padding: 30px 16px 0 16px;">
                 <img src="cid:logoComportarte" width="260" alt="ComportArte" style="display: block; width: 260px; max-width: 100%; height: auto; border: 0;" />
-                <p style="margin: 16px 0 0 0; font-size: 12px; line-height: 19px; color: #6b7a71;">
+                <p style="margin: 16px 0 0 0; font-size: 12px; line-height: 19px; color: #6b7280;">
                   Mensaje automático de ComportArte. Por favor no respondas a este correo.
                 </p>
-                <p style="margin: 6px 0 0 0; font-size: 11px; line-height: 17px; color: #94a199;">
+                <p style="margin: 6px 0 0 0; font-size: 11px; line-height: 17px; color: #9ca3af;">
                   © {{year}} Hada International · La magia de hacerlo bien.
                 </p>
               </td>

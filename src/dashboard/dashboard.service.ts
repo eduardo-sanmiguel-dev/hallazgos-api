@@ -3572,7 +3572,8 @@ export class DashboardService {
             );
             return item ? Number(item.open) : 0;
           }),
-          color: '#FF7599',
+          // Mismos colores de estatus que la UI (Abierto / Cerrado).
+          color: '#B45309',
         },
         {
           name: 'Cerrados',
@@ -3582,7 +3583,7 @@ export class DashboardService {
             );
             return item ? Number(item.closed) : 0;
           }),
-          color: '#71BF44',
+          color: '#15803D',
         },
       ],
     };

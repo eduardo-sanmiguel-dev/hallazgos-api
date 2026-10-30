@@ -39,11 +39,12 @@ export const LOGO_ATTACHMENTS = [
   },
 ];
 
-export const BRAND_GREEN = '#77b72a';
-const PENDING = '#dfe6dd';
-const INK = '#13221a';
+// Hecho / a tiempo: el verde de "Cerrado" (como el seguimiento de la UI).
+export const DONE_GREEN = '#15803d';
+const PENDING = '#e5e7eb';
+const INK = '#111827';
 const DANGER = '#d32f2f';
-const NEUTRAL_DOT = '#94a199';
+const NEUTRAL_DOT = '#9ca3af';
 
 export interface MailTheme {
   eyebrow: string;
@@ -52,13 +53,14 @@ export interface MailTheme {
 }
 
 // Color de acento por aviso (franja, etiqueta, paso actual y citas): los
-// mismos colores de estatus que la UI (semanticTones + tema claro): ámbar
-// abierto, azul en progreso, verde cerrado, rojo cancelado.
+// mismos colores de estatus que la UI (EVIDENCE_STATUS_COLOR en
+// semanticTones): ámbar abierto, azul en progreso, verde cerrado, gris
+// cancelado. El rojo queda solo para lo urgente (plazo vencido).
 export const STATUS_ACCENTS: Record<string, string> = {
   [STATUS_OPEN]: '#b45309',
-  [STATUS_IN_PROGRESS]: '#0277bd',
-  [STATUS_CLOSE]: '#2e7d32',
-  [STATUS_CANCEL]: '#d32f2f',
+  [STATUS_IN_PROGRESS]: '#1d4ed8',
+  [STATUS_CLOSE]: '#15803d',
+  [STATUS_CANCEL]: '#6b7280',
 };
 
 export const MAIL_THEMES = {
@@ -127,7 +129,7 @@ export const deadlineTile = (remainingDays: string) => {
   const days = Number(remainingDays);
   if (days < 0) return tile('Vencido', `Hace ${plural(-days)}`, DANGER, DANGER);
   if (days === 0) return tile('Hoy', 'Vence hoy', DANGER, DANGER);
-  return tile(plural(days), 'Para atenderlo', BRAND_GREEN);
+  return tile(plural(days), 'Para atenderlo', DONE_GREEN);
 };
 
 /** Prioridad con el color del dashboard (punto junto al nombre). */
@@ -148,10 +150,10 @@ export const resolutionTile = (
 ) => {
   if (!resolution) return tile('—', 'Sin fecha de solución');
   if (!resolution.statusLabel) {
-    return tile(resolution.daysLabel, 'Sin plazo definido', BRAND_GREEN);
+    return tile(resolution.daysLabel, 'Sin plazo definido', DONE_GREEN);
   }
   return resolution.isOnTime
-    ? tile(resolution.daysLabel, resolution.statusLabel, BRAND_GREEN)
+    ? tile(resolution.daysLabel, resolution.statusLabel, DONE_GREEN)
     : tile(resolution.daysLabel, resolution.statusLabel, DANGER, DANGER);
 };
 
@@ -267,8 +269,8 @@ export const evidenceSteps = (
       label,
       date: reached ? date : skipped ? 'Sin registro' : 'Pendiente',
       person: reached ? person : '',
-      color: isCurrent ? accent : reached ? BRAND_GREEN : PENDING,
-      labelColor: reached ? '#13221a' : '#8a978f',
+      color: isCurrent ? accent : reached ? DONE_GREEN : PENDING,
+      labelColor: reached ? '#111827' : '#9ca3af',
     };
   });
 };

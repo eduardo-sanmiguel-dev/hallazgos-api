@@ -166,7 +166,7 @@ describe('Plantillas de correo', () => {
     );
 
     expect(created).toBe('#b45309');
-    expect(reassigned).toBe('#0277bd');
+    expect(reassigned).toBe('#1d4ed8');
   });
 
   it('el texto de los usuarios sale escapado', async () => {
