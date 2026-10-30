@@ -169,6 +169,17 @@ describe('Plantillas de correo', () => {
     expect(reassigned).toBe('#1d4ed8');
   });
 
+  // El remitente lleva el nombre del sistema (antes "Hada app").
+  it.each(Object.entries(SENDERS))(
+    '%s sale como "ComportArte (…)"',
+    async (_, send) => {
+      await send(evidence());
+      expect(sendMail.mock.calls[0][0].from).toMatch(
+        /^"ComportArte \(hallazgo [^)]+\)" <app@hallazgos\.test>$/,
+      );
+    },
+  );
+
   it('el texto de los usuarios sale escapado', async () => {
     await service.sendCreate({
       user: recipient,
@@ -184,7 +195,7 @@ describe('Plantillas de correo', () => {
     expect(html).not.toContain('<b>Ana</b>');
   });
 
-  it('la solución muestra antes y después, y la resolución en tiempo', async () => {
+  it('la solución muestra hallazgo, avance y solución en orden, y la resolución en tiempo', async () => {
     await service.sendSolution({
       user: recipient,
       evidenceCurrent: evidence({
@@ -194,10 +205,48 @@ describe('Plantillas de correo', () => {
     });
     const html = await render(sendMail.mock.calls[0][0]);
 
-    expect(html).toContain('Antes y después');
+    expect(html).toContain('Antes, avance y después');
+    // Tres fotos lado a lado, del mismo ancho y en este orden.
+    expect(cids(html)).toEqual(
+      expect.arrayContaining(['imgEvidence', 'imgProcess', 'imgSolution']),
+    );
+    const order = ['cid:imgEvidence', 'cid:imgProcess', 'cid:imgSolution'].map(
+      (cid) => html.indexOf(cid),
+    );
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+    expect(html.match(/max-width: 168px/g)).toHaveLength(3);
     expect(html).toContain('Cómo se resolvió');
     expect(html).toContain('Se colocó charola antiderrames');
     expect(html).toContain('En tiempo');
+  });
+
+  it.each(['reassign', 'cancel'] as const)(
+    '%s: si ya pasó por "en progreso", también la foto del avance',
+    async (name) => {
+      await SENDERS[name](evidence(withPhotos));
+      await SENDERS[name](evidence({ ...withPhotos, imgProcess: null }));
+      const [withProcess, withoutProcess] = await Promise.all(
+        sendMail.mock.calls.map(([mail]) => render(mail)),
+      );
+
+      expect(withProcess).toContain('Antes y avance');
+      expect(withProcess).toContain('cid:imgProcess');
+      expect(withoutProcess).toContain('Evidencia');
+      expect(withoutProcess).not.toContain('cid:imgProcess');
+    },
+  );
+
+  it('sin foto de avance (cerrado sin pasar por "en progreso"): antes y después', async () => {
+    await service.sendSolution({
+      user: recipient,
+      evidenceCurrent: evidence({ ...withPhotos, imgProcess: null }),
+    });
+    const mail = sendMail.mock.calls[0][0];
+    const html = await render(mail);
+
+    expect(html).toContain('Antes y después');
+    expect(html).not.toContain('cid:imgProcess');
+    expect(html.match(/max-width: 258px/g)).toHaveLength(2);
   });
 
   // Etiquetas neutras: la descripción no depende de la clasificación (antes

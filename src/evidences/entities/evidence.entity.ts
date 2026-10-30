@@ -111,6 +111,21 @@ export class Evidence {
   @Index('IDX_evidence_closedById')
   closedBy?: Relation<User> | null;
 
+  // Quién hizo la última reasignación de responsables y cuándo (hora local
+  // de la planta, como startProcessDate). Nulos en los hallazgos que nunca
+  // se reasignaron o se reasignaron antes de esta columna. Ver la migración
+  // AddReassignedByToEvidence1793100000000.
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({
+    name: 'reassignedById',
+    foreignKeyConstraintName: 'FK_evidence_reassignedById',
+  })
+  @Index('IDX_evidence_reassignedById')
+  reassignedBy?: Relation<User> | null;
+
+  @Column({ type: 'timestamp', nullable: true, default: null })
+  reassignedAt?: Date | null;
+
   @ManyToMany(() => User)
   @JoinTable()
   supervisors: Relation<User[]>;

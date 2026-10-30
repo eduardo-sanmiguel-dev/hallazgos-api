@@ -174,38 +174,50 @@ interface PhotoRef {
   color: string;
 }
 
+// Ancho útil de la tarjeta (600 menos márgenes) y separación entre fotos.
+const CONTENT_WIDTH = 528;
+const PHOTO_GAP = 12;
+
 /**
- * Fotos del aviso: dos lado a lado (antes / después) o una sola. Solo las
- * que existen: la plantilla nunca apunta a un adjunto que no se envió.
+ * Fotos del aviso: varias lado a lado (antes, avance, después; en celular se
+ * apilan) o una sola centrada. Solo las que existen: la plantilla nunca
+ * apunta a un adjunto que no se envió.
  */
 export const photosView = (heading: string, photos: (PhotoRef | null)[]) => {
-  const [first, second] = photos.filter((photo): photo is PhotoRef => !!photo);
-  if (first && second) {
+  const present = photos.filter((photo): photo is PhotoRef => !!photo);
+  if (present.length > 1) {
+    const count = present.length;
+    const imgWidth = Math.floor(
+      (CONTENT_WIDTH - PHOTO_GAP * (count - 1)) / count,
+    );
+    const half = PHOTO_GAP / 2;
     return {
       photo: null,
-      photoPair: {
+      photoRow: {
         heading,
-        leftCid: first.cid,
-        leftCaption: first.caption,
-        leftColor: first.color,
-        rightCid: second.cid,
-        rightCaption: second.caption,
-        rightColor: second.color,
+        items: present.map((photo, index) => ({
+          ...photo,
+          imgWidth,
+          width: `${Math.floor(100 / count)}%`,
+          // Separación solo entre fotos (no en los bordes de la tarjeta).
+          pad: `0 ${index < count - 1 ? half : 0}px 0 ${index > 0 ? half : 0}px`,
+        })),
       },
     };
   }
-  if (first) {
+  if (present.length === 1) {
+    const [only] = present;
     return {
-      photoPair: null,
+      photoRow: null,
       photo: {
         heading,
-        cid: first.cid,
-        alt: first.caption,
-        caption: first.caption,
+        cid: only.cid,
+        alt: only.caption,
+        caption: only.caption,
       },
     };
   }
-  return { photo: null, photoPair: null };
+  return { photo: null, photoRow: null };
 };
 
 export interface StepView {
