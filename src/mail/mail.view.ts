@@ -3,6 +3,12 @@ import { join } from 'path';
 import { Evidence } from '../evidences/entities/evidence.entity.js';
 import { stringToDateWithTime } from '../shared/utils/index.js';
 import { priorityLevelByDays } from '../shared/constants/priority.js';
+import {
+  STATUS_CANCEL,
+  STATUS_CLOSE,
+  STATUS_IN_PROGRESS,
+  STATUS_OPEN,
+} from '../shared/constants/index.js';
 
 // Datos de presentación de los correos: tema de cada aviso, pasos del
 // seguimiento, plazo y la cuadrícula de detalles. Las plantillas (Handlebars,
@@ -36,7 +42,7 @@ export const LOGO_ATTACHMENTS = [
 export const BRAND_GREEN = '#77b72a';
 const PENDING = '#dfe6dd';
 const INK = '#13221a';
-const DANGER = '#b91c1c';
+const DANGER = '#d32f2f';
 const NEUTRAL_DOT = '#94a199';
 
 export interface MailTheme {
@@ -45,21 +51,39 @@ export interface MailTheme {
   kicker: string;
 }
 
-// Color de acento por aviso: franja del encabezado, etiqueta y paso actual.
-// Todos con contraste AA para texto blanco.
+// Color de acento por aviso (franja, etiqueta, paso actual y citas): los
+// mismos colores de estatus que la UI (semanticTones + tema claro): ámbar
+// abierto, azul en progreso, verde cerrado, rojo cancelado.
+export const STATUS_ACCENTS: Record<string, string> = {
+  [STATUS_OPEN]: '#b45309',
+  [STATUS_IN_PROGRESS]: '#0277bd',
+  [STATUS_CLOSE]: '#2e7d32',
+  [STATUS_CANCEL]: '#d32f2f',
+};
+
 export const MAIL_THEMES = {
-  create: { eyebrow: 'Nuevo hallazgo', accent: '#c2410c' },
-  inProgress: { eyebrow: 'En proceso', accent: '#1d4ed8' },
-  solution: { eyebrow: 'Solucionado', accent: '#15803d' },
-  reassign: { eyebrow: 'Reasignado', accent: '#6d28d9' },
-  cancel: { eyebrow: 'Cancelado', accent: '#b91c1c' },
+  create: { eyebrow: 'Nuevo hallazgo', accent: STATUS_ACCENTS[STATUS_OPEN] },
+  inProgress: {
+    eyebrow: 'En proceso',
+    accent: STATUS_ACCENTS[STATUS_IN_PROGRESS],
+  },
+  solution: { eyebrow: 'Solucionado', accent: STATUS_ACCENTS[STATUS_CLOSE] },
+  // Reasignar no cambia el estatus: toma el color del estatus actual.
+  reassign: { eyebrow: 'Reasignado', accent: STATUS_ACCENTS[STATUS_OPEN] },
+  cancel: { eyebrow: 'Cancelado', accent: STATUS_ACCENTS[STATUS_CANCEL] },
   account: { eyebrow: 'Seguridad de tu cuenta', accent: '#3e6925' },
 } as const;
 
 export type MailThemeName = keyof typeof MAIL_THEMES;
 
-export const mailTheme = (name: MailThemeName, kicker: string): MailTheme => ({
+export const mailTheme = (
+  name: MailThemeName,
+  kicker: string,
+  // Color del estatus actual del hallazgo (reasignado).
+  status?: string,
+): MailTheme => ({
   ...MAIL_THEMES[name],
+  ...(status && STATUS_ACCENTS[status] && { accent: STATUS_ACCENTS[status] }),
   kicker,
 });
 

@@ -157,6 +157,18 @@ describe('Plantillas de correo', () => {
     expect(html).not.toContain('Ver hallazgo en ComportArte');
   });
 
+  // Mismos colores de estatus que la UI.
+  it('el color sigue al estatus: nuevo en ámbar, reasignado con el estatus actual', async () => {
+    await service.sendCreate({ user: recipient, evidenceCurrent: evidence() });
+    await SENDERS.reassign(evidence({ status: 'En progreso' }));
+    const [created, reassigned] = sendMail.mock.calls.map(
+      ([mail]) => (mail.context as { theme: { accent: string } }).theme.accent,
+    );
+
+    expect(created).toBe('#b45309');
+    expect(reassigned).toBe('#0277bd');
+  });
+
   it('el texto de los usuarios sale escapado', async () => {
     await service.sendCreate({
       user: recipient,

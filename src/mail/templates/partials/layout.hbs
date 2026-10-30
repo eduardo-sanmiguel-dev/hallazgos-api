@@ -56,13 +56,14 @@
             <tr>
               <td bgcolor="#ffffff" style="background-color: #ffffff; border: 1px solid #e1e8df; border-radius: 20px; overflow: hidden;">
 
-                {{! Encabezado: verde profundo de la marca con el acento del aviso. }}
+                {{! Encabezado sobre la tarjeta (sin bloque de color): franja y
+                    etiqueta con el color del estatus, como en la UI. }}
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                   <tr>
                     <td height="6" bgcolor="{{theme.accent}}" style="height: 6px; font-size: 0; line-height: 0; background-color: {{theme.accent}};">&nbsp;</td>
                   </tr>
                   <tr>
-                    <td class="px" bgcolor="#10291a" style="background-color: #10291a; padding: 30px 36px 34px 36px;">
+                    <td class="px" style="padding: 30px 36px 6px 36px;">
                       <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                         <tr>
                           <td bgcolor="{{theme.accent}}" style="background-color: {{theme.accent}}; border-radius: 999px; padding: 5px 12px; font-size: 11px; line-height: 14px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #ffffff;">
@@ -70,11 +71,11 @@
                           </td>
                         </tr>
                       </table>
-                      <h1 class="hero-title" style="margin: 18px 0 0 0; font-size: 34px; line-height: 40px; font-weight: 800; letter-spacing: -0.02em; color: #ffffff;">
+                      <h1 class="hero-title" style="margin: 18px 0 0 0; font-size: 34px; line-height: 40px; font-weight: 800; letter-spacing: -0.02em; color: #13221a;">
                         {{title}}
                       </h1>
                       {{#if subtitle}}
-                        <p style="margin: 8px 0 0 0; font-size: 16px; line-height: 24px; color: #c9dfbf;">
+                        <p style="margin: 8px 0 0 0; font-size: 16px; line-height: 24px; color: #5b6b61;">
                           {{subtitle}}
                         </p>
                       {{/if}}
@@ -96,7 +97,7 @@
             {{! Pie }}
             <tr>
               <td align="center" style="padding: 30px 16px 0 16px;">
-                <img src="cid:logoComportarte" width="168" alt="ComportArte" style="display: block; width: 168px; height: auto; border: 0;" />
+                <img src="cid:logoComportarte" width="260" alt="ComportArte" style="display: block; width: 260px; max-width: 100%; height: auto; border: 0;" />
                 <p style="margin: 16px 0 0 0; font-size: 12px; line-height: 19px; color: #6b7a71;">
                   Mensaje automático de ComportArte. Por favor no respondas a este correo.
                 </p>

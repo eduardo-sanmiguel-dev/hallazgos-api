@@ -172,6 +172,8 @@ export class MailService {
     const theme = mailTheme(
       themeName,
       `Hallazgos · ${evidence.manufacturingPlant.name}`,
+      // Reasignar no cambia el estatus: se ve con el color del actual.
+      themeName === 'reassign' ? evidence.status : undefined,
     );
 
     return {
