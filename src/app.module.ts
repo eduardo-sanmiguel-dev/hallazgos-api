@@ -63,6 +63,7 @@ import { GembaWalkCalendarModule } from './gemba-walk-calendar/gemba-walk-calend
 import { GembaWalkEvaluationsModule } from './gemba-walk-evaluations/gemba-walk-evaluations.module.js';
 import { GembaWalksModule } from './gemba-walks/gemba-walks.module.js';
 import { HealthModule } from './health/health.module.js';
+import { DeploymentUpdatesService } from './deployments/deployment-updates.service.js';
 import { IdempotencyModule } from './idempotency/idempotency.module.js';
 import { EvidenceImageAccessMiddleware } from './evidences/evidence-image-access.middleware.js';
 
@@ -140,6 +141,7 @@ import { EvidenceImageAccessMiddleware } from './evidences/evidence-image-access
   ],
   controllers: [],
   providers: [
+    DeploymentUpdatesService,
     JwtService,
     GistSecretGuardService,
     EvidenceImageAccessMiddleware,

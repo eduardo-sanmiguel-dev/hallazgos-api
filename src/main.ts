@@ -9,6 +9,7 @@ import helmet from 'helmet';
 
 //import { ClusterService } from 'cluster.service';
 import { AppModule } from './app.module.js';
+import { DeploymentUpdatesService } from './deployments/deployment-updates.service.js';
 import { createValidationPipe } from './shared/errors/validation-errors.js';
 import { ApiExceptionFilter } from './shared/filters/api-exception.filter.js';
 import { httpAccessLog } from './shared/middlewares/http-access-log.middleware.js';
@@ -79,6 +80,7 @@ async function bootstrap() {
   const port = configService.get<number>('port');
   const environment = configService.get<string>('environment');
 
+  await app.get(DeploymentUpdatesService).attach(app.getHttpServer());
   await app.listen(port, '0.0.0.0');
 
   logger.debug(`Running on port: [${port}], environment: [${environment}]`);
