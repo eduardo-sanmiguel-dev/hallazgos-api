@@ -12,6 +12,7 @@ describe('DeploymentUpdatesService (WebSocket y archivo reales)', () => {
   const origin = 'https://comportarte.com';
   let directory: string;
   let file: string;
+  let apiFile: string;
   let http: Server;
   let service: DeploymentUpdatesService;
   let url: string;
@@ -35,11 +36,13 @@ describe('DeploymentUpdatesService (WebSocket y archivo reales)', () => {
   beforeEach(async () => {
     directory = await mkdtemp(join(tmpdir(), 'hallazgos-ui-version-'));
     file = join(directory, 'ui-version.json');
+    apiFile = join(directory, 'api-version.json');
     clients = [];
     http = createServer();
     service = new DeploymentUpdatesService(
       new ConfigService({
         UI_VERSION_FILE: file,
+        API_VERSION_FILE: apiFile,
         frontendUrl: origin,
       }),
     );
@@ -131,5 +134,83 @@ describe('DeploymentUpdatesService (WebSocket y archivo reales)', () => {
     client.send(JSON.stringify({ type: 'ui-version', version: 'fake' }));
     const [code] = await closed;
     expect(code).toBe(1008);
+  });
+
+  async function restartApi() {
+    service.onModuleDestroy();
+    await new Promise<void>((resolve) => http.close(() => resolve()));
+    http = createServer();
+    service = new DeploymentUpdatesService(
+      new ConfigService({
+        UI_VERSION_FILE: file,
+        API_VERSION_FILE: apiFile,
+        frontendUrl: origin,
+      }),
+    );
+    await start();
+  }
+
+  it('anuncia la versión de API aunque todavía no haya un deploy de UI', async () => {
+    await writeFile(apiFile, JSON.stringify({ version: 'api-A' }));
+    await start();
+    expect(await nextMessage(connect())).toEqual({
+      type: 'api-version',
+      version: 'api-A',
+    });
+  });
+
+  it('conserva el ID de build al reiniciar la API sin compilar de nuevo', async () => {
+    await writeFile(apiFile, JSON.stringify({ version: 'api-A' }));
+    await start();
+    expect((await nextMessage(connect())).version).toBe('api-A');
+    await restartApi();
+    expect(await nextMessage(connect())).toEqual({
+      type: 'api-version',
+      version: 'api-A',
+    });
+  });
+
+  it('no anuncia el siguiente build hasta que lo arranca un proceso nuevo', async () => {
+    await writeFile(apiFile, JSON.stringify({ version: 'api-A' }));
+    await start();
+    expect((await nextMessage(connect())).version).toBe('api-A');
+    await writeFile(apiFile, JSON.stringify({ version: 'api-B' }));
+    expect((await nextMessage(connect())).version).toBe('api-A');
+    await restartApi();
+    expect(await nextMessage(connect())).toEqual({
+      type: 'api-version',
+      version: 'api-B',
+    });
+  });
+
+  it('envía ambas versiones a una pestaña nueva y mantiene los avisos de UI', async () => {
+    await writeFile(apiFile, JSON.stringify({ version: 'api-A' }));
+    await publish('ui-A');
+    await start();
+    const client = connect();
+    const firstMessages = new Promise<unknown[]>((resolve) => {
+      const messages: unknown[] = [];
+      client.on('message', (data) => {
+        messages.push(JSON.parse(data.toString()));
+        if (messages.length === 2) resolve(messages);
+      });
+    });
+    expect(await firstMessages).toEqual([
+      { type: 'ui-version', version: 'ui-A' },
+      { type: 'api-version', version: 'api-A' },
+    ]);
+    const updated = nextMessage(client);
+    await publish('ui-B');
+    expect(await updated).toEqual({ type: 'ui-version', version: 'ui-B' });
+  });
+
+  it('un archivo de versión de API inválido no impide los avisos de UI', async () => {
+    await writeFile(apiFile, JSON.stringify({ version: { invalid: true } }));
+    await publish('ui-A');
+    await start();
+    expect(await nextMessage(connect())).toEqual({
+      type: 'ui-version',
+      version: 'ui-A',
+    });
   });
 });
