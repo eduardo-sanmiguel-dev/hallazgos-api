@@ -16,6 +16,7 @@ export class DeploymentUpdatesService implements OnModuleDestroy {
   private readonly alive = new WeakSet<WebSocket>();
   private readonly file: string;
   private version?: string;
+  private apiVersion?: string;
   private closed = false;
 
   constructor(private readonly config: ConfigService) {
@@ -26,6 +27,31 @@ export class DeploymentUpdatesService implements OnModuleDestroy {
 
   async attach(httpServer: Server) {
     await mkdir(dirname(this.file), { recursive: true, mode: 0o700 });
+    // El ID queda asociado a este proceso: compilar de nuevo no lo cambia.
+    const apiVersionFile =
+      this.config.get<string>('API_VERSION_FILE') ||
+      (this.config.get<string>('environment') === 'production'
+        ? join(process.cwd(), 'dist', 'deployment-version.json')
+        : undefined);
+    if (apiVersionFile) {
+      try {
+        const metadata: unknown = JSON.parse(
+          await readFile(apiVersionFile, 'utf8'),
+        );
+        if (
+          !metadata ||
+          typeof metadata !== 'object' ||
+          !('version' in metadata) ||
+          typeof metadata.version !== 'string' ||
+          !/^[A-Za-z0-9_-]{1,128}$/.test(metadata.version)
+        ) {
+          throw new Error('Formato de versión de API inválido');
+        }
+        this.apiVersion = metadata.version;
+      } catch (error) {
+        if (error?.code !== 'ENOENT') this.logger.warn(error?.message);
+      }
+    }
     this.server = new WebSocketServer({
       server: httpServer,
       path: '/api/v1/deployments/ws',
@@ -44,6 +70,7 @@ export class DeploymentUpdatesService implements OnModuleDestroy {
       // No aceptamos mensajes de aplicación de los clientes.
       client.on('message', () => client.close(1008, 'Read-only channel'));
       if (this.version) this.send(client, this.version);
+      if (this.apiVersion) this.send(client, this.apiVersion, 'api-version');
     });
 
     // Observar el directorio permite detectar los reemplazos atómicos (rename).
@@ -96,9 +123,13 @@ export class DeploymentUpdatesService implements OnModuleDestroy {
     }
   }
 
-  private send(client: WebSocket, version: string) {
+  private send(
+    client: WebSocket,
+    version: string,
+    type: 'ui-version' | 'api-version' = 'ui-version',
+  ) {
     if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify({ type: 'ui-version', version }));
+      client.send(JSON.stringify({ type, version }));
     }
   }
 

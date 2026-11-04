@@ -71,3 +71,21 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](LICENSE).
+
+
+## Versión de despliegue y recarga de la UI
+
+`pnpm build` compila la API y, si termina correctamente, crea un UUID en
+`dist/deployment-version.json`. En producción, el servicio de despliegues
+lee ese ID una vez al arrancar y lo anuncia en el WebSocket con el evento
+`api-version`, junto con la versión publicada de UI. Un reinicio de PM2
+conserva el ID; un build nuevo obtiene otro incluso para el mismo commit.
+El proceso anterior conserva su ID mientras se compila su reemplazo.
+
+La ruta predeterminada usa el directorio de trabajo del proceso PM2.
+`API_VERSION_FILE` permite sobrescribir la ruta para pruebas o una instalación
+distinta. En desarrollo no se anuncia una versión de API salvo que se indique
+esa ruta. El ID se genera en el VPS, sin nuevos secretos de GitHub Actions.
+
+Desplegar primero esta API y después la UI que reconoce `api-version`.
+Las UIs anteriores siguen recibiendo los avisos `ui-version` habituales.
