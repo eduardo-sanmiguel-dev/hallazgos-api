@@ -668,13 +668,51 @@ describe('EvidencesService', () => {
       });
     });
 
-    it('si el correo falla, el cambio se conserva y responde normal', async () => {
-      mail.sendInProgress.mockRejectedValue(new Error('SMTP caído'));
+    it('responde con el cambio guardado mientras el correo sigue pendiente', async () => {
+      let finishEmail!: () => void;
+      mail.sendInProgress.mockReturnValue(
+        new Promise<void>((resolve) => {
+          finishEmail = resolve;
+        }),
+      );
+
+      try {
+        const result = await start(supervisor);
+
+        expect(result).toMatchObject({
+          status: STATUS_IN_PROGRESS,
+          imgProcess: file.filename,
+        });
+        expectGuardedUpdate(5, [STATUS_OPEN], {
+          status: STATUS_IN_PROGRESS,
+          imgProcess: file.filename,
+        });
+        expect(mail.sendInProgress).toHaveBeenCalledTimes(1);
+      } finally {
+        finishEmail();
+      }
+      await flushBackgroundWork();
+    });
+
+    it('si el correo falla después de responder, conserva el cambio y registra el error sin reintentar', async () => {
+      let rejectEmail!: (error: Error) => void;
+      mail.sendInProgress.mockReturnValue(
+        new Promise<void>((_resolve, reject) => {
+          rejectEmail = reject;
+        }),
+      );
 
       await expect(start(supervisor)).resolves.toMatchObject({
         status: STATUS_IN_PROGRESS,
       });
       expect(evidences.update).toHaveBeenCalled();
+      expect(logError).not.toHaveBeenCalled();
+
+      rejectEmail(new Error('SMTP caído'));
+      await flushBackgroundWork();
+
+      expect(evidence.status).toBe(STATUS_IN_PROGRESS);
+      expect(mail.sendInProgress).toHaveBeenCalledTimes(1);
       expect(logError).toHaveBeenCalledWith(
         expect.stringContaining(
           'No se pudo enviar el correo de en progreso del hallazgo #5',

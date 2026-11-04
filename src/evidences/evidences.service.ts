@@ -793,23 +793,36 @@ export class EvidencesService {
       },
     );
 
-    // El cambio ya se guardó: un correo fallido solo se registra.
+    // Como al crear: el cambio ya se guardó y la respuesta no espera al correo.
+    // El envío captura sus errores; no hay cola ni reintentos.
+    void this.notifyInProgressByEmail(
+      evidence.user,
+      requestUser,
+      evidenceUpdated,
+    );
+
+    return evidenceUpdated;
+  }
+
+  private async notifyInProgressByEmail(
+    user: User,
+    startedBy: User,
+    evidenceCurrent: Evidence,
+  ) {
     try {
       await this.mailService.sendInProgress({
-        user: evidence.user,
-        startedBy: requestUser,
-        evidenceCurrent: evidenceUpdated,
+        user,
+        startedBy,
+        evidenceCurrent,
       });
     } catch (error) {
       this.logEmailError(
         'in-progress',
-        evidenceUpdated,
-        `el usuario ${evidence.user?.id}`,
+        evidenceCurrent,
+        `el usuario ${user?.id}`,
         error,
       );
     }
-
-    return evidenceUpdated;
   }
 
   async addComment(id: number, comment: CommentEvidenceDto) {
