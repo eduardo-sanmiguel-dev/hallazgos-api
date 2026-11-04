@@ -42,6 +42,6 @@ export class AccidentPositionsService {
   }
 
   remove(id: number) {
-    return `This action removes a #${id} accidentPosition`;
+    return `This action removes a #${id} accidentPositions`;
   }
 }
