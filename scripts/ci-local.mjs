@@ -34,7 +34,15 @@ try {
     temporary = mkdtempSync(join(tmpdir(), 'hallazgos-ci-'));
     const archive = join(temporary, 'source.tar');
     run('git', ['archive', '--format=tar', `--output=${archive}`, sha]);
-    run('tar', ['-xf', archive, '-C', temporary]);
+    // Use Windows bsdtar explicitly: Git Bash's GNU tar interprets C: as a
+    // remote host, while bsdtar needs UTF-8 to preserve Git's accented paths.
+    const tar =
+      process.platform === 'win32'
+        ? join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe')
+        : 'tar';
+    const tarOptions =
+      process.platform === 'win32' ? ['--options', 'hdrcharset=UTF-8'] : [];
+    run(tar, [...tarOptions, '-xf', 'source.tar'], { cwd: temporary });
     rmSync(archive);
     context = temporary;
   }
