@@ -170,7 +170,10 @@ const toEntryFields = (
   }
   if (typeof message === 'string') return { message };
   try {
-    return { message: JSON.stringify(message) };
+    return {
+      ...(typeof message === 'object' && message !== null ? message : {}),
+      message: JSON.stringify(message),
+    };
   } catch {
     return { message: String(message) };
   }

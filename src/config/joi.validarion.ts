@@ -12,6 +12,17 @@ export const JoiValidationSchema = Joi.object({
   DB_NAME: Joi.string().required(),
   DB_PORT: Joi.number().required(),
   FRONTEND_URL: Joi.string().uri().required(),
+  MAIL_OUTBOX_KEY: Joi.string()
+    .min(32)
+    .when('NODE_ENV', {
+      is: 'production',
+      then: Joi.required(),
+      otherwise: Joi.optional(),
+    }),
+  MAIL_REDIS_URL: Joi.string()
+    .uri({ scheme: ['redis', 'rediss'] })
+    .optional(),
+  MAIL_OUTBOX_DIR: Joi.string().optional(),
   MAIL_HOST: Joi.string().required(),
   MAIL_USER: Joi.string().email().required(),
   MAIL_PASSWORD: Joi.string().required(),

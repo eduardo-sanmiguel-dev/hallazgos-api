@@ -172,6 +172,9 @@ export default {
     '!**/interfaces/**',
     '!**/*.enum.ts',
     '!main.ts',
+    // Entry points exercised by scripts/test-mail-runtime.mjs; delivery logic has unit/DB tests.
+    '!mail-worker.ts',
+    '!mail-admin.ts',
     // Arranque de las trazas (se carga con --import antes que la app).
     '!instrumentation.ts',
     '!config/**',
