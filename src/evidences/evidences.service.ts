@@ -234,10 +234,11 @@ export class EvidencesService {
     allowed: string[],
     action: string,
     changes: Partial<Evidence>,
+    repository: Repository<Evidence>,
   ): Promise<Evidence> {
     this.assertStatus(evidence, allowed, action);
 
-    const { affected } = await this.evidenceRepository.update(
+    const { affected } = await repository.update(
       { id: evidence.id, status: In(allowed) },
       changes,
     );
@@ -422,9 +423,46 @@ export class EvidencesService {
       .filter((id) => Number.isInteger(id) && id > 0);
   }
 
-  async create(
+  private transactionalMail<T>(
+    work: (repository: Repository<Evidence>) => Promise<T>,
+  ): Promise<T> {
+    return this.evidenceRepository.manager.transaction((manager) =>
+      this.mailService.withOutbox(manager, () =>
+        work(manager.getRepository(Evidence)),
+      ),
+    );
+  }
+
+  create(dto: CreateEvidenceDto, file: Express.Multer.File) {
+    return this.transactionalMail((repository) =>
+      this.createWithMail(dto, file, repository),
+    );
+  }
+  saveSolution(id: number, file: Express.Multer.File, description: string) {
+    return this.transactionalMail((repository) =>
+      this.solutionWithMail(id, file, description, repository),
+    );
+  }
+  saveProcessStart(id: number, file: Express.Multer.File) {
+    return this.transactionalMail((repository) =>
+      this.processWithMail(id, file, repository),
+    );
+  }
+  reassignResponsibles(id: number, dto: ReassignResponsiblesDto) {
+    return this.transactionalMail((repository) =>
+      this.reassignWithMail(id, dto, repository),
+    );
+  }
+  remove(id: number) {
+    return this.transactionalMail((repository) =>
+      this.cancelWithMail(id, repository),
+    );
+  }
+
+  private async createWithMail(
     createEvidenceDto: CreateEvidenceDto,
     file: Express.Multer.File,
+    repository: Repository<Evidence>,
   ) {
     const userId = this.requestContext.userId;
 
@@ -498,8 +536,8 @@ export class EvidencesService {
 
     const createdAt = getColombiaNow(colombianIds, manufacturingPlantId);
 
-    const evidenceCurrent = await this.evidenceRepository.save(
-      this.evidenceRepository.create({
+    const evidenceCurrent = await repository.save(
+      repository.create({
         imgEvidence,
         manufacturingPlant,
         mainType,
@@ -519,13 +557,12 @@ export class EvidencesService {
 
     const typeEmail = 'create';
 
-    // En segundo plano: el hallazgo ya está guardado y estos envíos nunca
-    // lanzan (registran sus errores), así que no se espera a que terminen.
+    // Persistir las notificaciones en la misma transacción, sin esperar SMTP.
     if (responsibles.length) {
-      void this.sendEmailUsers(responsibles, evidenceCurrent, typeEmail);
+      await this.sendEmailUsers(responsibles, evidenceCurrent, typeEmail);
     }
 
-    void this.notifyByEmail({
+    await this.notifyByEmail({
       manufacturingPlant,
       evidenceCurrent,
       type: typeEmail,
@@ -552,6 +589,7 @@ export class EvidencesService {
       try {
         users = [await this.usersService.findOne(1)];
       } catch (error) {
+        if (this.mailService.capturingMail) throw error;
         this.logEmailError(
           type,
           evidenceCurrent,
@@ -580,6 +618,7 @@ export class EvidencesService {
           extra,
         );
       } catch (error) {
+        if (this.mailService.capturingMail) throw error;
         this.logEmailError(
           type,
           evidenceCurrent,
@@ -672,6 +711,7 @@ export class EvidencesService {
         plantUsers = [await this.usersService.findOne(1)];
       }
     } catch (error) {
+      if (this.mailService.capturingMail) throw error;
       this.logEmailError(
         type,
         evidenceCurrent,
@@ -697,12 +737,13 @@ export class EvidencesService {
     await this.sendEmailUsers(plantUsers, evidenceCurrent, type);
   }
 
-  async saveSolution(
+  private async solutionWithMail(
     id: number,
     file: Express.Multer.File,
     descriptionSolution: string,
+    repository: Repository<Evidence>,
   ) {
-    const evidence = await this.findOne(id);
+    const evidence = await this.findOne(id, repository);
     const requestUser = this.requestContext.user;
 
     if (!this.canCloseEvidence(requestUser, evidence)) {
@@ -742,10 +783,11 @@ export class EvidencesService {
         // Quién lo cerró (antes no se registraba).
         closedBy: { id: requestUser.id, name: requestUser.name } as User,
       },
+      repository,
     );
 
-    // En segundo plano: el envío nunca hace esperar al usuario ni afecta el cierre.
-    void this.notifyByEmail({
+    // Registrar notificaciones antes del commit; SMTP lo ejecuta el worker.
+    await this.notifyByEmail({
       manufacturingPlant,
       evidenceCurrent: evidenceSolution,
       type: 'solution',
@@ -754,14 +796,18 @@ export class EvidencesService {
     return evidenceSolution;
   }
 
-  async saveProcessStart(id: number, file: Express.Multer.File) {
+  private async processWithMail(
+    id: number,
+    file: Express.Multer.File,
+    repository: Repository<Evidence>,
+  ) {
     if (!file) {
       throw new BadRequestException(
         'Debe capturar o adjuntar evidencia para iniciar el proceso',
       );
     }
 
-    const evidence = await this.findOne(id);
+    const evidence = await this.findOne(id, repository);
     const requestUser = this.requestContext.user;
 
     if (!this.canStartProcess(requestUser, evidence)) {
@@ -797,11 +843,11 @@ export class EvidencesService {
         // Quién lo inició (antes no se registraba).
         startedBy: { id: requestUser.id, name: requestUser.name } as User,
       },
+      repository,
     );
 
-    // Como al crear: el cambio ya se guardó y la respuesta no espera al correo.
-    // El envío captura sus errores; no hay cola ni reintentos.
-    void this.notifyInProgressByEmail(
+    // Persistir antes del commit; el worker realizara el envio SMTP.
+    await this.notifyInProgressByEmail(
       evidence.user,
       requestUser,
       evidenceUpdated,
@@ -822,6 +868,7 @@ export class EvidencesService {
         evidenceCurrent,
       });
     } catch (error) {
+      if (this.mailService.capturingMail) throw error;
       this.logEmailError(
         'in-progress',
         evidenceCurrent,
@@ -1520,11 +1567,11 @@ export class EvidencesService {
    * otra planta responde el mismo 404 que uno inexistente (no revela que
    * existe). Lo usan ver, comentar, iniciar, cerrar, reasignar y cancelar.
    */
-  async findOne(id: number) {
+  async findOne(id: number, repository = this.evidenceRepository) {
     const plantIds = this.requestContext.manufacturingPlantIds;
 
     const evidence = plantIds.length
-      ? await this.evidenceRepository.findOne({
+      ? await repository.findOne({
           where: {
             id,
             manufacturingPlant: { id: In(plantIds) },
@@ -1543,12 +1590,13 @@ export class EvidencesService {
     return { id, updateEvidenceDto };
   }
 
-  async reassignResponsibles(
+  private async reassignWithMail(
     id: number,
     reassignResponsiblesDto: ReassignResponsiblesDto,
+    repository: Repository<Evidence>,
   ) {
     const requestUser = this.requestContext.user;
-    const evidence = await this.findOne(id);
+    const evidence = await this.findOne(id, repository);
     const previousResponsibles = evidence.responsibles || [];
 
     if (!this.canReassignEvidence(requestUser, evidence)) {
@@ -1605,8 +1653,7 @@ export class EvidencesService {
       evidence.manufacturingPlant.id,
     );
 
-    await this.evidenceRepository.manager.transaction(async (manager) => {
-      const repository = manager.getRepository(Evidence);
+    {
       const current = await repository.findOne({
         where: { id: evidence.id },
         lock: { mode: 'pessimistic_write' },
@@ -1633,9 +1680,9 @@ export class EvidencesService {
         reassignedBy: { id: requestUser.id } as User,
         reassignedAt,
       });
-    });
+    }
 
-    const evidenceUpdated = await this.findOne(evidence.id);
+    const evidenceUpdated = await this.findOne(evidence.id, repository);
 
     const usersToNotifyMap = new Map<number, User>();
 
@@ -1647,9 +1694,9 @@ export class EvidencesService {
 
     const usersToNotify = Array.from(usersToNotifyMap.values());
 
-    // En segundo plano: nunca lanza y el cambio ya se guardó.
+    // Registrar la notificación dentro de la transacción de reasignación.
     if (usersToNotify.length > 0) {
-      void this.sendEmailUsers(usersToNotify, evidenceUpdated, 'reassign', {
+      await this.sendEmailUsers(usersToNotify, evidenceUpdated, 'reassign', {
         reassignedBy: requestUser,
         previousResponsibles,
         currentResponsibles: evidenceUpdated.responsibles,
@@ -1659,7 +1706,7 @@ export class EvidencesService {
     return evidenceUpdated;
   }
 
-  async remove(id: number) {
+  private async cancelWithMail(id: number, repository: Repository<Evidence>) {
     const requestUser = this.requestContext.user;
 
     if (!this.canCancelEvidence(requestUser)) {
@@ -1668,7 +1715,7 @@ export class EvidencesService {
       );
     }
 
-    const current = await this.findOne(id);
+    const current = await this.findOne(id, repository);
 
     // Antes de guardar, igual que al cerrar: después del cambio de estado
     // nada debe fallar.
@@ -1681,10 +1728,11 @@ export class EvidencesService {
       [STATUS_OPEN, STATUS_IN_PROGRESS],
       'cancelar',
       { isActive: false, status: STATUS_CANCEL, updatedAt: new Date() },
+      repository,
     );
 
-    // En segundo plano, como al cerrar: un correo por usuario de la planta.
-    void this.notifyByEmail({
+    // Persistir un correo por destinatario antes del commit.
+    await this.notifyByEmail({
       manufacturingPlant,
       evidenceCurrent: evidence,
       type: 'cancel',

@@ -20,6 +20,23 @@ export const apps = [
     merge_logs: true, // Combina logs de instancias
     log_date_format: 'DD/MM/YYYY HH:mm', // Fecha en cada línea del log (con time: true pm2 lo ignora)
   },
+  {
+    name: 'mail-worker',
+    namespace: 'comportarte',
+    script: 'dist/mail-worker.js',
+    node_args: '--import ./dist/instrumentation.js',
+    instances: 1,
+    exec_mode: 'fork',
+    watch: false,
+    max_memory_restart: '512M',
+    kill_timeout: 120000,
+    exp_backoff_restart_delay: 1000,
+    env: { NODE_ENV: 'production', TZ: 'America/Mexico_City' },
+    out_file: './logs/mail-out.log',
+    error_file: './logs/mail-error.log',
+    merge_logs: true,
+    log_date_format: 'DD/MM/YYYY HH:mm',
+  },
 ];
 
 export default { apps };

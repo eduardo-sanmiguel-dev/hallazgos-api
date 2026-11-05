@@ -1,5 +1,4 @@
 import { MailerService } from '@nestjs-modules/mailer';
-import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { existsSync } from 'fs';
@@ -115,19 +114,9 @@ describe('MailService', () => {
       expect(photoCids(sendMail.mock.calls[1][0])).toEqual([]);
     });
 
-    it('si el envío falla lo registra y no lanza', async () => {
+    it('propaga un rechazo SMTP para que el worker pueda clasificarlo', async () => {
       sendMail.mockRejectedValue(new Error('SMTP caído'));
-      const logError = jest
-        .spyOn(Logger.prototype, 'error')
-        .mockImplementation();
-
-      await expect(
-        service.sendCreate({ user: recipient, evidenceCurrent: evidence() }),
-      ).resolves.toBeUndefined();
-      expect(logError).toHaveBeenCalledWith(
-        expect.stringContaining('SMTP caído'),
-      );
-      logError.mockRestore();
+      await expect(service.sendCreate({ user: recipient, evidenceCurrent: evidence() })).rejects.toThrow('SMTP caído');
     });
   });
 

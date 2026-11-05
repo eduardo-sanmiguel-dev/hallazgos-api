@@ -166,11 +166,13 @@ export class AuthService {
 
     // Un fallo del correo tampoco cambia la respuesta (delataría la cuenta);
     // queda en el log.
-    await this.mailService.sendForgotPassword(email, token).catch((error) => {
-      this.logger.error(
-        `No se pudo enviar el correo de recuperación al usuario ${user.id}: ${error?.message}`,
-      );
-    });
+    await this.mailService
+      .sendForgotPassword(email, token, user.id)
+      .catch((error) => {
+        this.logger.error(
+          `No se pudo enviar el correo de recuperación al usuario ${user.id}: ${error?.message}`,
+        );
+      });
 
     return { message: FORGOT_PASSWORD_MESSAGE };
   }

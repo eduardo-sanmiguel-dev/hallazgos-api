@@ -1,6 +1,10 @@
+import { RESET_TOKEN_PLACEHOLDER } from './outbox/mail-payload.js';
+import type { EntityManager } from 'typeorm';
+import type { ISendMailOptions } from '@nestjs-modules/mailer';
+import { MailOutboxService } from './outbox/mail-outbox.service.js';
 import { MailerService } from '@nestjs-modules/mailer';
 import { join } from 'path';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import {
@@ -105,8 +109,6 @@ type ImageField = 'imgEvidence' | 'imgProcess' | 'imgSolution';
 
 @Injectable()
 export class MailService {
-  private readonly logger = new Logger(MailService.name);
-
   private MAIL_USER_APP: string = '';
   private FRONTEND_URL: string = '';
   private readonly environment: string;
@@ -115,11 +117,32 @@ export class MailService {
   constructor(
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService,
+    @Optional() private readonly outbox?: MailOutboxService,
   ) {
     this.MAIL_USER_APP = this.configService.get<string>('email.user');
     this.FRONTEND_URL = this.configService.get<string>('frontendUrl');
     this.environment = this.configService.get<string>('environment');
     this.pathImage = localImagePath;
+  }
+
+  get capturingMail(): boolean {
+    return this.outbox?.capturing ?? false;
+  }
+
+  async withOutbox<T>(
+    manager: EntityManager,
+    work: () => Promise<T>,
+  ): Promise<T> {
+    if (!this.outbox) throw new Error('Mail outbox provider is missing');
+    return this.outbox.capture(manager, work);
+  }
+
+  private async send(options: ISendMailOptions): Promise<void> {
+    if (this.outbox?.capturing) return this.outbox.enqueue(options);
+    // Only isolated rendering/transport tests instantiate without an outbox.
+    if (this.outbox)
+      throw new Error('Mail must be saved with its business transaction');
+    await this.mailerService.sendMail(options);
   }
 
   get emailTest() {
@@ -246,40 +269,30 @@ export class MailService {
     user: User;
     evidenceCurrent: Evidence;
   }) {
-    this.logger.debug(
-      `Sending create email to ${user.email} for evidence ID ${evidenceCurrent.id}`,
-    );
-
     const base = this.evidenceContext(evidenceCurrent, 'create');
 
-    await this.mailerService
-      .sendMail({
-        to: this.emailTest || user.email,
-        from: this.sender('hallazgo creado'),
-        subject: this.subject(evidenceCurrent),
-        template: './create',
-        context: {
-          ...base,
-          preheader: preheader(
-            `${base.userWhoCreated} reportó en ${base.zone}: ${base.descripcion}`,
-          ),
-          tiles: tileRow([
-            ['Prioridad', priorityTile(evidenceCurrent.priorityDays)],
-            ['Plazo', deadlineTile(base.remainingDays)],
-            ['Registrado', dateTile(evidenceCurrent.createdAt)],
-          ]),
-          ...photosView('Evidencia', [this.evidencePhoto(evidenceCurrent)]),
-        },
-        attachments: [
-          ...this.imageAttachments(evidenceCurrent, ['imgEvidence']),
-          ...LOGO_ATTACHMENTS,
-        ],
-      })
-      .catch((error) => {
-        this.logger.error(
-          `Failed to send create email to ${user.email} for evidence ID ${evidenceCurrent.id}: ${error.message}`,
-        );
-      });
+    return this.send({
+      to: this.emailTest || user.email,
+      from: this.sender('hallazgo creado'),
+      subject: this.subject(evidenceCurrent),
+      template: './create',
+      context: {
+        ...base,
+        preheader: preheader(
+          `${base.userWhoCreated} reportó en ${base.zone}: ${base.descripcion}`,
+        ),
+        tiles: tileRow([
+          ['Prioridad', priorityTile(evidenceCurrent.priorityDays)],
+          ['Plazo', deadlineTile(base.remainingDays)],
+          ['Registrado', dateTile(evidenceCurrent.createdAt)],
+        ]),
+        ...photosView('Evidencia', [this.evidencePhoto(evidenceCurrent)]),
+      },
+      attachments: [
+        ...this.imageAttachments(evidenceCurrent, ['imgEvidence']),
+        ...LOGO_ATTACHMENTS,
+      ],
+    });
   }
 
   async sendReassign({
@@ -301,7 +314,7 @@ export class MailService {
         ? names(currentResponsibles)
         : 'Sin responsables asignados';
 
-    await this.mailerService.sendMail({
+    return this.send({
       to: this.emailTest || user.email,
       from: this.sender('hallazgo reasignado'),
       subject: this.subject(evidenceCurrent),
@@ -317,7 +330,9 @@ export class MailService {
             ? names(previousResponsibles)
             : 'Sin responsables previos',
         currentResponsibles: current,
-        reassignedAt: stringToDateWithTime(new Date()),
+        reassignedAt: stringToDateWithTime(
+          evidenceCurrent.reassignedAt || evidenceCurrent.updatedAt,
+        ),
         tiles: tileRow([
           ['Prioridad', priorityTile(evidenceCurrent.priorityDays)],
           ['Plazo', deadlineTile(base.remainingDays)],
@@ -350,7 +365,7 @@ export class MailService {
     const base = this.evidenceContext(evidenceCurrent, 'solution');
     const closedBy = evidenceCurrent.closedBy?.name || '';
 
-    await this.mailerService.sendMail({
+    return this.send({
       to: this.emailTest || user.email,
       from: this.sender('hallazgo solucionado'),
       subject: this.subject(evidenceCurrent),
@@ -429,7 +444,7 @@ export class MailService {
     const evidence = { ...evidenceCurrent, startedBy } as Evidence;
     const base = this.evidenceContext(evidence, 'inProgress');
 
-    await this.mailerService.sendMail({
+    return this.send({
       to: this.emailTest || user.email,
       from: this.sender('hallazgo en progreso'),
       subject: this.subject(evidence),
@@ -467,14 +482,14 @@ export class MailService {
     user: User;
     evidenceCurrent: Evidence;
   }) {
-    const now = new Date();
+    const now = evidenceCurrent.updatedAt || new Date();
     const cancelledAt = stringToDateWithTime(now);
     const base = this.evidenceContext(evidenceCurrent, 'cancel', {
       at: cancelledAt,
       by: cancelledBy.name,
     });
 
-    await this.mailerService.sendMail({
+    return this.send({
       to: this.emailTest || user.email,
       from: this.sender('hallazgo cancelado'),
       subject: this.subject(evidenceCurrent),
@@ -503,12 +518,22 @@ export class MailService {
     });
   }
 
-  async sendForgotPassword(email: string, token: string) {
-    await this.mailerService.sendMail({
+  async sendForgotPassword(email: string, token: string, userId?: number) {
+    if (this.outbox && !this.outbox.capturing) {
+      return this.outbox.reset(
+        () => this.sendForgotPassword(email, token, userId),
+        userId,
+      );
+    }
+    const renderedToken = this.outbox?.capturing
+      ? RESET_TOKEN_PLACEHOLDER
+      : token;
+    return this.send({
       to: this.emailTest || email,
       from: this.sender('restablecimiento de contraseña'),
       subject: 'Restablecimiento de contraseña',
       template: './forgot-password',
+      headers: { 'X-Comportarte-Reset-Token': token },
       context: {
         year: new Date().getFullYear(),
         theme: mailTheme('account', 'ComportArte · Tu cuenta'),
@@ -517,8 +542,8 @@ export class MailService {
         preheader: preheader(
           'Usa el botón para crear una nueva contraseña. El enlace vence en 5 minutos.',
         ),
-        token,
-        resetLink: `${this.FRONTEND_URL}?token=${token}`,
+        token: renderedToken,
+        resetLink: `${this.FRONTEND_URL}?token=${renderedToken}`,
         tiles: tileRow([
           ['Vence en', textTile('5 minutos', 'Después pide un enlace nuevo')],
           [

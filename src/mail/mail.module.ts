@@ -1,3 +1,4 @@
+import { MailOutboxService } from './outbox/mail-outbox.service.js';
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MailerModule } from '@nestjs-modules/mailer';
@@ -14,14 +15,19 @@ import { mailTemplateConfig } from './mail.templates.js';
         return {
           transport: {
             host: configService.get('MAIL_HOST'),
-            port: 587,
+            port: Number(configService.get('MAIL_PORT') || 587),
+            connectionTimeout: 15000,
+            greetingTimeout: 15000,
+            socketTimeout: 60000,
             secure: false,
+            requireTLS: configService.get('NODE_ENV') === 'production',
             auth: {
               user: configService.get('MAIL_USER'),
               pass: configService.get('MAIL_PASSWORD'),
             },
             tls: {
-              rejectUnauthorized: false, // ⚠️ Solo recomendable en desarrollo
+              rejectUnauthorized:
+                configService.get('NODE_ENV') !== 'development',
             },
           },
           /*transport: { // Gmail
@@ -41,7 +47,7 @@ import { mailTemplateConfig } from './mail.templates.js';
       inject: [ConfigService],
     }),
   ],
-  providers: [MailService],
-  exports: [MailService],
+  providers: [MailService, MailOutboxService],
+  exports: [MailService, MailOutboxService],
 })
 export class MailModule {}

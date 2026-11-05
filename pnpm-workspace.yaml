@@ -1,6 +1,7 @@
 packages:
   - '.'
 allowBuilds:
+  msgpackr-extract: false
   '@apollo/protobufjs': true
   '@swc/core': true
   argon2: true

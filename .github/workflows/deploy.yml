@@ -63,6 +63,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - '6379:6379'
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
       postgres:
         image: postgres:14
         env:
@@ -108,6 +117,15 @@ jobs:
         run: |
           mkdir -p public/static/images/evidences
           pnpm test:db --ci
+      - run: pnpm build
+      - name: Worker real con SMTP controlado y perdida de trabajos Redis
+        env:
+          MAIL_TEST_DATABASE: comportarte_mail_runtime_test
+          MAIL_TEST_PG_PORT: '5432'
+          MAIL_TEST_REDIS_PORT: '6379'
+          MAIL_TEST_PG_USER: hallazgos_ci
+          MAIL_TEST_PG_PASSWORD: hallazgos_ci_only
+        run: pnpm test:mail:runtime
 
   deploy:
     needs: [typecheck, unit-tests, http-tests, database-tests]

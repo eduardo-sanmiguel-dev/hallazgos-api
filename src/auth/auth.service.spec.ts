@@ -333,6 +333,7 @@ describe('AuthService', () => {
       expect(mail.sendForgotPassword).toHaveBeenCalledWith(
         'persona@hallazgos.test',
         expect.any(String),
+        7,
       );
       const [, token] = mail.sendForgotPassword.mock.calls[0];
       const payload = jwtService.verifyResetToken(token, currentHashOf(7));
@@ -348,6 +349,7 @@ describe('AuthService', () => {
       expect(mail.sendForgotPassword).toHaveBeenCalledWith(
         'eduardo-266@hotmail.com',
         expect.any(String),
+        7,
       );
     });
 

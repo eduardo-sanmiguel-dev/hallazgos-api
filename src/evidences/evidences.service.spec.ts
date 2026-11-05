@@ -124,6 +124,7 @@ describe('EvidencesService', () => {
     plants = testing.get(ManufacturingPlantsService);
     usersService = testing.get(UsersService);
     mail = testing.get(MailService);
+    mail.withOutbox.mockImplementation(async (_manager, work) => work());
     zones = testing.get(ZonesService);
     mainTypesService = testing.get(MainTypesService);
 
@@ -668,58 +669,35 @@ describe('EvidencesService', () => {
       });
     });
 
-    it('responde con el cambio guardado mientras el correo sigue pendiente', async () => {
-      let finishEmail!: () => void;
+    it('espera a registrar la notificacion antes de confirmar la operacion', async () => {
+      let finish!: () => void;
       mail.sendInProgress.mockReturnValue(
         new Promise<void>((resolve) => {
-          finishEmail = resolve;
+          finish = resolve;
         }),
       );
-
-      try {
-        const result = await start(supervisor);
-
-        expect(result).toMatchObject({
-          status: STATUS_IN_PROGRESS,
-          imgProcess: file.filename,
-        });
-        expectGuardedUpdate(5, [STATUS_OPEN], {
-          status: STATUS_IN_PROGRESS,
-          imgProcess: file.filename,
-        });
-        expect(mail.sendInProgress).toHaveBeenCalledTimes(1);
-      } finally {
-        finishEmail();
-      }
+      const operation = start(supervisor);
       await flushBackgroundWork();
-    });
-
-    it('si el correo falla después de responder, conserva el cambio y registra el error sin reintentar', async () => {
-      let rejectEmail!: (error: Error) => void;
-      mail.sendInProgress.mockReturnValue(
-        new Promise<void>((_resolve, reject) => {
-          rejectEmail = reject;
-        }),
-      );
-
-      await expect(start(supervisor)).resolves.toMatchObject({
+      let resolved = false;
+      void operation.then(() => {
+        resolved = true;
+      });
+      await flushBackgroundWork();
+      expect(resolved).toBe(false);
+      finish();
+      await expect(operation).resolves.toMatchObject({
         status: STATUS_IN_PROGRESS,
       });
-      expect(evidences.update).toHaveBeenCalled();
-      expect(logError).not.toHaveBeenCalled();
+      expect(mail.withOutbox).toHaveBeenCalledTimes(1);
+    });
 
-      rejectEmail(new Error('SMTP caído'));
-      await flushBackgroundWork();
-
-      expect(evidence.status).toBe(STATUS_IN_PROGRESS);
-      expect(mail.sendInProgress).toHaveBeenCalledTimes(1);
-      expect(logError).toHaveBeenCalledWith(
-        expect.stringContaining(
-          'No se pudo enviar el correo de en progreso del hallazgo #5',
-        ),
-      );
-      // Sin comillas: la alerta de Telegram las mostraría escapadas.
-      expect(logError.mock.calls.at(-1)[0]).not.toContain('"');
+    it('propaga un fallo de persistencia del correo para abortar la transaccion', async () => {
+      Object.defineProperty(mail, 'capturingMail', {
+        value: true,
+        configurable: true,
+      });
+      mail.sendInProgress.mockRejectedValue(new Error('outbox unavailable'));
+      await expect(start(supervisor)).rejects.toThrow('outbox unavailable');
     });
 
     it('responde 409 si ya se había registrado el inicio (dato inconsistente)', async () => {
@@ -863,8 +841,8 @@ describe('EvidencesService', () => {
         },
       );
 
-      it('responde sin esperar a que salgan los correos', async () => {
-        mail.sendSolution.mockReturnValue(new Promise(() => {}));
+      it('registra las notificaciones dentro de la transaccion', async () => {
+        mail.sendSolution.mockResolvedValue(undefined);
 
         await expect(close(supervisor)).resolves.toMatchObject({
           status: STATUS_CLOSE,
@@ -955,8 +933,8 @@ describe('EvidencesService', () => {
         },
       );
 
-      it('responde sin esperar a que salgan los correos', async () => {
-        mail.sendCancel.mockReturnValue(new Promise(() => {}));
+      it('registra las notificaciones dentro de la transaccion', async () => {
+        mail.sendCancel.mockResolvedValue(undefined);
 
         await expect(cancel(buildAdmin(inPlant))).resolves.toMatchObject({
           status: STATUS_CANCEL,
@@ -1062,15 +1040,15 @@ describe('EvidencesService', () => {
         );
       });
 
-      it('responde sin esperar a que salgan los correos', async () => {
-        mail.sendReassign.mockReturnValue(new Promise(() => {}));
+      it('registra las notificaciones dentro de la transaccion', async () => {
+        mail.sendReassign.mockResolvedValue(undefined);
 
         await expect(
           reassign(supervisor, [newResponsible.id]),
         ).resolves.toMatchObject({ responsibles: [newResponsible] });
         await flushBackgroundWork();
-        // Se envían uno tras otro: el primero nunca termina.
-        expect(mail.sendReassign).toHaveBeenCalledTimes(1);
+        // Se registran ambos destinatarios antes del commit.
+        expect(mail.sendReassign).toHaveBeenCalledTimes(2);
       });
 
       it.each(FINAL)(

@@ -51,3 +51,6 @@ src/files/*temp-image.png
 
 # Salida aislada del compilador de desarrollo
 /.dist-dev
+
+# Immutable outbox attachment snapshots
+/var/mail-outbox/

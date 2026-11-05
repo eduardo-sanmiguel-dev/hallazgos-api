@@ -12,18 +12,31 @@ import { DataSource } from 'typeorm';
 import { registerEvidenceImageAccess } from '../../src/evidences/evidence-image-access.middleware.js';
 import { AppModule } from '../../src/app.module.js';
 import { MailService } from '../../src/mail/mail.service.js';
+import { MailerService } from '@nestjs-modules/mailer';
+import { CreateMailOutbox1793900000000 } from '../../src/migrations/1793900000000-create-mail-outbox.js';
 import { createValidationPipe } from '../../src/shared/errors/validation-errors.js';
 import { ApiExceptionFilter } from '../../src/shared/filters/api-exception.filter.js';
 import { seedBaseData, TEST_PASSWORD } from './fixtures.js';
-import { recreateTestSchema } from './test-database.js';
+import { recreateTestSchema, createTestDataSource } from './test-database.js';
 
 export const API = '/api/v1';
 export const APP_KEY = () => process.env.APP_KEY as string;
 
-export const createE2eApp = async () => {
+export const createE2eApp = async (
+  options: { persistentMail?: boolean } = {},
+) => {
   await recreateTestSchema();
+  if (options.persistentMail) {
+    const db = createTestDataSource();
+    await db.initialize();
+    const runner = db.createQueryRunner();
+    await new CreateMailOutbox1793900000000().up(runner);
+    await runner.release();
+    await db.destroy();
+  }
 
   const mail = {
+    withOutbox: jest.fn(async (_manager, work) => work()),
     sendCreate: jest.fn().mockResolvedValue(undefined),
     sendInProgress: jest.fn().mockResolvedValue(undefined),
     sendSolution: jest.fn().mockResolvedValue(undefined),
@@ -32,10 +45,13 @@ export const createE2eApp = async () => {
     sendForgotPassword: jest.fn().mockResolvedValue(undefined),
   };
 
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-    .overrideProvider(MailService)
-    .useValue(mail)
-    .compile();
+  const builder = Test.createTestingModule({ imports: [AppModule] });
+  if (options.persistentMail)
+    builder
+      .overrideProvider(MailerService)
+      .useValue({ sendMail: mail.sendCreate });
+  else builder.overrideProvider(MailService).useValue(mail);
+  const moduleRef = await builder.compile();
 
   const app: INestApplication = moduleRef.createNestApplication();
   app.useGlobalPipes(createValidationPipe());
