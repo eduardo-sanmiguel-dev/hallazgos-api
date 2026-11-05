@@ -1,3 +1,4 @@
+import { catalogIncludesInactive } from '../shared/utils/catalog-visibility.js';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
@@ -25,12 +26,15 @@ export class MainTypesService {
   }
 
   async findAll(queryMainTypeDto: QueryMainTypeDto) {
+    const includeInactive = catalogIncludesInactive(
+      queryMainTypeDto.includeInactive,
+    );
     const { page, limit } = queryMainTypeDto;
     const { name } = queryMainTypeDto;
 
     const options: FindManyOptions<MainType> = {
       where: {
-        isActive: true,
+        ...(!includeInactive && { isActive: true }),
         ...(name && { name: ILike(`%${name}%`) }),
       },
       relations: ['secondaryTypes'],
@@ -43,9 +47,9 @@ export class MainTypesService {
     // tipos activos y el conteo de paginación. El detalle histórico no cambia.
     const activeChildren = (mainType: MainType): MainType => ({
       ...mainType,
-      secondaryTypes: (mainType.secondaryTypes ?? []).filter(
-        ({ isActive }) => isActive,
-      ),
+      secondaryTypes: includeInactive
+        ? (mainType.secondaryTypes ?? [])
+        : (mainType.secondaryTypes ?? []).filter(({ isActive }) => isActive),
     });
     if (page && limit) {
       const result = await findPaginated(

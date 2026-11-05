@@ -1,3 +1,4 @@
+import { catalogIncludesInactive } from '../shared/utils/catalog-visibility.js';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   BadRequestException,
@@ -167,20 +168,23 @@ export class GembaWalkCalendarService {
   }
 
   async findAll(queryGembaWalkCalendarDto: QueryGembaWalkCalendarDto) {
+    const includeInactive = catalogIncludesInactive(
+      queryGembaWalkCalendarDto.includeInactive,
+    );
     const { page, limit, isAdditional } = queryGembaWalkCalendarDto;
     const { manufacturingPlantId, gembaWalkZoneId, startDate, endDate } =
       queryGembaWalkCalendarDto;
 
     const where: FindOptionsWhere<GembaWalkCalendar> = {
-      isActive: true,
+      ...(!includeInactive && { isActive: true }),
       ...(isAdditional !== undefined && {
         isAdditional: String(isAdditional) === 'true',
       }),
       gembaWalkZone: {
-        isActive: true,
+        ...(!includeInactive && { isActive: true }),
         ...(gembaWalkZoneId && { id: gembaWalkZoneId }),
         manufacturingPlant: {
-          isActive: true,
+          ...(!includeInactive && { isActive: true }),
           id: In(
             scopePlantIds(
               this.requestContext.user.manufacturingPlants,

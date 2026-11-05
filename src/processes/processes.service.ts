@@ -1,3 +1,4 @@
+import { catalogIncludesInactive } from '../shared/utils/catalog-visibility.js';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
@@ -34,6 +35,9 @@ export class ProcessesService {
   }
 
   async findAll(queryProcessesDto: QueryProcessesDto) {
+    const includeInactive = catalogIncludesInactive(
+      queryProcessesDto.includeInactive,
+    );
     const { name, manufacturingPlantId, manufacturingPlantNames, page, limit } =
       queryProcessesDto;
 
@@ -52,17 +56,19 @@ export class ProcessesService {
 
     const options: FindManyOptions<Processes> = {
       where: {
-        isActive: true,
+        ...(!includeInactive && { isActive: true }),
         ...(name && { name: ILike(`%${name}%`) }),
         ...(manufacturingPlantIds.length
           ? {
               manufacturingPlant: {
                 id: In(manufacturingPlantIds),
-                isActive: true,
+                ...(!includeInactive && { isActive: true }),
               },
             }
           : {
-              manufacturingPlant: { isActive: true },
+              manufacturingPlant: {
+                ...(!includeInactive && { isActive: true }),
+              },
             }),
       },
       relations: ['manufacturingPlant'],

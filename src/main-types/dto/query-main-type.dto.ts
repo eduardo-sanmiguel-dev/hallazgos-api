@@ -1,6 +1,7 @@
+import { CatalogVisibilityDto } from '../../shared/dto/catalog-visibility.dto.js';
 import { IsOptional, IsString, IsInt, IsPositive } from 'class-validator';
 
-export class QueryMainTypeDto {
+export class QueryMainTypeDto extends CatalogVisibilityDto {
   @IsOptional()
   @IsString()
   name: string;

@@ -42,6 +42,7 @@ export class EquipmentsController {
     // Con page y limit responde paginado ({ data, count }); limit -1 = todos.
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('includeInactive') includeInactive?: string,
   ) {
     return page && limit
       ? this.equipmentsService.findAllPaginated(
@@ -49,8 +50,13 @@ export class EquipmentsController {
           name,
           page,
           limit,
+          ...(includeInactive === undefined ? [] : [includeInactive]),
         )
-      : this.equipmentsService.findAll(manufacturingPlantId, name);
+      : this.equipmentsService.findAll(
+          manufacturingPlantId,
+          name,
+          ...(includeInactive === undefined ? [] : [includeInactive]),
+        );
   }
 
   @Get(':id')

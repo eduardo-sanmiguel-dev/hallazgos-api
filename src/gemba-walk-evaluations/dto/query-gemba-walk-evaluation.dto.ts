@@ -1,8 +1,9 @@
+import { CatalogVisibilityDto } from '../../shared/dto/catalog-visibility.dto.js';
 import { IsIn, IsOptional, IsPositive, IsString, IsInt } from 'class-validator';
 
 import { GEMBA_WALK_EVALUATION_CATEGORIES } from '../gemba-walk-evaluation-categories.js';
 
-export class QueryGembaWalkEvaluationDto {
+export class QueryGembaWalkEvaluationDto extends CatalogVisibilityDto {
   @IsOptional()
   @IsPositive()
   manufacturingPlantId?: number;

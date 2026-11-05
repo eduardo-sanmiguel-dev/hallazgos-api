@@ -1,3 +1,4 @@
+import { catalogIncludesInactive } from '../shared/utils/catalog-visibility.js';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   BadRequestException,
@@ -104,14 +105,17 @@ export class AreasService {
   }
 
   async findAll(queryAreaDto: QueryAreaDto) {
+    const includeInactive = catalogIncludesInactive(
+      queryAreaDto.includeInactive,
+    );
     const { name, manufacturingPlantId, page, limit } = queryAreaDto;
 
     const options: FindManyOptions<Area> = {
       where: {
-        isActive: true,
+        ...(!includeInactive && { isActive: true }),
         ...(name && { name: ILike(`%${name}%`) }),
         manufacturingPlant: {
-          isActive: true,
+          ...(!includeInactive && { isActive: true }),
           ...(manufacturingPlantId && { id: manufacturingPlantId }),
         },
       },

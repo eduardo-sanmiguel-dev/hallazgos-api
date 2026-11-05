@@ -1,3 +1,4 @@
+import { CatalogVisibilityDto } from '../../shared/dto/catalog-visibility.dto.js';
 import {
   IsBooleanString,
   IsIn,
@@ -7,7 +8,7 @@ import {
   IsString,
 } from 'class-validator';
 
-export class FiltersEmployeeDto {
+export class FiltersEmployeeDto extends CatalogVisibilityDto {
   @IsOptional()
   @IsPositive()
   readonly manufacturingPlantId?: number;

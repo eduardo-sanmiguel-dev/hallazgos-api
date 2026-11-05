@@ -1,3 +1,4 @@
+import { catalogIncludesInactive } from '../shared/utils/catalog-visibility.js';
 import {
   ConflictException,
   Injectable,
@@ -180,6 +181,9 @@ export class EmployeesService {
   }
 
   findAll(filtersEmployeeDto: FiltersEmployeeDto) {
+    const includeInactive = catalogIncludesInactive(
+      filtersEmployeeDto.includeInactive,
+    );
     const { manufacturingPlants } = this.requestContext.user;
 
     const rawIsActive = filtersEmployeeDto.isActive as
@@ -212,7 +216,9 @@ export class EmployeesService {
     }
 
     const where: FindOptionsWhere<Employee> = {
-      isActive: parsedIsActive ?? true,
+      ...((!includeInactive || parsedIsActive !== undefined) && {
+        isActive: includeInactive ? (parsedIsActive ?? true) : true,
+      }),
       manufacturingPlants: { id: In(plantIds) },
     };
 

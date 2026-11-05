@@ -1,6 +1,7 @@
+import { CatalogVisibilityDto } from '../../shared/dto/catalog-visibility.dto.js';
 import { IsOptional, IsPositive, IsString, IsInt } from 'class-validator';
 
-export class QueryGembaWalkZoneDto {
+export class QueryGembaWalkZoneDto extends CatalogVisibilityDto {
   @IsOptional()
   @IsString()
   nameZone?: string;

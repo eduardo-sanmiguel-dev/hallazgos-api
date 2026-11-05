@@ -1,3 +1,4 @@
+import { catalogIncludesInactive } from '../shared/utils/catalog-visibility.js';
 import {
   BadRequestException,
   Injectable,
@@ -149,6 +150,9 @@ export class UsersService {
   }
 
   async findAll(queryUserDto: QueryUserDto, allowedPlantIds?: number[]) {
+    const includeInactive = catalogIncludesInactive(
+      queryUserDto.includeInactive,
+    );
     const {
       name,
       manufacturingPlantId,
@@ -181,7 +185,7 @@ export class UsersService {
               !manufacturingPlantId || id === Number(manufacturingPlantId),
           );
     const base: FindOptionsWhere<User> = {
-      isActive: true,
+      ...(!includeInactive && { isActive: true }),
       ...(name && { name: ILike(`%${name}%`) }),
       ...(plantIds !== undefined && {
         manufacturingPlants: { id: In(plantIds) },

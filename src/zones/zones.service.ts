@@ -1,3 +1,4 @@
+import { catalogIncludesInactive } from '../shared/utils/catalog-visibility.js';
 import {
   ConflictException,
   Injectable,
@@ -66,6 +67,9 @@ export class ZonesService {
   }
 
   async findAll(queryZoneDto: QueryZoneDto) {
+    const includeInactive = catalogIncludesInactive(
+      queryZoneDto.includeInactive,
+    );
     const {
       name,
       manufacturingPlantId,
@@ -92,10 +96,10 @@ export class ZonesService {
 
     const options: FindManyOptions<Zone> = {
       where: {
-        isActive: true,
+        ...(!includeInactive && { isActive: true }),
         ...((withArea || areaId) && {
           area: {
-            isActive: true,
+            ...(!includeInactive && { isActive: true }),
             ...(areaId && { id: areaId }),
           },
         }),
@@ -104,11 +108,13 @@ export class ZonesService {
           ? {
               manufacturingPlant: {
                 id: In(manufacturingPlantIds),
-                isActive: true,
+                ...(!includeInactive && { isActive: true }),
               },
             }
           : {
-              manufacturingPlant: { isActive: true },
+              manufacturingPlant: {
+                ...(!includeInactive && { isActive: true }),
+              },
             }),
       },
       relations: this.relations,
