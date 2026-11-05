@@ -168,7 +168,7 @@ describe('EmployeesService', () => {
       expect(employees.findAndCount).not.toHaveBeenCalled();
     });
 
-    it('filtra por puesto, área, género y estado', async () => {
+    it('filtra puesto, área y género y conserva activos sin includeInactive', async () => {
       await as(() =>
         service.findAll({
           positionId: 5,
@@ -179,11 +179,16 @@ describe('EmployeesService', () => {
       );
 
       expect(findArgs().where[0]).toMatchObject({
-        isActive: false,
+        isActive: true,
         position: { id: 5 },
         area: { id: 4 },
         gender: { id: 6 },
       });
+    });
+
+    it('sin includeInactive, isActive=false también conserva solo activos', async () => {
+      await as(() => service.findAll({ isActive: 'false' }));
+      expect(findArgs().where[0].isActive).toBe(true);
     });
 
     it('isActive "true" e inválido se tratan como activos', async () => {

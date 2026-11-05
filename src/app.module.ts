@@ -1,3 +1,4 @@
+import { CatalogLifecycleModule } from './catalog-lifecycle/catalog-lifecycle.module.js';
 import {
   type MiddlewareConsumer,
   Module,
@@ -95,6 +96,7 @@ import { EvidenceImageAccessMiddleware } from './evidences/evidence-image-access
     ServeStaticModule.forRoot({
       rootPath: join(import.meta.dirname, '..', 'public'),
     }),
+    CatalogLifecycleModule,
     AuthModule,
     UsersModule,
     ManufacturingPlantsModule,

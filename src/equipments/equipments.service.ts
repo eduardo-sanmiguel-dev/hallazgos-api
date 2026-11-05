@@ -1,3 +1,4 @@
+import { catalogIncludesInactive } from '../shared/utils/catalog-visibility.js';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RequestContextService } from '../shared/services/request-context.service.js';
@@ -77,6 +78,7 @@ export class EquipmentsService {
   private listWhere(
     manufacturingPlantId: number | undefined,
     name: string,
+    includeInactive?: string,
   ): FindOptionsWhere<Equipment> {
     let manufacturingPlantsIds = this.requestContext.manufacturingPlantIds;
 
@@ -87,7 +89,7 @@ export class EquipmentsService {
     }
 
     return {
-      isActive: true,
+      ...(!catalogIncludesInactive(includeInactive) && { isActive: true }),
       ...(name && { name: ILike(`%${name}%`) }),
       manufacturingPlant: {
         id: In(manufacturingPlantsIds),
@@ -95,9 +97,13 @@ export class EquipmentsService {
     };
   }
 
-  findAll(manufacturingPlantId: number | undefined, name: string) {
+  findAll(
+    manufacturingPlantId: number | undefined,
+    name: string,
+    includeInactive?: string,
+  ) {
     return this.equipmentRepository.find({
-      where: this.listWhere(manufacturingPlantId, name),
+      where: this.listWhere(manufacturingPlantId, name, includeInactive),
       relations: this.relations,
       order: {
         name: 'ASC',
@@ -115,11 +121,12 @@ export class EquipmentsService {
     name: string,
     page: string,
     limit: string,
+    includeInactive?: string,
   ) {
     const result = await findPaginated(
       this.equipmentRepository,
       {
-        where: this.listWhere(manufacturingPlantId, name),
+        where: this.listWhere(manufacturingPlantId, name, includeInactive),
         relations: this.relations,
         order: { name: 'ASC', id: 'ASC' },
       },

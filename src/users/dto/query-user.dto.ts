@@ -1,3 +1,4 @@
+import { CatalogVisibilityDto } from '../../shared/dto/catalog-visibility.dto.js';
 import { Transform } from 'class-transformer';
 import {
   IsArray,
@@ -29,7 +30,7 @@ export const USER_ORDER_BY_PATTERN = new RegExp(
   'i',
 );
 
-export class QueryUserDto {
+export class QueryUserDto extends CatalogVisibilityDto {
   @IsOptional()
   @IsString()
   name: string;

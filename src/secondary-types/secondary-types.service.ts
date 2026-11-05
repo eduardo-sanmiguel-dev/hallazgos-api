@@ -1,3 +1,4 @@
+import { catalogIncludesInactive } from '../shared/utils/catalog-visibility.js';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
@@ -36,14 +37,20 @@ export class SecondaryTypesService {
   }
 
   findAll(querySecondaryTypeDto: QuerySecondaryTypeDto) {
+    const includeInactive = catalogIncludesInactive(
+      querySecondaryTypeDto.includeInactive,
+    );
     const { page, limit } = querySecondaryTypeDto;
     const { name, mainTypeId } = querySecondaryTypeDto;
 
     const options: FindManyOptions<SecondaryType> = {
       where: {
-        isActive: true,
+        ...(!includeInactive && { isActive: true }),
         ...(name && { name: ILike(`%${name}%`) }),
-        ...(mainTypeId && { mainType: { id: mainTypeId } }),
+        mainType: {
+          ...(!includeInactive && { isActive: true }),
+          ...(mainTypeId && { id: mainTypeId }),
+        },
       },
       relations: ['mainType'],
       order: {
@@ -58,7 +65,7 @@ export class SecondaryTypesService {
 
   findAllByManufacturingPlant(id: number) {
     return this.secondaryTypeRepository.find({
-      where: { mainType: { id }, isActive: true },
+      where: { mainType: { id, isActive: true }, isActive: true },
       order: { name: 'ASC' },
     });
   }
@@ -67,7 +74,7 @@ export class SecondaryTypesService {
     const SecondaryType = await this.secondaryTypeRepository.findOne({
       where: {
         id,
-        ...(isActive && { isActive }),
+        ...(isActive && { isActive, mainType: { isActive: true } }),
       },
       relations: ['mainType'],
     });

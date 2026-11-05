@@ -37,6 +37,15 @@ describe('IcsService', () => {
     service = testing.service;
     ics = testing.repository(Ics);
     rules = testing.repository(RulesOfLife);
+    rules.findOne.mockResolvedValue({
+      id: 2,
+      isActive: true,
+      standards: [
+        { id: 7, isActive: true, areas: [{ id: 9, isActive: true }] },
+        { id: 8, isActive: false, areas: [] },
+        { id: 10, isActive: true, areas: [{ id: 11, isActive: false }] },
+      ],
+    } as RulesOfLife);
     Object.assign(ics, {
       manager: {
         count: jest.fn(
@@ -122,9 +131,54 @@ describe('IcsService', () => {
     await as(async () => service.catalogs());
 
     expect(rules.find).toHaveBeenCalledWith({
+      where: { isActive: true },
       relations: ['standards', 'standards.areas'],
       order: { order: 'ASC' },
     });
+  });
+
+  it.each([
+    [{ standardOfBehaviorId: 8 }, 'estándar'],
+    [{ standardOfBehaviorId: 99 }, 'estándar'],
+    [{ areaOfBehaviorId: 9 }, 'estándar'],
+    [{ standardOfBehaviorId: 7, areaOfBehaviorId: 99 }, 'área'],
+    [{ standardOfBehaviorId: 10, areaOfBehaviorId: 11 }, 'área'],
+  ])(
+    'rechaza relaciones inactivas o ajenas %j antes de guardar',
+    async (fields, message) => {
+      await expect(
+        as(() => service.create({ ...dto, ...fields }, undefined)),
+      ).rejects.toThrow(new RegExp(message, 'i'));
+      expect(ics.save).not.toHaveBeenCalled();
+    },
+  );
+  it('rechaza una regla inexistente o desactivada', async () => {
+    rules.findOne.mockResolvedValue(null);
+    await expect(as(() => service.create(dto, undefined))).rejects.toThrow(
+      'ya no está disponible',
+    );
+    expect(ics.save).not.toHaveBeenCalled();
+  });
+  it('el catálogo conserva reglas y estándares sin hijos activos', async () => {
+    rules.find.mockResolvedValue([
+      {
+        id: 2,
+        isActive: true,
+        standards: [
+          { id: 7, isActive: true, areas: [{ id: 9, isActive: false }] },
+          { id: 8, isActive: false, areas: [] },
+        ],
+      },
+      { id: 3, isActive: true, standards: [] },
+    ] as RulesOfLife[]);
+    expect(await service.catalogs()).toEqual([
+      {
+        id: 2,
+        isActive: true,
+        standards: [{ id: 7, isActive: true, areas: [] }],
+      },
+      { id: 3, isActive: true, standards: [] },
+    ]);
   });
 
   describe('findAll', () => {

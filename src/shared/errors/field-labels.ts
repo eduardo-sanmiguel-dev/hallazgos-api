@@ -6,6 +6,7 @@
  * etiqueta.
  */
 export const FIELD_LABELS: Record<string, string> = {
+  includeInactive: 'Incluir registros inactivos',
   // Generales
   id: 'Identificador',
   ids: 'Identificadores',

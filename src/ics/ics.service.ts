@@ -47,6 +47,37 @@ export class IcsService {
     } = createIcsDto;
 
     this.requestContext.assertManufacturingPlant(manufacturingPlantId);
+    // Validate the active hierarchy even for clients with an old catalog/draft.
+    const rule = await this.rulesOfLifeRepository.findOne({
+      where: { id: ruleOfLifeId, isActive: true },
+      relations: ['standards', 'standards.areas'],
+    });
+    if (!rule)
+      throw new NotFoundException(
+        'La regla de vida seleccionada ya no está disponible.',
+      );
+    const standard = standardOfBehaviorId
+      ? rule.standards.find(
+          (item) => item.id === Number(standardOfBehaviorId) && item.isActive,
+        )
+      : undefined;
+    if (standardOfBehaviorId && !standard)
+      throw new BadRequestException(
+        'El estándar seleccionado no está activo o no pertenece a la regla de vida.',
+      );
+    if (areaOfBehaviorId && !standard)
+      throw new BadRequestException(
+        'Selecciona un estándar válido antes de elegir el área de comportamiento.',
+      );
+    if (
+      areaOfBehaviorId &&
+      !standard.areas.some(
+        (item) => item.id === Number(areaOfBehaviorId) && item.isActive,
+      )
+    )
+      throw new BadRequestException(
+        'El área seleccionada no está activa o no pertenece al estándar.',
+      );
     const ids = [...new Set(employeesIds)];
     const count = await this.icsRepository.manager.count(Employee, {
       where: {
@@ -104,11 +135,21 @@ export class IcsService {
     });
   }
 
-  catalogs() {
-    return this.rulesOfLifeRepository.find({
+  async catalogs() {
+    const rules = await this.rulesOfLifeRepository.find({
+      where: { isActive: true },
       relations: ['standards', 'standards.areas'],
       order: { order: 'ASC' },
     });
+    return rules.map((rule) => ({
+      ...rule,
+      standards: rule.standards
+        .filter((standard) => standard.isActive)
+        .map((standard) => ({
+          ...standard,
+          areas: standard.areas.filter((area) => area.isActive),
+        })),
+    }));
   }
 
   async findAll(filtersIcsDto: FiltersIcsDto) {

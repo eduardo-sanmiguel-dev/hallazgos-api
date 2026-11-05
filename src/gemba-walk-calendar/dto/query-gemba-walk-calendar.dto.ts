@@ -1,3 +1,4 @@
+import { CatalogVisibilityDto } from '../../shared/dto/catalog-visibility.dto.js';
 import {
   IsISO8601,
   IsOptional,
@@ -9,7 +10,7 @@ import {
 
 import { ISO_WITH_OFFSET } from './iso-with-offset.js';
 
-export class QueryGembaWalkCalendarDto {
+export class QueryGembaWalkCalendarDto extends CatalogVisibilityDto {
   @IsOptional()
   @IsPositive()
   manufacturingPlantId?: number;
@@ -21,12 +22,16 @@ export class QueryGembaWalkCalendarDto {
   // Rango [startDate, endDate) de instantes reales.
   @IsOptional()
   @IsISO8601({ strict: true })
-  @Matches(ISO_WITH_OFFSET, { message: 'La fecha debe incluir la zona horaria.' })
+  @Matches(ISO_WITH_OFFSET, {
+    message: 'La fecha debe incluir la zona horaria.',
+  })
   startDate?: string;
 
   @IsOptional()
   @IsISO8601({ strict: true })
-  @Matches(ISO_WITH_OFFSET, { message: 'La fecha debe incluir la zona horaria.' })
+  @Matches(ISO_WITH_OFFSET, {
+    message: 'La fecha debe incluir la zona horaria.',
+  })
   endDate?: string;
 
   @IsOptional()

@@ -1,6 +1,7 @@
+import { CatalogVisibilityDto } from '../../shared/dto/catalog-visibility.dto.js';
 import { IsOptional, IsPositive, IsString, IsInt } from 'class-validator';
 
-export class QueryGembaWalkObserverDto {
+export class QueryGembaWalkObserverDto extends CatalogVisibilityDto {
   @IsOptional()
   @IsPositive()
   manufacturingPlantId?: number;

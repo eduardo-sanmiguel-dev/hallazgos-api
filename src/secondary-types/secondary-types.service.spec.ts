@@ -57,7 +57,7 @@ describe('SecondaryTypesService', () => {
         where: { name: FindOperator<string>; mainType: object };
       };
       expect(where.name.value).toBe('%orden%');
-      expect(where.mainType).toEqual({ id: 1 });
+      expect(where.mainType).toEqual({ id: 1, isActive: true });
     });
 
     it('paginado si se pide', async () => {
@@ -73,12 +73,20 @@ describe('SecondaryTypesService', () => {
     await service.findAllByManufacturingPlant(1);
 
     expect(types.find).toHaveBeenCalledWith({
-      where: { mainType: { id: 1 }, isActive: true },
+      where: { mainType: { id: 1, isActive: true }, isActive: true },
       order: { name: 'ASC' },
     });
   });
 
   describe('findOne', () => {
+    it('una selección activa también exige su criterio principal activo', async () => {
+      await service.findOne(5);
+      expect(types.findOne.mock.calls[0][0].where).toEqual({
+        id: 5,
+        isActive: true,
+        mainType: { isActive: true },
+      });
+    });
     it('inexistente responde 404', async () => {
       types.findOne.mockResolvedValue(null);
 

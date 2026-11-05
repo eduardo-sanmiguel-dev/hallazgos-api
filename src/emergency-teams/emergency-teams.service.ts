@@ -1,3 +1,4 @@
+import { catalogIncludesInactive } from '../shared/utils/catalog-visibility.js';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RequestContextService } from '../shared/services/request-context.service.js';
@@ -41,6 +42,9 @@ export class EmergencyTeamsService {
   }
 
   async findAll(queryEmergencyTeamDto: QueryEmergencyTeamDto) {
+    const includeInactive = catalogIncludesInactive(
+      queryEmergencyTeamDto.includeInactive,
+    );
     const { search, manufacturingPlantId, typeOfExtinguisher, page, limit } =
       queryEmergencyTeamDto;
 
@@ -52,7 +56,9 @@ export class EmergencyTeamsService {
         'emergencyTeam.manufacturingPlant',
         'manufacturingPlant',
       )
-      .where('emergencyTeam.isActive = :isActive', { isActive: true })
+      .where(includeInactive ? '1=1' : 'emergencyTeam.isActive = :isActive', {
+        isActive: true,
+      })
       .andWhere('manufacturingPlant.id IN (:...allowedPlantIds)', {
         allowedPlantIds: this.requestContext.manufacturingPlantIds.length
           ? this.requestContext.manufacturingPlantIds

@@ -1,3 +1,4 @@
+import { CatalogVisibilityDto } from '../../shared/dto/catalog-visibility.dto.js';
 import {
   IsEnum,
   IsInt,
@@ -8,7 +9,7 @@ import {
 
 import { ExtinguisherType } from '../entities/emergency-team.entity.js';
 
-export class QueryEmergencyTeamDto {
+export class QueryEmergencyTeamDto extends CatalogVisibilityDto {
   @IsOptional()
   @IsString()
   search: string;

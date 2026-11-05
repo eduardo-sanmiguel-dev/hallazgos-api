@@ -1,3 +1,4 @@
+import { CatalogVisibilityDto } from '../../shared/dto/catalog-visibility.dto.js';
 import { Transform } from 'class-transformer';
 import {
   ArrayMinSize,
@@ -10,7 +11,7 @@ import {
 
 import { parseStringArrayQueryByKey } from '../../shared/utils/index.js';
 
-export class QueryProcessesDto {
+export class QueryProcessesDto extends CatalogVisibilityDto {
   @IsOptional()
   @IsString()
   name: string;
