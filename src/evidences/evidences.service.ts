@@ -657,11 +657,16 @@ export class EvidencesService {
   }) {
     // Nunca lanza: el cambio ya se guardó y un problema al avisar solo se
     // registra en el log.
+    const notifyCreator = type === 'solution' && manufacturingPlant.id !== 3;
     let plantUsers: User[];
     try {
-      plantUsers = await this.usersService.findAllByPlant(
-        manufacturingPlant.id,
-      );
+      // La planta 3 conserva su lista de destinatarios. En las demás,
+      // el cierre se notifica únicamente a quien creó el hallazgo.
+      plantUsers = notifyCreator
+        ? evidenceCurrent.user?.email
+          ? [evidenceCurrent.user]
+          : []
+        : await this.usersService.findAllByPlant(manufacturingPlant.id);
 
       if (this.configService.get<string>('environment') === ENV_DEVELOPMENT) {
         plantUsers = [await this.usersService.findOne(1)];
@@ -682,7 +687,9 @@ export class EvidencesService {
 
     if (!plantUsers.length) {
       this.logger.warn(
-        `No se ha encontrado usuarios asignados para la planta ${manufacturingPlant.name}: no se envió el correo "${type}" del hallazgo #${evidenceCurrent.id}`,
+        notifyCreator
+          ? `No se ha encontrado el creador con correo del hallazgo #${evidenceCurrent.id}: no se envió el correo de solución`
+          : `No se ha encontrado usuarios asignados para la planta ${manufacturingPlant.name}: no se envió el correo "${type}" del hallazgo #${evidenceCurrent.id}`,
       );
       return;
     }
@@ -737,8 +744,7 @@ export class EvidencesService {
       },
     );
 
-    // En segundo plano, como al crear: son un correo por usuario de la planta
-    // (48 en Tepotzotlán, ~45 s) y nunca lanza; no se hace esperar al usuario.
+    // En segundo plano: el envío nunca hace esperar al usuario ni afecta el cierre.
     void this.notifyByEmail({
       manufacturingPlant,
       evidenceCurrent: evidenceSolution,

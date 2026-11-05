@@ -854,11 +854,15 @@ describe('EvidencesService', () => {
             }),
           });
           await flushBackgroundWork();
-          expect(mail.sendSolution).toHaveBeenCalled();
+          expect(mail.sendSolution).toHaveBeenCalledTimes(1);
+          expect(mail.sendSolution).toHaveBeenCalledWith({
+            user: reporter,
+            evidenceCurrent: result,
+          });
+          expect(usersService.findAllByPlant).not.toHaveBeenCalled();
         },
       );
 
-      // Son un correo por usuario de la planta (~45 s en Tepotzotlán).
       it('responde sin esperar a que salgan los correos', async () => {
         mail.sendSolution.mockReturnValue(new Promise(() => {}));
 
@@ -1303,6 +1307,85 @@ describe('EvidencesService', () => {
         expect(evidences.save).not.toHaveBeenCalled();
       }
     });
+  });
+
+  describe('destinatarios del correo de solución', () => {
+    const notify = (plantId: number, type = 'solution', creator = reporter) => {
+      const manufacturingPlant = buildManufacturingPlant({ id: plantId });
+      return runAsUser(supervisor, () =>
+        service.notifyByEmail({
+          manufacturingPlant,
+          evidenceCurrent: buildEvidence({
+            id: 40,
+            manufacturingPlant,
+            user: creator,
+            supervisors: [supervisor],
+            responsibles: [responsible],
+          }),
+          type,
+        }),
+      );
+    };
+
+    it.each([1, 2, 4])(
+      'planta %s: avisa solo al creador, sin consultar usuarios de la planta',
+      async (plantId) => {
+        await notify(plantId);
+
+        expect(
+          mail.sendSolution.mock.calls.map(([{ user }]) => user.id),
+        ).toEqual([reporter.id]);
+        expect(usersService.findAllByPlant).not.toHaveBeenCalled();
+      },
+    );
+
+    it('planta 3: conserva los destinatarios de findAllByPlant', async () => {
+      usersService.findAllByPlant.mockResolvedValue([plantUser, responsible]);
+
+      await notify(3);
+
+      expect(usersService.findAllByPlant).toHaveBeenCalledWith(3);
+      expect(mail.sendSolution.mock.calls.map(([{ user }]) => user.id)).toEqual(
+        [plantUser.id, responsible.id],
+      );
+    });
+
+    it('sin correo del creador no usa a los usuarios de la planta como alternativa', async () => {
+      await notify(1, 'solution', buildUser({ id: reporter.id, email: '' }));
+
+      expect(mail.sendSolution).not.toHaveBeenCalled();
+      expect(usersService.findAllByPlant).not.toHaveBeenCalled();
+      expect(logWarn).toHaveBeenCalledWith(
+        expect.stringContaining('No se ha encontrado el creador con correo'),
+      );
+    });
+
+    it.each(['create', 'cancel'])(
+      '%s conserva los destinatarios de la planta',
+      async (type) => {
+        await notify(1, type);
+
+        expect(usersService.findAllByPlant).toHaveBeenCalledWith(1);
+        const sent = type === 'create' ? mail.sendCreate : mail.sendCancel;
+        expect(sent).toHaveBeenCalledTimes(1);
+        expect(sent).toHaveBeenCalledWith(
+          expect.objectContaining({ user: plantUser }),
+        );
+      },
+    );
+
+    it.each([1, 3])(
+      'en desarrollo mantiene la cuenta de pruebas (planta %s)',
+      async (plantId) => {
+        await setup(ENV_DEVELOPMENT);
+
+        await notify(plantId);
+
+        expect(
+          mail.sendSolution.mock.calls.map(([{ user }]) => user.id),
+        ).toEqual([devUser.id]);
+      },
+    );
   });
 
   describe('C3: contenido de cada correo', () => {
