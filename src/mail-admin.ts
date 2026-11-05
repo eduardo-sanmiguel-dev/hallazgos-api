@@ -57,7 +57,7 @@ async function main() {
           'MailWorker',
         );
       logger?.log(
-        { component: 'mail-worker', event: 'mail_worker_ready' },
+        { component: 'mail-worker', event: 'mail_state_reported' },
         'MailWorker',
       );
       await logger?.close();

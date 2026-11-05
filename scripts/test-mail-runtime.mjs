@@ -1,5 +1,6 @@
 // End-to-end worker smoke test. Requires isolated PostgreSQL/Redis and pnpm build.
 import { createServer } from 'node:net';
+import { createServer as createHttpServer } from 'node:http';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { randomUUID } from 'node:crypto';
@@ -150,6 +151,50 @@ async function cli(...args) {
     { env: runtimeEnv },
   );
 }
+// Capture the real CLI's structured logs without contacting production OpenObserve.
+async function checkReport(expectBlocked) {
+  const entries = [];
+  const observe = createHttpServer(async (request, response) => {
+    let body = '';
+    for await (const chunk of request) body += chunk;
+    entries.push(...JSON.parse(body));
+    response.writeHead(200, { 'Content-Type': 'application/json' });
+    response.end('{}');
+  });
+  await new Promise((resolve) => observe.listen(0, '127.0.0.1', resolve));
+  try {
+    await promisify(execFile)(
+      process.execPath,
+      ['dist/mail-admin.js', 'report'],
+      {
+        env: {
+          ...runtimeEnv,
+          NODE_ENV: 'production',
+          OBSERVE_ENDPOINT: `http://127.0.0.1:${observe.address().port}/api/default`,
+          OBSERVE_AUTH_HEADER: 'Basic runtime-test-only',
+          OBSERVE_STREAM: 'mail_runtime_test',
+        },
+      },
+    );
+    const events = entries.map((entry) => entry.event);
+    if (
+      events.filter((event) => event === 'mail_state_reported').length !== 1 ||
+      events.includes('mail_worker_ready')
+    )
+      throw new Error(
+        'Administrative report must not emit a worker-ready notification',
+      );
+    if (events.includes('mail_account_blocked') !== expectBlocked)
+      throw new Error(
+        'Administrative report must preserve the blocked-account alert',
+      );
+    console.log(
+      'PASS: state report is distinct from worker readiness; blocked-account alerts preserved',
+    );
+  } finally {
+    await new Promise((resolve) => observe.close(resolve));
+  }
+}
 async function stop() {
   if (worker && worker.exitCode === null) {
     const exited = once(worker, 'exit');
@@ -235,6 +280,7 @@ try {
   await stop();
   if (submissions !== 4) throw new Error('Blocked sender sent extra mail');
   console.log('PASS: sender quota pauses all remaining notifications');
+  await checkReport(true);
   await cli('resume', 'sender@example.test');
   start();
   await waitFor(
@@ -244,7 +290,7 @@ try {
     'manual account recovery',
   );
   await stop();
-  await cli('report');
+  await checkReport(false);
   if (accepted !== 4 || submissions !== 6)
     throw new Error('Unexpected delivery count after account recovery');
   console.log(

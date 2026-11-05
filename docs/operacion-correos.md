@@ -73,7 +73,7 @@ Dashboard nuevo: **ComportArte - Correos**, ID `7524213414034407424`. Muestra ac
 Reglas nuevas, preparadas desactivadas y activadas por el despliegue tras verificar el worker:
 
 - `correo_outbox_atencion`: errores que requieren intervención, incluyendo bloqueo de cuenta, cola inaccesible, backlog y resultados inciertos.
-- `correo_outbox_recuperado`: cuenta reanudada o worker listo tras arranque/recuperación.
+- `correo_outbox_recuperado`: cuenta reanudada o worker listo tras arranque/recuperación. El reporte administrativo emite `mail_state_reported`, que no dispara esta alerta; `mail_worker_ready` se reserva al worker real.
 - `correo_outbox_worker_detenido`: ausencia de heartbeat durante dos minutos.
 
 Se usa el destino Telegram existente con una plantilla independiente para la cola. La regla `fallo_envio_correos` se conserva: mientras esté la API anterior sigue cubriéndola; con la nueva API permite detectar un error al registrar una solicitud de recuperación que no consiguió entrar al outbox. Los fallos transitorios de SMTP se registran como eventos de reintento y no disparan esa regla.
