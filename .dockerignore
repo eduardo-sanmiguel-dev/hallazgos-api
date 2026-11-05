@@ -1,0 +1,16 @@
+.git
+node_modules
+dist
+.dist-dev
+coverage
+.env*
+postgres
+logs
+*.log
+public/static/images/evidences
+var
+test-results
+.agents
+.claude
+src/files/archivo_actualizado*.xlsx
+src/files/*temp-image.png

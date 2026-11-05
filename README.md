@@ -47,6 +47,34 @@ $ yarn run start:prod
 
 ## Test
 
+### Validaciones antes del push
+
+Con Docker Desktop iniciado en modo Linux, `git push` ejecuta en contenedores
+Node 24 y la versión de pnpm fijada en `packageManager`. Instala dependencias
+con `--frozen-lockfile` y corre los mismos comandos compartidos con Actions:
+TypeScript, unitarias con cobertura y sus umbrales, HTTP, pruebas de PostgreSQL,
+compilación y pruebas del worker de correo con Redis y SMTP controlado.
+Cualquier fallo bloquea el push, incluido Docker apagado.
+
+El hook prueba una copia del commit de cada referencia enviada, no los cambios
+sin commit. Los nuevos scripts y archivos de CI deben incluirse en el commit.
+Para revisar el directorio de trabajo antes de crear ese commit:
+
+```bash
+pnpm ci:local
+```
+
+Para revisar un commit específico: `pnpm ci:local <SHA-completo>`.
+La primera ejecución descarga imágenes y dependencias y tarda más.
+PostgreSQL 14 y Redis 7.4 son desechables, sin puertos publicados, archivos
+`.env` ni acceso a los datos locales. Al terminar se eliminan sus contenedores
+y volúmenes. Husky se instala con `pnpm install`; `HUSKY=0` y `--no-verify`
+permiten omitir hooks, por lo que los controles de Actions siguen siendo necesarios.
+
+Estas pruebas reproducen las validaciones previas al deploy. El paso SSH y el
+script del VPS solo corren en Actions: conexión, secretos, espacio en disco,
+configuración y servicios de producción todavía pueden causar un fallo allí.
+
 ```bash
 # unit tests
 $ yarn run test
