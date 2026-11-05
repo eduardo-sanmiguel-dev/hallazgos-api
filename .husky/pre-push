@@ -1,1 +1,1 @@
-pnpm typecheck
+node scripts/pre-push.mjs

@@ -7,6 +7,8 @@
   "license": "UNLICENSED",
   "type": "module",
   "scripts": {
+    "ci:check": "node scripts/ci-check.mjs",
+    "ci:local": "node scripts/ci-local.mjs",
     "build": "node scripts/build.mjs",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "cross-env NODE_ENV=production nest start",

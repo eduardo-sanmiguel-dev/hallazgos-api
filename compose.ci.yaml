@@ -1,0 +1,57 @@
+# No host ports, bind mounts or production credentials. Each run gets its own project.
+services:
+  postgres:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: hallazgos_ci
+      POSTGRES_PASSWORD: hallazgos_ci_only
+      POSTGRES_DB: hallazgos_test
+      TZ: America/Mexico_City
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U hallazgos_ci -d hallazgos_test]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  redis:
+    image: redis:7.4-alpine
+    # The runtime tests and DB safeguards explicitly use loopback.
+    network_mode: service:postgres
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  checks:
+    build:
+      context: .
+      dockerfile: Dockerfile.ci
+    network_mode: service:postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      CI: 'true'
+      NODE_ENV: test
+      TZ: America/Mexico_City
+      TEST_DB_NAME: hallazgos_test
+      DB_NAME: hallazgos_test
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_USERNAME: hallazgos_ci
+      DB_PASSWORD: hallazgos_ci_only
+      PORT: '4000'
+      APP_KEY: app-key-de-pruebas
+      JWT_SECRET_KEY: jwt-secreto-solo-para-pruebas
+      WHITE_LIST_DOMAINS: http://localhost:3000
+      FRONTEND_URL: http://localhost:3000
+      MAIL_HOST: 127.0.0.1
+      MAIL_USER: ci@example.com
+      MAIL_PASSWORD: mail-ci-only
+      GIST_SECRET_URL: http://127.0.0.1/unused-test-secret
+      MAIL_TEST_DATABASE: comportarte_mail_runtime_test
+      MAIL_TEST_PG_PORT: '5432'
+      MAIL_TEST_REDIS_PORT: '6379'
+      MAIL_TEST_PG_USER: hallazgos_ci
+      MAIL_TEST_PG_PASSWORD: hallazgos_ci_only

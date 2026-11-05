@@ -10,6 +10,9 @@ concurrency:
   group: deploy-production
   cancel-in-progress: false
 
+env:
+  TZ: America/Mexico_City
+
 jobs:
   typecheck:
     runs-on: ubuntu-latest
@@ -21,7 +24,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
+      - run: pnpm ci:check typecheck
 
   # Solo pruebas con dependencias simuladas, sin secretos del VPS.
   unit-tests:
@@ -37,10 +40,7 @@ jobs:
       - name: Pruebas unitarias con cobertura
         env:
           NODE_ENV: test
-        run: |
-          mkdir -p public/static/images/evidences
-          pnpm test:cov --config ./jest.config.js --ci --runInBand
-          node scripts/coverage-goal.js
+        run: pnpm ci:check unit
 
   # Contratos HTTP con servicios simulados, sin conexión a PostgreSQL.
   http-tests:
@@ -56,7 +56,7 @@ jobs:
       - name: Pruebas HTTP con servicios simulados
         env:
           NODE_ENV: test
-        run: pnpm test:e2e --ci --runInBand
+        run: pnpm ci:check http
 
   # PostgreSQL desechable del runner: sin credenciales ni acceso al VPS.
   database-tests:
@@ -111,21 +111,15 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Pruebas de base de datos temporal
+      - name: Base de datos, compilación y worker real con SMTP controlado
         env:
           DB_PORT: '5432'
-        run: |
-          mkdir -p public/static/images/evidences
-          pnpm test:db --ci
-      - run: pnpm build
-      - name: Worker real con SMTP controlado y perdida de trabajos Redis
-        env:
           MAIL_TEST_DATABASE: comportarte_mail_runtime_test
           MAIL_TEST_PG_PORT: '5432'
           MAIL_TEST_REDIS_PORT: '6379'
           MAIL_TEST_PG_USER: hallazgos_ci
           MAIL_TEST_PG_PASSWORD: hallazgos_ci_only
-        run: pnpm test:mail:runtime
+        run: pnpm ci:check database
 
   deploy:
     needs: [typecheck, unit-tests, http-tests, database-tests]
