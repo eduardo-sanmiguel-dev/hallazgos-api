@@ -24,7 +24,7 @@ export class MainTypesService {
     return this.mainTypeRepository.save(mainType);
   }
 
-  findAll(queryMainTypeDto: QueryMainTypeDto) {
+  async findAll(queryMainTypeDto: QueryMainTypeDto) {
     const { page, limit } = queryMainTypeDto;
     const { name } = queryMainTypeDto;
 
@@ -39,9 +39,24 @@ export class MainTypesService {
       },
     };
 
-    return page && limit
-      ? findPaginated(this.mainTypeRepository, options, page, limit)
-      : this.mainTypeRepository.find(options);
+    // Filtrar la relación después de leer los padres conserva criterios sin
+    // tipos activos y el conteo de paginación. El detalle histórico no cambia.
+    const activeChildren = (mainType: MainType): MainType => ({
+      ...mainType,
+      secondaryTypes: (mainType.secondaryTypes ?? []).filter(
+        ({ isActive }) => isActive,
+      ),
+    });
+    if (page && limit) {
+      const result = await findPaginated(
+        this.mainTypeRepository,
+        options,
+        page,
+        limit,
+      );
+      return { ...result, data: result.data.map(activeChildren) };
+    }
+    return (await this.mainTypeRepository.find(options)).map(activeChildren);
   }
 
   async findOne(id: number, isActive = true): Promise<MainType> {
