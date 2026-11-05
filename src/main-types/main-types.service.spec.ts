@@ -47,6 +47,45 @@ describe('MainTypesService', () => {
     ).resolves.toMatchObject({ count: 0 });
   });
 
+  it('el catálogo omite tipos inactivos y conserva criterios sin tipos activos', async () => {
+    const active = { id: 24, isActive: true };
+    const inactive = { id: 23, isActive: false };
+    types.find.mockResolvedValue([
+      { id: 3, secondaryTypes: [inactive, active] },
+      { id: 4, secondaryTypes: [inactive] },
+      { id: 5, secondaryTypes: [] },
+    ] as MainType[]);
+    const result = await service.findAll({} as never);
+    expect(result).toEqual([
+      { id: 3, secondaryTypes: [active] },
+      { id: 4, secondaryTypes: [] },
+      { id: 5, secondaryTypes: [] },
+    ]);
+    expect(types.find.mock.results).toHaveLength(1);
+  });
+
+  it('el listado paginado filtra hijos sin alterar padres ni conteo', async () => {
+    types.findAndCount.mockResolvedValue([
+      [{ id: 3, secondaryTypes: [{ id: 23, isActive: false }] }] as MainType[],
+      7,
+    ]);
+    await expect(
+      service.findAll({ page: 1, limit: 1 } as never),
+    ).resolves.toEqual({
+      data: [{ id: 3, secondaryTypes: [] }],
+      count: 7,
+    });
+  });
+
+  it('conserva los tipos históricos en el detalle del criterio', async () => {
+    const current = {
+      id: 3,
+      secondaryTypes: [{ id: 23, isActive: false }],
+    } as MainType;
+    types.findOne.mockResolvedValue(current);
+    expect(await service.findOne(3)).toBe(current);
+  });
+
   it('findOne inexistente responde 404; con isActive=false incluye inactivos', async () => {
     await service.findOne(1, false);
     expect(types.findOne.mock.calls[0][0].where).toEqual({ id: 1 });
