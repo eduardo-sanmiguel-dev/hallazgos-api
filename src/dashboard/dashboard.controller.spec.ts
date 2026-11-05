@@ -188,6 +188,7 @@ describe('DashboardController (HTTP)', () => {
         areaIds: '3,abc,3,0',
         responsibleId: '7',
         mainTypeIds: '2, 4',
+        states: 'Abierto, En progreso,Abierto',
       }).expect(200);
 
       expect(service[method]).toHaveBeenCalledWith(
@@ -197,9 +198,21 @@ describe('DashboardController (HTTP)', () => {
         [3],
         [7],
         [2, 4],
+        ['Abierto', 'En progreso'],
       );
     },
   );
+
+  it.each([
+    ...BY_FILTERS,
+    ['responsibles-by-filters', 'findResponsiblesByFilters'],
+  ])('/%s rechaza estatus desconocidos', async (route, method) => {
+    await get(route, {
+      manufacturingPlantId: '1',
+      states: 'Desconocido',
+    }).expect(400);
+    expect(service[method]).not.toHaveBeenCalled();
+  });
 
   it('responsibles-by-filters no recibe responsables', async () => {
     await get('responsibles-by-filters', {
@@ -214,6 +227,7 @@ describe('DashboardController (HTTP)', () => {
       undefined,
       [3],
       [2],
+      [],
     );
   });
 
