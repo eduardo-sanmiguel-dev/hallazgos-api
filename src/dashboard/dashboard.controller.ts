@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Param,
@@ -58,6 +59,22 @@ export class DashboardController {
           .filter((item) => Number.isFinite(item) && item > 0),
       ),
     );
+  }
+
+  private parseStates(states?: string): string[] {
+    const values = [
+      ...new Set(
+        (states || '')
+          .split(',')
+          .map((value) => value.trim())
+          .filter(Boolean),
+      ),
+    ];
+    const allowed = ['Abierto', 'En progreso', 'Cerrado', 'Cancelado'];
+    if (values.some((value) => !allowed.includes(value))) {
+      throw new BadRequestException('Estatus no reconocido.');
+    }
+    return values;
   }
 
   // Análisis de datos de EPP: solo administradores. startDate/endDate
@@ -167,6 +184,7 @@ export class DashboardController {
     @Query('responsibleId') responsibleId?: string,
     @Query('mainTypeIds') mainTypeIds?: string,
     @Query('mainTypeId') mainTypeId?: string,
+    @Query('states') states?: string,
   ) {
     return this.dashboardService.findStatusByFilters(
       manufacturingPlantId,
@@ -175,6 +193,7 @@ export class DashboardController {
       this.parseAreaIds(areaIds, areaId),
       this.parseResponsibleIds(responsibleIds, responsibleId),
       this.parseMainTypeIds(mainTypeIds, mainTypeId),
+      this.parseStates(states),
     );
   }
 
@@ -189,6 +208,7 @@ export class DashboardController {
     @Query('responsibleId') responsibleId?: string,
     @Query('mainTypeIds') mainTypeIds?: string,
     @Query('mainTypeId') mainTypeId?: string,
+    @Query('states') states?: string,
   ) {
     return this.dashboardService.findPriorityInterventionByFilters(
       manufacturingPlantId,
@@ -197,6 +217,7 @@ export class DashboardController {
       this.parseAreaIds(areaIds, areaId),
       this.parseResponsibleIds(responsibleIds, responsibleId),
       this.parseMainTypeIds(mainTypeIds, mainTypeId),
+      this.parseStates(states),
     );
   }
 
@@ -211,6 +232,7 @@ export class DashboardController {
     @Query('responsibleId') responsibleId?: string,
     @Query('mainTypeIds') mainTypeIds?: string,
     @Query('mainTypeId') mainTypeId?: string,
+    @Query('states') states?: string,
   ) {
     return this.dashboardService.findRiskLevelByFilters(
       manufacturingPlantId,
@@ -219,6 +241,7 @@ export class DashboardController {
       this.parseAreaIds(areaIds, areaId),
       this.parseResponsibleIds(responsibleIds, responsibleId),
       this.parseMainTypeIds(mainTypeIds, mainTypeId),
+      this.parseStates(states),
     );
   }
 
@@ -233,6 +256,7 @@ export class DashboardController {
     @Query('responsibleId') responsibleId?: string,
     @Query('mainTypeIds') mainTypeIds?: string,
     @Query('mainTypeId') mainTypeId?: string,
+    @Query('states') states?: string,
   ) {
     return this.dashboardService.findAreasByFilters(
       manufacturingPlantId,
@@ -241,6 +265,7 @@ export class DashboardController {
       this.parseAreaIds(areaIds, areaId),
       this.parseResponsibleIds(responsibleIds, responsibleId),
       this.parseMainTypeIds(mainTypeIds, mainTypeId),
+      this.parseStates(states),
     );
   }
 
@@ -255,6 +280,7 @@ export class DashboardController {
     @Query('responsibleId') responsibleId?: string,
     @Query('mainTypeIds') mainTypeIds?: string,
     @Query('mainTypeId') mainTypeId?: string,
+    @Query('states') states?: string,
   ) {
     return this.dashboardService.findMainTypesByFilters(
       manufacturingPlantId,
@@ -263,6 +289,7 @@ export class DashboardController {
       this.parseAreaIds(areaIds, areaId),
       this.parseResponsibleIds(responsibleIds, responsibleId),
       this.parseMainTypeIds(mainTypeIds, mainTypeId),
+      this.parseStates(states),
     );
   }
 
@@ -277,6 +304,7 @@ export class DashboardController {
     @Query('responsibleId') responsibleId?: string,
     @Query('mainTypeIds') mainTypeIds?: string,
     @Query('mainTypeId') mainTypeId?: string,
+    @Query('states') states?: string,
   ) {
     return this.dashboardService.findHeatmapByFilters(
       manufacturingPlantId,
@@ -285,6 +313,7 @@ export class DashboardController {
       this.parseAreaIds(areaIds, areaId),
       this.parseResponsibleIds(responsibleIds, responsibleId),
       this.parseMainTypeIds(mainTypeIds, mainTypeId),
+      this.parseStates(states),
     );
   }
 
@@ -299,6 +328,7 @@ export class DashboardController {
     @Query('responsibleId') responsibleId?: string,
     @Query('mainTypeIds') mainTypeIds?: string,
     @Query('mainTypeId') mainTypeId?: string,
+    @Query('states') states?: string,
   ) {
     return this.dashboardService.findAssignedResponsiblesByFilters(
       manufacturingPlantId,
@@ -307,6 +337,7 @@ export class DashboardController {
       this.parseAreaIds(areaIds, areaId),
       this.parseResponsibleIds(responsibleIds, responsibleId),
       this.parseMainTypeIds(mainTypeIds, mainTypeId),
+      this.parseStates(states),
     );
   }
 
@@ -326,6 +357,7 @@ export class DashboardController {
     @Query('responsibleId') responsibleId?: string,
     @Query('mainTypeIds') mainTypeIds?: string,
     @Query('mainTypeId') mainTypeId?: string,
+    @Query('states') states?: string,
   ) {
     return this.dashboardService.findSankeyByFilters(
       manufacturingPlantId,
@@ -334,6 +366,7 @@ export class DashboardController {
       this.parseAreaIds(areaIds, areaId),
       this.parseResponsibleIds(responsibleIds, responsibleId),
       this.parseMainTypeIds(mainTypeIds, mainTypeId),
+      this.parseStates(states),
     );
   }
 
@@ -348,6 +381,7 @@ export class DashboardController {
     @Query('responsibleId') responsibleId?: string,
     @Query('mainTypeIds') mainTypeIds?: string,
     @Query('mainTypeId') mainTypeId?: string,
+    @Query('states') states?: string,
   ) {
     return this.dashboardService.findPackedBubbleByFilters(
       manufacturingPlantId,
@@ -356,6 +390,7 @@ export class DashboardController {
       this.parseAreaIds(areaIds, areaId),
       this.parseResponsibleIds(responsibleIds, responsibleId),
       this.parseMainTypeIds(mainTypeIds, mainTypeId),
+      this.parseStates(states),
     );
   }
 
@@ -370,6 +405,7 @@ export class DashboardController {
     @Query('responsibleId') responsibleId?: string,
     @Query('mainTypeIds') mainTypeIds?: string,
     @Query('mainTypeId') mainTypeId?: string,
+    @Query('states') states?: string,
   ) {
     return this.dashboardService.findSolidGaugeKpiByFilters(
       manufacturingPlantId,
@@ -378,6 +414,7 @@ export class DashboardController {
       this.parseAreaIds(areaIds, areaId),
       this.parseResponsibleIds(responsibleIds, responsibleId),
       this.parseMainTypeIds(mainTypeIds, mainTypeId),
+      this.parseStates(states),
     );
   }
 
@@ -392,6 +429,7 @@ export class DashboardController {
     @Query('responsibleId') responsibleId?: string,
     @Query('mainTypeIds') mainTypeIds?: string,
     @Query('mainTypeId') mainTypeId?: string,
+    @Query('states') states?: string,
   ) {
     return this.dashboardService.findAreaRangeLineByFilters(
       manufacturingPlantId,
@@ -400,6 +438,7 @@ export class DashboardController {
       this.parseAreaIds(areaIds, areaId),
       this.parseResponsibleIds(responsibleIds, responsibleId),
       this.parseMainTypeIds(mainTypeIds, mainTypeId),
+      this.parseStates(states),
     );
   }
 
@@ -412,6 +451,7 @@ export class DashboardController {
     @Query('areaId') areaId?: string,
     @Query('mainTypeIds') mainTypeIds?: string,
     @Query('mainTypeId') mainTypeId?: string,
+    @Query('states') states?: string,
   ) {
     return this.dashboardService.findResponsiblesByFilters(
       manufacturingPlantId,
@@ -419,6 +459,7 @@ export class DashboardController {
       endDate,
       this.parseAreaIds(areaIds, areaId),
       this.parseMainTypeIds(mainTypeIds, mainTypeId),
+      this.parseStates(states),
     );
   }
 

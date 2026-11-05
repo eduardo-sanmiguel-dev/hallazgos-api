@@ -99,6 +99,25 @@ describe('Integración: dashboard', () => {
       ]);
     });
 
+    it('filtra estatus individuales, multiples y vacios', async () => {
+      for (const [states, total] of [
+        ['Cerrado', 1],
+        ['Abierto,En progreso', 3],
+        ['', 5],
+      ] as const) {
+        const { body } = await get(`status-by-filters?${filters({ states })}`);
+        expect(body.total).toBe(total);
+        if (states) {
+          expect(
+            body.seriesData
+              .filter(({ y }) => y > 0)
+              .map(({ name }) => name)
+              .sort(),
+          ).toEqual(states.split(',').sort());
+        }
+      }
+    });
+
     it('status-by-filters cuenta también el periodo anterior de igual duración', async () => {
       // Un inicio que no sea día 1 (con día 1 se compara contra el mes
       // anterior): el anterior son los 26 días previos, con el abierto de

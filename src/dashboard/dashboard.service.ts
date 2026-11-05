@@ -996,6 +996,7 @@ export class DashboardService {
     areaIds?: number[],
     responsibleIds?: number[],
     mainTypeIds?: number[],
+    states?: string[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('Selecciona una planta.');
@@ -1051,6 +1052,10 @@ export class DashboardService {
           query.andWhere('evidence."mainTypeId" IN (:...mainTypeIds)', {
             mainTypeIds,
           });
+        }
+
+        if (states && states.length > 0) {
+          query.andWhere('evidence.status IN (:...states)', { states });
         }
 
         return query;
@@ -1165,6 +1170,7 @@ export class DashboardService {
     areaIds?: number[],
     responsibleIds?: number[],
     mainTypeIds?: number[],
+    states?: string[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('Selecciona una planta.');
@@ -1221,6 +1227,10 @@ export class DashboardService {
         });
       }
 
+      if (states && states.length > 0) {
+        query.andWhere('evidence.status IN (:...states)', { states });
+      }
+
       return query;
     };
 
@@ -1253,6 +1263,10 @@ export class DashboardService {
         query.andWhere('evidence."mainTypeId" IN (:...mainTypeIds)', {
           mainTypeIds,
         });
+      }
+
+      if (states && states.length > 0) {
+        query.andWhere('evidence.status IN (:...states)', { states });
       }
 
       return query;
@@ -1380,6 +1394,7 @@ export class DashboardService {
     areaIds?: number[],
     responsibleIds?: number[],
     mainTypeIds?: number[],
+    states?: string[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('Selecciona una planta.');
@@ -1438,6 +1453,10 @@ export class DashboardService {
         });
       }
 
+      if (states && states.length > 0) {
+        query.andWhere('evidence.status IN (:...states)', { states });
+      }
+
       return query;
     };
 
@@ -1470,6 +1489,10 @@ export class DashboardService {
         query.andWhere('evidence."mainTypeId" IN (:...mainTypeIds)', {
           mainTypeIds,
         });
+      }
+
+      if (states && states.length > 0) {
+        query.andWhere('evidence.status IN (:...states)', { states });
       }
 
       return query;
@@ -1583,6 +1606,7 @@ export class DashboardService {
     areaIds?: number[],
     responsibleIds?: number[],
     mainTypeIds?: number[],
+    states?: string[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('Selecciona una planta.');
@@ -1640,6 +1664,10 @@ export class DashboardService {
         query.andWhere('evidence."mainTypeId" IN (:...mainTypeIds)', {
           mainTypeIds,
         });
+      }
+
+      if (states && states.length > 0) {
+        query.andWhere('evidence.status IN (:...states)', { states });
       }
 
       return query;
@@ -1705,6 +1733,7 @@ export class DashboardService {
     areaIds?: number[],
     responsibleIds?: number[],
     mainTypeIds?: number[],
+    states?: string[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('Selecciona una planta.');
@@ -1760,6 +1789,10 @@ export class DashboardService {
         query.andWhere('evidence."mainTypeId" IN (:...mainTypeIds)', {
           mainTypeIds,
         });
+      }
+
+      if (states && states.length > 0) {
+        query.andWhere('evidence.status IN (:...states)', { states });
       }
 
       return query;
@@ -1825,6 +1858,7 @@ export class DashboardService {
     areaIds?: number[],
     responsibleIds?: number[],
     mainTypeIds?: number[],
+    states?: string[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('Selecciona una planta.');
@@ -1901,6 +1935,10 @@ export class DashboardService {
         query.andWhere('evidence."mainTypeId" IN (:...mainTypeIds)', {
           mainTypeIds,
         });
+      }
+
+      if (states && states.length > 0) {
+        query.andWhere('evidence.status IN (:...states)', { states });
       }
 
       return query
@@ -2000,6 +2038,7 @@ export class DashboardService {
       areaIds,
       responsibleIds,
       mainTypeIds,
+      states,
     );
 
     const totalOpenEvidences =
@@ -2026,6 +2065,7 @@ export class DashboardService {
     endDate: string,
     areaIds: number[],
     mainTypeIds?: number[],
+    states?: string[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('Selecciona una planta.');
@@ -2082,6 +2122,10 @@ export class DashboardService {
         });
       }
 
+      if (states && states.length > 0) {
+        query.andWhere('evidence.status IN (:...states)', { states });
+      }
+
       return query;
     };
 
@@ -2129,6 +2173,7 @@ export class DashboardService {
     areaIds?: number[],
     responsibleIds?: number[],
     mainTypeIds?: number[],
+    states?: string[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('Selecciona una planta.');
@@ -2191,6 +2236,10 @@ export class DashboardService {
         query.andWhere('evidence."mainTypeId" IN (:...mainTypeIds)', {
           mainTypeIds,
         });
+      }
+
+      if (states && states.length > 0) {
+        query.andWhere('evidence.status IN (:...states)', { states });
       }
     };
 
@@ -2473,6 +2522,7 @@ export class DashboardService {
     areaIds?: number[],
     responsibleIds?: number[],
     mainTypeIds?: number[],
+    states?: string[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('Selecciona una planta.');
@@ -2528,6 +2578,10 @@ export class DashboardService {
         query.andWhere('evidence."mainTypeId" IN (:...mainTypeIds)', {
           mainTypeIds,
         });
+      }
+
+      if (states && states.length > 0) {
+        query.andWhere('evidence.status IN (:...states)', { states });
       }
 
       return query;
@@ -2654,6 +2708,7 @@ export class DashboardService {
     areaIds?: number[],
     responsibleIds?: number[],
     mainTypeIds?: number[],
+    states?: string[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('Selecciona una planta.');
@@ -2709,6 +2764,10 @@ export class DashboardService {
         query.andWhere('evidence."mainTypeId" IN (:...mainTypeIds)', {
           mainTypeIds,
         });
+      }
+
+      if (states && states.length > 0) {
+        query.andWhere('evidence.status IN (:...states)', { states });
       }
 
       return query;
@@ -2811,6 +2870,7 @@ export class DashboardService {
     areaIds?: number[],
     responsibleIds?: number[],
     mainTypeIds?: number[],
+    states?: string[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('Selecciona una planta.');
@@ -2884,6 +2944,10 @@ export class DashboardService {
         });
       }
 
+      if (states && states.length > 0) {
+        query.andWhere('evidence.status IN (:...states)', { states });
+      }
+
       return query;
     };
 
@@ -2945,6 +3009,7 @@ export class DashboardService {
     areaIds?: number[],
     responsibleIds?: number[],
     mainTypeIds?: number[],
+    states?: string[],
   ) {
     if (!manufacturingPlantId) {
       throw new BadRequestException('Selecciona una planta.');
@@ -3005,6 +3070,10 @@ export class DashboardService {
         query.andWhere('evidence."mainTypeId" IN (:...mainTypeIds)', {
           mainTypeIds,
         });
+      }
+
+      if (states && states.length > 0) {
+        query.andWhere('evidence.status IN (:...states)', { states });
       }
 
       return query;

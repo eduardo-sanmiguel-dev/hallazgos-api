@@ -138,6 +138,7 @@ describe('DashboardService: reglas y resultados de reportes', () => {
     areas?: number[],
     responsibles?: number[],
     mainTypes?: number[],
+    states?: string[],
   ) =>
     as(
       async () =>
@@ -148,6 +149,7 @@ describe('DashboardService: reglas y resultados de reportes', () => {
           areas,
           responsibles,
           mainTypes,
+          states,
         )) as Awaited<ReturnType<DashboardService[M]>>,
     );
   describe.each(cases)('$method', ({ method, rows, total }) => {
@@ -235,6 +237,36 @@ describe('DashboardService: reglas y resultados de reportes', () => {
     'findSolidGaugeKpiByFilters',
     'findAreaRangeLineByFilters',
   ];
+  it.each(filterMethods)(
+    '%s aplica estatus a sus consultas',
+    async (method) => {
+      await invoke(
+        method,
+        1,
+        start,
+        end,
+        [4],
+        [11],
+        [8],
+        ['Cerrado', 'En progreso'],
+      );
+      expect(qb().andWhere).toHaveBeenCalledWith(
+        'evidence.status IN (:...states)',
+        { states: ['Cerrado', 'En progreso'] },
+      );
+    },
+  );
+
+  it('filtra los responsables disponibles por estatus', async () => {
+    await as(() =>
+      service.findResponsiblesByFilters(1, start, end, [4], [8], ['Cerrado']),
+    );
+    expect(qb().andWhere).toHaveBeenCalledWith(
+      'evidence.status IN (:...states)',
+      { states: ['Cerrado'] },
+    );
+  });
+
   describe.each(filterMethods)('validación de %s', (method) => {
     it.each([
       [0, start, end, 'Selecciona una planta.'],
