@@ -1574,14 +1574,31 @@ describe('EvidencesService', () => {
 
     beforeEach(() => {
       evidences.find.mockResolvedValue([listed()]);
-      evidences.query.mockResolvedValue([
-        {
-          id: 77,
-          country: 'México',
-          createdAt: '2026-10-01 09:30:00',
-          solutionDate: null,
-        },
-      ]);
+      evidences.query.mockImplementation(async (sql: string) =>
+        sql.includes('evidence_supervisors_user')
+          ? [
+              {
+                evidenceId: 77,
+                relation: 'supervisors',
+                id: supervisor.id,
+                name: supervisor.name,
+              },
+              {
+                evidenceId: 77,
+                relation: 'responsibles',
+                id: responsible.id,
+                name: responsible.name,
+              },
+            ]
+          : [
+              {
+                id: 77,
+                country: 'M\u00e9xico',
+                createdAt: '2026-10-01 09:30:00',
+                solutionDate: null,
+              },
+            ],
+      );
       namesById = new Map([
         [1, 'Tepotzotlán'],
         [2, 'Condición insegura'],

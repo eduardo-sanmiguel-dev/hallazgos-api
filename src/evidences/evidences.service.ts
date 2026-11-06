@@ -1112,11 +1112,15 @@ export class EvidencesService {
     }
 
     // Siempre todos los que cumplen los filtros (sin paginar).
-    const datos = (await this.findAll({
+    const exportQuery = {
       ...queryEvidenceDto,
       page: undefined,
       limit: undefined,
-    })) as Evidence[];
+    };
+    const datos =
+      type === 'xlsx'
+        ? await this.findForExcel(exportQuery)
+        : ((await this.findAll(exportQuery)) as Evidence[]);
 
     if (type === 'xlsx') {
       const timeZone = resolveTimeZone(queryEvidenceDto.timeZone);
@@ -1173,64 +1177,46 @@ export class EvidencesService {
           });
       });
 
-      datos.forEach((obj, rowIndex) => {
-        headers.forEach(
-          (
-            {
-              key,
-              isRelations = false,
-              isNumber = false,
-              isDate = false,
-              isMultiRelations = false,
-            },
-            colIndex,
-          ) => {
-            const cell = sheet.cell(rowIndex + 2, colIndex + 1);
-
+      const values = datos.map((obj) =>
+        headers.map(
+          ({ key, isRelations, isNumber, isDate, isMultiRelations }) => {
             if (isDate) {
-              // Se usa el texto guardado (hora de pared), no el Date de node-postgres,
-              // para no aplicar dos veces el desfase.
+              // Hora de pared guardada: evita convertir dos veces la zona del driver.
               const stored = storedDates.get(obj.id);
               const storedValue = stored?.[key];
-
-              if (storedValue) {
-                const instant = storedWallClockToInstant(
-                  key,
-                  stored.country,
-                  storedValue,
-                );
-
-                cell
-                  .value(wallClockToExcelSerial(toWallClock(instant, timeZone)))
-                  .style({
-                    numberFormat: 'yyyy-mm-dd hh:mm:ss',
-                    horizontalAlignment: 'right',
-                  });
-              }
-
-              return;
+              if (!storedValue) return undefined;
+              const instant = storedWallClockToInstant(
+                key,
+                stored.country,
+                storedValue,
+              );
+              return wallClockToExcelSerial(toWallClock(instant, timeZone));
             }
 
             let value = obj[key] || '';
-
-            if (isRelations) {
-              value = obj[key]?.name || '';
-            }
-
-            if (key === 'isActive') {
-              value = obj[key] ? 1 : 0;
-            }
-
+            if (isRelations) value = obj[key]?.name || '';
+            if (key === 'isActive') value = obj[key] ? 1 : 0;
             if (isMultiRelations) {
               value = obj[key].map((item) => item?.name || '').join(', ');
             }
-
-            cell.value(isNumber ? value : `${value}`).style({
-              horizontalAlignment: 'right',
-            });
+            return isNumber ? value : `${value}`;
           },
-        );
-      });
+        ),
+      );
+      if (values.length) {
+        // Escribir y formatear por rango evita repetir llamadas por cada celda.
+        sheet
+          .range(2, 1, values.length + 1, headers.length)
+          .value(values)
+          .style({ horizontalAlignment: 'right' });
+        headers.forEach(({ isDate }, index) => {
+          if (isDate) {
+            sheet
+              .range(2, index + 1, values.length + 1, index + 1)
+              .style({ numberFormat: 'yyyy-mm-dd hh:mm:ss' });
+          }
+        });
+      }
 
       headers.forEach(({ header }, i) =>
         sheet.column(i + 1).width(Math.max(20, header.length + 4)),
@@ -1415,7 +1401,9 @@ export class EvidencesService {
     }
   }
 
-  async findAll(queryEvidenceDto: QueryEvidenceDto) {
+  private buildFindOptions(
+    queryEvidenceDto: QueryEvidenceDto,
+  ): FindManyOptions<Evidence> | null {
     const { manufacturingPlants } = this.requestContext.user;
 
     const {
@@ -1438,10 +1426,7 @@ export class EvidencesService {
       statuses,
       startDate,
       endDate,
-      page,
-      limit,
     } = queryEvidenceDto;
-    const paginated = !!page && !!limit;
 
     const scopedEvidenceIds = this.parseEvidenceIds(ids);
 
@@ -1514,7 +1499,7 @@ export class EvidencesService {
 
     // Sin plantas propias o pidiendo una planta ajena: sin resultados.
     if (!manufacturingPlantsIds.length) {
-      return paginated ? { data: [], count: 0 } : [];
+      return null;
     }
 
     const createdAtFilter = this.buildCreatedAtFilter(startDate, endDate);
@@ -1554,6 +1539,92 @@ export class EvidencesService {
         id: 'DESC',
       },
     };
+
+    return options;
+  }
+
+  /** Excel carga solo sus campos; las colecciones no multiplican las filas. */
+  private async findForExcel(queryEvidenceDto: QueryEvidenceDto) {
+    const options = this.buildFindOptions(queryEvidenceDto);
+    if (!options) return [];
+
+    const datos = await this.evidenceRepository.find({
+      ...options,
+      loadEagerRelations: false,
+      relations: [
+        'manufacturingPlant',
+        'mainType',
+        'secondaryType',
+        'zone',
+        'user',
+        'process',
+      ],
+      select: {
+        id: true,
+        status: true,
+        isActive: true,
+        manufacturingPlant: { id: true, name: true },
+        mainType: { id: true, name: true },
+        secondaryType: { id: true, name: true },
+        zone: { id: true, name: true },
+        user: { id: true, name: true },
+        process: { id: true, name: true },
+      },
+    });
+    if (!datos.length) return datos;
+
+    // Ambas colecciones se limitan a los IDs ya autorizados por buildFindOptions.
+    // El array evita crear un parámetro SQL por cada hallazgo exportado.
+    const assignments: Array<{
+      evidenceId: number;
+      relation: 'supervisors' | 'responsibles';
+      id: number;
+      name: string;
+    }> = await this.evidenceRepository.query(
+      `SELECT link."evidenceId", 'supervisors' AS relation, u.id, u.name
+         FROM evidence_supervisors_user link
+         JOIN "user" u ON u.id = link."userId"
+        WHERE link."evidenceId" = ANY($1)
+        UNION ALL
+       SELECT link."evidenceId", 'responsibles' AS relation, u.id, u.name
+         FROM evidence_responsibles_user link
+         JOIN "user" u ON u.id = link."userId"
+        WHERE link."evidenceId" = ANY($1)
+        ORDER BY "evidenceId", relation, id`,
+      [datos.map(({ id }) => id)],
+    );
+    const byId = new Map(
+      datos.map((evidence) => {
+        evidence.supervisors = [];
+        evidence.responsibles = [];
+        return [evidence.id, evidence] as const;
+      }),
+    );
+    // Conserva los nombres que mostraba la exportación al filtrar responsables.
+    const responsibleIds = new Set(
+      this.parseResponsibleIds(queryEvidenceDto.responsibleIds),
+    );
+    if (queryEvidenceDto.responsible)
+      responsibleIds.add(queryEvidenceDto.responsible);
+    for (const { evidenceId, relation, id, name } of assignments) {
+      if (
+        relation === 'responsibles' &&
+        responsibleIds.size &&
+        !responsibleIds.has(Number(id))
+      )
+        continue;
+      byId
+        .get(Number(evidenceId))
+        ?.[relation].push(Object.assign(new User(), { id, name }));
+    }
+    return datos;
+  }
+
+  async findAll(queryEvidenceDto: QueryEvidenceDto) {
+    const { page, limit } = queryEvidenceDto;
+    const paginated = !!page && !!limit;
+    const options = this.buildFindOptions(queryEvidenceDto);
+    if (!options) return paginated ? { data: [], count: 0 } : [];
 
     // Con página y límite, la lista de hallazgos ({ data, count }); sin
     // ellos, todos (descargas de Excel y PDF).

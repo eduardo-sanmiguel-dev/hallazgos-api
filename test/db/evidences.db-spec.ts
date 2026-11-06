@@ -3,8 +3,10 @@
  */
 import { readdirSync, statSync, unlinkSync } from 'fs';
 import { join } from 'path';
+import XlsxPopulate from 'xlsx-populate';
 
 import { Evidence } from '../../src/evidences/entities/evidence.entity.js';
+import { Comment } from '../../src/evidences/entities/comments.entity.js';
 import { MainType } from '../../src/main-types/entities/main-type.entity.js';
 import { SecondaryType } from '../../src/secondary-types/entities/secondary-type.entity.js';
 import { binaryParser } from '../utils/index.js';
@@ -441,6 +443,91 @@ describe('E2E: hallazgos', () => {
       await e2e
         .call('get', '/evidences/download/csv', e2e.tokens.general)
         .expect(400);
+    });
+
+    it('Excel conserva valores, filtros y permisos con varias asignaciones y comentarios', async () => {
+      const { users, plants, zone, process, mainType, secondaryType } =
+        e2e.base;
+      const first = await saveEvidence(e2e.dataSource, e2e.base, {
+        supervisors: [users.general, users.supervisor],
+        responsibles: [users.general, users.supervisor],
+        status: STATUSES.closed,
+        isActive: false,
+      });
+      const second = await saveEvidence(e2e.dataSource, e2e.base, {
+        supervisors: [],
+        responsibles: [],
+        process: null,
+      });
+      const foreign = await saveEvidence(e2e.dataSource, e2e.base, {
+        manufacturingPlant: plants.manizales,
+        zone: e2e.base.zoneColombia,
+        process: e2e.base.processColombia,
+        user: users.generalColombia,
+      });
+      await e2e.dataSource.getRepository(Comment).save([
+        { evidence: first, user: users.general, comment: 'Primero' },
+        { evidence: first, user: users.supervisor, comment: 'Segundo' },
+      ]);
+      // Texto de la hora guardada, sin conversión del driver.
+      await e2e.dataSource.query(
+        `UPDATE evidence SET "createdAt" = '2026-10-01 09:30:00',
+          "solutionDate" = '2026-10-02 10:45:00' WHERE id = $1`,
+        [first.id],
+      );
+      const ids = [first.id, second.id, foreign.id].join(',');
+      const cases = [
+        `ids=${ids}`,
+        `ids=${ids}&responsibleIds=${users.supervisor.id}`,
+        `ids=${ids}&manufacturingPlantId=${plants.tepotzotlan.id}&mainTypeIds=${mainType.id}&secondaryTypeIds=${secondaryType.id}&areaIds=${zone.area.id}&zoneIds=${zone.id}&processIds=${process.id}&statuses=${STATUSES.closed}&startDate=01/10/2026&endDate=02/10/2026`,
+        `ids=${ids}&manufacturingPlantId=${plants.manizales.id}`,
+      ];
+      for (const query of cases) {
+        const list = await e2e
+          .call('get', `/evidences?${query}`, e2e.tokens.general)
+          .expect(200);
+        const res = await e2e
+          .call(
+            'get',
+            `/evidences/download/xlsx?${query}&page=1&limit=1&timeZone=America/Bogota`,
+            e2e.tokens.general,
+          )
+          .buffer(true)
+          .parse(binaryParser)
+          .expect(200);
+        const workbook = await XlsxPopulate.fromDataAsync(res.body);
+        const rows = workbook.sheet('Hallazgos').usedRange().value();
+        expect(rows).toHaveLength(list.body.length + 1);
+        expect(rows.slice(1).map((row) => row[0])).toEqual(
+          list.body.map((e) => e.id),
+        );
+        expect(rows.slice(1).map((row) => row[0])).not.toContain(foreign.id);
+        list.body.forEach((e, index) => {
+          const row = rows[index + 1];
+          const names = (values) => values.map((v) => v.name).sort();
+          const cellNames = (value) =>
+            value ? String(value).split(', ').sort() : [];
+          expect(row.slice(0, 8)).toEqual([
+            e.id,
+            e.status,
+            e.isActive ? 1 : 0,
+            e.manufacturingPlant.name,
+            e.mainType.name,
+            e.secondaryType.name,
+            e.zone.name,
+            e.user.name,
+          ]);
+          expect(cellNames(row[10])).toEqual(names(e.supervisors));
+          expect(cellNames(row[11])).toEqual(names(e.responsibles));
+          expect(row[12] || '').toBe(e.process?.name || '');
+          if (e.id === first.id) {
+            const dateSerial = (iso) =>
+              (Date.parse(iso) - Date.UTC(1899, 11, 30)) / 86400000;
+            expect(row[8]).toBeCloseTo(dateSerial('2026-10-01T10:30:00Z'), 8);
+            expect(row[9]).toBeCloseTo(dateSerial('2026-10-02T11:45:00Z'), 8);
+          }
+        });
+      }
     });
 
     it('el PDF incluye las fotos de los hallazgos (no la de "imagen no encontrada")', async () => {
