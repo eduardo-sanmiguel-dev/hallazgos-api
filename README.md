@@ -66,10 +66,13 @@ pnpm ci:local
 
 Para revisar un commit específico: `pnpm ci:local <SHA-completo>`.
 La primera ejecución descarga imágenes y dependencias y tarda más.
-PostgreSQL 14 y Redis 7.4 son desechables, sin puertos publicados, archivos
+PostgreSQL 18.6 y Redis 7.4 son desechables, sin puertos publicados, archivos
 `.env` ni acceso a los datos locales. Al terminar se eliminan sus contenedores
 y volúmenes. Husky se instala con `pnpm install`; `HUSKY=0` y `--no-verify`
 permiten omitir hooks, por lo que los controles de Actions siguen siendo necesarios.
+
+La versión de PostgreSQL de `compose.ci.yaml` y `.github/workflows/deploy.yml`
+debe actualizarse junto con producción; ambas fijan `postgres:18.6`.
 
 Estas pruebas reproducen las validaciones previas al deploy. El paso SSH y el
 script del VPS solo corren en Actions: conexión, secretos, espacio en disco,
