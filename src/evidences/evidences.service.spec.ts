@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import { Writable } from 'node:stream';
 import { FindOperator } from 'typeorm';
 import XlsxPopulate from 'xlsx-populate';
 
@@ -1574,31 +1575,25 @@ describe('EvidencesService', () => {
 
     beforeEach(() => {
       evidences.find.mockResolvedValue([listed()]);
-      evidences.query.mockImplementation(async (sql: string) =>
-        sql.includes('evidence_supervisors_user')
-          ? [
-              {
-                evidenceId: 77,
-                relation: 'supervisors',
-                id: supervisor.id,
-                name: supervisor.name,
-              },
-              {
-                evidenceId: 77,
-                relation: 'responsibles',
-                id: responsible.id,
-                name: responsible.name,
-              },
-            ]
-          : [
-              {
-                id: 77,
-                country: 'M\u00e9xico',
-                createdAt: '2026-10-01 09:30:00',
-                solutionDate: null,
-              },
-            ],
-      );
+      // Excel: una sola consulta con los nombres ya resueltos.
+      evidences.query.mockResolvedValue([
+        {
+          id: 77,
+          status: STATUS_CLOSE,
+          isActive: true,
+          manufacturingPlant: 'Tepotzotl\u00e1n',
+          mainType: 'Condici\u00f3n insegura',
+          secondaryType: 'Piso mojado',
+          zone: 'Almac\u00e9n',
+          user: reporter.name,
+          process: null,
+          country: 'M\u00e9xico',
+          createdAt: '2026-10-01 09:30:00',
+          solutionDate: null,
+          supervisors: supervisor.name,
+          responsibles: responsible.name,
+        },
+      ]);
       namesById = new Map([
         [1, 'Tepotzotlán'],
         [2, 'Condición insegura'],
@@ -1623,7 +1618,40 @@ describe('EvidencesService', () => {
       );
       return res;
     };
-    const dispositionOf = (res: FakeResponse) =>
+    // El Excel se escribe en streaming: respuesta escribible que junta el archivo.
+    const PERIOD = { startDate: '01/01/2026', endDate: '31/12/2026' };
+    const excelResponse = () => {
+      const chunks: Buffer[] = [];
+      const res = Object.assign(
+        new Writable({
+          write(chunk: Buffer, _encoding, callback) {
+            chunks.push(Buffer.from(chunk));
+            callback();
+          },
+        }),
+        { setHeader: jest.fn() },
+      );
+      const body = () =>
+        res.writableFinished
+          ? Promise.resolve(Buffer.concat(chunks))
+          : new Promise<Buffer>((resolve) =>
+              res.once('finish', () => resolve(Buffer.concat(chunks))),
+            );
+      return { res, body };
+    };
+    type ExcelResponse = ReturnType<typeof excelResponse>['res'];
+    const downloadXlsx = async (query: object = {}) => {
+      const { res, body } = excelResponse();
+      await runAsUser(reporter, () =>
+        service.downloadFile(
+          'xlsx',
+          { ...PERIOD, ...query } as never,
+          res as never,
+        ),
+      );
+      return { res, file: await body() };
+    };
+    const dispositionOf = (res: FakeResponse | ExcelResponse) =>
       res.setHeader.mock.calls.find(
         ([name]) => name === 'Content-Disposition',
       )[1] as string;
@@ -1638,12 +1666,54 @@ describe('EvidencesService', () => {
     });
 
     describe('xlsx', () => {
-      const workbookOf = (res: FakeResponse) =>
-        XlsxPopulate.fromDataAsync(res.send.mock.calls[0][0]);
+      const workbookOf = (file: Buffer) => XlsxPopulate.fromDataAsync(file);
+
+      it.each([
+        ['sin período', {}, 'Seleccione el período a exportar'],
+        ['solo con fecha de inicio', { startDate: '01/01/2026' }, 'Seleccione'],
+        [
+          'el inicio después del fin',
+          { startDate: '02/01/2026', endDate: '01/01/2026' },
+          'no puede ser mayor',
+        ],
+        [
+          'más de 12 meses',
+          { startDate: '01/01/2026', endDate: '01/01/2027' },
+          'no puede superar 12 meses',
+        ],
+      ])(
+        'responde 400 %s, sin consultar ni escribir el archivo',
+        async (_case, query, message) => {
+          const { res } = excelResponse();
+          await expect(
+            runAsUser(reporter, () =>
+              service.downloadFile('xlsx', query as never, res as never),
+            ),
+          ).rejects.toThrow(message);
+          expect(evidences.find).not.toHaveBeenCalled();
+          expect(res.setHeader).not.toHaveBeenCalled();
+        },
+      );
+
+      it('acepta exactamente 12 meses (01/01 al 31/12)', async () => {
+        const { file } = await downloadXlsx();
+
+        expect(file.subarray(0, 2).toString()).toBe('PK');
+      });
+
+      it('trae los datos en una sola consulta y filtra la columna de responsables', async () => {
+        await downloadXlsx({ responsibleIds: `${responsible.id}` });
+        await downloadXlsx();
+
+        expect(evidences.query).toHaveBeenCalledTimes(2);
+        const [[, withFilter], [, withoutFilter]] = evidences.query.mock.calls;
+        expect(withFilter).toEqual([[77], [responsible.id]]);
+        expect(withoutFilter).toEqual([[77], null]);
+      });
 
       it('genera la hoja de hallazgos con relaciones, activo y fecha en la zona pedida', async () => {
-        const res = await download('xlsx', { timeZone: 'America/Bogota' });
-        const sheet = (await workbookOf(res)).sheet('Hallazgos');
+        const { file } = await downloadXlsx({ timeZone: 'America/Bogota' });
+        const sheet = (await workbookOf(file)).sheet('Hallazgos');
 
         expect(sheet.cell('A1').value()).toBe('ID');
         expect(sheet.cell('I1').value()).toBe('Fecha de creación (UTC-05)');
@@ -1662,12 +1732,12 @@ describe('EvidencesService', () => {
       });
 
       it('agrega la hoja de filtros aplicados con nombres legibles', async () => {
-        const res = await download('xlsx', {
+        const { file } = await downloadXlsx({
           manufacturingPlantId: 1,
           mainTypeIds: '2,99',
           processIds: '12',
         });
-        const rows = (await workbookOf(res))
+        const rows = (await workbookOf(file))
           .sheet('Filtros')
           .usedRange()
           .value() as string[][];
@@ -1681,10 +1751,12 @@ describe('EvidencesService', () => {
         expect(byField['Clasificación']).toBe('Condición insegura, ID 99');
         expect(byField['Estatus']).toBe('(todos)');
         expect(byField['Proceso']).toBe('Producción');
+        expect(byField['Fecha inicio']).toBe(PERIOD.startDate);
+        expect(byField['Fecha fin']).toBe(PERIOD.endDate);
       });
 
       it('nombra el archivo con la planta y cuántos filtros extra se aplicaron', async () => {
-        const res = await download('xlsx', {
+        const { res } = await downloadXlsx({
           manufacturingPlantId: 1,
           statuses: 'Abierto',
           startDate: '01/10/2026',
@@ -1694,18 +1766,48 @@ describe('EvidencesService', () => {
           'Content-Type',
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         );
+        // Estatus, fecha de inicio y fecha de fin.
         expect(dispositionOf(res)).toMatch(
-          /filename="Hallazgos_Tepotzotl.*_\+2filtros_.*\.xlsx"/,
+          /filename="Hallazgos_Tepotzotl.*_\+3filtros_.*\.xlsx"/,
         );
       });
 
-      it('sin planta el archivo dice "Todas" y sin resultados no consulta fechas', async () => {
+      it('sin planta el archivo dice "Todas"; sin resultados no consulta los datos y solo trae encabezados', async () => {
         evidences.find.mockResolvedValue([]);
 
-        const res = await download('xlsx');
+        const { res, file } = await downloadXlsx();
 
-        expect(dispositionOf(res)).toMatch(/filename="Hallazgos_Todas_\d/);
+        // Las fechas del período siempre cuentan como filtros.
+        expect(dispositionOf(res)).toMatch(
+          /filename="Hallazgos_Todas_\+2filtros_\d/,
+        );
         expect(evidences.query).not.toHaveBeenCalled();
+        const sheet = (await workbookOf(file)).sheet('Hallazgos');
+        expect(sheet.cell('A1').value()).toBe('ID');
+        expect(sheet.cell('A2').value()).toBeUndefined();
+      });
+
+      it('si el cliente se desconecta a media descarga termina sin quedarse esperando', async () => {
+        const logged = jest
+          .spyOn(Logger.prototype, 'error')
+          .mockImplementation(() => undefined);
+        const res = Object.assign(
+          new Writable({
+            write(_chunk, _encoding, callback) {
+              callback(new Error('cliente desconectado'));
+            },
+          }),
+          { setHeader: jest.fn() },
+        );
+
+        await runAsUser(reporter, () =>
+          service.downloadFile('xlsx', PERIOD as never, res as never),
+        );
+
+        expect(res.destroyed).toBe(true);
+        expect(logged).toHaveBeenCalledWith(
+          expect.stringContaining('No se pudo generar el Excel de hallazgos'),
+        );
       });
     });
 
@@ -1739,6 +1841,7 @@ describe('EvidencesService', () => {
           manufacturingPlantId: 1,
           statuses: 'Abierto',
           startDate: '01/10/2026',
+          endDate: '31/10/2026',
           timeZone: 'America/Bogota',
         };
         const pdfRes = await download('pdf', query);
@@ -1746,14 +1849,14 @@ describe('EvidencesService', () => {
         const pdfName = (
           pdfRes.writeHead.mock.calls[0][1] as Record<string, string>
         )['Content-Disposition'];
-        const xlsxName = dispositionOf(await download('xlsx', query));
+        const xlsxName = dispositionOf((await downloadXlsx(query)).res);
 
         expect(pdfName).toMatch(
-          /filename="Hallazgos_Tepotzotl.*_\+2filtros_\d{4}-\d{2}-\d{2}_\d{4}_UTC-05\.pdf"/,
+          /filename="Hallazgos_Tepotzotl.*_\+3filtros_\d{4}-\d{2}-\d{2}_\d{4}_UTC-05\.pdf"/,
         );
         // Misma lógica: solo cambia la extensión (y, si cambió el minuto, la hora).
         const stem = (name: string) =>
-          /filename="(Hallazgos_[^_]+_\+2filtros)_/.exec(name)?.[1];
+          /filename="(Hallazgos_[^_]+_\+3filtros)_/.exec(name)?.[1];
         expect(stem(pdfName)).toBe(stem(xlsxName));
       });
 
