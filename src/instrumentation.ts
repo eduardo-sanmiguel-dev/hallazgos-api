@@ -11,14 +11,20 @@ import { existsSync } from 'node:fs';
 // Node 26 (DEP0205). Debe ser el mismo import-in-the-middle que usa
 // @opentelemetry/instrumentation para que vea sus Hook().
 import { register } from 'import-in-the-middle/register-hooks.mjs';
-import { instrumentationEnvFile } from './instrumentation-env.js';
+import {
+  instrumentationEnvFile,
+  instrumentationNodeEnv,
+} from './instrumentation-env.js';
 
 // ConfigModule carga el .env después; aquí las variables hacen falta antes.
-// Ruta relativa a este archivo: en cluster el directorio de trabajo es "/".
-const envFile = instrumentationEnvFile(process.env.NODE_ENV);
+// En cluster pm2 aún no aplicó el entorno de la app (directorio "/" y sin
+// NODE_ENV): por eso la ruta es relativa a este archivo y NODE_ENV se lee
+// también de pm2_env.
+const NODE_ENV = instrumentationNodeEnv();
+const envFile = instrumentationEnvFile(NODE_ENV);
 if (existsSync(envFile)) process.loadEnvFile(envFile);
 
-const { NODE_ENV, OBSERVE_ENDPOINT, OBSERVE_AUTH_HEADER } = process.env;
+const { OBSERVE_ENDPOINT, OBSERVE_AUTH_HEADER } = process.env;
 
 if (NODE_ENV === 'production' && OBSERVE_ENDPOINT && OBSERVE_AUTH_HEADER) {
   // Solo los módulos instrumentados: si el hook envuelve todo, cambia el

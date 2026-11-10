@@ -4,7 +4,42 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { instrumentationEnvFile } from './instrumentation-env.js';
+import {
+  instrumentationEnvFile,
+  instrumentationNodeEnv,
+} from './instrumentation-env.js';
+
+describe('instrumentationNodeEnv', () => {
+  // Así arranca un worker del cluster de pm2 (copiado del VPS): sin NODE_ENV,
+  // con el entorno de la app serializado en pm2_env.
+  const clusterWorker = {
+    PM2_HOME: '/home/eduardo/.pm2',
+    pm2_env: JSON.stringify({
+      name: 'api-comp',
+      exec_mode: 'cluster_mode',
+      NODE_ENV: 'production',
+      env: { NODE_ENV: 'production', PORT: 4000 },
+    }),
+  };
+
+  it('usa NODE_ENV cuando ya está (fork, desarrollo)', () => {
+    expect(instrumentationNodeEnv({ NODE_ENV: 'development' })).toBe(
+      'development',
+    );
+  });
+
+  it('en un worker del cluster lo toma de pm2_env (antes llegaba vacío y no había trazas)', () => {
+    expect(instrumentationNodeEnv(clusterWorker)).toBe('production');
+  });
+
+  it.each([
+    ['sin variables', {}],
+    ['pm2_env inválido', { pm2_env: '{roto' }],
+    ['pm2_env sin NODE_ENV', { pm2_env: '{"name":"x"}' }],
+  ])('%s: undefined (la instrumentación no se activa)', (_case, env) => {
+    expect(instrumentationNodeEnv(env)).toBeUndefined();
+  });
+});
 
 describe('instrumentationEnvFile', () => {
   const root = join(tmpdir(), 'app');
