@@ -114,28 +114,46 @@ def field(label, alias):
     return {'label': label, 'alias': alias, 'column': alias, 'color': None, 'isDerived': False}
 
 
+# Same documentation style as "ComportArte - Centro de control": a guide panel
+# first, then one specific description per panel. Grid is 192 columns wide.
+GUIDE = '''## ¿Salen los correos? Empieza por el último estado
+**Último estado persistente de la cola** es la foto actual que el worker emite cada ~30 s: `pending` (en espera o en reintento), `blocked` (retenidos porque la cuenta remitente está pausada), `review` (fallidos definitivos o con resultado incierto) y `oldest_seconds` (espera del correo listo más antiguo). **No sumes heartbeats en el tiempo**: cada uno repite el estado completo. Si el último tiene más de 2 minutos, el worker no está reportando: revisa `pm2 logs mail-worker`, Redis y PostgreSQL.
+- **Aceptados por SMTP:** envíos que el servidor de correo aceptó en el período. Aceptado no confirma que llegó a la bandeja.
+- **Eventos que requieren revisión:** son avisos, no correos. Un evento puede agrupar varios (`count`) y cada deploy lo repite mientras queden correos por revisar. **Incidentes y recuperaciones:** errores del worker y reanudaciones de cuenta, del más reciente al más antiguo.
+Para actuar, en el VPS desde `~/hallazgos-api`: `NODE_ENV=production node dist/mail-admin.js status` muestra el detalle; `resume <cuenta>` reanuda una cuenta ya corregida; `retry <id>` y `cancel <id>` resuelven correos en revisión. Un correo `uncertain` pudo haberse enviado: reintentarlo exige `--acknowledge-duplicate-risk`. Período inicial: **24 horas**. Sin datos no equivale a buen estado.'''
+
 definitions = [
-    ('accepted', 'metric', 'Aceptados por SMTP', '''SELECT COUNT(*) AS y_axis_1 FROM "api_comportarte" WHERE context='MailWorker' AND message LIKE '%"result":"accepted"%' ''', [], [field('Aceptados', 'y_axis_1')]),
-    ('review', 'metric', 'Eventos que requieren revision', '''SELECT COUNT(*) AS y_axis_1 FROM "api_comportarte" WHERE context='MailWorker' AND message LIKE '%mail_review_required%' ''', [], [field('Eventos', 'y_axis_1')]),
-    ('heartbeat', 'table', 'Ultimo estado persistente de la cola', '''SELECT _timestamp AS momento,message AS estado FROM "api_comportarte" WHERE context='MailWorker' AND message LIKE '%mail_heartbeat%' ORDER BY _timestamp DESC LIMIT 1''', [field('Momento', 'momento'), field('Estado', 'estado')], []),
-    ('errors', 'table', 'Incidentes y recuperaciones', '''SELECT _timestamp AS momento,message AS evento FROM "api_comportarte" WHERE context='MailWorker' AND (level='error' OR message LIKE '%mail_account_resumed%') ORDER BY _timestamp DESC LIMIT 50''', [field('Momento', 'momento'), field('Evento', 'evento')], []),
+    ('accepted', 'metric', 'Aceptados por SMTP', '''SELECT COUNT(*) AS y_axis_1 FROM "api_comportarte" WHERE context='MailWorker' AND message LIKE '%"result":"accepted"%' ''', [], [field('Aceptados', 'y_axis_1')],
+     'Envíos con resultado accepted en el período. La aceptación SMTP no confirma entrega en bandeja ni lectura. Cero con pending mayor a cero en el último estado indica que la cola no avanza.',
+     {'x': 0, 'y': 12, 'w': 96, 'h': 12}),
+    ('review', 'metric', 'Eventos que requieren revisión', '''SELECT COUNT(*) AS y_axis_1 FROM "api_comportarte" WHERE context='MailWorker' AND message LIKE '%mail_review_required%' ''', [], [field('Eventos', 'y_axis_1')],
+     'Avisos mail_review_required del período, no correos: un aviso puede agrupar varios (count) y cada deploy lo repite mientras existan correos dead o uncertain. El total pendiente está en review del último estado.',
+     {'x': 96, 'y': 12, 'w': 96, 'h': 12}),
+    ('heartbeat', 'table', 'Último estado persistente de la cola', '''SELECT _timestamp AS momento,message AS estado FROM "api_comportarte" WHERE context='MailWorker' AND message LIKE '%mail_heartbeat%' ORDER BY _timestamp DESC LIMIT 1''', [field('Momento', 'momento'), field('Estado', 'estado')], [],
+     'Último heartbeat del worker (cada ~30 s). pending: en espera o reintento; blocked: retenidos por cuenta pausada; review: dead o uncertain; oldest_seconds: espera del correo listo más antiguo, alerta si supera 300 s. Más de 2 min sin heartbeat: worker detenido.',
+     {'x': 0, 'y': 24, 'w': 192, 'h': 8}),
+    ('errors', 'table', 'Incidentes y recuperaciones', '''SELECT _timestamp AS momento,message AS evento FROM "api_comportarte" WHERE context='MailWorker' AND (level='error' OR message LIKE '%mail_account_resumed%') ORDER BY _timestamp DESC LIMIT 50''', [field('Momento', 'momento'), field('Evento', 'evento')], [],
+     'Últimos 50 eventos de nivel error de MailWorker y reanudaciones manuales (mail_account_resumed): cuenta bloqueada, revisión requerida, cola atrasada, Redis o base de datos. Un error de conexión durante un reinicio puede ser transitorio; confirmarlo con el último estado.',
+     {'x': 0, 'y': 32, 'w': 192, 'h': 26}),
 ]
-panels = []
-for index, (key, kind, title, sql, x, y) in enumerate(definitions):
+guide = copy.deepcopy(template)
+guide.update(id='Mail_guide', type='markdown', title='Empieza aquí · ¿salen los correos?', description='',
+             queries=[], htmlContent='', markdownContent=GUIDE,
+             layout={'x': 0, 'y': 0, 'w': 192, 'h': 12, 'i': 1})
+panels = [guide]
+for index, (key, kind, title, sql, x, y, description, layout) in enumerate(definitions, start=2):
     # Validate every query without emitting synthetic production events.
     request('/api/default/_search', {'query': {'sql': sql, 'start_time': int((time.time()-3600)*1e6),
                                               'end_time': int(time.time()*1e6), 'from': 0, 'size': 50}})
     p = copy.deepcopy(template)
-    p.update(id='Mail_'+key, type=kind, title=title,
-             description='Sin eventos hasta publicar el worker. Aceptacion SMTP no confirma entrega en bandeja.',
-             layout={'x': 0, 'y': index*10, 'w': 96, 'h': 8, 'i': index})
+    p.update(id='Mail_'+key, type=kind, title=title, description=description, layout=layout | {'i': index})
     q = p['queries'][0]
     q.update(query=sql, customQuery=True)
     q['fields'].update(stream='api_comportarte', stream_type='logs', x=x, y=y, z=[], breakdown=[])
     p['queries'] = [q]
     panels.append(p)
 payload = {'version': 5, 'title': 'ComportArte - Correos',
-           'description': 'Estado del worker, reintentos e incidentes. Las cantidades pendientes vienen del ultimo heartbeat, no se suman en el tiempo.',
+           'description': 'Si los correos salen, qué quedó retenido y qué requiere intervención. Empieza por la guía. Período inicial: 24 horas. Las cantidades de la cola vienen del último heartbeat y no se suman en el tiempo.',
            'tabs': [{'tabId': 'default', 'name': 'Correos', 'panels': panels}],
            'variables': {'list': [], 'showDynamicFilters': False},
            'defaultDatetimeDuration': {'type': 'relative', 'relativeTimePeriod': '24h'}}
@@ -149,6 +167,6 @@ else:
     saved = request('/api/default/dashboards?folder=default', payload, 'POST')
 dashboard_id = dashboard_body(saved)['dashboardId']
 verified = request('/api/default/dashboards/' + dashboard_id + '?folder=default')
-assert len(dashboard_body(verified)['tabs'][0]['panels']) == 4
+assert len(dashboard_body(verified)['tabs'][0]['panels']) == 1 + len(definitions)
 (ROOT / 'mail-dashboard.json').write_text(json.dumps(verified, ensure_ascii=False, indent=2))
 print('Mail dashboard:', dashboard_id, '| alerts:', 'activated' if ACTIVATE else 'prepared')

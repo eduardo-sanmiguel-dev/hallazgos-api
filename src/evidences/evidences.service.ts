@@ -22,7 +22,7 @@ import type {
   StyleDictionary,
   TDocumentDefinitions,
 } from 'pdfmake/interfaces.js';
-import XlsxPopulate from 'xlsx-populate';
+import ExcelJS from 'exceljs';
 import type { Response } from 'express';
 import { createRequire } from 'module';
 import { dirname, resolve, sep } from 'path';
@@ -77,8 +77,6 @@ import { Area } from '../areas/entities/area.entity.js';
 import { Zone } from '../zones/entities/zone.entity.js';
 import { Processes } from '../processes/entities/processes.entity.js';
 import {
-  type EvidenceCountry,
-  type StoredDateColumn,
   assertStoredDateColumn,
   storedWallClockToInstant,
   toEvidenceCountry,
@@ -102,6 +100,28 @@ pdfMake.setLocalAccessPolicy((path: string) =>
 
 export const MISSING_EVIDENCE_MESSAGE =
   'Debe capturar o adjuntar una imagen como evidencia del hallazgo';
+
+// Excel de hallazgos: período máximo por descarga y formato de las fechas.
+export const EXPORT_MAX_MONTHS = 12;
+const EXCEL_DATE_FORMAT = 'yyyy-mm-dd hh:mm:ss';
+
+/** Fila del Excel tal como la devuelve la consulta (nombres ya resueltos). */
+interface ExcelEvidenceRow {
+  id: number;
+  status: string;
+  isActive: boolean;
+  manufacturingPlant: string | null;
+  mainType: string | null;
+  secondaryType: string | null;
+  zone: string | null;
+  user: string | null;
+  process: string | null;
+  country: string | null;
+  createdAt: string | null;
+  solutionDate: string | null;
+  supervisors: string | null;
+  responsibles: string | null;
+}
 
 // Tipo de correo, para el log de errores de envío.
 const EMAIL_TYPE_LABELS: Record<string, string> = {
@@ -906,42 +926,6 @@ export class EvidencesService {
    * Fechas tal como están guardadas (texto de la hora de pared, sin pasar por
    * el Date de node-postgres) y el país de la planta de cada hallazgo.
    */
-  private async findStoredDates(ids: number[]) {
-    const storedDates = new Map<
-      number,
-      { country: EvidenceCountry } & Record<StoredDateColumn, string | null>
-    >();
-
-    if (!ids.length) return storedDates;
-
-    const rows: Array<{
-      id: number;
-      country: string | null;
-      createdAt: string | null;
-      solutionDate: string | null;
-    }> = await this.evidenceRepository.query(
-      `SELECT e.id,
-              c.name AS country,
-              e."createdAt"::text AS "createdAt",
-              e."solutionDate"::text AS "solutionDate"
-         FROM evidence e
-         JOIN manufacturing_plant mp ON mp.id = e."manufacturingPlantId"
-         LEFT JOIN countries c ON c.id = mp."countryId"
-        WHERE e.id = ANY($1)`,
-      [ids],
-    );
-
-    rows.forEach(({ id, country, createdAt, solutionDate }) =>
-      storedDates.set(Number(id), {
-        country: toEvidenceCountry(country),
-        createdAt,
-        solutionDate,
-      }),
-    );
-
-    return storedDates;
-  }
-
   /**
    * Filtros que realmente se aplicaron (los del DTO, con la misma lógica de
    * findAll), con nombres legibles y en el mismo orden y textos de la pantalla.
@@ -1098,6 +1082,181 @@ export class EvidencesService {
     };
   }
 
+  /**
+   * Excel de hallazgos. Se escribe en streaming hacia la respuesta (exceljs):
+   * el archivo empieza a llegar mientras se arma y no se guarda completo en
+   * memoria. Antes xlsx-populate lo armaba entero y se llevaba ~2.6 s.
+   * Las consultas van primero: un error ahí todavía responde 4xx/5xx normal.
+   */
+  private async downloadExcel(
+    queryEvidenceDto: QueryEvidenceDto,
+    res: Response,
+  ): Promise<void> {
+    this.assertExportPeriod(queryEvidenceDto);
+
+    const timeZone = resolveTimeZone(queryEvidenceDto.timeZone);
+    const downloadedAt = new Date();
+    const offsetMinutes = getOffsetMinutes(downloadedAt, timeZone);
+    const offsetLabel = formatUtcOffsetShort(offsetMinutes);
+    const downloadedAtWall = toWallClock(downloadedAt, timeZone);
+
+    const headers: Array<{
+      key: keyof ExcelEvidenceRow;
+      header: string;
+      isDate?: boolean;
+    }> = [
+      { key: 'id', header: 'ID' },
+      { key: 'status', header: 'Estatus' },
+      { key: 'isActive', header: 'Activo' },
+      { key: 'manufacturingPlant', header: 'Planta' },
+      { key: 'mainType', header: 'Evento' },
+      { key: 'secondaryType', header: 'Tipo de evento' },
+      { key: 'zone', header: 'Lugar' },
+      { key: 'user', header: 'Usuario que creó' },
+      {
+        key: 'createdAt',
+        header: `Fecha de creación (${offsetLabel})`,
+        isDate: true,
+      },
+      {
+        key: 'solutionDate',
+        header: `Fecha de solución (${offsetLabel})`,
+        isDate: true,
+      },
+      { key: 'supervisors', header: 'Supervisores' },
+      { key: 'responsibles', header: 'Responsables' },
+      { key: 'process', header: 'Proceso' },
+    ];
+    headers
+      .filter(({ isDate }) => isDate)
+      .forEach(({ key }) => assertStoredDateColumn(key));
+
+    const rows = await this.findForExcel(queryEvidenceDto);
+    const excelFilters = await this.buildExcelFilters(queryEvidenceDto);
+
+    const cellValue = (
+      row: ExcelEvidenceRow,
+      key: keyof ExcelEvidenceRow,
+      isDate?: boolean,
+    ) => {
+      if (isDate) {
+        // Hora de pared guardada: evita convertir dos veces la zona del driver.
+        const stored = row[key] as string | null;
+        if (!stored) return null;
+        assertStoredDateColumn(key);
+        const instant = storedWallClockToInstant(
+          key,
+          toEvidenceCountry(row.country),
+          stored,
+        );
+        return wallClockToExcelSerial(toWallClock(instant, timeZone));
+      }
+      if (key === 'id') return Number(row.id);
+      if (key === 'isActive') return row.isActive ? 1 : 0;
+      return `${row[key] ?? ''}`;
+    };
+
+    const user = this.requestContext.user;
+    const filtersRows: Array<[string, string | number]> = [
+      ['Campo', 'Valor'],
+      ['Descargado por', user?.name || ''],
+      [
+        'Fecha descarga (local)',
+        `${formatWallClock(downloadedAtWall)} (${formatUtcOffsetLong(offsetMinutes)}, ${timeZone})`,
+      ],
+      [
+        'Fecha descarga (UTC)',
+        downloadedAt.toISOString().replace(/\.\d{3}Z$/, 'Z'),
+      ],
+      ['Total de registros', rows.length],
+      ...excelFilters.rows.map(({ field, values }): [string, string] => [
+        field,
+        values.length ? values.join(', ') : '(todos)',
+      ]),
+    ];
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      buildAttachmentContentDisposition(
+        this.downloadFileName(excelFilters, timeZone, downloadedAt, 'xlsx'),
+      ),
+    );
+
+    // Si el cliente se desconecta, commit() esperaría para siempre el fin de
+    // la respuesta: se corta en cuanto la respuesta se cierra o falla.
+    const interrupted = new Promise<never>((_, reject) => {
+      res.once('error', reject);
+      res.once('close', () => {
+        if (!res.writableFinished)
+          reject(new Error('la conexión se cerró antes de terminar'));
+      });
+    });
+    interrupted.catch(() => undefined);
+
+    try {
+      const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({
+        stream: res,
+        useStyles: true,
+        useSharedStrings: true,
+      });
+
+      const sheet = workbook.addWorksheet('Hallazgos');
+      sheet.columns = headers.map(({ header }) => ({
+        width: Math.max(20, header.length + 4),
+      }));
+      const headerRow = sheet.addRow(headers.map(({ header }) => header));
+      headerRow.eachCell((cell) => {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF71BF44' },
+        };
+        cell.alignment = { horizontal: 'right' };
+      });
+      headerRow.commit();
+
+      for (const row of rows) {
+        const excelRow = sheet.addRow(
+          headers.map(({ key, isDate }) => cellValue(row, key, isDate)),
+        );
+        excelRow.alignment = { horizontal: 'right' };
+        headers.forEach(({ isDate }, index) => {
+          if (isDate) excelRow.getCell(index + 1).numFmt = EXCEL_DATE_FORMAT;
+        });
+        excelRow.commit();
+      }
+      sheet.commit();
+
+      const filtersSheet = workbook.addWorksheet('Filtros', {
+        views: [{ state: 'frozen', ySplit: 1 }],
+      });
+      filtersSheet.columns = [0, 1].map((col) => ({
+        width:
+          Math.max(...filtersRows.map((row) => String(row[col]).length)) + 2,
+      }));
+      filtersRows.forEach(([field, value], index) => {
+        const excelRow = filtersSheet.addRow([field, value]);
+        excelRow.getCell(1).font = { bold: true };
+        excelRow.getCell(2).font = { bold: index === 0 };
+        excelRow.getCell(2).alignment = { horizontal: 'left' };
+        excelRow.commit();
+      });
+      filtersSheet.commit();
+
+      await Promise.race([workbook.commit(), interrupted]);
+    } catch (error) {
+      // Los encabezados ya salieron: no se puede responder un error JSON.
+      this.logger.error(
+        `No se pudo generar el Excel de hallazgos: ${(error as Error).message}`,
+      );
+      res.destroy(error as Error);
+    }
+  }
+
   async downloadFile(
     type: string,
     queryEvidenceDto: QueryEvidenceDto,
@@ -1117,170 +1276,9 @@ export class EvidencesService {
       page: undefined,
       limit: undefined,
     };
-    const datos =
-      type === 'xlsx'
-        ? await this.findForExcel(exportQuery)
-        : ((await this.findAll(exportQuery)) as Evidence[]);
+    if (type === 'xlsx') return this.downloadExcel(exportQuery, res);
 
-    if (type === 'xlsx') {
-      const timeZone = resolveTimeZone(queryEvidenceDto.timeZone);
-      const downloadedAt = new Date();
-      const offsetMinutes = getOffsetMinutes(downloadedAt, timeZone);
-      const offsetLabel = formatUtcOffsetShort(offsetMinutes);
-      const downloadedAtWall = toWallClock(downloadedAt, timeZone);
-
-      const workbook = await XlsxPopulate.fromBlankAsync();
-      const sheet = workbook.sheet(0);
-      sheet.name('Hallazgos');
-
-      const headers = [
-        { key: 'id', header: 'ID', isNumber: true },
-        { key: 'status', header: 'Estatus' },
-        { key: 'isActive', header: 'Activo', isNumber: true },
-        { key: 'manufacturingPlant', header: 'Planta', isRelations: true },
-        { key: 'mainType', header: 'Evento', isRelations: true },
-        { key: 'secondaryType', header: 'Tipo de evento', isRelations: true },
-        { key: 'zone', header: 'Lugar', isRelations: true },
-        { key: 'user', header: 'Usuario que creó', isRelations: true },
-        {
-          key: 'createdAt',
-          header: `Fecha de creación (${offsetLabel})`,
-          isDate: true,
-        },
-        {
-          key: 'solutionDate',
-          header: `Fecha de solución (${offsetLabel})`,
-          isDate: true,
-        },
-        { key: 'supervisors', header: 'Supervisores', isMultiRelations: true },
-        { key: 'responsibles', header: 'Responsables', isMultiRelations: true },
-        { key: 'process', header: 'Proceso', isRelations: true },
-      ];
-
-      headers
-        .filter(({ isDate }) => isDate)
-        .forEach(({ key }) => assertStoredDateColumn(key));
-
-      const storedDates = await this.findStoredDates(datos.map(({ id }) => id));
-      const excelFilters = await this.buildExcelFilters(queryEvidenceDto);
-
-      headers.forEach(({ header: key }, i) => {
-        sheet
-          .cell(1, i + 1)
-          .value(key)
-          .style({
-            //bold: true,
-            fill: '71BF44',
-            //border: true,
-            horizontalAlignment: 'right',
-            //color: 'FFFFFF',
-          });
-      });
-
-      const values = datos.map((obj) =>
-        headers.map(
-          ({ key, isRelations, isNumber, isDate, isMultiRelations }) => {
-            if (isDate) {
-              // Hora de pared guardada: evita convertir dos veces la zona del driver.
-              const stored = storedDates.get(obj.id);
-              const storedValue = stored?.[key];
-              if (!storedValue) return undefined;
-              const instant = storedWallClockToInstant(
-                key,
-                stored.country,
-                storedValue,
-              );
-              return wallClockToExcelSerial(toWallClock(instant, timeZone));
-            }
-
-            let value = obj[key] || '';
-            if (isRelations) value = obj[key]?.name || '';
-            if (key === 'isActive') value = obj[key] ? 1 : 0;
-            if (isMultiRelations) {
-              value = obj[key].map((item) => item?.name || '').join(', ');
-            }
-            return isNumber ? value : `${value}`;
-          },
-        ),
-      );
-      if (values.length) {
-        // Escribir y formatear por rango evita repetir llamadas por cada celda.
-        sheet
-          .range(2, 1, values.length + 1, headers.length)
-          .value(values)
-          .style({ horizontalAlignment: 'right' });
-        headers.forEach(({ isDate }, index) => {
-          if (isDate) {
-            sheet
-              .range(2, index + 1, values.length + 1, index + 1)
-              .style({ numberFormat: 'yyyy-mm-dd hh:mm:ss' });
-          }
-        });
-      }
-
-      headers.forEach(({ header }, i) =>
-        sheet.column(i + 1).width(Math.max(20, header.length + 4)),
-      );
-
-      const user = this.requestContext.user;
-      const filtersSheet = workbook.addSheet('Filtros');
-      const filtersRows: Array<[string, string | number]> = [
-        ['Campo', 'Valor'],
-        ['Descargado por', user?.name || ''],
-        [
-          'Fecha descarga (local)',
-          `${formatWallClock(downloadedAtWall)} (${formatUtcOffsetLong(offsetMinutes)}, ${timeZone})`,
-        ],
-        [
-          'Fecha descarga (UTC)',
-          downloadedAt.toISOString().replace(/\.\d{3}Z$/, 'Z'),
-        ],
-        ['Total de registros', datos.length],
-        ...excelFilters.rows.map(({ field, values }): [string, string] => [
-          field,
-          values.length ? values.join(', ') : '(todos)',
-        ]),
-      ];
-
-      filtersRows.forEach(([field, value], i) => {
-        filtersSheet
-          .cell(i + 1, 1)
-          .value(field)
-          .style({ bold: true });
-        filtersSheet
-          .cell(i + 1, 2)
-          .value(value)
-          .style({ bold: i === 0, horizontalAlignment: 'left' });
-      });
-
-      [0, 1].forEach((col) =>
-        filtersSheet
-          .column(col + 1)
-          .width(
-            Math.max(...filtersRows.map((row) => String(row[col]).length)) + 2,
-          ),
-      );
-
-      filtersSheet.freezePanes(0, 1);
-
-      const fileName = this.downloadFileName(
-        excelFilters,
-        timeZone,
-        downloadedAt,
-        'xlsx',
-      );
-
-      const buffer = await workbook.outputAsync();
-      res.setHeader(
-        'Content-Type',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      );
-      res.setHeader(
-        'Content-Disposition',
-        buildAttachmentContentDisposition(fileName),
-      );
-      res.send(buffer);
-    }
+    const datos = (await this.findAll(exportQuery)) as Evidence[];
 
     if (type === 'pdf') {
       // Mismo nombre que el Excel (planta, filtros extra y hora local).
@@ -1543,81 +1541,97 @@ export class EvidencesService {
     return options;
   }
 
-  /** Excel carga solo sus campos; las colecciones no multiplican las filas. */
-  private async findForExcel(queryEvidenceDto: QueryEvidenceDto) {
+  /**
+   * Filas del Excel. Los filtros y permisos son los de la lista
+   * (buildFindOptions) y de ahí solo salen los IDs; los datos se traen en una
+   * sola consulta, sin hidratar entidades: antes eran 3 consultas y el
+   * armado de entidades de TypeORM se llevaba cerca de 1 s.
+   */
+  private async findForExcel(
+    queryEvidenceDto: QueryEvidenceDto,
+  ): Promise<ExcelEvidenceRow[]> {
     const options = this.buildFindOptions(queryEvidenceDto);
     if (!options) return [];
 
-    const datos = await this.evidenceRepository.find({
+    const authorized = await this.evidenceRepository.find({
       ...options,
       loadEagerRelations: false,
-      relations: [
-        'manufacturingPlant',
-        'mainType',
-        'secondaryType',
-        'zone',
-        'user',
-        'process',
-      ],
-      select: {
-        id: true,
-        status: true,
-        isActive: true,
-        manufacturingPlant: { id: true, name: true },
-        mainType: { id: true, name: true },
-        secondaryType: { id: true, name: true },
-        zone: { id: true, name: true },
-        user: { id: true, name: true },
-        process: { id: true, name: true },
-      },
+      relations: [],
+      select: { id: true },
     });
-    if (!datos.length) return datos;
+    if (!authorized.length) return [];
 
-    // Ambas colecciones se limitan a los IDs ya autorizados por buildFindOptions.
-    // El array evita crear un parámetro SQL por cada hallazgo exportado.
-    const assignments: Array<{
-      evidenceId: number;
-      relation: 'supervisors' | 'responsibles';
-      id: number;
-      name: string;
-    }> = await this.evidenceRepository.query(
-      `SELECT link."evidenceId", 'supervisors' AS relation, u.id, u.name
-         FROM evidence_supervisors_user link
-         JOIN "user" u ON u.id = link."userId"
-        WHERE link."evidenceId" = ANY($1)
-        UNION ALL
-       SELECT link."evidenceId", 'responsibles' AS relation, u.id, u.name
-         FROM evidence_responsibles_user link
-         JOIN "user" u ON u.id = link."userId"
-        WHERE link."evidenceId" = ANY($1)
-        ORDER BY "evidenceId", relation, id`,
-      [datos.map(({ id }) => id)],
-    );
-    const byId = new Map(
-      datos.map((evidence) => {
-        evidence.supervisors = [];
-        evidence.responsibles = [];
-        return [evidence.id, evidence] as const;
-      }),
-    );
-    // Conserva los nombres que mostraba la exportación al filtrar responsables.
-    const responsibleIds = new Set(
-      this.parseResponsibleIds(queryEvidenceDto.responsibleIds),
+    // Al filtrar por responsables, la columna muestra solo esos (como la lista).
+    const responsibleIds = this.parseResponsibleIds(
+      queryEvidenceDto.responsibleIds,
     );
     if (queryEvidenceDto.responsible)
-      responsibleIds.add(queryEvidenceDto.responsible);
-    for (const { evidenceId, relation, id, name } of assignments) {
-      if (
-        relation === 'responsibles' &&
-        responsibleIds.size &&
-        !responsibleIds.has(Number(id))
-      )
-        continue;
-      byId
-        .get(Number(evidenceId))
-        ?.[relation].push(Object.assign(new User(), { id, name }));
+      responsibleIds.push(Number(queryEvidenceDto.responsible));
+
+    // Los arrays evitan crear un parámetro SQL por cada hallazgo exportado.
+    return this.evidenceRepository.query(
+      `SELECT e.id,
+              e.status,
+              e."isActive",
+              mp.name AS "manufacturingPlant",
+              mt.name AS "mainType",
+              st.name AS "secondaryType",
+              z.name AS zone,
+              u.name AS "user",
+              pr.name AS process,
+              c.name AS country,
+              e."createdAt"::text AS "createdAt",
+              e."solutionDate"::text AS "solutionDate",
+              (SELECT string_agg(su.name, ', ' ORDER BY su.id)
+                 FROM evidence_supervisors_user link
+                 JOIN "user" su ON su.id = link."userId"
+                WHERE link."evidenceId" = e.id) AS supervisors,
+              (SELECT string_agg(ru.name, ', ' ORDER BY ru.id)
+                 FROM evidence_responsibles_user link
+                 JOIN "user" ru ON ru.id = link."userId"
+                WHERE link."evidenceId" = e.id
+                  AND ($2::int[] IS NULL OR ru.id = ANY($2))) AS responsibles
+         FROM evidence e
+         JOIN manufacturing_plant mp ON mp.id = e."manufacturingPlantId"
+         LEFT JOIN countries c ON c.id = mp."countryId"
+         LEFT JOIN main_type mt ON mt.id = e."mainTypeId"
+         LEFT JOIN secondary_type st ON st.id = e."secondaryTypeId"
+         LEFT JOIN zones z ON z.id = e."zoneId"
+         LEFT JOIN "user" u ON u.id = e."userId"
+         LEFT JOIN processes pr ON pr.id = e."processId"
+        WHERE e.id = ANY($1)
+        ORDER BY e.id DESC`,
+      [
+        authorized.map(({ id }) => id),
+        responsibleIds.length ? responsibleIds : null,
+      ],
+    );
+  }
+
+  /**
+   * Excel: período obligatorio de hasta EXPORT_MAX_MONTHS meses. Acota el
+   * volumen de cada descarga; la UI propone los últimos 90 días.
+   */
+  private assertExportPeriod({ startDate, endDate }: QueryEvidenceDto) {
+    if (!startDate || !endDate) {
+      throw new BadRequestException(
+        'Seleccione el período a exportar: fecha de inicio y fecha de fin',
+      );
     }
-    return datos;
+    const start = this.parseDateFilter(startDate, 'La fecha de inicio');
+    const end = this.parseDateFilter(endDate, 'La fecha de fin', true);
+    if (start > end) {
+      throw new BadRequestException(
+        'La fecha de inicio no puede ser mayor a la fecha de fin',
+      );
+    }
+    const limit = new Date(start);
+    limit.setMonth(limit.getMonth() + EXPORT_MAX_MONTHS);
+    if (end >= limit) {
+      throw new BadRequestException(
+        `El período a exportar no puede superar ${EXPORT_MAX_MONTHS} meses`,
+      );
+    }
   }
 
   async findAll(queryEvidenceDto: QueryEvidenceDto) {

@@ -430,16 +430,25 @@ describe('E2E: hallazgos', () => {
       await e2e.call('get', '/evidences?page=1&limit=10').expect(401);
     });
 
-    it('descarga Excel 200 y un tipo desconocido 400', async () => {
+    it('descarga Excel 200 con período; sin período, más de 12 meses o tipo desconocido 400', async () => {
       const res = await e2e
         .call(
           'get',
-          '/evidences/download/xlsx?timeZone=America/Mexico_City',
+          '/evidences/download/xlsx?startDate=01/01/2026&endDate=31/12/2026&timeZone=America/Mexico_City',
           e2e.tokens.general,
         )
         .expect(200);
 
       expect(res.headers['content-type']).toContain('spreadsheetml');
+      for (const query of [
+        '',
+        'startDate=01/01/2026',
+        'startDate=01/01/2026&endDate=01/01/2027',
+      ]) {
+        await e2e
+          .call('get', `/evidences/download/xlsx?${query}`, e2e.tokens.general)
+          .expect(400);
+      }
       await e2e
         .call('get', '/evidences/download/csv', e2e.tokens.general)
         .expect(400);
@@ -476,11 +485,13 @@ describe('E2E: hallazgos', () => {
         [first.id],
       );
       const ids = [first.id, second.id, foreign.id].join(',');
+      // El Excel exige período: la lista recibe el mismo para comparar.
+      const period = 'startDate=01/01/2026&endDate=31/12/2026';
       const cases = [
-        `ids=${ids}`,
-        `ids=${ids}&responsibleIds=${users.supervisor.id}`,
+        `ids=${ids}&${period}`,
+        `ids=${ids}&responsibleIds=${users.supervisor.id}&${period}`,
         `ids=${ids}&manufacturingPlantId=${plants.tepotzotlan.id}&mainTypeIds=${mainType.id}&secondaryTypeIds=${secondaryType.id}&areaIds=${zone.area.id}&zoneIds=${zone.id}&processIds=${process.id}&statuses=${STATUSES.closed}&startDate=01/10/2026&endDate=02/10/2026`,
-        `ids=${ids}&manufacturingPlantId=${plants.manizales.id}`,
+        `ids=${ids}&manufacturingPlantId=${plants.manizales.id}&${period}`,
       ];
       for (const query of cases) {
         const list = await e2e
