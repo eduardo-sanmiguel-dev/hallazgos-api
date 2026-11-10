@@ -12,6 +12,7 @@ import { AppModule } from './app.module.js';
 import { DeploymentUpdatesService } from './deployments/deployment-updates.service.js';
 import { createValidationPipe } from './shared/errors/validation-errors.js';
 import { ApiExceptionFilter } from './shared/filters/api-exception.filter.js';
+import { notifyProcessReady } from './shared/utils/process-ready.js';
 import { httpAccessLog } from './shared/middlewares/http-access-log.middleware.js';
 import {
   createOpenObserveLogger,
@@ -82,6 +83,7 @@ async function bootstrap() {
 
   await app.get(DeploymentUpdatesService).attach(app.getHttpServer());
   await app.listen(port, '0.0.0.0');
+  notifyProcessReady();
 
   logger.debug(`Running on port: [${port}], environment: [${environment}]`);
 
