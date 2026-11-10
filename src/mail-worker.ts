@@ -5,6 +5,7 @@ import { Queue, Worker } from 'bullmq';
 import { MailWorkerModule } from './mail/outbox/mail-worker.module.js';
 import { MailDeliveryService } from './mail/outbox/mail-delivery.service.js';
 import { encryptionKey } from './mail/outbox/mail-payload.js';
+import { exitOnSignal } from './mail/outbox/graceful-shutdown.js';
 import {
   createOpenObserveLogger,
   type ObserveConfig,
@@ -121,23 +122,15 @@ async function main() {
     30_000,
   );
   await poll();
-  let closing = false;
-  for (const signal of ['SIGTERM', 'SIGINT'] as const)
-    process.on(signal, () => {
-      if (closing) return;
-      closing = true;
-      stopped = true;
-      clearInterval(timer);
-      clearInterval(heartbeat);
-      void (async () => {
-        await worker.close();
-        await queue.close();
-        await app.close();
-        await logger?.close();
-      })().catch(() => {
-        process.exitCode = 1;
-      });
-    });
+  exitOnSignal(async () => {
+    stopped = true;
+    clearInterval(timer);
+    clearInterval(heartbeat);
+    await worker.close();
+    await queue.close();
+    await app.close();
+    await logger?.close();
+  });
 }
 main().catch(() => {
   process.stderr.write(
