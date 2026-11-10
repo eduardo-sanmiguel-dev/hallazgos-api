@@ -11,9 +11,11 @@ import { existsSync } from 'node:fs';
 // Node 26 (DEP0205). Debe ser el mismo import-in-the-middle que usa
 // @opentelemetry/instrumentation para que vea sus Hook().
 import { register } from 'import-in-the-middle/register-hooks.mjs';
+import { instrumentationEnvFile } from './instrumentation-env.js';
 
 // ConfigModule carga el .env después; aquí las variables hacen falta antes.
-const envFile = `.env.${process.env.NODE_ENV}`;
+// Ruta relativa a este archivo: en cluster el directorio de trabajo es "/".
+const envFile = instrumentationEnvFile(process.env.NODE_ENV);
 if (existsSync(envFile)) process.loadEnvFile(envFile);
 
 const { NODE_ENV, OBSERVE_ENDPOINT, OBSERVE_AUTH_HEADER } = process.env;
