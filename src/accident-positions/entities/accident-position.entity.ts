@@ -11,6 +11,7 @@ import {
 
 import { ManufacturingPlant } from '../../manufacturing-plants/entities/manufacturing-plant.entity.js';
 import { Ciael } from '../../ciaels/entities/ciael.entity.js';
+
 @Entity({ name: 'accident_positions' })
 export class AccidentPosition {
   @PrimaryGeneratedColumn()
