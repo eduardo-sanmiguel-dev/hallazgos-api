@@ -121,21 +121,6 @@ describe('EvidencesController (HTTP)', () => {
     });
   });
 
-  it('GET /evidences/permissions/config devuelve las listas de permisos', async () => {
-    service.getPermissionsConfig.mockReturnValue({
-      supervisorOverrideEmails: ['a@x.test'],
-      cancelEvidenceEmails: [],
-    });
-
-    await http
-      .http()
-      .get('/evidences/permissions/config')
-      .expect(200, {
-        supervisorOverrideEmails: ['a@x.test'],
-        cancelEvidenceEmails: [],
-      });
-  });
-
   describe('GET /evidences/:id', () => {
     it('devuelve el hallazgo', async () => {
       service.findOne.mockResolvedValue({ id: 12 } as never);

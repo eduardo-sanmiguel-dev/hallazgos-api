@@ -82,7 +82,6 @@ import {
   toEvidenceCountry,
 } from './evidence-storage-timezones.js';
 import {
-  CANCEL_EVIDENCE_EMAILS,
   canCancelEvidences,
   hasSupervisorOverride,
 } from './evidence-permissions.js';
@@ -156,23 +155,6 @@ export class EvidencesService {
     'closedBy',
     'reassignedBy',
   ];
-
-  /**
-   * @deprecated Compatibilidad con el UI anterior mientras se despliega: el
-   * UI nuevo usa evidencePermissions de get-information-current-user. Antes
-   * devolvía las listas completas de correos a cualquier sesión; ahora cada
-   * lista trae como mucho el correo del propio usuario, que es lo único que
-   * el UI anterior consulta (includes(email)). Quitar en el siguiente
-   * despliegue.
-   */
-  getPermissionsConfig() {
-    const user = this.requestContext.user;
-    const own = (allowed: boolean) => (allowed ? [user.email] : []);
-    return {
-      supervisorOverrideEmails: own(hasSupervisorOverride(user)),
-      cancelEvidenceEmails: own(CANCEL_EVIDENCE_EMAILS.includes(user.email)),
-    };
-  }
 
   /** Supervisor o responsable del hallazgo (con cualquier rol). */
   private isAssigned(user: User, evidence: Evidence): boolean {

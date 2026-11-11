@@ -527,7 +527,7 @@ export class UsersService {
   /**
    * Usuario en sesión para el UI, con sus permisos especiales sobre hallazgos
    * ya calculados (antes el UI pedía las listas completas de correos a
-   * GET /evidences/permissions/config).
+   * GET /evidences/permissions/config, ya eliminado).
    */
   async getInformationCurrentUser(): Promise<CurrentUser> {
     const userId = this.requestContext.userId;
