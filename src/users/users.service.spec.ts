@@ -501,6 +501,50 @@ describe('UsersService', () => {
     });
   });
 
+  describe('findSessionUser', () => {
+    it('una sola consulta: usuario activo con sus plantas activas, sin zonas ni procesos', async () => {
+      const user = buildUser({ id: 9 });
+      users.find.mockResolvedValue([user]);
+
+      await expect(service.findSessionUser(9)).resolves.toBe(user);
+      expect(users.find).toHaveBeenCalledTimes(1);
+      expect(users.find.mock.calls[0][0]).toEqual({
+        where: {
+          id: 9,
+          isActive: true,
+          manufacturingPlants: { isActive: true },
+        },
+        relations: ['manufacturingPlants'],
+      });
+      // find (sin take): TypeORM no agrega la consulta previa de ids DISTINCT.
+      expect(users.findOne).not.toHaveBeenCalled();
+    });
+
+    it('deja fuera las plantas inactivas (son los permisos de la sesión)', async () => {
+      users.find.mockResolvedValue([
+        buildUser({
+          id: 9,
+          manufacturingPlants: [
+            buildManufacturingPlant({ id: 1, isActive: true }),
+            buildManufacturingPlant({ id: 2, isActive: false }),
+          ],
+        }),
+      ]);
+
+      const user = await service.findSessionUser(9);
+
+      expect(user.manufacturingPlants.map((p) => p.id)).toEqual([1]);
+    });
+
+    it('NotFoundException si no existe, está inactivo o no tiene plantas activas', async () => {
+      users.find.mockResolvedValue([]);
+
+      await expect(service.findSessionUser(9)).rejects.toThrow(
+        new NotFoundException('Usuario #9 no encontrado'),
+      );
+    });
+  });
+
   describe('findOne', () => {
     it('devuelve el usuario activo con sus relaciones', async () => {
       const user = buildUser({ id: 9 });
