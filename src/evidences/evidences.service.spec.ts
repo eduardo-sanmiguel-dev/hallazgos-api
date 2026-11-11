@@ -1870,11 +1870,28 @@ describe('EvidencesService', () => {
     });
   });
 
-  it('getPermissionsConfig expone al UI las listas de correos con permisos especiales', () => {
-    const config = service.getPermissionsConfig();
+  // Compatibilidad con el UI anterior durante el despliegue: ya no expone
+  // las listas, solo el correo propio en las que aplica.
+  describe('getPermissionsConfig (obsoleto)', () => {
+    const configFor = (email: string) =>
+      runAsUser(buildUser({ email }), () => service.getPermissionsConfig());
 
-    expect(config.supervisorOverrideEmails).toContain('klarios@hadamexico.com');
-    expect(config.cancelEvidenceEmails).toContain('dtrujillo@hadamexico.com');
-    expect(config.cancelEvidenceEmails).not.toContain('klarios@hadamexico.com');
+    it('con permisos especiales solo devuelve el correo propio', async () => {
+      await expect(configFor('sst@hadamexico.com')).resolves.toEqual({
+        supervisorOverrideEmails: ['sst@hadamexico.com'],
+        cancelEvidenceEmails: ['sst@hadamexico.com'],
+      });
+      await expect(configFor('klarios@hadamexico.com')).resolves.toEqual({
+        supervisorOverrideEmails: ['klarios@hadamexico.com'],
+        cancelEvidenceEmails: [],
+      });
+    });
+
+    it('sin permisos especiales devuelve listas vacías (antes, todos los correos)', async () => {
+      await expect(configFor('ana@hallazgos.test')).resolves.toEqual({
+        supervisorOverrideEmails: [],
+        cancelEvidenceEmails: [],
+      });
+    });
   });
 });

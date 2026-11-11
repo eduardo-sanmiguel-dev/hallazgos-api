@@ -81,6 +81,11 @@ import {
   storedWallClockToInstant,
   toEvidenceCountry,
 } from './evidence-storage-timezones.js';
+import {
+  CANCEL_EVIDENCE_EMAILS,
+  canCancelEvidences,
+  hasSupervisorOverride,
+} from './evidence-permissions.js';
 
 // pdfmake es CommonJS y su fuente se resuelve como archivo del paquete.
 const require = createRequire(import.meta.url);
@@ -136,33 +141,6 @@ const EMAIL_TYPE_LABELS: Record<string, string> = {
 export class EvidencesService {
   private readonly logger = new Logger(EvidencesService.name);
 
-  private readonly supervisorOverrideEmails = [
-    'sst@hadamexico.com',
-    'klarios@hadamexico.com',
-    'gsalgado@hadamexico.com',
-    'auxsistemadegestion@hadainternational.com',
-    'glora@hadainternational.com',
-    'mruiz@hadamexico.com',
-    'arodriguez@hadamexico.com',
-    'esanchez@hadamexico.com',
-    'cseguridad@hadainternational.com',
-    'gsanchez@hadamexico.com',
-    'bproyectos@hadamexico.com',
-    'eduardo-266@hotmail.com',
-    'carrellin@hadamexico.com',
-    'mfaneite@hadamexico.com',
-    'esolorio@hadamexico.com',
-  ];
-
-  private readonly cancelEvidenceEmails = [
-    'glora@hadainternational.com',
-    'sst@hadamexico.com',
-    'dtrujillo@hadamexico.com',
-    'gsanchez@hadamexico.com',
-    'cseguridad@hadainternational.com',
-    'eduardo-266@hotmail.com',
-  ];
-
   private readonly relations = [
     'manufacturingPlant',
     'mainType',
@@ -179,10 +157,20 @@ export class EvidencesService {
     'reassignedBy',
   ];
 
+  /**
+   * @deprecated Compatibilidad con el UI anterior mientras se despliega: el
+   * UI nuevo usa evidencePermissions de get-information-current-user. Antes
+   * devolvía las listas completas de correos a cualquier sesión; ahora cada
+   * lista trae como mucho el correo del propio usuario, que es lo único que
+   * el UI anterior consulta (includes(email)). Quitar en el siguiente
+   * despliegue.
+   */
   getPermissionsConfig() {
+    const user = this.requestContext.user;
+    const own = (allowed: boolean) => (allowed ? [user.email] : []);
     return {
-      supervisorOverrideEmails: this.supervisorOverrideEmails,
-      cancelEvidenceEmails: this.cancelEvidenceEmails,
+      supervisorOverrideEmails: own(hasSupervisorOverride(user)),
+      cancelEvidenceEmails: own(CANCEL_EVIDENCE_EMAILS.includes(user.email)),
     };
   }
 
@@ -204,7 +192,7 @@ export class EvidencesService {
   private canStartProcess(user: User, evidence: Evidence): boolean {
     return (
       user.role === ROLE_ADMINISTRADOR ||
-      this.supervisorOverrideEmails.includes(user.email) ||
+      hasSupervisorOverride(user) ||
       this.isAssignedSupervisor(user, evidence)
     );
   }
@@ -212,24 +200,20 @@ export class EvidencesService {
   /** El administrador no cierra (salvo que su correo esté en la lista especial). */
   private canCloseEvidence(user: User, evidence: Evidence): boolean {
     return (
-      this.supervisorOverrideEmails.includes(user.email) ||
-      this.isAssignedSupervisor(user, evidence)
+      hasSupervisorOverride(user) || this.isAssignedSupervisor(user, evidence)
     );
   }
 
   private canReassignEvidence(user: User, evidence: Evidence): boolean {
     return (
       user.role === ROLE_ADMINISTRADOR ||
-      this.supervisorOverrideEmails.includes(user.email) ||
+      hasSupervisorOverride(user) ||
       this.isAssigned(user, evidence)
     );
   }
 
   private canCancelEvidence(user: User): boolean {
-    return (
-      user.role === ROLE_ADMINISTRADOR ||
-      this.cancelEvidenceEmails.includes(user.email)
-    );
+    return canCancelEvidences(user);
   }
 
   /**
