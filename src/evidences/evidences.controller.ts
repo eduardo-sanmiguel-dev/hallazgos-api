@@ -78,11 +78,6 @@ export class EvidencesController {
     return this.evidencesService.findAll(queryEvidenceDto);
   }
 
-  @Get('/permissions/config')
-  getPermissionsConfig() {
-    return this.evidencesService.getPermissionsConfig();
-  }
-
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.evidencesService.findOne(+id);

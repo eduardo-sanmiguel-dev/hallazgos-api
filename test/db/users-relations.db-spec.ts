@@ -162,14 +162,11 @@ describe('E2E: relaciones de usuarios', () => {
     });
     expect(me.body).not.toHaveProperty('password');
 
-    // Endpoint anterior (compatibilidad): sin las listas de los demás.
-    const config = await e2e
+    // El endpoint que enviaba las listas de correos ya no existe (y no lo
+    // atrapa GET /evidences/:id).
+    await e2e
       .call('get', '/evidences/permissions/config', e2e.tokens.supervisor)
-      .expect(200);
-    expect(config.body).toEqual({
-      supervisorOverrideEmails: [],
-      cancelEvidenceEmails: [],
-    });
+      .expect(404);
   });
 
   it('los supervisores traen solo las plantas del usuario en sesión', async () => {
