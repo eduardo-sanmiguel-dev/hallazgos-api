@@ -13,6 +13,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 
 import { EnvConfiguration, JoiValidationSchema } from './config/index.js';
+import { dbPoolOptions } from './config/db-pool.config.js';
 
 import {
   AppKeyMiddleware,
@@ -91,6 +92,8 @@ import { EvidenceImageAccessMiddleware } from './evidences/evidence-image-access
         synchronize: false,
         migrationsRun: true,
         migrations: [join(import.meta.dirname, 'migrations', '*{.ts,.js}')],
+        // Pool: conexiones que sobreviven entre ráfagas de peticiones.
+        extra: dbPoolOptions(),
       }),
     }),
     ServeStaticModule.forRoot({
