@@ -37,7 +37,12 @@ describe('MailService', () => {
       ],
     }).compile();
     service = moduleRef.get(MailService);
+    // Las fotos de prueba (uuid-*.png) no existen en disco: se simula que sí.
+    imageOnDisk = jest
+      .spyOn(service as never, 'imageOnDisk')
+      .mockReturnValue(true as never);
   };
+  let imageOnDisk: jest.SpyInstance;
 
   const evidence = (overrides = {}) =>
     buildEvidence({
@@ -116,7 +121,90 @@ describe('MailService', () => {
 
     it('propaga un rechazo SMTP para que el worker pueda clasificarlo', async () => {
       sendMail.mockRejectedValue(new Error('SMTP caído'));
-      await expect(service.sendCreate({ user: recipient, evidenceCurrent: evidence() })).rejects.toThrow('SMTP caído');
+      await expect(
+        service.sendCreate({ user: recipient, evidenceCurrent: evidence() }),
+      ).rejects.toThrow('SMTP caído');
+    });
+  });
+
+  describe('fotos que no están en disco', () => {
+    // Hallazgos del seeder guardan "seed-evidence.png", que no existe: antes
+    // el correo fallaba con ENOENT y revertía el cierre (500).
+    const seeded = () =>
+      evidence({
+        imgEvidence: 'seed-evidence.png',
+        imgSolution: 'uuid-solution.png',
+        solutionDate: new Date(),
+      });
+
+    beforeEach(() =>
+      imageOnDisk.mockImplementation(
+        ((fileName: string) => !fileName.startsWith('seed-')) as never,
+      ),
+    );
+
+    it('el correo de solución sale sin la foto faltante ni su referencia', async () => {
+      const current = seeded();
+      await service.sendSolution({ user: recipient, evidenceCurrent: current });
+
+      expect(photoCids()).toEqual(['imgSolution']);
+      expect(JSON.stringify(sent().context)).not.toContain('cid":"imgEvidence');
+      // No modifica el hallazgo original.
+      expect(current.imgEvidence).toBe('seed-evidence.png');
+    });
+
+    it.each([
+      [
+        'sendCreate',
+        () =>
+          service.sendCreate({ user: recipient, evidenceCurrent: seeded() }),
+      ],
+      [
+        'sendInProgress',
+        () =>
+          service.sendInProgress({
+            user: recipient,
+            startedBy: actor,
+            evidenceCurrent: seeded(),
+          }),
+      ],
+      [
+        'sendCancel',
+        () =>
+          service.sendCancel({
+            user: recipient,
+            cancelledBy: actor,
+            evidenceCurrent: seeded(),
+          }),
+      ],
+      [
+        'sendReassign',
+        () =>
+          service.sendReassign({
+            user: recipient,
+            reassignedBy: actor,
+            evidenceCurrent: seeded(),
+            previousResponsibles: [],
+            currentResponsibles: [],
+          }),
+      ],
+    ])('%s no adjunta la foto faltante', async (_, send) => {
+      await send();
+      expect(photoCids()).not.toContain('imgEvidence');
+    });
+
+    it('la verificación real usa el disco: un archivo inexistente cuenta como faltante', () => {
+      imageOnDisk.mockRestore();
+      expect(
+        (
+          service as unknown as { imageOnDisk: (f: string) => boolean }
+        ).imageOnDisk('seed-evidence.png'),
+      ).toBe(false);
+      expect(
+        (
+          service as unknown as { imageOnDisk: (f: string) => boolean }
+        ).imageOnDisk('../escape.png'),
+      ).toBe(false);
     });
   });
 

@@ -3,8 +3,9 @@ import type { EntityManager } from 'typeorm';
 import type { ISendMailOptions } from '@nestjs-modules/mailer';
 import { MailOutboxService } from './outbox/mail-outbox.service.js';
 import { MailerService } from '@nestjs-modules/mailer';
+import { existsSync } from 'fs';
 import { join } from 'path';
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import {
@@ -106,9 +107,11 @@ const getResolution = (
 const names = (users: User[]) => users.map(({ name }) => name).join(', ');
 
 type ImageField = 'imgEvidence' | 'imgProcess' | 'imgSolution';
+const IMAGE_FIELDS: ImageField[] = ['imgEvidence', 'imgProcess', 'imgSolution'];
 
 @Injectable()
 export class MailService {
+  private readonly logger = new Logger(MailService.name);
   private MAIL_USER_APP: string = '';
   private FRONTEND_URL: string = '';
   private readonly environment: string;
@@ -179,6 +182,37 @@ export class MailService {
     } catch {
       return '';
     }
+  }
+
+  /** Si la foto está en disco (separado para poder simularlo en pruebas). */
+  protected imageOnDisk(fileName: string): boolean {
+    try {
+      return existsSync(this.pathImage(fileName));
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Copia del hallazgo sin las fotos que no están en disco (p. ej. hallazgos
+   * del seeder con "seed-evidence.png"). Antes el adjunto fallaba con ENOENT
+   * al congelar el correo y, como el correo se guarda en la misma transacción,
+   * revertía el cambio de estado (500 al cerrar el hallazgo). Sin la foto el
+   * correo sale igual y la plantilla no apunta a un adjunto inexistente.
+   */
+  private withStoredImages(evidence: Evidence): Evidence {
+    const missing = IMAGE_FIELDS.filter(
+      (field) => evidence[field] && !this.imageOnDisk(evidence[field]),
+    );
+    if (missing.length === 0) return evidence;
+    this.logger.warn(
+      `Hallazgo #${evidence.id}: el correo sale sin ${missing
+        .map((field) => `${field} (${evidence[field]})`)
+        .join(', ')} porque la imagen no existe en disco`,
+    );
+    const copy = { ...evidence } as Evidence;
+    for (const field of missing) copy[field] = '';
+    return copy;
   }
 
   /** Fotos del hallazgo que existen, como adjuntos en línea (CID). */
@@ -269,6 +303,7 @@ export class MailService {
     user: User;
     evidenceCurrent: Evidence;
   }) {
+    evidenceCurrent = this.withStoredImages(evidenceCurrent);
     const base = this.evidenceContext(evidenceCurrent, 'create');
 
     return this.send({
@@ -308,6 +343,7 @@ export class MailService {
     previousResponsibles: User[];
     currentResponsibles: User[];
   }) {
+    evidenceCurrent = this.withStoredImages(evidenceCurrent);
     const base = this.evidenceContext(evidenceCurrent, 'reassign');
     const current =
       currentResponsibles.length > 0
@@ -357,6 +393,7 @@ export class MailService {
     user: User;
     evidenceCurrent: Evidence;
   }) {
+    evidenceCurrent = this.withStoredImages(evidenceCurrent);
     const resolution = getResolution(
       evidenceCurrent.createdAt,
       evidenceCurrent.solutionDate,
@@ -441,7 +478,10 @@ export class MailService {
     evidenceCurrent: Evidence;
   }) {
     // Quien lo inició es quien hizo la petición, aunque la entidad no lo traiga.
-    const evidence = { ...evidenceCurrent, startedBy } as Evidence;
+    const evidence = {
+      ...this.withStoredImages(evidenceCurrent),
+      startedBy,
+    } as Evidence;
     const base = this.evidenceContext(evidence, 'inProgress');
 
     return this.send({
@@ -482,6 +522,7 @@ export class MailService {
     user: User;
     evidenceCurrent: Evidence;
   }) {
+    evidenceCurrent = this.withStoredImages(evidenceCurrent);
     const now = evidenceCurrent.updatedAt || new Date();
     const cancelledAt = stringToDateWithTime(now);
     const base = this.evidenceContext(evidenceCurrent, 'cancel', {
