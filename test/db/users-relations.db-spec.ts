@@ -7,6 +7,7 @@
 import { User } from '../../src/users/entities/user.entity.js';
 import { ManufacturingPlant } from '../../src/manufacturing-plants/entities/manufacturing-plant.entity.js';
 import { Zone } from '../../src/zones/entities/zone.entity.js';
+import { PostgresQueryRunner } from 'typeorm/driver/postgres/PostgresQueryRunner.js';
 import { UsersService } from '../../src/users/users.service.js';
 import { createE2eApp, type E2eApp } from './e2e-app.js';
 
@@ -122,6 +123,32 @@ describe('E2E: relaciones de usuarios', () => {
       expect.objectContaining({ name: expect.any(String) }),
     );
     expect(names(res.body.processes)).toHaveLength(2);
+  });
+
+  // Corre en cada petición (JwtMiddleware): antes eran 4 consultas (ids
+  // DISTINCT, usuario con plantas, zonas y procesos).
+  it('el usuario en sesión se carga con una sola consulta, solo con sus plantas', async () => {
+    const queries = jest.spyOn(PostgresQueryRunner.prototype, 'query');
+    try {
+      const user = await e2e.app
+        .get(UsersService)
+        .findSessionUser(e2e.base.users.supervisor.id);
+
+      expect(queries).toHaveBeenCalledTimes(1);
+      expect(names(user.manufacturingPlants).sort()).toEqual([
+        'Manizales',
+        'Tepotzotlán',
+      ]);
+      expect(user.zones).toBeUndefined();
+      expect(user.processes).toBeUndefined();
+    } finally {
+      queries.mockRestore();
+    }
+
+    // Y la sesión sigue funcionando de punta a punta para ese supervisor.
+    await e2e
+      .call('get', '/users/get-information-current-user', e2e.tokens.supervisor)
+      .expect(200);
   });
 
   it('los supervisores traen solo las plantas del usuario en sesión', async () => {

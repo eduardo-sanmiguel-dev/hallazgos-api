@@ -29,7 +29,9 @@ export class JwtMiddleware implements NestMiddleware {
 
     try {
       const decoded = this.jwtService.verify(token);
-      const user = await this.usersService.findOne(decoded.userId);
+      // Solo datos y plantas activas (una consulta): zonas y procesos no se
+      // usan desde la sesión.
+      const user = await this.usersService.findSessionUser(decoded.userId);
       // Copia plana con los datos del usuario (sin métodos de la entidad).
       req.user = { ...user } as User;
       next();

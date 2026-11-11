@@ -17,11 +17,11 @@ describe('JwtMiddleware', () => {
   const jwtService = new JwtService({
     get: () => SECRET,
   } as unknown as ConfigService);
-  let usersService: { findOne: jest.Mock };
+  let usersService: { findSessionUser: jest.Mock };
   let middleware: JwtMiddleware;
 
   beforeEach(() => {
-    usersService = { findOne: jest.fn() };
+    usersService = { findSessionUser: jest.fn() };
     middleware = new JwtMiddleware(
       jwtService,
       usersService as unknown as UsersService,
@@ -43,13 +43,13 @@ describe('JwtMiddleware', () => {
 
   it('autentica con el token de la cookie y guarda el usuario en la petición', async () => {
     const user = Object.assign(new User(), buildUser({ id: 7 }));
-    usersService.findOne.mockResolvedValue(user);
+    usersService.findSessionUser.mockResolvedValue(user);
     const req = request({ cookie: jwtService.create(7) });
     const next = jest.fn();
 
     await middleware.use(req, response, next);
 
-    expect(usersService.findOne).toHaveBeenCalledWith(7);
+    expect(usersService.findSessionUser).toHaveBeenCalledWith(7);
     expect(req.user).toMatchObject({ id: 7, email: user.email });
     // Copia plana: sin los métodos de la entidad.
     expect(req.user).not.toBeInstanceOf(User);
@@ -57,7 +57,7 @@ describe('JwtMiddleware', () => {
   });
 
   it('acepta el token en el header Authorization: Bearer', async () => {
-    usersService.findOne.mockResolvedValue(buildUser({ id: 9 }));
+    usersService.findSessionUser.mockResolvedValue(buildUser({ id: 9 }));
     const req = request({ authorization: `Bearer ${jwtService.create(9)}` });
     const next = jest.fn();
 
@@ -68,7 +68,7 @@ describe('JwtMiddleware', () => {
   });
 
   it('la cookie tiene prioridad sobre el header', async () => {
-    usersService.findOne.mockResolvedValue(buildUser({ id: 7 }));
+    usersService.findSessionUser.mockResolvedValue(buildUser({ id: 7 }));
     const req = request({
       cookie: jwtService.create(7),
       authorization: `Bearer ${jwtService.create(9)}`,
@@ -76,7 +76,7 @@ describe('JwtMiddleware', () => {
 
     await middleware.use(req, response, jest.fn());
 
-    expect(usersService.findOne).toHaveBeenCalledWith(7);
+    expect(usersService.findSessionUser).toHaveBeenCalledWith(7);
   });
 
   it.each([
@@ -89,7 +89,7 @@ describe('JwtMiddleware', () => {
       middleware.use(request(input), response, next),
     ).rejects.toThrow(sessionEndedException());
     expect(next).not.toHaveBeenCalled();
-    expect(usersService.findOne).not.toHaveBeenCalled();
+    expect(usersService.findSessionUser).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -120,7 +120,7 @@ describe('JwtMiddleware', () => {
   });
 
   it('debe lanzar UnauthorizedException si el usuario del token ya no existe o está inactivo', async () => {
-    usersService.findOne.mockRejectedValue(new NotFoundException());
+    usersService.findSessionUser.mockRejectedValue(new NotFoundException());
     const next = jest.fn();
 
     await expect(

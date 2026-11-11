@@ -337,8 +337,31 @@ export class UsersService {
     });
   }
 
-  // También es el usuario en sesión de cada petición (JwtMiddleware): sus
-  // plantas activas son sus permisos.
+  /**
+   * Usuario en sesión de cada petición (JwtMiddleware): datos propios y sus
+   * plantas activas, que son sus permisos. Una sola consulta: antes usaba
+   * findOne, que hacía 4 (ids DISTINCT por el take de findOne, usuario con
+   * plantas, zonas y procesos) en cada petición, y nadie lee las zonas ni los
+   * procesos del usuario en sesión (un supervisor llega a tener 261 zonas).
+   * Mismo criterio que findOne: inactivo o sin plantas activas → 404.
+   */
+  async findSessionUser(id: number): Promise<User> {
+    const [user] = await this.userRepository.find({
+      where: {
+        id,
+        isActive: true,
+        manufacturingPlants: { isActive: true },
+      },
+      relations: ['manufacturingPlants'],
+    });
+
+    if (!user) throw new NotFoundException(`Usuario #${id} no encontrado`);
+
+    return keepMatching(user, { plant: (plant) => plant.isActive });
+  }
+
+  // Usuario con zonas y procesos (editar y vistas de detalle). Solo plantas
+  // activas.
   async findOne(id: number): Promise<User> {
     const user = await this.userRepository.findOne({
       where: {
