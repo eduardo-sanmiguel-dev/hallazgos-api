@@ -30,7 +30,7 @@ describe('EvidenceImageAccessMiddleware', () => {
     jest.spyOn(process, 'cwd').mockReturnValue(temp);
     jwt = { verify: jest.fn().mockReturnValue({ userId: 1 }) };
     users = {
-      findOne: jest
+      findSessionUser: jest
         .fn()
         .mockResolvedValue({ manufacturingPlants: [{ id: 1 }] }),
     };
@@ -78,7 +78,7 @@ describe('EvidenceImageAccessMiddleware', () => {
   it('acepta Authorization y conserva la protección sin plantas', async () => {
     req.cookies = {};
     req.headers.authorization = 'Bearer bearer';
-    users.findOne.mockResolvedValue({ manufacturingPlants: [] });
+    users.findSessionUser.mockResolvedValue({ manufacturingPlants: [] });
     repository.exists.mockResolvedValue(false);
     await middleware.use(req, res, next);
     expect(jwt.verify).toHaveBeenCalledWith('bearer');
@@ -99,7 +99,7 @@ describe('EvidenceImageAccessMiddleware', () => {
       jwt.verify.mockImplementation(() => {
         throw Error('invalid');
       });
-    else users.findOne.mockRejectedValue(Error('disabled'));
+    else users.findSessionUser.mockRejectedValue(Error('disabled'));
     await middleware.use(req, res, next);
     expect(res.status).toHaveBeenCalledWith(401);
     expect(db.getRepository).not.toHaveBeenCalled();
