@@ -44,7 +44,9 @@ export class EvidenceImageAccessMiddleware implements NestMiddleware {
         req.cookies?.token ||
         req.headers.authorization?.replace(/^Bearer /, '');
       const payload = this.jwt.verify(token || '');
-      user = await this.users.findOne(payload.userId);
+      // Solo plantas activas (una consulta), igual que JwtMiddleware: cada
+      // foto de la lista pasa por aquí.
+      user = await this.users.findSessionUser(payload.userId);
     } catch {
       res
         .status(401)
