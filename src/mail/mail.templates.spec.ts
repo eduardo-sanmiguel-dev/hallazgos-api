@@ -62,6 +62,8 @@ describe('Plantillas de correo', () => {
       ],
     }).compile();
     service = moduleRef.get(MailService);
+    // Las fotos de prueba (uuid-*.png) no existen en disco: se simula que sí.
+    jest.spyOn(service as never, 'imageOnDisk').mockReturnValue(true as never);
   };
 
   beforeEach(() => setup('https://ui.test/restore'));
