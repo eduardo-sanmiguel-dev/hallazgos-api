@@ -151,6 +151,27 @@ describe('E2E: relaciones de usuarios', () => {
       .expect(200);
   });
 
+  it('la sesión trae los permisos especiales calculados y nadie recibe las listas de correos', async () => {
+    const me = await e2e
+      .call('get', '/users/get-information-current-user', e2e.tokens.admin)
+      .expect(200);
+    // El administrador cancela; no está en la lista de supervisores especiales.
+    expect(me.body.evidencePermissions).toEqual({
+      supervisorOverride: false,
+      cancelEvidence: true,
+    });
+    expect(me.body).not.toHaveProperty('password');
+
+    // Endpoint anterior (compatibilidad): sin las listas de los demás.
+    const config = await e2e
+      .call('get', '/evidences/permissions/config', e2e.tokens.supervisor)
+      .expect(200);
+    expect(config.body).toEqual({
+      supervisorOverrideEmails: [],
+      cancelEvidenceEmails: [],
+    });
+  });
+
   it('los supervisores traen solo las plantas del usuario en sesión', async () => {
     const res = await e2e
       .call('get', '/users/supervisors', e2e.tokens.general)

@@ -24,6 +24,10 @@ import {
   USER_ORDER_BY_PATTERN,
 } from './dto/index.js';
 import { User } from './entities/user.entity.js';
+import {
+  evidencePermissionsFor,
+  type EvidencePermissions,
+} from '../evidences/evidence-permissions.js';
 import { ROLE_SUPERVISOR } from '../shared/constants/index.js';
 import { ManufacturingPlantsService } from '../manufacturing-plants/manufacturing-plants.service.js';
 import { ZonesService } from '../zones/zones.service.js';
@@ -72,6 +76,11 @@ export const PLANT_3_RECIPIENT_EMAILS = [
   'sst@hadamexico.com',
   'Btorres@hadainternational.com',
 ];
+
+/** Usuario en sesión que recibe el UI: datos planos (sin métodos) y permisos. */
+export type CurrentUser = Omit<User, 'hashPassword'> & {
+  evidencePermissions: EvidencePermissions;
+};
 
 @Injectable()
 export class UsersService {
@@ -515,7 +524,12 @@ export class UsersService {
     });
   }
 
-  async getInformationCurrentUser(): Promise<User> {
+  /**
+   * Usuario en sesión para el UI, con sus permisos especiales sobre hallazgos
+   * ya calculados (antes el UI pedía las listas completas de correos a
+   * GET /evidences/permissions/config).
+   */
+  async getInformationCurrentUser(): Promise<CurrentUser> {
     const userId = this.requestContext.userId;
 
     const user = await this.userRepository.findOne({
@@ -532,7 +546,9 @@ export class UsersService {
     if (!user) throw new NotFoundException(`Usuario #${userId} no encontrado`);
 
     await this.loadAssignments([user], ['zones', 'processes']);
-    return keepMatching(user, { plant: (plant) => plant.isActive });
+    keepMatching(user, { plant: (plant) => plant.isActive });
+    // `password` no se selecciona (select: false): la copia no lo incluye.
+    return { ...user, evidencePermissions: evidencePermissionsFor(user) };
   }
 
   async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {

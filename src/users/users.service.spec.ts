@@ -722,12 +722,33 @@ describe('UsersService', () => {
 
       await expect(
         runAsUser(me, () => service.getInformationCurrentUser()),
-      ).resolves.toBe(me);
+      ).resolves.toEqual({
+        ...me,
+        evidencePermissions: {
+          supervisorOverride: false,
+          cancelEvidence: false,
+        },
+      });
       expect(users.findOne).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({ id: 12, isActive: true }),
         }),
       );
+    });
+
+    it('incluye sus permisos especiales sobre hallazgos, nunca las listas de correos', async () => {
+      const me = buildUser({ id: 12, email: 'sst@hadamexico.com' });
+      users.findOne.mockResolvedValue(me);
+
+      const user = await runAsUser(me, () =>
+        service.getInformationCurrentUser(),
+      );
+
+      expect(user.evidencePermissions).toEqual({
+        supervisorOverride: true,
+        cancelEvidence: true,
+      });
+      expect(JSON.stringify(user)).not.toContain('klarios@hadamexico.com');
     });
 
     it('deja fuera las plantas inactivas', async () => {
