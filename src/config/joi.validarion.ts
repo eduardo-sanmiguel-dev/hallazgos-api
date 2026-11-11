@@ -11,6 +11,10 @@ export const JoiValidationSchema = Joi.object({
   DB_PASSWORD: Joi.string().required(),
   DB_NAME: Joi.string().required(),
   DB_PORT: Joi.number().required(),
+  // Pool de la API (opcionales; ver config/db-pool.config.ts).
+  DB_POOL_MAX: Joi.number().integer().min(1).optional(),
+  DB_POOL_MIN: Joi.number().integer().min(0).optional(),
+  DB_POOL_IDLE_MS: Joi.number().integer().min(0).optional(),
   FRONTEND_URL: Joi.string().uri().required(),
   MAIL_OUTBOX_KEY: Joi.string()
     .min(32)
