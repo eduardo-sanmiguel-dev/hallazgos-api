@@ -14,6 +14,8 @@ type Capture = {
   userId?: number;
   expires: Date;
   recipients: Set<string>;
+  // Adjuntos ya congelados en este evento (los comparten sus destinatarios).
+  attachments: Map<string, Promise<string>>;
 };
 
 @Injectable()
@@ -43,6 +45,7 @@ export class MailOutboxService {
         userId,
         expires,
         recipients: new Set(),
+        attachments: new Map(),
       },
       work,
     );
@@ -75,6 +78,7 @@ export class MailOutboxService {
     const frozen = await freezeMail(
       options,
       this.config.get<string>('MAIL_OUTBOX_DIR') || 'var/mail-outbox/blobs',
+      ctx.attachments,
     );
     frozen.messageId = `<${id}@comportarte.com>`;
     await ctx.manager.query(

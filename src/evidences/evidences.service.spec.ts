@@ -459,6 +459,56 @@ describe('EvidencesService', () => {
       );
     });
 
+    // En un solo JOIN serían supervisores × responsables × comentarios filas
+    // (305 ms con 42 responsables). Una tras otra: puede ir en una transacción.
+    it('carga supervisores, responsables y comentarios aparte, una consulta tras otra', async () => {
+      stored = [
+        buildEvidence({
+          id: 5,
+          manufacturingPlant: plant,
+          supervisors: [supervisor],
+          responsibles: [responsible, reporter],
+          comments: [{ id: 1, comment: 'Revisado' }] as never,
+        }),
+      ];
+      const original = evidences.findOne.getMockImplementation();
+      let inFlight = 0;
+      let maxInFlight = 0;
+      evidences.findOne.mockImplementation(async (options) => {
+        inFlight++;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        await new Promise((resolve) => setTimeout(resolve, 2));
+        inFlight--;
+        return original(options);
+      });
+
+      const found = await runAsUser(reporter, () => service.findOne(5));
+
+      const relations = evidences.findOne.mock.calls.map(
+        ([options]) => options.relations as string[],
+      );
+      expect(relations[0]).not.toEqual(expect.arrayContaining(['supervisors']));
+      expect(relations[0]).not.toEqual(
+        expect.arrayContaining(['responsibles']),
+      );
+      expect(relations[0]).not.toEqual(expect.arrayContaining(['comments']));
+      expect(relations[0]).toEqual(
+        expect.arrayContaining(['manufacturingPlant', 'zone.area', 'user']),
+      );
+      expect(relations.slice(1)).toEqual([
+        ['supervisors'],
+        ['responsibles'],
+        ['comments'],
+      ]);
+      expect(maxInFlight).toBe(1);
+      expect(found.supervisors.map(({ id }) => id)).toEqual([supervisor.id]);
+      expect(found.responsibles.map(({ id }) => id)).toEqual([
+        responsible.id,
+        reporter.id,
+      ]);
+      expect(found.comments).toHaveLength(1);
+    });
+
     it('debe lanzar NotFoundException si no existe', async () => {
       await expect(
         runAsUser(reporter, () => service.findOne(5)),
