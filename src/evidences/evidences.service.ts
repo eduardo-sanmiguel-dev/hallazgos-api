@@ -127,6 +127,13 @@ interface ExcelEvidenceRow {
   responsibles: string | null;
 }
 
+// Relaciones a muchos del hallazgo: findOne las carga en consultas separadas.
+const EVIDENCE_COLLECTIONS = [
+  'supervisors',
+  'responsibles',
+  'comments',
+] as const;
+
 // Tipo de correo, para el log de errores de envío.
 const EMAIL_TYPE_LABELS: Record<string, string> = {
   create: 'creación',
@@ -1621,18 +1628,32 @@ export class EvidencesService {
   async findOne(id: number, repository = this.evidenceRepository) {
     const plantIds = this.requestContext.manufacturingPlantIds;
 
+    // Las colecciones van aparte: en un solo JOIN serían supervisores ×
+    // responsables × comentarios filas (un hallazgo con 42 responsables tardaba
+    // 305 ms en esa consulta). Una tras otra, nunca en paralelo: puede correr
+    // dentro de una transacción (misma conexión).
     const evidence = plantIds.length
       ? await repository.findOne({
           where: {
             id,
             manufacturingPlant: { id: In(plantIds) },
           },
-          relations: this.relations,
+          relations: this.relations.filter(
+            (relation) => !EVIDENCE_COLLECTIONS.includes(relation as never),
+          ),
         })
       : null;
 
     if (!evidence)
       throw new NotFoundException(`No se ha encontrado el hallazgo #${id}`);
+
+    for (const relation of EVIDENCE_COLLECTIONS) {
+      const row = await repository.findOne({
+        where: { id },
+        relations: [relation],
+      });
+      Object.assign(evidence, { [relation]: row?.[relation] ?? [] });
+    }
 
     return evidence;
   }
