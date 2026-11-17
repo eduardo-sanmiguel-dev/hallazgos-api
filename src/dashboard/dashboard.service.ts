@@ -6,20 +6,95 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { RequestContextService } from '../shared/services/request-context.service.js';
 
-import { In, MoreThan, Repository, SelectQueryBuilder } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 
 import { ManufacturingPlant } from '../manufacturing-plants/entities/manufacturing-plant.entity.js';
-import { AccidentRate } from './entities/accident-rate.entity.js';
 import { User } from '../users/entities/user.entity.js';
 import { Evidence } from '../evidences/entities/evidence.entity.js';
 import { MainType } from '../main-types/entities/main-type.entity.js';
-import { groupBy } from '../shared/utils/index.js';
 import {
   PRIORITY_LEVELS,
   RISK_LEVELS,
   riskLevelSqlCase,
 } from '../shared/constants/priority.js';
 import { resolveBiEppPeriod } from './bi-epp-period.js';
+
+/** Hallazgos de una planta y su desglose [etiqueta, cantidad]. */
+interface PlantEvidenceCount {
+  name: string;
+  total: number;
+  groups: [string, number][];
+}
+
+const NO_ZONE_LABEL = 'Sin zona';
+const NO_MAIN_TYPE_LABEL = 'Sin tipo';
+
+// Estados conocidos en su orden habitual; cualquier otro, al final.
+const STATUS_ORDER = ['Abierto', 'En progreso', 'Cerrado', 'Cancelado'];
+const statusRank = (status: string) => {
+  const index = STATUS_ORDER.indexOf(status);
+  return index === -1 ? STATUS_ORDER.length : index;
+};
+
+/** Rol de los usuarios elegidos en el filtro "Responsable" del dashboard. */
+type ResponsibleRole = 'responsible' | 'supervisor';
+
+const ROLE_JOIN = {
+  responsible: { table: 'evidence_responsibles_user', alias: 'eru' },
+  supervisor: { table: 'evidence_supervisors_user', alias: 'esu' },
+} as const;
+
+/**
+ * Limita una consulta (alias `evidence`) a los hallazgos donde `userIds`
+ * tienen ese rol. Sin rol, la deja igual.
+ */
+const filterByRole = (
+  query: SelectQueryBuilder<Evidence>,
+  role: ResponsibleRole | null,
+  userIds: number[],
+) => {
+  if (!role) return query;
+  const { table, alias } = ROLE_JOIN[role];
+  return query
+    .innerJoin(table, alias, `${alias}."evidenceId" = evidence.id`)
+    .andWhere(`${alias}."userId" IN (:...responsibleIds)`, {
+      responsibleIds: userIds,
+    });
+};
+
+/**
+ * Filtro "Responsable" de las gráficas: los hallazgos donde esos usuarios son
+ * responsables; si no hay ninguno, donde son supervisores (un supervisor sin
+ * responsables ve lo que supervisa). Sin usuarios elegidos, sin filtro.
+ * `role` dice cuál se usó, para que otra consulta de la misma gráfica (p. ej.
+ * un conteo complementario) siga la misma decisión.
+ */
+const byResponsibleOrSupervisor = async <R>(
+  responsibleIds: number[] | undefined,
+  build: () => SelectQueryBuilder<Evidence>,
+  run: (query: SelectQueryBuilder<Evidence>) => Promise<R>,
+  isEmpty: (result: NoInfer<R>) => boolean,
+): Promise<{ result: R; role: ResponsibleRole | null }> => {
+  if (!responsibleIds?.length) {
+    return { result: await run(build()), role: null };
+  }
+  const asResponsible = await run(
+    filterByRole(build(), 'responsible', responsibleIds),
+  );
+  if (!isEmpty(asResponsible)) {
+    return { result: asResponsible, role: 'responsible' };
+  }
+  return {
+    result: await run(filterByRole(build(), 'supervisor', responsibleIds)),
+    role: 'supervisor',
+  };
+};
+
+/** Sin filas (para byResponsibleOrSupervisor con getRawMany). */
+const noRows = (rows: unknown[]) => rows.length === 0;
+/** Conteo en cero o sin fila (para byResponsibleOrSupervisor con getRawOne). */
+const zeroTotal = (row: { total?: string | number } | undefined) =>
+  Number(row?.total || 0) === 0;
 
 @Injectable()
 export class DashboardService {
@@ -32,8 +107,6 @@ export class DashboardService {
   constructor(
     @InjectRepository(ManufacturingPlant)
     private readonly manufacturingPlant: Repository<ManufacturingPlant>,
-    @InjectRepository(AccidentRate)
-    private readonly accidentRate: Repository<AccidentRate>,
     @InjectRepository(Evidence)
     private readonly evidenceRepository: Repository<Evidence>,
     @InjectRepository(MainType)
@@ -133,10 +206,6 @@ export class DashboardService {
 
     parsedDate.setHours(0, 0, 0, 0);
     return parsedDate;
-  }
-
-  executeQuery(query: string) {
-    return this.manufacturingPlant.manager.query(query);
   }
 
   /** Hoy en la zona horaria del servidor, como 'YYYY-MM-DD'. */
@@ -644,12 +713,12 @@ export class DashboardService {
         GROUP BY "manufacturingPlantId"
       ) mp2 ON mp.id = mp2."manufacturingPlantId"
       WHERE mp."isActive" = true
-        AND mp."id" = ${manufacturingPlantId}
+        AND mp."id" = $1
         AND COALESCE(a.total, 0) > 0
       ORDER BY COALESCE(a.total, 0) DESC;
     `;
 
-    const result = await this.executeQuery(query);
+    const result = await this.queryWithParams(query, [manufacturingPlantId]);
 
     return result[0];
   }
@@ -673,12 +742,12 @@ export class DashboardService {
     LEFT JOIN "user" u                       ON eru."userId"             = u.id
     WHERE mp."isActive" = true
       AND e.status = 'Abierto'
-      AND mp."id" = ${manufacturingPlantId}
+      AND mp."id" = $1
     GROUP BY mp.id, mp.name, z.id, z.name
     ORDER BY total_abiertas DESC, max_dias_sin_resolver DESC;
   `;
 
-    return this.executeQuery(query);
+    return this.queryWithParams(query, [manufacturingPlantId]);
   }
 
   findRankingOfResponsibles(manufacturingPlantId: number) {
@@ -745,11 +814,11 @@ export class DashboardService {
       GROUP BY eru."userId"
     ) mp2 ON u.id = mp2."userId"
     WHERE mp."isActive" = true
-      AND mp."id" = ${manufacturingPlantId}
+      AND mp."id" = $1
       AND COALESCE(a.total, 0) > 0
     ORDER BY pendientes DESC, pct_resolucion ASC;`;
 
-    return this.executeQuery(query);
+    return this.queryWithParams(query, [manufacturingPlantId]);
   }
 
   async findAverageResolutionTime(manufacturingPlantId: number) {
@@ -808,14 +877,14 @@ export class DashboardService {
       FROM manufacturing_plant mp
       JOIN evidence e ON e."manufacturingPlantId" = mp.id
       WHERE mp."isActive" = true
-        AND mp."id" = ${manufacturingPlantId}
+        AND mp."id" = $1
         AND e.status = 'Cerrado'
         AND e."solutionDate" IS NOT NULL
       GROUP BY mp.id, mp.name
       ORDER BY promedio_dias_historico DESC;
     `;
 
-    const result = await this.executeQuery(query);
+    const result = await this.queryWithParams(query, [manufacturingPlantId]);
 
     return result[0];
   }
@@ -858,34 +927,16 @@ export class DashboardService {
       GROUP BY "manufacturingPlantId", "mainTypeId"
     ) mp2 ON mp.id = mp2."manufacturingPlantId" AND mt.id = mp2."mainTypeId"
     WHERE mp."isActive" = true
-      AND mp."id" = ${manufacturingPlantId}
+      AND mp."id" = $1
       AND COALESCE(a.total, 0) > 0
     ORDER BY mp.name, a.total DESC;
     `;
 
-    return this.executeQuery(query);
+    return this.queryWithParams(query, [manufacturingPlantId]);
   }
 
   findManufacturingPlantsIdsCurrentUser() {
     return this.requestContext.manufacturingPlantIds;
-  }
-
-  async findManufacturingPlantsWithEvidences() {
-    const manufacturingPlantsIds = this.findManufacturingPlantsIdsCurrentUser();
-
-    const manufacturingPlantsWithEvidences = await this.manufacturingPlant.find(
-      {
-        where: {
-          id: In(manufacturingPlantsIds),
-          isActive: true,
-          evidences: MoreThan(0),
-        },
-        relations: ['evidences', 'evidences.zone', 'evidences.mainType'],
-        loadEagerRelations: true,
-      },
-    );
-
-    return manufacturingPlantsWithEvidences;
   }
 
   async findMonthlySubtypeTrend(manufacturingPlantId: number) {
@@ -928,29 +979,49 @@ export class DashboardService {
       GROUP BY "manufacturingPlantId", "secondaryTypeId"
     ) mp2 ON mp.id = mp2."manufacturingPlantId" AND st.id = mp2."secondaryTypeId"
     WHERE mp."isActive" = true
-      AND mp."id" = ${manufacturingPlantId}
+      AND mp."id" = $1
       AND COALESCE(a.total, 0) > 0
     ORDER BY mp.name, mt.name, a.total DESC;
     `;
 
-    return this.executeQuery(query);
+    return this.queryWithParams(query, [manufacturingPlantId]);
   }
 
-  async findAllStatus() {
+  /**
+   * Hallazgos de cada planta del usuario (activas) agrupados por estado,
+   * zona o tipo, contados en la base con una sola consulta. Antes se
+   * cargaban todas las evidencias con sus relaciones solo para contarlas en
+   * memoria (lento y pesado a medida que crecen los datos).
+   *
+   * Plantas por id; dentro de cada una, los estados en su orden habitual y
+   * las zonas y tipos de mayor a menor (empate: por nombre). Sin zona o sin
+   * tipo se cuentan aparte (antes la petición fallaba).
+   */
+  private async countEvidencesByPlant(
+    groupBy: 'status' | 'zone' | 'mainType',
+  ): Promise<PlantEvidenceCount[]> {
     const manufacturingPlantsIds = this.findManufacturingPlantsIdsCurrentUser();
+    if (!manufacturingPlantsIds?.length) return [];
 
-    if (!manufacturingPlantsIds?.length) {
-      return { statusData: [], statusSeries: [] };
+    const query = this.evidenceRepository
+      .createQueryBuilder('evidence')
+      .innerJoin('evidence.manufacturingPlant', 'plant');
+
+    let label: string;
+    if (groupBy === 'zone') {
+      query.leftJoin('evidence.zone', 'zone');
+      label = `COALESCE(zone.name, '${NO_ZONE_LABEL}')`;
+    } else if (groupBy === 'mainType') {
+      query.leftJoin('evidence.mainType', 'mainType');
+      label = `COALESCE(mainType.name, '${NO_MAIN_TYPE_LABEL}')`;
+    } else {
+      label = 'evidence.status';
     }
 
-    // Conteo en la base (antes se cargaban todas las evidencias con sus
-    // relaciones solo para contarlas en memoria).
-    const rows = await this.evidenceRepository
-      .createQueryBuilder('evidence')
-      .innerJoin('evidence.manufacturingPlant', 'plant')
+    const rows = await query
       .select('plant.id', 'plantId')
       .addSelect('plant.name', 'plantName')
-      .addSelect('evidence.status', 'status')
+      .addSelect(label, 'label')
       .addSelect('COUNT(*)', 'total')
       .where('plant.id IN (:...manufacturingPlantsIds)', {
         manufacturingPlantsIds,
@@ -958,66 +1029,73 @@ export class DashboardService {
       .andWhere('plant."isActive" = true')
       .groupBy('plant.id')
       .addGroupBy('plant.name')
-      .addGroupBy('evidence.status')
+      .addGroupBy(label)
       .orderBy('plant.id', 'ASC')
       .getRawMany<{
         plantId: number;
         plantName: string;
-        status: string;
+        label: string;
         total: string;
       }>();
 
-    // Estados conocidos en su orden habitual; cualquier otro, al final.
-    const statusOrder = ['Abierto', 'En progreso', 'Cerrado', 'Cancelado'];
-    const statusRank = (status: string) => {
-      const index = statusOrder.indexOf(status);
-      return index === -1 ? statusOrder.length : index;
-    };
-
-    const plantsById = new Map<
-      number,
-      { name: string; total: number; statuses: [string, number][] }
-    >();
+    const plantsById = new Map<number, PlantEvidenceCount>();
     for (const row of rows) {
       const plantId = Number(row.plantId);
       const total = Number(row.total);
       const plant = plantsById.get(plantId) ?? {
         name: row.plantName,
         total: 0,
-        statuses: [],
+        groups: [],
       };
       plant.total += total;
-      plant.statuses.push([row.status, total]);
+      plant.groups.push([row.label, total]);
       plantsById.set(plantId, plant);
     }
 
-    const plantsWithEvidences = [...plantsById.values()];
-    const evidencesTotal = plantsWithEvidences.reduce(
-      (acc, plant) => acc + plant.total,
-      0,
-    );
+    const plants = [...plantsById.values()];
+    for (const plant of plants) {
+      plant.groups.sort(
+        groupBy === 'status'
+          ? ([a], [b]) => statusRank(a) - statusRank(b) || a.localeCompare(b)
+          : ([a, totalA], [b, totalB]) => totalB - totalA || a.localeCompare(b),
+      );
+    }
+    return plants;
+  }
 
-    const statusData = plantsWithEvidences.map((plant) => ({
-      name: `${plant.name} (${plant.total})`,
-      y: Number(((plant.total / evidencesTotal) * 100).toFixed(2)),
-      drilldown: plant.name,
-    }));
+  /** Porcentaje con 2 decimales, como lo espera Highcharts. */
+  private static percentage(part: number, whole: number): number {
+    return Number(((part / whole) * 100).toFixed(2));
+  }
 
-    const statusSeries = plantsWithEvidences.map((plant) => ({
-      name: plant.name,
-      id: plant.name,
-      data: plant.statuses
-        .sort(([a], [b]) => statusRank(a) - statusRank(b) || a.localeCompare(b))
-        .map(([status, total]) => [
-          `${status} (${total})`,
-          Number(((total / plant.total) * 100).toFixed(2)),
-        ]),
-    }));
+  /**
+   * Pastel de plantas con drilldown por grupo (estado o zona): forma que
+   * esperan las gráficas de /dashboard/status y /dashboard/zones.
+   */
+  private static plantShareChart(plants: PlantEvidenceCount[]) {
+    const evidencesTotal = plants.reduce((acc, plant) => acc + plant.total, 0);
 
     return {
-      statusData,
-      statusSeries,
+      statusData: plants.map((plant) => ({
+        name: `${plant.name} (${plant.total})`,
+        y: DashboardService.percentage(plant.total, evidencesTotal),
+        drilldown: plant.name,
+      })),
+      statusSeries: plants.map((plant) => ({
+        name: plant.name,
+        id: plant.name,
+        data: plant.groups.map(([label, total]) => [
+          `${label} (${total})`,
+          DashboardService.percentage(total, plant.total),
+        ]),
+      })),
     };
+  }
+
+  async findAllStatus() {
+    return DashboardService.plantShareChart(
+      await this.countEvidencesByPlant('status'),
+    );
   }
 
   async findStatusByFilters(
@@ -1094,39 +1172,17 @@ export class DashboardService {
 
       let rows: { status: string; total: string }[] = [];
 
-      if (responsibleIds && responsibleIds.length > 0) {
-        const rowsByResponsibles = await buildBaseQuery()
-          .innerJoin(
-            'evidence_responsibles_user',
-            'eru',
-            'eru."evidenceId" = evidence.id',
-          )
-          .andWhere('eru."userId" IN (:...responsibleIds)', {
-            responsibleIds,
-          })
-          .groupBy('evidence.status')
-          .getRawMany<{ status: string; total: string }>();
-
-        if (rowsByResponsibles.length > 0) {
-          rows = rowsByResponsibles;
-        } else {
-          rows = await buildBaseQuery()
-            .innerJoin(
-              'evidence_supervisors_user',
-              'esu',
-              'esu."evidenceId" = evidence.id',
-            )
-            .andWhere('esu."userId" IN (:...responsibleIds)', {
-              responsibleIds,
-            })
-            .groupBy('evidence.status')
-            .getRawMany<{ status: string; total: string }>();
-        }
-      } else {
-        rows = await buildBaseQuery()
-          .groupBy('evidence.status')
-          .getRawMany<{ status: string; total: string }>();
-      }
+      rows = (
+        await byResponsibleOrSupervisor(
+          responsibleIds,
+          () => buildBaseQuery(),
+          (query) =>
+            query
+              .groupBy('evidence.status')
+              .getRawMany<{ status: string; total: string }>(),
+          noRows,
+        )
+      ).result;
 
       const statusOrder = ['Abierto', 'En progreso', 'Cerrado', 'Cancelado'];
       const totalsByStatus = rows.reduce<Record<string, number>>((acc, row) => {
@@ -1310,39 +1366,15 @@ export class DashboardService {
 
     let rows: RawPriority[] = [];
 
-    if (responsibleIds && responsibleIds.length > 0) {
-      const rowsByResponsibles = await buildBaseQuery()
-        .innerJoin(
-          'evidence_responsibles_user',
-          'eru',
-          'eru."evidenceId" = evidence.id',
-        )
-        .andWhere('eru."userId" IN (:...responsibleIds)', {
-          responsibleIds,
-        })
-        .groupBy('evidence."priorityDays"')
-        .getRawMany<RawPriority>();
-
-      if (rowsByResponsibles.length > 0) {
-        rows = rowsByResponsibles;
-      } else {
-        rows = await buildBaseQuery()
-          .innerJoin(
-            'evidence_supervisors_user',
-            'esu',
-            'esu."evidenceId" = evidence.id',
-          )
-          .andWhere('esu."userId" IN (:...responsibleIds)', {
-            responsibleIds,
-          })
-          .groupBy('evidence."priorityDays"')
-          .getRawMany<RawPriority>();
-      }
-    } else {
-      rows = await buildBaseQuery()
-        .groupBy('evidence."priorityDays"')
-        .getRawMany<RawPriority>();
-    }
+    rows = (
+      await byResponsibleOrSupervisor(
+        responsibleIds,
+        () => buildBaseQuery(),
+        (query) =>
+          query.groupBy('evidence."priorityDays"').getRawMany<RawPriority>(),
+        noRows,
+      )
+    ).result;
 
     const totalsByPriorityDays = rows.reduce<Record<number, number>>(
       (acc, row) => {
@@ -1371,42 +1403,14 @@ export class DashboardService {
       total: string;
     };
 
-    let totalWithoutPriority = 0;
-
-    if (responsibleIds && responsibleIds.length > 0) {
-      const rowsByResponsibles = await buildCountBaseQuery(false)
-        .innerJoin(
-          'evidence_responsibles_user',
-          'eru',
-          'eru."evidenceId" = evidence.id',
-        )
-        .andWhere('eru."userId" IN (:...responsibleIds)', {
-          responsibleIds,
-        })
-        .getRawOne<RawCount>();
-
-      const countByResponsibles = Number(rowsByResponsibles?.total || 0);
-
-      if (countByResponsibles > 0) {
-        totalWithoutPriority = countByResponsibles;
-      } else {
-        const rowsBySupervisors = await buildCountBaseQuery(false)
-          .innerJoin(
-            'evidence_supervisors_user',
-            'esu',
-            'esu."evidenceId" = evidence.id',
-          )
-          .andWhere('esu."userId" IN (:...responsibleIds)', {
-            responsibleIds,
-          })
-          .getRawOne<RawCount>();
-
-        totalWithoutPriority = Number(rowsBySupervisors?.total || 0);
-      }
-    } else {
-      const rows = await buildCountBaseQuery(false).getRawOne<RawCount>();
-      totalWithoutPriority = Number(rows?.total || 0);
-    }
+    // Decide por su cuenta (responsables o supervisores), igual que antes.
+    const { result: countRow } = await byResponsibleOrSupervisor(
+      responsibleIds,
+      () => buildCountBaseQuery(false),
+      (query) => query.getRawOne<RawCount>(),
+      zeroTotal,
+    );
+    const totalWithoutPriority = Number(countRow?.total || 0);
 
     return {
       total: totalWithPriority,
@@ -1538,70 +1542,19 @@ export class DashboardService {
       total: string;
     };
 
-    let rows: RawRisk[] = [];
-    let totalWithoutPriority = 0;
-
-    if (responsibleIds && responsibleIds.length > 0) {
-      const rowsByResponsibles = await buildBaseQuery()
-        .innerJoin(
-          'evidence_responsibles_user',
-          'eru',
-          'eru."evidenceId" = evidence.id',
-        )
-        .andWhere('eru."userId" IN (:...responsibleIds)', {
-          responsibleIds,
-        })
-        .groupBy(riskCase)
-        .getRawMany<RawRisk>();
-
-      if (rowsByResponsibles.length > 0) {
-        rows = rowsByResponsibles;
-
-        const countByResponsibles = await buildCountBaseQuery(false)
-          .innerJoin(
-            'evidence_responsibles_user',
-            'eru',
-            'eru."evidenceId" = evidence.id',
-          )
-          .andWhere('eru."userId" IN (:...responsibleIds)', {
-            responsibleIds,
-          })
-          .getRawOne<RawCount>();
-
-        totalWithoutPriority = Number(countByResponsibles?.total || 0);
-      } else {
-        rows = await buildBaseQuery()
-          .innerJoin(
-            'evidence_supervisors_user',
-            'esu',
-            'esu."evidenceId" = evidence.id',
-          )
-          .andWhere('esu."userId" IN (:...responsibleIds)', {
-            responsibleIds,
-          })
-          .groupBy(riskCase)
-          .getRawMany<RawRisk>();
-
-        const countBySupervisors = await buildCountBaseQuery(false)
-          .innerJoin(
-            'evidence_supervisors_user',
-            'esu',
-            'esu."evidenceId" = evidence.id',
-          )
-          .andWhere('esu."userId" IN (:...responsibleIds)', {
-            responsibleIds,
-          })
-          .getRawOne<RawCount>();
-
-        totalWithoutPriority = Number(countBySupervisors?.total || 0);
-      }
-    } else {
-      rows = await buildBaseQuery().groupBy(riskCase).getRawMany<RawRisk>();
-
-      const countWithoutPriority =
-        await buildCountBaseQuery(false).getRawOne<RawCount>();
-      totalWithoutPriority = Number(countWithoutPriority?.total || 0);
-    }
+    const { result: rows, role } = await byResponsibleOrSupervisor(
+      responsibleIds,
+      buildBaseQuery,
+      (query) => query.groupBy(riskCase).getRawMany<RawRisk>(),
+      noRows,
+    );
+    // El conteo sin prioridad sigue la misma decisión que las filas.
+    const countWithoutPriority = await filterByRole(
+      buildCountBaseQuery(false),
+      role,
+      responsibleIds ?? [],
+    ).getRawOne<RawCount>();
+    const totalWithoutPriority = Number(countWithoutPriority?.total || 0);
 
     const totalsByRisk = rows.reduce<Record<string, number>>((acc, row) => {
       if (!row.riskLevel) {
@@ -1706,39 +1659,17 @@ export class DashboardService {
 
     let rows: { name: string; total: string }[] = [];
 
-    if (responsibleIds && responsibleIds.length > 0) {
-      const rowsByResponsibles = await applyOptionalAreaFilter(buildBaseQuery())
-        .innerJoin(
-          'evidence_responsibles_user',
-          'eru',
-          'eru."evidenceId" = evidence.id',
-        )
-        .andWhere('eru."userId" IN (:...responsibleIds)', {
-          responsibleIds,
-        })
-        .groupBy('area.name')
-        .getRawMany<{ name: string; total: string }>();
-
-      if (rowsByResponsibles.length > 0) {
-        rows = rowsByResponsibles;
-      } else {
-        rows = await applyOptionalAreaFilter(buildBaseQuery())
-          .innerJoin(
-            'evidence_supervisors_user',
-            'esu',
-            'esu."evidenceId" = evidence.id',
-          )
-          .andWhere('esu."userId" IN (:...responsibleIds)', {
-            responsibleIds,
-          })
-          .groupBy('area.name')
-          .getRawMany<{ name: string; total: string }>();
-      }
-    } else {
-      rows = await applyOptionalAreaFilter(buildBaseQuery())
-        .groupBy('area.name')
-        .getRawMany<{ name: string; total: string }>();
-    }
+    rows = (
+      await byResponsibleOrSupervisor(
+        responsibleIds,
+        () => applyOptionalAreaFilter(buildBaseQuery()),
+        (query) =>
+          query
+            .groupBy('area.name')
+            .getRawMany<{ name: string; total: string }>(),
+        noRows,
+      )
+    ).result;
 
     const seriesData = rows
       .map((row) => ({
@@ -1831,39 +1762,17 @@ export class DashboardService {
 
     let rows: { name: string; total: string }[] = [];
 
-    if (responsibleIds && responsibleIds.length > 0) {
-      const rowsByResponsibles = await applyOptionalFilters(buildBaseQuery())
-        .innerJoin(
-          'evidence_responsibles_user',
-          'eru',
-          'eru."evidenceId" = evidence.id',
-        )
-        .andWhere('eru."userId" IN (:...responsibleIds)', {
-          responsibleIds,
-        })
-        .groupBy('mainType.name')
-        .getRawMany<{ name: string; total: string }>();
-
-      if (rowsByResponsibles.length > 0) {
-        rows = rowsByResponsibles;
-      } else {
-        rows = await applyOptionalFilters(buildBaseQuery())
-          .innerJoin(
-            'evidence_supervisors_user',
-            'esu',
-            'esu."evidenceId" = evidence.id',
-          )
-          .andWhere('esu."userId" IN (:...responsibleIds)', {
-            responsibleIds,
-          })
-          .groupBy('mainType.name')
-          .getRawMany<{ name: string; total: string }>();
-      }
-    } else {
-      rows = await applyOptionalFilters(buildBaseQuery())
-        .groupBy('mainType.name')
-        .getRawMany<{ name: string; total: string }>();
-    }
+    rows = (
+      await byResponsibleOrSupervisor(
+        responsibleIds,
+        () => applyOptionalFilters(buildBaseQuery()),
+        (query) =>
+          query
+            .groupBy('mainType.name')
+            .getRawMany<{ name: string; total: string }>(),
+        noRows,
+      )
+    ).result;
 
     const seriesData = rows
       .map((row) => ({
@@ -1995,35 +1904,14 @@ export class DashboardService {
 
     let rows: RawPoint[] = [];
 
-    if (responsibleIds && responsibleIds.length > 0) {
-      const rowsByResponsibles = await buildBaseQuery()
-        .innerJoin(
-          'evidence_responsibles_user',
-          'eru',
-          'eru."evidenceId" = evidence.id',
-        )
-        .andWhere('eru."userId" IN (:...responsibleIds)', {
-          responsibleIds,
-        })
-        .getRawMany<RawPoint>();
-
-      if (rowsByResponsibles.length > 0) {
-        rows = rowsByResponsibles;
-      } else {
-        rows = await buildBaseQuery()
-          .innerJoin(
-            'evidence_supervisors_user',
-            'esu',
-            'esu."evidenceId" = evidence.id',
-          )
-          .andWhere('esu."userId" IN (:...responsibleIds)', {
-            responsibleIds,
-          })
-          .getRawMany<RawPoint>();
-      }
-    } else {
-      rows = await buildBaseQuery().getRawMany<RawPoint>();
-    }
+    rows = (
+      await byResponsibleOrSupervisor(
+        responsibleIds,
+        () => buildBaseQuery(),
+        (query) => query.getRawMany<RawPoint>(),
+        noRows,
+      )
+    ).result;
 
     const statusPriority = ['Abierto', 'En progreso', 'Cerrado', 'Cancelado'];
 
@@ -2626,42 +2514,18 @@ export class DashboardService {
 
     let rows: RawRow[] = [];
 
-    if (responsibleIds && responsibleIds.length > 0) {
-      const rowsByResponsibles = await buildBaseQuery()
-        .innerJoin(
-          'evidence_responsibles_user',
-          'eru',
-          'eru."evidenceId" = evidence.id',
-        )
-        .andWhere('eru."userId" IN (:...responsibleIds)', {
-          responsibleIds,
-        })
-        .groupBy('area.name')
-        .addGroupBy('evidence.status')
-        .getRawMany<RawRow>();
-
-      if (rowsByResponsibles.length > 0) {
-        rows = rowsByResponsibles;
-      } else {
-        rows = await buildBaseQuery()
-          .innerJoin(
-            'evidence_supervisors_user',
-            'esu',
-            'esu."evidenceId" = evidence.id',
-          )
-          .andWhere('esu."userId" IN (:...responsibleIds)', {
-            responsibleIds,
-          })
-          .groupBy('area.name')
-          .addGroupBy('evidence.status')
-          .getRawMany<RawRow>();
-      }
-    } else {
-      rows = await buildBaseQuery()
-        .groupBy('area.name')
-        .addGroupBy('evidence.status')
-        .getRawMany<RawRow>();
-    }
+    rows = (
+      await byResponsibleOrSupervisor(
+        responsibleIds,
+        () => buildBaseQuery(),
+        (query) =>
+          query
+            .groupBy('area.name')
+            .addGroupBy('evidence.status')
+            .getRawMany<RawRow>(),
+        noRows,
+      )
+    ).result;
 
     const statusOrder = ['Abierto', 'En progreso', 'Cerrado', 'Cancelado'];
 
@@ -2812,42 +2676,18 @@ export class DashboardService {
 
     let rows: RawRow[] = [];
 
-    if (responsibleIds && responsibleIds.length > 0) {
-      const rowsByResponsibles = await buildBaseQuery()
-        .innerJoin(
-          'evidence_responsibles_user',
-          'eru',
-          'eru."evidenceId" = evidence.id',
-        )
-        .andWhere('eru."userId" IN (:...responsibleIds)', {
-          responsibleIds,
-        })
-        .groupBy('evidence.status')
-        .addGroupBy('area.name')
-        .getRawMany<RawRow>();
-
-      if (rowsByResponsibles.length > 0) {
-        rows = rowsByResponsibles;
-      } else {
-        rows = await buildBaseQuery()
-          .innerJoin(
-            'evidence_supervisors_user',
-            'esu',
-            'esu."evidenceId" = evidence.id',
-          )
-          .andWhere('esu."userId" IN (:...responsibleIds)', {
-            responsibleIds,
-          })
-          .groupBy('evidence.status')
-          .addGroupBy('area.name')
-          .getRawMany<RawRow>();
-      }
-    } else {
-      rows = await buildBaseQuery()
-        .groupBy('evidence.status')
-        .addGroupBy('area.name')
-        .getRawMany<RawRow>();
-    }
+    rows = (
+      await byResponsibleOrSupervisor(
+        responsibleIds,
+        () => buildBaseQuery(),
+        (query) =>
+          query
+            .groupBy('evidence.status')
+            .addGroupBy('area.name')
+            .getRawMany<RawRow>(),
+        noRows,
+      )
+    ).result;
 
     const statusOrder = ['Abierto', 'En progreso', 'Cerrado', 'Cancelado'];
 
@@ -2982,39 +2822,12 @@ export class DashboardService {
       return query;
     };
 
-    let rawRow: KpiRawRow | null = null;
-
-    if (responsibleIds && responsibleIds.length > 0) {
-      const rawByResponsibles = await buildKpiQuery()
-        .innerJoin(
-          'evidence_responsibles_user',
-          'eru',
-          'eru."evidenceId" = evidence.id',
-        )
-        .andWhere('eru."userId" IN (:...responsibleIds)', {
-          responsibleIds,
-        })
-        .getRawOne<KpiRawRow>();
-
-      const hasDataInResponsibles = Number(rawByResponsibles?.total || 0) > 0;
-
-      if (hasDataInResponsibles) {
-        rawRow = rawByResponsibles;
-      } else {
-        rawRow = await buildKpiQuery()
-          .innerJoin(
-            'evidence_supervisors_user',
-            'esu',
-            'esu."evidenceId" = evidence.id',
-          )
-          .andWhere('esu."userId" IN (:...responsibleIds)', {
-            responsibleIds,
-          })
-          .getRawOne<KpiRawRow>();
-      }
-    } else {
-      rawRow = await buildKpiQuery().getRawOne<KpiRawRow>();
-    }
+    const { result: rawRow } = await byResponsibleOrSupervisor(
+      responsibleIds,
+      buildKpiQuery,
+      (query) => query.getRawOne<KpiRawRow>(),
+      zeroTotal,
+    );
 
     const total = Number(rawRow?.total || 0);
     const closed = Number(rawRow?.closed || 0);
@@ -3112,42 +2925,18 @@ export class DashboardService {
 
     let rows: RawRow[] = [];
 
-    if (responsibleIds && responsibleIds.length > 0) {
-      const rowsByResponsibles = await buildBaseQuery()
-        .innerJoin(
-          'evidence_responsibles_user',
-          'eru',
-          'eru."evidenceId" = evidence.id',
-        )
-        .andWhere('eru."userId" IN (:...responsibleIds)', {
-          responsibleIds,
-        })
-        .groupBy(monthTruncExpression)
-        .orderBy(monthTruncExpression, 'ASC')
-        .getRawMany<RawRow>();
-
-      if (rowsByResponsibles.length > 0) {
-        rows = rowsByResponsibles;
-      } else {
-        rows = await buildBaseQuery()
-          .innerJoin(
-            'evidence_supervisors_user',
-            'esu',
-            'esu."evidenceId" = evidence.id',
-          )
-          .andWhere('esu."userId" IN (:...responsibleIds)', {
-            responsibleIds,
-          })
-          .groupBy(monthTruncExpression)
-          .orderBy(monthTruncExpression, 'ASC')
-          .getRawMany<RawRow>();
-      }
-    } else {
-      rows = await buildBaseQuery()
-        .groupBy(monthTruncExpression)
-        .orderBy(monthTruncExpression, 'ASC')
-        .getRawMany<RawRow>();
-    }
+    rows = (
+      await byResponsibleOrSupervisor(
+        responsibleIds,
+        () => buildBaseQuery(),
+        (query) =>
+          query
+            .groupBy(monthTruncExpression)
+            .orderBy(monthTruncExpression, 'ASC')
+            .getRawMany<RawRow>(),
+        noRows,
+      )
+    ).result;
 
     const startMonthDate = new Date(
       parsedStartDate.getFullYear(),
@@ -3297,89 +3086,28 @@ export class DashboardService {
   }
 
   async findAllZones() {
-    const manufacturingPlantsWithEvidences =
-      await this.findManufacturingPlantsWithEvidences();
-    const evidencesTotal = manufacturingPlantsWithEvidences.reduce(
-      (acc, project) => acc + project.evidences.length,
-      0,
+    return DashboardService.plantShareChart(
+      await this.countEvidencesByPlant('zone'),
     );
-
-    const statusData = manufacturingPlantsWithEvidences.map((project) => {
-      const porcentaje = Number(
-        (project.evidences.length / evidencesTotal) * 100,
-      );
-      return {
-        name: `${project.name} (${project.evidences.length})`,
-        y: Number(porcentaje.toFixed(2)),
-        drilldown: project.name,
-      };
-    });
-
-    const statusSeries = [];
-
-    for (let i = 0, t = manufacturingPlantsWithEvidences.length; i < t; i++) {
-      const projectCurrent = manufacturingPlantsWithEvidences[i];
-
-      const evidencesArray = projectCurrent.evidences.map((item) => ({
-        ...item,
-        zoneName: item.zone.name,
-      }));
-
-      const clientsGroupStatus = groupBy(evidencesArray, 'zoneName');
-
-      const data = [];
-
-      for (const key in clientsGroupStatus) {
-        const clients = clientsGroupStatus[key];
-        const porcentaje = Number(
-          (clients.length / projectCurrent.evidences.length) * 100,
-        );
-        data.push([
-          `${key} (${clients.length})`,
-          Number(porcentaje.toFixed(2)),
-        ]);
-      }
-
-      statusSeries.push({
-        name: `${projectCurrent.name}`,
-        id: projectCurrent.name,
-        data,
-      });
-    }
-
-    return {
-      statusData,
-      statusSeries,
-    };
   }
 
   async findAllMainTypes() {
-    const manufacturingPlantsWithEvidences =
-      await this.findManufacturingPlantsWithEvidences();
-
-    const totalEvidences = manufacturingPlantsWithEvidences.reduce(
-      (acc, project) => acc + project.evidences.length,
-      0,
-    );
+    const plants = await this.countEvidencesByPlant('mainType');
+    const totalEvidences = plants.reduce((acc, plant) => acc + plant.total, 0);
+    // El id del drilldown lleva el total: así lo enlaza la gráfica.
+    const fullNameOf = (plant: PlantEvidenceCount) =>
+      `${plant.name} (${plant.total})`;
 
     return {
       series: [
         {
           name: 'Plantas',
           colorByPoint: true,
-          data: manufacturingPlantsWithEvidences.map((manufacturingPlant) => {
-            const sizeCurrent = manufacturingPlant.evidences.length;
-
-            const fullName = `${manufacturingPlant.name} (${sizeCurrent})`;
-
-            return {
-              name: fullName,
-              y: Number(
-                Number((sizeCurrent / totalEvidences) * 100).toFixed(2),
-              ),
-              drilldown: fullName,
-            };
-          }),
+          data: plants.map((plant) => ({
+            name: fullNameOf(plant),
+            y: DashboardService.percentage(plant.total, totalEvidences),
+            drilldown: fullNameOf(plant),
+          })),
         },
       ],
       drilldown: {
@@ -3388,71 +3116,74 @@ export class DashboardService {
             align: 'right',
           },
         },
-
-        series: manufacturingPlantsWithEvidences.map((project) => {
-          const evidencesArray = project.evidences.map((item) => ({
-            ...item,
-            mainTypeName: item.mainType.name,
-          }));
-
-          const clientsGroupStatus = groupBy(evidencesArray, 'mainTypeName');
-
-          const data = [];
-
-          for (const key in clientsGroupStatus) {
-            const clients = clientsGroupStatus[key];
-            const porcentaje = Number(
-              (clients.length / project.evidences.length) * 100,
-            );
-            data.push([
-              `${key} (${clients.length})`,
-              Number(porcentaje.toFixed(2)),
-            ]);
-          }
-
-          const fullName = `${project.name} (${project.evidences.length})`;
-
-          return {
-            name: `${project.name}`,
-            id: fullName,
-            data,
-          };
-        }),
+        series: plants.map((plant) => ({
+          name: plant.name,
+          id: fullNameOf(plant),
+          data: plant.groups.map(([label, total]) => [
+            `${label} (${total})`,
+            DashboardService.percentage(total, plant.total),
+          ]),
+        })),
       },
     };
   }
 
   async findAllEvidencesByMonth(year?: number) {
-    const manager = this.manufacturingPlant.manager;
-
     const manufacturingPlantsIds = this.findManufacturingPlantsIdsCurrentUser();
 
+    // $1 año (null = el actual) · $2 plantas del usuario. Valores como
+    // parámetros, nunca dentro del SQL.
+    const params = [year ?? null, manufacturingPlantsIds];
     const whereDefault = `
-      evidence."isActive" = TRUE 
-      AND evidence.status != 'Cancelado' 
-      AND date_part( 'year', evidence."createdAt" ) = ${year ?? "date_part('year', CURRENT_DATE)"}  
-      AND evidence."manufacturingPlantId" in (${manufacturingPlantsIds.join(
-        ',',
-      )})
+      evidence."isActive" = TRUE
+      AND evidence.status != 'Cancelado'
+      AND date_part( 'year', evidence."createdAt" ) =
+        COALESCE( $1::double precision, date_part( 'year', CURRENT_DATE ) )
+      AND evidence."manufacturingPlantId" = ANY( $2::int[] )
     `;
 
-    const queryCategories = `
+    const categories: { mon: string }[] = await this.queryWithParams(
+      `
       SELECT
-        to_char( evidence."createdAt", 'Mon' ) AS mon 
+        to_char( evidence."createdAt", 'Mon' ) AS mon
       FROM
-        evidence 
+        evidence
       WHERE
         ${whereDefault}
       GROUP BY
-        mon 
+        mon
       ORDER BY
         MIN ( evidence."createdAt" )
       ASC
-    `;
+    `,
+      params,
+    );
 
-    const categories = await manager.query(queryCategories);
-
-    const manufacturingByMonth = [];
+    // Todos los meses en una consulta (antes, una consulta por mes).
+    const rows: { mon: string; name: string; total: string }[] =
+      await this.queryWithParams(
+        `
+        SELECT EXTRACT
+          ( YEAR FROM evidence."createdAt" ) AS yyyy,
+          to_char( evidence."createdAt", 'Mon' ) AS mon,
+          manufacturing_plant."name",
+          COUNT ( * ) AS total
+        FROM
+          evidence
+          INNER JOIN manufacturing_plant ON manufacturing_plant."id" = evidence."manufacturingPlantId"
+          AND manufacturing_plant."isActive" = true
+        WHERE
+          ${whereDefault}
+        GROUP BY
+          1,
+          2,
+          evidence."manufacturingPlantId",
+          manufacturing_plant."name"
+        ORDER BY
+          MIN ( evidence."createdAt" ) ASC
+      `,
+        params,
+      );
 
     const months = {
       Jan: 'Ene',
@@ -3469,38 +3200,15 @@ export class DashboardService {
       Dec: 'Dic',
     };
 
-    for (const category of categories) {
-      const data = await manager.query(`
-        SELECT EXTRACT
-          ( YEAR FROM evidence."createdAt" ) AS yyyy,
-          to_char( evidence."createdAt", 'Mon' ) AS mon,
-          manufacturing_plant."name",
-          COUNT ( * ) AS total 
-        FROM
-          evidence
-          INNER JOIN manufacturing_plant ON manufacturing_plant."id" = evidence."manufacturingPlantId" 
-          AND manufacturing_plant."isActive" = true
-        WHERE
-          ${whereDefault}
-          AND to_char( evidence."createdAt", 'Mon' ) = '${category.mon}'
-        GROUP BY
-          1,
-          2,
-          evidence."manufacturingPlantId",
-          manufacturing_plant."name" 
-        ORDER BY
-          MIN ( evidence."createdAt" ) ASC
-      `);
-
-      manufacturingByMonth.push(
-        data[0]
-          ? data.map((item) => ({
-              ...item,
-              mon: months[item.mon] || item.mon,
-            }))
-          : [],
-      );
-    }
+    // Filas de cada mes, en el orden de los meses (y dentro, el de la base).
+    const manufacturingByMonth = categories.map((category) =>
+      rows
+        .filter((item) => item.mon === category.mon)
+        .map((item) => ({
+          ...item,
+          mon: months[item.mon] || item.mon,
+        })),
+    );
 
     const manufacturingPlants = [
       ...new Set(
@@ -3538,14 +3246,15 @@ export class DashboardService {
     };
   }
 
+  /**
+   * Índice de accidentes por mes del año pedido (sin año, el actual). La
+   * tabla accident_rate no tiene planta: son datos de toda la empresa.
+   * Antes el año se ignoraba (el filtro estaba comentado) y se mezclaban
+   * todos los años.
+   */
   async findAllAccidentsByMonth(year?: number) {
-    const manager = this.manufacturingPlant.manager;
-
-    const where = ` 1 = 1
-      -- date_part( 'year', ar.capture_date ) = ${year ?? "date_part('year', CURRENT_DATE)"}
-    `;
-
-    const response = await manager.query(`
+    return this.queryWithParams(
+      `
       SELECT
         date_part( 'month', ar.capture_date ) AS mes,
         date_part( 'year', ar.capture_date ) AS anio,
@@ -3554,47 +3263,22 @@ export class DashboardService {
       FROM
         accident_rate AS ar
       WHERE
-        ${where}
+        date_part( 'year', ar.capture_date ) =
+          COALESCE( $1::double precision, date_part( 'year', CURRENT_DATE ) )
       GROUP BY
         date_part( 'year', ar.capture_date ), date_part( 'month', ar.capture_date )
       ORDER BY
         date_part( 'month', ar.capture_date ) DESC
-    `);
-
-    return response;
-
-    /*  const monthsLarge = {
-      1: 'Enero',
-      2: 'Febrero',
-      3: 'Marzo',
-      4: 'Abril',
-      5: 'Mayo',
-      6: 'Junio',
-      7: 'Julio',
-      8: 'Agosto',
-      9: 'Septiembre',
-      10: 'Octubre',
-      11: 'Noviembre',
-      12: 'Diciembre',
-    };
-
-    return response.map((item) => {
-      const nombreMes = monthsLarge[item.mes];
-      return {
-        numeroDenumberOfEmployees: item.numberOfEmployees,
-        numeroDeAccidentes: item.accidentes,
-        nombreMes,
-        numeroDeMes: item.mes,
-      };
-    }); */
+    `,
+      [year ?? null],
+    );
   }
 
   async findTopUsersByPlant() {
-    const manager = this.manufacturingPlant.manager;
-
     const manufacturingPlantsIds = this.findManufacturingPlantsIdsCurrentUser();
 
-    const result = await manager.query(` 
+    const result = await this.queryWithParams(
+      `
       SELECT
         evidence."userId",
         "user"."name" AS username,
@@ -3609,7 +3293,7 @@ export class DashboardService {
         AND manufacturing_plant."isActive" = TRUE 
       WHERE
         evidence."isActive" = TRUE 
-        AND manufacturing_plant."id" IN ( ${manufacturingPlantsIds.join(',')} ) 
+        AND manufacturing_plant."id" = ANY( $1::int[] )
       GROUP BY
         evidence."userId",
         "user"."name",
@@ -3618,7 +3302,9 @@ export class DashboardService {
       ORDER BY
         manufacturingplantname ASC,
         total DESC
-    `);
+    `,
+      [manufacturingPlantsIds],
+    );
 
     const manufacturingPlants = [
       ...new Set(result.map((item) => item.manufacturingplantname)),
@@ -3639,11 +3325,10 @@ export class DashboardService {
   }
 
   async findOpenVsClosed() {
-    const manager = this.manufacturingPlant.manager;
-
     const manufacturingPlantsIds = this.findManufacturingPlantsIdsCurrentUser();
 
-    const result = await manager.query(`
+    const result = await this.queryWithParams(
+      `
       SELECT
         COUNT ( CASE WHEN evidence."status" = 'Abierto' THEN 1 END ) AS open,
         COUNT ( CASE WHEN evidence."status" = 'Cerrado' THEN 1 END ) AS closed,
@@ -3654,10 +3339,12 @@ export class DashboardService {
         AND manufacturing_plant."isActive" = true
       WHERE
         evidence."isActive" = TRUE
-        AND manufacturing_plant."id" IN ( ${manufacturingPlantsIds.join(',')} )
+        AND manufacturing_plant."id" = ANY( $1::int[] )
       GROUP BY
         manufacturing_plant."name"
-    `);
+    `,
+      [manufacturingPlantsIds],
+    );
 
     const categories = result.map((item) => item.manufacturingplantname);
 
@@ -3686,16 +3373,6 @@ export class DashboardService {
           color: '#15803D',
         },
       ],
-    };
-  }
-
-  async findAccidentsRate() {
-    //const manager = this.manufacturingPlant.manager;
-
-    this.accidentRate;
-
-    return {
-      hola: 'mundo',
     };
   }
 
@@ -3739,7 +3416,7 @@ export class DashboardService {
           COUNT(CASE WHEN status = 'Cerrado'   THEN 1 END) AS cerradas,
           COUNT(CASE WHEN status = 'Cancelado' THEN 1 END) AS canceladas
         FROM evidence
-        WHERE "manufacturingPlantId" = ${manufacturingPlantId}
+        WHERE "manufacturingPlantId" = $1
           AND "createdAt" >= DATE_TRUNC('month', NOW())
           AND "createdAt" <= NOW()
         GROUP BY "mainTypeId"
@@ -3751,18 +3428,18 @@ export class DashboardService {
           COUNT(CASE WHEN status = 'Cerrado'   THEN 1 END) AS cerradas,
           COUNT(CASE WHEN status = 'Cancelado' THEN 1 END) AS canceladas
         FROM evidence
-        WHERE "manufacturingPlantId" = ${manufacturingPlantId}
+        WHERE "manufacturingPlantId" = $1
           AND "createdAt" >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month'
           AND "createdAt" <= NOW() - INTERVAL '1 month'
         GROUP BY "mainTypeId"
       ) mp ON mt.id = mp."mainTypeId"
-      WHERE e."manufacturingPlantId" = ${manufacturingPlantId}
+      WHERE e."manufacturingPlantId" = $1
       GROUP BY mt.id, mt.name, ma.total, ma.abiertas, ma.cerradas, ma.canceladas,
               mp.total, mp.abiertas, mp.cerradas, mp.canceladas
       ORDER BY total_historico DESC;
     `;
 
-    return this.executeQuery(query);
+    return this.queryWithParams(query, [manufacturingPlantId]);
   }
 
   findMainTypesGlobalTrendDetails(
@@ -3802,13 +3479,13 @@ export class DashboardService {
         JOIN evidence e  ON eru."evidenceId" = e.id
         JOIN "user" u    ON eru."userId"     = u.id
         JOIN main_type mt ON e."mainTypeId"  = mt.id
-        WHERE e."manufacturingPlantId" = ${manufacturingPlantId}
-          AND mt."id" = ${mainTypeId}
+        WHERE e."manufacturingPlantId" = $1
+          AND mt."id" = $2
         GROUP BY u.id, u.name
         ORDER BY abiertas DESC, pct_resolucion ASC;
       `;
 
-    return this.executeQuery(query);
+    return this.queryWithParams(query, [manufacturingPlantId, mainTypeId]);
   }
 
   findPercentageComplianceByZone(
@@ -3855,13 +3532,13 @@ export class DashboardService {
       JOIN zones z                 ON e."zoneId"               = z.id
       JOIN manufacturing_plant mp  ON e."manufacturingPlantId" = mp.id
       JOIN main_type mt            ON e."mainTypeId"           = mt.id
-      WHERE mp.id = ${manufacturingPlantId}
-        AND mt.id = ${mainTypeId}
+      WHERE mp.id = $1
+        AND mt.id = $2
       GROUP BY mp.id, mp.name, z.id, z.name
       HAVING COUNT(DISTINCT e.id) > 0
       ORDER BY pct_cumplimiento_historico ASC, criticos_mas_90_dias DESC;
     `;
 
-    return this.executeQuery(query);
+    return this.queryWithParams(query, [manufacturingPlantId, mainTypeId]);
   }
 }

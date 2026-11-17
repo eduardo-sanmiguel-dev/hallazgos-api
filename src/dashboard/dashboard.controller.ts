@@ -525,9 +525,4 @@ export class DashboardController {
   findOpenVsClosed() {
     return this.dashboardService.findOpenVsClosed();
   }
-
-  @Get('accidents-rate')
-  findAccidentsRate() {
-    return this.dashboardService.findAccidentsRate();
-  }
 }

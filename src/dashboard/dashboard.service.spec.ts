@@ -9,7 +9,6 @@ import { RequestContextService } from '../shared/services/request-context.servic
 import { ManufacturingPlant } from '../manufacturing-plants/entities/manufacturing-plant.entity.js';
 import { Evidence } from '../evidences/entities/evidence.entity.js';
 import { MainType } from '../main-types/entities/main-type.entity.js';
-import { AccidentRate } from './entities/accident-rate.entity.js';
 import { DashboardService } from './dashboard.service.js';
 
 // El SQL se verifica contra PostgreSQL en test/db/dashboard.int-spec.ts.
@@ -39,7 +38,6 @@ describe('DashboardService: reglas y resultados de reportes', () => {
     qb().getRawOne.mockResolvedValue(null);
     service = new DashboardService(
       plants,
-      createRepositoryMock<AccidentRate>(),
       evidence,
       types,
       new RequestContextService(),
@@ -789,49 +787,24 @@ describe('DashboardService: reglas y resultados de reportes', () => {
     });
   });
   describe('distribución por planta', () => {
-    beforeEach(() =>
-      plants.find.mockResolvedValue([
-        {
-          id: 1,
-          name: 'México',
-          evidences: [
-            {
-              status: 'Abierto',
-              zone: { name: 'Norte' },
-              mainType: { name: 'Acto' },
-            },
-            {
-              status: 'Cerrado',
-              zone: { name: 'Norte' },
-              mainType: { name: 'Condición' },
-            },
-          ],
-        },
-        {
-          id: 2,
-          name: 'Colombia',
-          evidences: [
-            {
-              status: 'Abierto',
-              zone: { name: 'Sur' },
-              mainType: { name: 'Acto' },
-            },
-          ],
-        },
-      ] as ManufacturingPlant[]),
-    );
-    it('limita los registros a las plantas asignadas', async () => {
-      await as(() => service.findManufacturingPlantsWithEvidences());
-      expect((plants.find.mock.calls[0][0].where as any).id.value).toEqual([
-        1, 2,
-      ]);
-    });
+    // Filas de la consulta agrupada: planta, etiqueta (estado, zona o tipo)
+    // y cantidad, en el orden que las devuelva la base.
+    const rows = (...items: [number, string, string | null, number][]) =>
+      qb().getRawMany.mockResolvedValue(
+        items.map(([plantId, plantName, label, total]) => ({
+          plantId,
+          plantName,
+          label,
+          total: String(total),
+        })),
+      );
+
     it('calcula proporciones por estado y conserva el detalle de cada planta', async () => {
-      qb().getRawMany.mockResolvedValue([
-        { plantId: 1, plantName: 'México', status: 'Cerrado', total: '1' },
-        { plantId: 1, plantName: 'México', status: 'Abierto', total: '1' },
-        { plantId: 2, plantName: 'Colombia', status: 'Abierto', total: '1' },
-      ]);
+      rows(
+        [1, 'México', 'Cerrado', 1],
+        [1, 'México', 'Abierto', 1],
+        [2, 'Colombia', 'Abierto', 1],
+      );
       const result = await as(() => service.findAllStatus());
       expect(result.statusData).toEqual([
         { name: 'México (2)', y: 66.67, drilldown: 'México' },
@@ -850,43 +823,98 @@ describe('DashboardService: reglas y resultados de reportes', () => {
         { name: 'Colombia', id: 'Colombia', data: [['Abierto (1)', 100]] },
       ]);
     });
-    it('cuenta por estado en la base, solo en plantas asignadas y activas', async () => {
-      await as(() => service.findAllStatus());
-      expect(plants.find).not.toHaveBeenCalled();
-      expect(qb().where).toHaveBeenCalledWith(
-        'plant.id IN (:...manufacturingPlantsIds)',
-        { manufacturingPlantsIds: [1, 2] },
+
+    it.each([
+      ['findAllStatus', 'evidence.status'],
+      ['findAllZones', "COALESCE(zone.name, 'Sin zona')"],
+      ['findAllMainTypes', "COALESCE(mainType.name, 'Sin tipo')"],
+    ] as const)(
+      '%s cuenta en la base (sin cargar evidencias), solo en plantas asignadas y activas',
+      async (method, label) => {
+        await as<unknown>(() => service[method]());
+        expect(plants.find).not.toHaveBeenCalled();
+        expect(evidence.find).not.toHaveBeenCalled();
+        expect(qb().where).toHaveBeenCalledWith(
+          'plant.id IN (:...manufacturingPlantsIds)',
+          { manufacturingPlantsIds: [1, 2] },
+        );
+        expect(qb().andWhere).toHaveBeenCalledWith('plant."isActive" = true');
+        expect(qb().addSelect).toHaveBeenCalledWith('COUNT(*)', 'total');
+        expect(qb().addGroupBy).toHaveBeenCalledWith(label);
+      },
+    );
+
+    it('zonas de mayor a menor en cada planta y las evidencias sin zona aparte', async () => {
+      rows(
+        [1, 'México', 'Norte', 1],
+        [1, 'México', 'Almacén', 3],
+        [1, 'México', 'Sin zona', 1],
+        [1, 'México', 'Bodega', 3],
+        [2, 'Colombia', 'Sur', 2],
       );
-      expect(qb().andWhere).toHaveBeenCalledWith('plant."isActive" = true');
-      expect(qb().addGroupBy).toHaveBeenCalledWith('evidence.status');
-    });
-    it('sin plantas asignadas no consulta la base', async () => {
-      const result = await as(
-        () => service.findAllStatus(),
-        buildUser({ id: 11, manufacturingPlants: [] as never }),
-      );
-      expect(result).toEqual({ statusData: [], statusSeries: [] });
-      expect(qb().getRawMany).not.toHaveBeenCalled();
-    });
-    it('agrupa zonas repetidas dentro de cada planta', async () => {
       const result = await as(() => service.findAllZones());
-      expect(result.statusSeries.map((p) => p.data)).toEqual([
-        [['Norte (2)', 100]],
-        [['Sur (1)', 100]],
+      expect(result.statusData).toEqual([
+        { name: 'México (8)', y: 80, drilldown: 'México' },
+        { name: 'Colombia (2)', y: 20, drilldown: 'Colombia' },
+      ]);
+      expect(result.statusSeries).toEqual([
+        {
+          name: 'México',
+          id: 'México',
+          // Empate (3 y 3): por nombre.
+          data: [
+            ['Almacén (3)', 37.5],
+            ['Bodega (3)', 37.5],
+            ['Norte (1)', 12.5],
+            ['Sin zona (1)', 12.5],
+          ],
+        },
+        { name: 'Colombia', id: 'Colombia', data: [['Sur (2)', 100]] },
       ]);
     });
+
     it('los ids de drilldown coinciden con las series de tipos', async () => {
+      rows(
+        [1, 'México', 'Condición', 1],
+        [1, 'México', 'Acto', 3],
+        [2, 'Colombia', 'Acto', 1],
+      );
       const result = await as(() => service.findAllMainTypes());
+      expect(result.series[0].data).toEqual([
+        { name: 'México (4)', y: 80, drilldown: 'México (4)' },
+        { name: 'Colombia (1)', y: 20, drilldown: 'Colombia (1)' },
+      ]);
       expect(result.series[0].data.map((p) => p.drilldown)).toEqual(
         result.drilldown.series.map((p) => p.id),
       );
-      expect(result.drilldown.series[0].data).toEqual([
-        ['Acto (1)', 50],
-        ['Condición (1)', 50],
-      ]);
+      expect(result.drilldown.series[0]).toEqual({
+        name: 'México',
+        id: 'México (4)',
+        data: [
+          ['Acto (3)', 75],
+          ['Condición (1)', 25],
+        ],
+      });
     });
+
+    it('sin plantas asignadas no consulta la base', async () => {
+      const noPlants = buildUser({ id: 11, manufacturingPlants: [] as never });
+      expect(await as(() => service.findAllStatus(), noPlants)).toEqual({
+        statusData: [],
+        statusSeries: [],
+      });
+      expect(await as(() => service.findAllZones(), noPlants)).toEqual({
+        statusData: [],
+        statusSeries: [],
+      });
+      expect(
+        (await as(() => service.findAllMainTypes(), noPlants)).series[0].data,
+      ).toEqual([]);
+      expect(qb().getRawMany).not.toHaveBeenCalled();
+    });
+
     it('sin hallazgos entrega series vacías sin NaN', async () => {
-      plants.find.mockResolvedValue([]);
+      rows();
       expect(await as(() => service.findAllStatus())).toEqual({
         statusData: [],
         statusSeries: [],
@@ -895,9 +923,10 @@ describe('DashboardService: reglas y resultados de reportes', () => {
         statusData: [],
         statusSeries: [],
       });
-      expect(
-        (await as(() => service.findAllMainTypes())).series[0].data,
-      ).toEqual([]);
+      expect(await as(() => service.findAllMainTypes())).toMatchObject({
+        series: [{ data: [] }],
+        drilldown: { series: [] },
+      });
     });
   });
   it('agrupa el ranking de reportantes por planta', async () => {
@@ -913,7 +942,12 @@ describe('DashboardService: reglas y resultados de reportes', () => {
         { name: 'Colombia', data: [rows[1]] },
       ],
     });
-    expect(query).toHaveBeenCalledWith(expect.stringContaining('IN ( 1,2 )'));
+    // Plantas como parámetro, nunca dentro del SQL.
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('= ANY( $1::int[] )'),
+      [[1, 2]],
+    );
+    expect(query.mock.calls[0][0]).not.toContain('1,2');
   });
   it('convierte conteos de abiertos y cerrados sin mezclar plantas', async () => {
     query.mockResolvedValue([
@@ -930,9 +964,11 @@ describe('DashboardService: reglas y resultados de reportes', () => {
   it('meses de hallazgos traduce etiquetas y rellena ausencias por planta', async () => {
     query
       .mockResolvedValueOnce([{ mon: 'Jan' }, { mon: 'Feb' }, { mon: 'Mar' }])
-      .mockResolvedValueOnce([{ mon: 'Jan', name: 'México', total: '3' }])
-      .mockResolvedValueOnce([{ mon: 'Feb', name: 'Colombia', total: '4' }])
-      .mockResolvedValueOnce([]);
+      // Todos los meses en una sola consulta (antes, una por mes).
+      .mockResolvedValueOnce([
+        { mon: 'Jan', name: 'México', total: '3' },
+        { mon: 'Feb', name: 'Colombia', total: '4' },
+      ]);
     expect(await as(() => service.findAllEvidencesByMonth(2026))).toEqual({
       categories: ['Ene', 'Feb', 'Mar'],
       series: [
@@ -940,7 +976,26 @@ describe('DashboardService: reglas y resultados de reportes', () => {
         { name: 'Colombia', data: [0, 4, 0] },
       ],
     });
-    expect(query.mock.calls[0][0]).toContain('2026');
+    expect(query).toHaveBeenCalledTimes(2);
+    // Año y plantas como parámetros, nunca dentro del SQL.
+    for (const [sql, params] of query.mock.calls) {
+      expect(params).toEqual([2026, [1, 2]]);
+      expect(sql).not.toContain('2026');
+    }
+  });
+  it('accidentes por mes: el año va como parámetro (sin año, el actual)', async () => {
+    query.mockResolvedValue([{ mes: 3, anio: 2026, accidentes: 1 }]);
+
+    await service.findAllAccidentsByMonth(2025);
+    await service.findAllAccidentsByMonth();
+
+    expect(query.mock.calls[0][1]).toEqual([2025]);
+    expect(query.mock.calls[1][1]).toEqual([null]);
+    // Antes el filtro de año estaba comentado y se mezclaban todos los años.
+    expect(query.mock.calls[0][0]).toContain(
+      "COALESCE( $1::double precision, date_part( 'year', CURRENT_DATE ) )",
+    );
+    expect(query.mock.calls[0][0]).not.toContain('2025');
   });
   it('conserva etiquetas desconocidas sin datos anuales', async () => {
     query
@@ -950,7 +1005,11 @@ describe('DashboardService: reglas y resultados de reportes', () => {
       categories: ['Otro'],
       series: [{ name: 'México', data: [2] }],
     });
-    expect(query.mock.calls[0][0]).toContain("date_part('year', CURRENT_DATE)");
+    // Sin año: null y la base usa el año en curso.
+    expect(query.mock.calls[0][1]).toEqual([null, [1, 2]]);
+    expect(query.mock.calls[0][0]).toContain(
+      "COALESCE( $1::double precision, date_part( 'year', CURRENT_DATE ) )",
+    );
   });
   it('arma el análisis EPP: gráficas, indicadores a la fecha y precios', async () => {
     for (const n of [1, 3, 4, 8, 9])

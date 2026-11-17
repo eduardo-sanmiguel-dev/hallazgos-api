@@ -8,6 +8,8 @@
  */
 import * as argon2 from 'argon2';
 
+import { AccidentRate } from '../../src/dashboard/entities/accident-rate.entity.js';
+import { Evidence } from '../../src/evidences/entities/evidence.entity.js';
 import { MainType } from '../../src/main-types/entities/main-type.entity.js';
 import { User } from '../../src/users/entities/user.entity.js';
 import { createE2eApp, type E2eApp } from './e2e-app.js';
@@ -227,6 +229,102 @@ describe('Integración: dashboard', () => {
       });
     });
 
+    it('accidents-by-month filtra por año (antes los mezclaba todos)', async () => {
+      const year = now.getFullYear();
+      const repo = e2e.dataSource.getRepository(AccidentRate);
+      const rows = await repo.save([
+        {
+          captureDate: new Date(`${year}-03-15T12:00:00Z`),
+          numberOfAccidents: 2,
+          numberOfEmployees: 100,
+        },
+        {
+          captureDate: new Date(`${year - 1}-03-15T12:00:00Z`),
+          numberOfAccidents: 7,
+          numberOfEmployees: 90,
+        },
+      ]);
+      try {
+        const current = await get('accidents-by-month');
+        expect(current.body).toEqual([
+          { mes: 3, anio: year, numberofemployees: 100, accidentes: 2 },
+        ]);
+        const previous = await get(`accidents-by-month?year=${year - 1}`);
+        expect(previous.body).toEqual([
+          { mes: 3, anio: year - 1, numberofemployees: 90, accidentes: 7 },
+        ]);
+      } finally {
+        await repo.delete(rows.map(({ id }) => id));
+      }
+    });
+
+    it('zones y main-types cuentan por planta en la base', async () => {
+      const zones = await get('zones');
+      expect(zones.body).toEqual({
+        statusData: [
+          { name: 'Tepotzotlán (5)', y: 100, drilldown: 'Tepotzotlán' },
+        ],
+        statusSeries: [
+          {
+            name: 'Tepotzotlán',
+            id: 'Tepotzotlán',
+            data: [[`${e2e.base.zone.name} (5)`, 100]],
+          },
+        ],
+      });
+
+      const mainTypes = await get('main-types');
+      expect(mainTypes.body.series[0].data).toEqual([
+        { name: 'Tepotzotlán (5)', y: 100, drilldown: 'Tepotzotlán (5)' },
+      ]);
+      expect(mainTypes.body.drilldown.series).toEqual([
+        {
+          name: 'Tepotzotlán',
+          id: 'Tepotzotlán (5)',
+          data: [[`${e2e.base.mainType.name} (5)`, 100]],
+        },
+      ]);
+    });
+
+    it('zones y main-types: el administrador ve sus dos plantas', async () => {
+      const zones = await get('zones', e2e.tokens.admin);
+      expect(zones.body.statusSeries[1]).toEqual({
+        name: 'Manizales',
+        id: 'Manizales',
+        data: [[`${e2e.base.zoneColombia.name} (1)`, 100]],
+      });
+      const mainTypes = await get('main-types', e2e.tokens.admin);
+      expect(
+        mainTypes.body.series[0].data.map(({ name, y }) => ({ name, y })),
+      ).toEqual([
+        { name: 'Tepotzotlán (5)', y: 83.33 },
+        { name: 'Manizales (1)', y: 16.67 },
+      ]);
+    });
+
+    // Antes la petición fallaba (item.zone.name con zona nula).
+    it('un hallazgo sin zona ni tipo se cuenta como "Sin zona" / "Sin tipo"', async () => {
+      const orphan = await saveEvidence(e2e.dataSource, e2e.base, {
+        zone: null,
+        mainType: null,
+        createdAt: now,
+      });
+      try {
+        const zones = await get('zones');
+        expect(zones.body.statusSeries[0].data).toEqual([
+          [`${e2e.base.zone.name} (5)`, 83.33],
+          ['Sin zona (1)', 16.67],
+        ]);
+        const mainTypes = await get('main-types');
+        expect(mainTypes.body.drilldown.series[0].data).toEqual([
+          [`${e2e.base.mainType.name} (5)`, 83.33],
+          ['Sin tipo (1)', 16.67],
+        ]);
+      } finally {
+        await e2e.dataSource.getRepository(Evidence).delete(orphan.id);
+      }
+    });
+
     it('status: el administrador ve la proporción entre sus dos plantas', async () => {
       const { body } = await get('status', e2e.tokens.admin);
 
@@ -268,7 +366,6 @@ describe('Integración: dashboard', () => {
       'evidences-by-month',
       'accidents-by-month',
       'top-users-by-plant',
-      'accidents-rate',
     ];
 
     it.each(BY_PLANT)('/%s', async (path) => {

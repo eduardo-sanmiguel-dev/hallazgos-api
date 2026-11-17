@@ -44,7 +44,6 @@ const GLOBAL: [string, keyof DashboardService][] = [
   ['main-types', 'findAllMainTypes'],
   ['top-users-by-plant', 'findTopUsersByPlant'],
   ['open-vs-closed', 'findOpenVsClosed'],
-  ['accidents-rate', 'findAccidentsRate'],
 ];
 
 describe('DashboardController (HTTP)', () => {
