@@ -16,6 +16,11 @@ type Capture = {
   recipients: Set<string>;
   // Adjuntos ya congelados en este evento (los comparten sus destinatarios).
   attachments: Map<string, Promise<string>>;
+  // HTML ya renderizado en este evento, por plantilla + contexto.
+  rendered: Map<string, Promise<string>>;
+  // Lock compartido contra el recolector de blobs: dura hasta el fin de la
+  // transacción, así que basta pedirlo una vez por evento.
+  blobLock?: Promise<unknown>;
 };
 
 @Injectable()
@@ -46,6 +51,7 @@ export class MailOutboxService {
         expires,
         recipients: new Set(),
         attachments: new Map(),
+        rendered: new Map(),
       },
       work,
     );
@@ -74,11 +80,17 @@ export class MailOutboxService {
     const id = randomUUID();
     const key = encryptionKey(this.config.get<string>('MAIL_OUTBOX_KEY'));
     // Coordinate immutable blob creation with the daily garbage collector.
-    await ctx.manager.query('SELECT pg_advisory_xact_lock_shared(722, 1)');
+    // Es un lock de transacción: el primer destinatario lo toma y se libera
+    // en el commit/rollback; repetirlo por cada uno solo sumaba consultas.
+    ctx.blobLock ??= ctx.manager.query(
+      'SELECT pg_advisory_xact_lock_shared(722, 1)',
+    );
+    await ctx.blobLock;
     const frozen = await freezeMail(
       options,
       this.config.get<string>('MAIL_OUTBOX_DIR') || 'var/mail-outbox/blobs',
       ctx.attachments,
+      ctx.rendered,
     );
     frozen.messageId = `<${id}@comportarte.com>`;
     await ctx.manager.query(

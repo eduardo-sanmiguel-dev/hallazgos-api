@@ -63,6 +63,54 @@ describe('freezeMail', () => {
     expect(await readdir(blobs)).toHaveLength(1);
   });
 
+  // Todos los destinatarios de un aviso reciben el mismo contexto: el HTML se
+  // renderiza una vez por evento y no una por destinatario.
+  it('reutiliza el HTML ya renderizado del mismo evento', async () => {
+    const rendered = new Map<string, Promise<string>>();
+    const first = await freezeMail(options, blobs, undefined, rendered);
+    // Otro objeto con el mismo contenido (como lo arma MailService por cada
+    // destinatario) usa la misma entrada.
+    const second = await freezeMail(
+      { ...options, context: structuredClone(options.context) },
+      blobs,
+      undefined,
+      rendered,
+    );
+
+    expect(second.html).toBe(first.html);
+    expect(rendered.size).toBe(1);
+  });
+
+  it('si el contexto cambia, renderiza de nuevo en vez de reutilizar el HTML', async () => {
+    const rendered = new Map<string, Promise<string>>();
+    const first = await freezeMail(options, blobs, undefined, rendered);
+    const changed = await freezeMail(
+      { ...options, context: { ...options.context, title: 'Otro título' } },
+      blobs,
+      undefined,
+      rendered,
+    );
+
+    expect(first.html).toContain('Restablece tu contraseña');
+    expect(changed.html).toContain('Otro título');
+    expect(changed.html).not.toContain('Restablece tu contraseña');
+    expect(rendered.size).toBe(2);
+  });
+
+  it('el HTML de una plantilla no se reutiliza para otra con el mismo contexto', async () => {
+    const rendered = new Map<string, Promise<string>>();
+    await freezeMail(options, blobs, undefined, rendered);
+
+    await expect(
+      freezeMail(
+        { ...options, template: './no-existe' },
+        blobs,
+        undefined,
+        rendered,
+      ),
+    ).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
   it('sin caché de evento, cada llamada vuelve a copiar el adjunto', async () => {
     await freezeMail(options, blobs);
     await unlink(source());

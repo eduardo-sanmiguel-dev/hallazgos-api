@@ -60,6 +60,48 @@ describe('MailOutboxService', () => {
       unseal<{ html: string }>(args[7], encryptionKey('test')).html,
     ).toContain('Hallazgo');
   });
+  const sqlCalls = (fragment: string) =>
+    query.mock.calls.filter(([sql]) => sql.includes(fragment));
+  // Uno tras otro, como EvidencesService.sendEmailUsers.
+  const createFor = async (...emails: string[]) => {
+    const evidence = buildEvidence({ imgEvidence: '', supervisors: [] });
+    for (const email of emails)
+      await mail.sendCreate({
+        user: buildUser({ email }),
+        evidenceCurrent: evidence,
+      });
+  };
+  it('takes the blob lock once per event, before the first notification', async () => {
+    await mail.withOutbox(manager, () =>
+      createFor('a@test.com', 'b@test.com', 'c@test.com'),
+    );
+    const sql = query.mock.calls.map(([statement]) => statement as string);
+    expect(sqlCalls('pg_advisory_xact_lock_shared(722, 1)')).toHaveLength(1);
+    expect(sqlCalls('INSERT INTO email_notifications')).toHaveLength(3);
+    expect(sql[0]).toContain('pg_advisory_xact_lock_shared(722, 1)');
+  });
+  it('takes the blob lock again in each new event (transaction)', async () => {
+    await mail.withOutbox(manager, () => createFor('a@test.com'));
+    await mail.withOutbox(manager, () => createFor('b@test.com'));
+    expect(sqlCalls('pg_advisory_xact_lock_shared(722, 1)')).toHaveLength(2);
+  });
+  it('does not insert notifications when the blob lock fails', async () => {
+    query.mockRejectedValueOnce(new Error('lock timeout'));
+    await expect(
+      mail.withOutbox(manager, () => createFor('a@test.com', 'b@test.com')),
+    ).rejects.toThrow('lock timeout');
+    expect(sqlCalls('INSERT INTO email_notifications')).toHaveLength(0);
+  });
+  it('shares the rendered HTML between recipients but seals each one with its own address', async () => {
+    await mail.withOutbox(manager, () => createFor('a@test.com', 'b@test.com'));
+    const payloads = sqlCalls('INSERT INTO email_notifications').map(
+      ([, args]) =>
+        unseal<{ to: string; html: string }>(args[7], encryptionKey('test')),
+    );
+    expect(payloads.map(({ to }) => to)).toEqual(['a@test.com', 'b@test.com']);
+    expect(payloads[1].html).toBe(payloads[0].html);
+    expect(payloads[0].html).toContain('Hallazgo');
+  });
   it('serializes password requests and cancels superseded pending ones', async () => {
     await mail.sendForgotPassword('person@test.com', 'secret-token', 7);
     expect(query.mock.calls[0]).toEqual([

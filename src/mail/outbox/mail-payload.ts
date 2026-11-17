@@ -97,19 +97,41 @@ async function freezeAttachment(source: string, root: string) {
   return path;
 }
 
+/** HTML de una plantilla con su contexto; si ya está en `rendered`, lo reutiliza. */
+async function renderMail(
+  template: string,
+  context: unknown,
+  rendered?: Map<string, Promise<string>>,
+): Promise<string> {
+  const render = async () => (await compiledTemplate(template))(context);
+  if (!rendered) return render();
+  // La clave incluye el contexto completo: si algo cambia entre destinatarios
+  // (p. ej. el día de "restan N días"), se renderiza de nuevo.
+  const key = `${template}\0${JSON.stringify(context)}`;
+  let html = rendered.get(key);
+  if (html === undefined) {
+    html = render();
+    rendered.set(key, html);
+  }
+  return html;
+}
+
 /**
  * Freeze HTML and copy attachments before committing: future edits/deletes cannot change an event.
  * `frozen` (por evento) reutiliza los adjuntos ya copiados para los demás
  * destinatarios del mismo aviso, en vez de leer, hashear y copiar cada foto
- * otra vez (~9 ms por destinatario en el VPS).
+ * otra vez (~9 ms por destinatario en el VPS). `rendered` (por evento) hace
+ * lo mismo con el HTML: todos los destinatarios de un aviso reciben el mismo
+ * contexto, así que la plantilla se renderiza una vez y no una por cada uno.
  */
 export async function freezeMail(
   options: ISendMailOptions,
   directory: string,
   frozen?: Map<string, Promise<string>>,
+  rendered?: Map<string, Promise<string>>,
 ): Promise<ISendMailOptions> {
   const template = basename(String(options.template)).replace(/\.hbs$/, '');
-  const html = (await compiledTemplate(template))(options.context);
+  const html = await renderMail(template, options.context, rendered);
   const attachments = [];
   const root = resolve(directory);
   await mkdir(root, { recursive: true, mode: 0o700 });
