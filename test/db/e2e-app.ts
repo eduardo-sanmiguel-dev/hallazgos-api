@@ -70,7 +70,7 @@ export const createE2eApp = async (
 
   /** Petición desde el UI (con su Origin); con `token`, además con sesión. */
   const call = (
-    method: 'get' | 'post' | 'patch' | 'delete',
+    method: 'get' | 'post' | 'put' | 'patch' | 'delete',
     path: string,
     token?: string,
   ) => {

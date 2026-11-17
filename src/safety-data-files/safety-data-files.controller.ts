@@ -1,27 +1,27 @@
-import { UseGuards } from '@nestjs/common';
-import { AdminGuard } from '../shared/guards/admin.guard.js';
 import {
   Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
   Delete,
+  Get,
+  NotFoundException,
+  Param,
+  ParseIntPipe,
+  Post,
+  Put,
   Query,
   Res,
-  NotFoundException,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 import type { Response } from 'express';
 import { basename } from 'path';
-import { safeFilePath } from '../shared/utils/safe-file-path.js';
 
-import {
-  CreateSafetyDataFileDto,
-  QuerySafetyDataFileDto,
-  UpdateSafetyDataFileDto,
-} from './dto/index.js';
+import { AdminGuard } from '../shared/guards/admin.guard.js';
+import { safeFilePath } from '../shared/utils/safe-file-path.js';
+import { QuerySafetyDataFileDto } from './dto/index.js';
+import { hdsUploadOptions, PdfFileValidationPipe } from './hds-upload.js';
 import { SafetyDataFilesService } from './safety-data-files.service.js';
 
 @Controller('safety-data-files')
@@ -30,15 +30,28 @@ export class SafetyDataFilesController {
     private readonly safetyDataFilesService: SafetyDataFilesService,
   ) {}
 
-  @Post()
-  @UseGuards(AdminGuard)
-  create(@Body() createSafetyDataFileDto: CreateSafetyDataFileDto) {
-    return this.safetyDataFilesService.create(createSafetyDataFileDto);
-  }
-
   @Get()
   findAll(@Query() querySafetyDataFileDto: QuerySafetyDataFileDto) {
     return this.safetyDataFilesService.findAll(querySafetyDataFileDto);
+  }
+
+  /** Sube una HDS nueva (PDF, campo `file`); el nombre es el del archivo. */
+  @Post()
+  @UseGuards(AdminGuard)
+  @UseInterceptors(FileInterceptor('file', hdsUploadOptions()))
+  upload(@UploadedFile(PdfFileValidationPipe) file: Express.Multer.File) {
+    return this.safetyDataFilesService.upload(file);
+  }
+
+  /** Reemplaza el PDF de una HDS existente. */
+  @Put(':id/file')
+  @UseGuards(AdminGuard)
+  @UseInterceptors(FileInterceptor('file', hdsUploadOptions()))
+  replace(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile(PdfFileValidationPipe) file: Express.Multer.File,
+  ) {
+    return this.safetyDataFilesService.replace(id, file);
   }
 
   @Get('download')
@@ -51,10 +64,10 @@ export class SafetyDataFilesController {
       throw new NotFoundException('Archivo no encontrado.');
     }
 
-    const filePath = safeFilePath(
-      this.safetyDataFilesService.filePath,
-      fileName,
-    );
+    // Solo lo que está en el catálogo (activo), no cualquier archivo suelto.
+    const hds = await this.safetyDataFilesService.findActiveByName(fileName);
+    const filePath =
+      hds && safeFilePath(this.safetyDataFilesService.filePath, fileName);
 
     if (!filePath) {
       throw new NotFoundException('Archivo no encontrado.');
@@ -63,23 +76,9 @@ export class SafetyDataFilesController {
     res.sendFile(filePath);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.safetyDataFilesService.findOne(+id);
-  }
-
-  @Patch(':id')
-  @UseGuards(AdminGuard)
-  update(
-    @Param('id') id: string,
-    @Body() updateSafetyDataFileDto: UpdateSafetyDataFileDto,
-  ) {
-    return this.safetyDataFilesService.update(+id, updateSafetyDataFileDto);
-  }
-
   @Delete(':id')
   @UseGuards(AdminGuard)
-  remove(@Param('id') id: string) {
-    return this.safetyDataFilesService.remove(+id);
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.safetyDataFilesService.remove(id);
   }
 }

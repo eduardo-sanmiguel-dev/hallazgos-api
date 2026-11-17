@@ -54,6 +54,7 @@ validan con Joi al arrancar: si falta una obligatoria, la API no inicia.
 | `MAIL_OUTBOX_DIR`                                             | No       | Carpeta de los adjuntos de los correos en cola.                                                             |
 | `GIST_SECRET_URL`                                             | Sí       | Interruptor remoto: en producción se comprueba al arrancar y cada hora, y la API se detiene si no coincide. |
 | `OBSERVE_ENDPOINT`, `OBSERVE_AUTH_HEADER`, `OBSERVE_STREAM`   | No       | Logs y trazas a OpenObserve; solo con `NODE_ENV=production`.                                                |
+| `HDS_DIR`                                                     | No       | Carpeta de las hojas de datos de seguridad en PDF (`data/hds`, fuera del repo).                             |
 | `UI_VERSION_FILE` / `API_VERSION_FILE`                        | No       | Rutas de las versiones publicadas (ver [Versión de despliegue](#versión-de-despliegue-y-recarga-de-la-ui)). |
 | `E2E_EMAIL`, `E2E_PASSWORD`                                   | No       | Usuario de pruebas e2e de la UI; solo desarrollo.                                                           |
 
@@ -80,6 +81,11 @@ validan con Joi al arrancar: si falta una obligatoria, la API no inicia.
   y los envía `mail-worker` mediante BullMQ. Si falla el correo, el cambio no se
   pierde ni se duplica. Una foto que falte en disco no bloquea el correo.
 - **Imágenes de evidencias:** `/static/images/evidences/*` exige sesión y planta.
+- **Hojas de datos de seguridad (HDS):** los PDF viven en `data/hds/`
+  (`HDS_DIR`), fuera del repositorio; la tabla `safety_data_files` es el
+  catálogo. Los administradores las suben, reemplazan y eliminan desde la UI
+  (PDF real, hasta 30 MB; en el servidor nginx permite 31 MB solo en esa ruta).
+  La descarga exige sesión y que la HDS esté en el catálogo.
 - **Pool de PostgreSQL:** conexiones de larga vida (`config/db-pool.config.ts`),
   identificadas como `comportarte-api` en `pg_stat_activity`.
 

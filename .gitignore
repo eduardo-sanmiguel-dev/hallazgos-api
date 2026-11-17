@@ -1,6 +1,8 @@
 .last_lock_hash
 #folder
 /public/static/images/evidences
+# Datos del servidor (HDS en PDF): fuera del repositorio
+/data
 
 # enviroments
 .env.development

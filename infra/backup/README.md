@@ -8,6 +8,7 @@ sesión y a las 14:00):
 - **Roles y permisos** (`pg_dumpall --globals-only`), para restaurar en un
   servidor nuevo.
 - **Fotos** de `public/static` con rsync (solo lo nuevo; nunca borra).
+- **Hojas de datos de seguridad** (PDF) de `data/hds` con rsync (igual).
 
 La PC jala los datos: el VPS no tiene acceso a la PC, así que quien entre al
 servidor no puede borrar los respaldos.
@@ -23,10 +24,11 @@ servidor no puede borrar los respaldos.
 | `logs\`               | Bitácora por mes                                  |
 | `ULTIMO_RESPALDO.txt` | `OK` o `ERROR` de la última corrida               |
 
-Las **fotos** no van ahí: se respaldan directo en
-`hallazgos-api\public\static\` (la carpeta que usa el API en desarrollo), para
-tener una sola copia en la PC. rsync nunca borra: si en desarrollo se borra
-una foto, el siguiente respaldo la vuelve a bajar del servidor.
+Las **fotos** y las **HDS** no van ahí: se respaldan directo en
+`hallazgos-api\public\static\` y `hallazgos-api\data\hds\` (las carpetas que
+usa el API en desarrollo), para tener una sola copia en la PC. rsync nunca
+borra: si en desarrollo se borra un archivo, el siguiente respaldo lo vuelve a
+bajar del servidor.
 
 Si una corrida falla aparece un aviso de Windows (`msg.exe`).
 

@@ -11,7 +11,8 @@
 #   - ~/.pgpass en el VPS (permisos 600) para que pg_dump no pida contraseña.
 #
 # Variables opcionales: BACKUP_VPS, BACKUP_DEST, BACKUP_DBS,
-# BACKUP_PHOTOS_SRC, BACKUP_PHOTOS_DEST, BACKUP_KEEP_DAILY_DAYS,
+# BACKUP_PHOTOS_SRC, BACKUP_PHOTOS_DEST, BACKUP_HDS_SRC, BACKUP_HDS_DEST,
+# BACKUP_KEEP_DAILY_DAYS,
 # BACKUP_KEEP_MONTHLY.
 
 set -Eeuo pipefail
@@ -24,6 +25,11 @@ PHOTOS_SRC="${BACKUP_PHOTOS_SRC:-hallazgos-api/public/static/}"
 # copia en la PC). rsync nunca borra: si en desarrollo se borra una foto, el
 # siguiente respaldo la vuelve a bajar.
 PHOTOS_DEST="${BACKUP_PHOTOS_DEST:-/mnt/c/Users/eduar/proyects/hallazgos/hallazgos-api/public/static}"
+# Hojas de datos de seguridad (PDF): igual que las fotos, a la carpeta que usa
+# el API en desarrollo. Sin --delete: una HDS borrada en el servidor se
+# conserva aquí.
+HDS_SRC="${BACKUP_HDS_SRC:-hallazgos-api/data/hds/}"
+HDS_DEST="${BACKUP_HDS_DEST:-/mnt/c/Users/eduar/proyects/hallazgos/hallazgos-api/data/hds}"
 KEEP_DAILY_DAYS="${BACKUP_KEEP_DAILY_DAYS:-30}"
 KEEP_MONTHLY="${BACKUP_KEEP_MONTHLY:-12}"
 PG_CONN="-h 127.0.0.1 -p 5324 -U postgres -w"
@@ -159,6 +165,14 @@ backup_photos() {
   log "Fotos: OK ($(du -sh "$dest" | cut -f1) en total)"
 }
 
+# HDS: solo lo nuevo o cambiado; sin la carpeta temporal de subidas.
+backup_hds() {
+  local dest=$1
+  log "HDS: rsync"
+  rsync -rlt --partial --exclude '.uploads/' --info=stats1     -e "ssh ${SSH_OPTS[*]}" "$VPS:$HDS_SRC" "$dest/" | sed 's/^/  /'
+  log "HDS: OK ($(find "$dest" -maxdepth 1 -type f | wc -l) archivos)"
+}
+
 notify_failure() {
   local message="Falló el respaldo de producción de Hallazgos. Revisa $1"
   msg.exe '*' "$message" 2>/dev/null || true
@@ -166,8 +180,8 @@ notify_failure() {
 
 main() {
   local daily="$DEST/db/daily" monthly="$DEST/db/monthly"
-  local photos="$PHOTOS_DEST" logs="$DEST/logs"
-  mkdir -p "$daily" "$monthly" "$photos" "$logs"
+  local photos="$PHOTOS_DEST" hds="$HDS_DEST" logs="$DEST/logs"
+  mkdir -p "$daily" "$monthly" "$photos" "$hds" "$logs"
 
   local logfile="$logs/backup-$(date +%Y-%m).log"
   exec > >(tee -a "$logfile") 2>&1
@@ -191,6 +205,7 @@ main() {
   done
   backup_globals "$stamp" "$daily" "$monthly"
   backup_photos "$photos"
+  backup_hds "$hds"
 
   prune_daily "$daily" "$(date +%F)" "$KEEP_DAILY_DAYS"
   for db in $DBS globals; do

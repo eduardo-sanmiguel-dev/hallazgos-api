@@ -76,7 +76,12 @@ describe('API (e2e)', () => {
         { provide: DashboardService, useValue: dashboardService },
         {
           provide: SafetyDataFilesService,
-          useValue: { filePath: __dirname },
+          useValue: {
+            filePath: __dirname,
+            // En el catálogo solo está jest-e2e.json.
+            findActiveByName: async (name: string) =>
+              name === 'jest-e2e.json' ? { id: 1, name } : null,
+          },
         },
         { provide: DataSource, useValue: dataSource },
         { provide: AuthService, useValue: authService },
