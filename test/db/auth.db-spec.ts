@@ -134,4 +134,51 @@ describe('E2E: auth', () => {
       expect(e2e.mail.sendForgotPassword).toHaveBeenCalledTimes(1);
     });
   });
+
+  // Al final del archivo: revoca las sesiones de "general.co" (nadie más de
+  // este archivo usa su token).
+  describe('POST /auth/logout-all', () => {
+    const email = 'general.co@hallazgos.test';
+    const protectedRoute = (token: string) =>
+      e2e.call('get', '/users/supervisors', token);
+
+    it('sin sesión responde 401', async () => {
+      await e2e.call('post', '/auth/logout-all').expect(401);
+    });
+
+    // Pocos logins: /auth/login permite 10 por minuto por IP y el arranque ya
+    // hace 4. "laptop" es la sesión que abrió el arranque.
+    it('cierra todas las sesiones del usuario (otros dispositivos incluidos) y no las de otros', async () => {
+      const phone = await e2e.login(email);
+      const laptop = e2e.tokens.generalColombia;
+      await protectedRoute(phone).expect(200);
+      await protectedRoute(laptop).expect(200);
+
+      const res = await e2e.call('post', '/auth/logout-all', phone).expect(201);
+      expect(res.body).toEqual({
+        message: 'Sesión cerrada en todos los dispositivos.',
+      });
+      expect(String(res.headers['set-cookie'])).toMatch(/token=;.*Max-Age=0/);
+
+      await protectedRoute(phone).expect(401);
+      await protectedRoute(laptop).expect(401);
+      await e2e.call('post', '/auth/check-token', laptop).expect(401);
+      // Otro usuario no se ve afectado.
+      await protectedRoute(e2e.tokens.general).expect(200);
+    });
+
+    it('después se puede volver a iniciar sesión, y un token revocado tampoco descarga fotos', async () => {
+      const fresh = await e2e.login(email);
+      await protectedRoute(fresh).expect(200);
+      await e2e.call('post', '/auth/check-token', fresh).expect(201);
+
+      await e2e.call('post', '/auth/logout-all', fresh).expect(201);
+
+      // 401 por la sesión (no 404 por el archivo): se valida antes.
+      await request(e2e.server)
+        .get('/static/images/evidences/no-existe.png')
+        .set('Authorization', `Bearer ${fresh}`)
+        .expect(401);
+    });
+  });
 });

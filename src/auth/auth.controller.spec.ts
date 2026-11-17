@@ -24,6 +24,7 @@ describe('AuthController', () => {
       login: jest.fn(),
       loginRestorePassword: jest.fn(),
       logout: jest.fn(),
+      logoutAll: jest.fn(),
       forgotPassword: jest.fn(),
       checkToken: jest.fn(),
       checkTokenRestorePassword: jest.fn(),
@@ -66,9 +67,25 @@ describe('AuthController', () => {
     expect(body).toEqual({ message: 'Sesión cerrada correctamente.' });
   });
 
+  it('logoutAll cierra todas las sesiones y pone la cookie vacía', async () => {
+    auth.logoutAll.mockResolvedValue('token=; Max-Age=0; Path=/');
+    const response = fakeResponse();
+
+    const body = await controller.logoutAll(response);
+
+    expect(auth.logoutAll).toHaveBeenCalledTimes(1);
+    expect(response.setHeader).toHaveBeenCalledWith(
+      'Set-Cookie',
+      'token=; Max-Age=0; Path=/',
+    );
+    expect(body).toEqual({
+      message: 'Sesión cerrada en todos los dispositivos.',
+    });
+  });
+
   it('forgotPassword, checkToken y checkTokenRestorePassword devuelven lo que responde el servicio', async () => {
     auth.forgotPassword.mockResolvedValue({ message: 'enviado' });
-    auth.checkToken.mockReturnValue({ message: 'Token válido.' });
+    auth.checkToken.mockResolvedValue({ message: 'Token válido.' });
     auth.checkTokenRestorePassword.mockResolvedValue({ message: 'ok' });
 
     await expect(
@@ -77,7 +94,9 @@ describe('AuthController', () => {
       message: 'enviado',
     });
     expect(auth.forgotPassword).toHaveBeenCalledWith('persona@hallazgos.test');
-    expect(controller.checkToken()).toEqual({ message: 'Token válido.' });
+    await expect(controller.checkToken()).resolves.toEqual({
+      message: 'Token válido.',
+    });
     await expect(controller.checkTokenRestorePassword('abc')).resolves.toEqual({
       message: 'ok',
     });

@@ -1,5 +1,5 @@
 import { Injectable, type NestMiddleware } from '@nestjs/common';
-import { JwtService } from '../../auth/jwt.service.js';
+import { isCurrentSession, JwtService } from '../../auth/jwt.service.js';
 import { sessionEndedException } from '../errors/error-codes.js';
 
 import type { Request, Response, NextFunction } from 'express';
@@ -32,6 +32,8 @@ export class JwtMiddleware implements NestMiddleware {
       // Solo datos y plantas activas (una consulta): zonas y procesos no se
       // usan desde la sesión.
       const user = await this.usersService.findSessionUser(decoded.userId);
+      // Sesión cerrada en todos los dispositivos o contraseña cambiada.
+      if (!isCurrentSession(decoded, user)) throw new Error('Sesión revocada');
       // Copia plana con los datos del usuario (sin métodos de la entidad).
       req.user = { ...user } as User;
       next();

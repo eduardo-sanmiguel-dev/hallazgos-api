@@ -937,51 +937,82 @@ export class DashboardService {
   }
 
   async findAllStatus() {
-    const manufacturingPlantsWithEvidences =
-      await this.findManufacturingPlantsWithEvidences();
+    const manufacturingPlantsIds = this.findManufacturingPlantsIdsCurrentUser();
 
-    const evidencesTotal = manufacturingPlantsWithEvidences.reduce(
-      (acc, project) => acc + project.evidences.length,
+    if (!manufacturingPlantsIds?.length) {
+      return { statusData: [], statusSeries: [] };
+    }
+
+    // Conteo en la base (antes se cargaban todas las evidencias con sus
+    // relaciones solo para contarlas en memoria).
+    const rows = await this.evidenceRepository
+      .createQueryBuilder('evidence')
+      .innerJoin('evidence.manufacturingPlant', 'plant')
+      .select('plant.id', 'plantId')
+      .addSelect('plant.name', 'plantName')
+      .addSelect('evidence.status', 'status')
+      .addSelect('COUNT(*)', 'total')
+      .where('plant.id IN (:...manufacturingPlantsIds)', {
+        manufacturingPlantsIds,
+      })
+      .andWhere('plant."isActive" = true')
+      .groupBy('plant.id')
+      .addGroupBy('plant.name')
+      .addGroupBy('evidence.status')
+      .orderBy('plant.id', 'ASC')
+      .getRawMany<{
+        plantId: number;
+        plantName: string;
+        status: string;
+        total: string;
+      }>();
+
+    // Estados conocidos en su orden habitual; cualquier otro, al final.
+    const statusOrder = ['Abierto', 'En progreso', 'Cerrado', 'Cancelado'];
+    const statusRank = (status: string) => {
+      const index = statusOrder.indexOf(status);
+      return index === -1 ? statusOrder.length : index;
+    };
+
+    const plantsById = new Map<
+      number,
+      { name: string; total: number; statuses: [string, number][] }
+    >();
+    for (const row of rows) {
+      const plantId = Number(row.plantId);
+      const total = Number(row.total);
+      const plant = plantsById.get(plantId) ?? {
+        name: row.plantName,
+        total: 0,
+        statuses: [],
+      };
+      plant.total += total;
+      plant.statuses.push([row.status, total]);
+      plantsById.set(plantId, plant);
+    }
+
+    const plantsWithEvidences = [...plantsById.values()];
+    const evidencesTotal = plantsWithEvidences.reduce(
+      (acc, plant) => acc + plant.total,
       0,
     );
 
-    const statusData = manufacturingPlantsWithEvidences.map((project) => {
-      const porcentaje = Number(
-        (project.evidences.length / evidencesTotal) * 100,
-      );
-      return {
-        name: `${project.name} (${project.evidences.length})`,
-        y: Number(porcentaje.toFixed(2)),
-        drilldown: project.name,
-      };
-    });
+    const statusData = plantsWithEvidences.map((plant) => ({
+      name: `${plant.name} (${plant.total})`,
+      y: Number(((plant.total / evidencesTotal) * 100).toFixed(2)),
+      drilldown: plant.name,
+    }));
 
-    const statusSeries = [];
-
-    for (let i = 0, t = manufacturingPlantsWithEvidences.length; i < t; i++) {
-      const projectCurrent = manufacturingPlantsWithEvidences[i];
-
-      const clientsGroupStatus = groupBy(projectCurrent.evidences, 'status');
-
-      const data = [];
-
-      for (const key in clientsGroupStatus) {
-        const clients = clientsGroupStatus[key];
-        const porcentaje = Number(
-          (clients.length / projectCurrent.evidences.length) * 100,
-        );
-        data.push([
-          `${key} (${clients.length})`,
-          Number(porcentaje.toFixed(2)),
-        ]);
-      }
-
-      statusSeries.push({
-        name: `${projectCurrent.name}`,
-        id: projectCurrent.name,
-        data,
-      });
-    }
+    const statusSeries = plantsWithEvidences.map((plant) => ({
+      name: plant.name,
+      id: plant.name,
+      data: plant.statuses
+        .sort(([a], [b]) => statusRank(a) - statusRank(b) || a.localeCompare(b))
+        .map(([status, total]) => [
+          `${status} (${total})`,
+          Number(((total / plant.total) * 100).toFixed(2)),
+        ]),
+    }));
 
     return {
       statusData,

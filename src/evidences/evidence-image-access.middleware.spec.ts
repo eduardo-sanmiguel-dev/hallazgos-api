@@ -94,17 +94,29 @@ describe('EvidenceImageAccessMiddleware', () => {
       ics.exists.mock.calls[0][0].where.manufacturingPlant.id.value,
     ).toEqual([1]);
   });
-  it.each(['jwt', 'user'])('rechaza una sesión inválida: %s', async (where) => {
-    if (where === 'jwt')
-      jwt.verify.mockImplementation(() => {
-        throw Error('invalid');
-      });
-    else users.findSessionUser.mockRejectedValue(Error('disabled'));
-    await middleware.use(req, res, next);
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(db.getRepository).not.toHaveBeenCalled();
-    expect(next).not.toHaveBeenCalled();
-  });
+  it.each(['jwt', 'user', 'revocada'])(
+    'rechaza una sesión inválida: %s',
+    async (where) => {
+      if (where === 'jwt')
+        jwt.verify.mockImplementation(() => {
+          throw Error('invalid');
+        });
+      else if (where === 'user')
+        users.findSessionUser.mockRejectedValue(Error('disabled'));
+      else {
+        // Token de una versión de sesión anterior (logout-all o contraseña).
+        jwt.verify.mockReturnValue({ userId: 1, tv: 0 });
+        users.findSessionUser.mockResolvedValue({
+          tokenVersion: 1,
+          manufacturingPlants: [{ id: 1 }],
+        });
+      }
+      await middleware.use(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(db.getRepository).not.toHaveBeenCalled();
+      expect(next).not.toHaveBeenCalled();
+    },
+  );
   it('rechaza una petición sin credenciales', async () => {
     req.cookies = undefined;
     jwt.verify.mockImplementation(() => {

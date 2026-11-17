@@ -27,8 +27,24 @@ export interface JwtPayload {
   // Solo en tokens de recuperación: huella de la contraseña vigente al
   // emitirlo (ver passwordFingerprint).
   pwd?: string;
+  // Solo en tokens de sesión: versión de sesión del usuario al emitirlo (ver
+  // isCurrentSession). Los emitidos antes de existir no la traen: cuentan
+  // como versión 0.
+  tv?: number;
   iat: number;
   exp: number;
+}
+
+/**
+ * El token de sesión sigue vigente para el usuario: su versión es la actual.
+ * Al cerrar sesión en todos los dispositivos o cambiar la contraseña la
+ * versión del usuario sube y los tokens anteriores dejan de servir.
+ */
+export function isCurrentSession(
+  payload: Pick<JwtPayload, 'tv'>,
+  user: { tokenVersion?: number },
+): boolean {
+  return (payload.tv ?? 0) === (user.tokenVersion ?? 0);
 }
 
 @Injectable()
@@ -39,12 +55,15 @@ export class JwtService {
     this.secretKey = this.configService.get<string>('jwt.secretKey');
   }
 
-  /** Token de sesión (cookie/Authorization) de 30 días. */
-  create(userId: number): string {
+  /**
+   * Token de sesión (cookie/Authorization) de 30 días, con la versión de
+   * sesión vigente del usuario (`tokenVersion`).
+   */
+  create(userId: number, tokenVersion = 0): string {
     // `expiresIn` es una duración relativa (segundos). Antes recibía un
     // timestamp absoluto y los tokens quedaban vigentes por décadas.
     return jwt.sign(
-      { userId, purpose: TOKEN_PURPOSE.session },
+      { userId, purpose: TOKEN_PURPOSE.session, tv: tokenVersion },
       this.secretKey,
       { algorithm: JWT_ALGORITHM, expiresIn: expireTime },
     );

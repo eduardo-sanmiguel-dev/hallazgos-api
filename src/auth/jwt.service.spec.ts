@@ -3,7 +3,7 @@ import type { ConfigService } from '@nestjs/config';
 import jwt from 'jsonwebtoken';
 
 import { expireTime } from '../shared/utils/index.js';
-import { JwtService, TOKEN_PURPOSE } from './jwt.service.js';
+import { isCurrentSession, JwtService, TOKEN_PURPOSE } from './jwt.service.js';
 
 describe('JwtService', () => {
   const secret = 'test-secret';
@@ -22,6 +22,11 @@ describe('JwtService', () => {
 
     it('se verifican y devuelven el userId', () => {
       expect(service.verify(service.create(42)).userId).toBe(42);
+    });
+
+    it('llevan la versión de sesión (0 si no se indica)', () => {
+      expect(service.verify(service.create(42, 3)).tv).toBe(3);
+      expect(service.verify(service.create(42)).tv).toBe(0);
     });
 
     // Comportamiento temporal: ver el TODO(2026-11-20) en JwtService.verify.
@@ -76,6 +81,19 @@ describe('JwtService', () => {
       expect(() => service.verify(token)).toThrow();
     },
   );
+
+  describe('isCurrentSession', () => {
+    it('vigente solo si la versión del token es la del usuario', () => {
+      expect(isCurrentSession({ tv: 2 }, { tokenVersion: 2 })).toBe(true);
+      expect(isCurrentSession({ tv: 1 }, { tokenVersion: 2 })).toBe(false);
+      expect(isCurrentSession({ tv: 3 }, { tokenVersion: 2 })).toBe(false);
+    });
+
+    it('los tokens sin versión (anteriores al cambio) cuentan como versión 0', () => {
+      expect(isCurrentSession({}, { tokenVersion: 0 })).toBe(true);
+      expect(isCurrentSession({}, { tokenVersion: 1 })).toBe(false);
+    });
+  });
 
   describe('tokens de recuperación', () => {
     it('vencen en 5 minutos (ni más ni menos)', () => {

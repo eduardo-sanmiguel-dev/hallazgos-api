@@ -12,12 +12,13 @@ import {
   createServiceTestingModule,
   mockProvider,
   type RepositoryMock,
+  runAsUser,
   runInRequest,
 } from '../../test/utils/index.js';
 import { MailService } from '../mail/mail.service.js';
 import { User } from '../users/entities/user.entity.js';
 import { AuthService } from './auth.service.js';
-import { JwtService, TOKEN_PURPOSE } from './jwt.service.js';
+import { isCurrentSession, JwtService, TOKEN_PURPOSE } from './jwt.service.js';
 
 const SECRET = 'secreto-de-pruebas';
 const THIRTY_DAYS_SECONDS = 60 * 60 * 24 * 30;
@@ -66,14 +67,23 @@ describe('AuthService', () => {
         ) ?? null
       );
     });
+    // Solo compara los campos del criterio; `tokenVersion: () => '... + 1'`
+    // (SQL) se aplica como incremento.
     users.update.mockImplementation(async (criteria, data) => {
-      const { id, password, isActive } = criteria as Partial<User>;
-      const user = table.find(
-        (u) =>
-          u.id === id && u.password === password && u.isActive === isActive,
+      const where = criteria as Partial<User>;
+      const user = table.find((u) =>
+        Object.entries(where).every(
+          ([key, value]) => u[key as keyof User] === value,
+        ),
       );
       if (!user) return { affected: 0, raw: [], generatedMaps: [] };
-      Object.assign(user, data);
+      const { tokenVersion, ...rest } = data as Partial<User> & {
+        tokenVersion?: unknown;
+      };
+      Object.assign(user, rest);
+      if (typeof tokenVersion === 'function') {
+        user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+      }
       return { affected: 1, raw: [], generatedMaps: [] };
     });
   };
@@ -109,6 +119,14 @@ describe('AuthService', () => {
       const payload = jwtService.verify(tokenFromCookie(cookie));
       expect(payload.userId).toBe(7);
       expect(payload.purpose).toBe(TOKEN_PURPOSE.session);
+    });
+
+    it('el token lleva la versión de sesión vigente del usuario', async () => {
+      table = [person({ tokenVersion: 3 })];
+
+      const cookie = await login('persona@hallazgos.test', 'Clave-correcta-1');
+
+      expect(jwtService.verify(tokenFromCookie(cookie)).tv).toBe(3);
     });
 
     it('la cookie de sesión dura 30 días, igual que el token', async () => {
@@ -198,6 +216,19 @@ describe('AuthService', () => {
       expect(saved).not.toBe('Nueva-clave-2');
       await expect(argon2.verify(saved, 'Nueva-clave-2')).resolves.toBe(true);
       expect(jwtService.verify(tokenFromCookie(cookie)).userId).toBe(7);
+    });
+
+    it('cierra las demás sesiones: sube la versión y la nueva sesión ya trae la nueva', async () => {
+      const previous = jwtService.verify(jwtService.create(7, 0));
+
+      const cookie = await restore(resetTokenFor(7));
+
+      const user = table.find((u) => u.id === 7);
+      expect(user.tokenVersion).toBe(1);
+      expect(isCurrentSession(previous, user)).toBe(false);
+      const current = jwtService.verify(tokenFromCookie(cookie));
+      expect(current.tv).toBe(1);
+      expect(isCurrentSession(current, user)).toBe(true);
     });
 
     it('solo una solicitud simultánea puede usar el mismo token de recuperación', async () => {
@@ -325,6 +356,23 @@ describe('AuthService', () => {
     });
   });
 
+  describe('logoutAll', () => {
+    it('sube la versión de sesión del usuario actual y devuelve la cookie vacía', async () => {
+      const previous = jwtService.verify(jwtService.create(7, 0));
+
+      const cookie = await runAsUser(table[0], () => service.logoutAll());
+
+      expect(users.update).toHaveBeenCalledWith({ id: 7 }, expect.any(Object));
+      expect(table[0].tokenVersion).toBe(1);
+      expect(isCurrentSession(previous, table[0])).toBe(false);
+      // No toca a otros usuarios.
+      expect(table[1].tokenVersion ?? 0).toBe(0);
+      expect(cookie).toBe(
+        'token=; Max-Age=0; Domain=comportarte.com; Path=/; HttpOnly; Secure; SameSite=None',
+      );
+    });
+  });
+
   describe('forgotPassword', () => {
     it('envía al correo del usuario un token de recuperación válido por 5 minutos', async () => {
       const result = await service.forgotPassword('persona@hallazgos.test');
@@ -400,6 +448,26 @@ describe('AuthService', () => {
         ).rejects.toThrow(new UnauthorizedException('Token no válido'));
       },
     );
+
+    it('rechaza un token revocado (versión de sesión anterior)', async () => {
+      table[0].tokenVersion = 1;
+
+      await expect(
+        withAuthorization(`Bearer ${jwtService.create(7, 0)}`, () =>
+          service.checkToken(),
+        ),
+      ).rejects.toThrow(new UnauthorizedException('Token no válido'));
+    });
+
+    it('rechaza el token de un usuario inactivo', async () => {
+      table[0].isActive = false;
+
+      await expect(
+        withAuthorization(`Bearer ${jwtService.create(7)}`, () =>
+          service.checkToken(),
+        ),
+      ).rejects.toThrow(new UnauthorizedException('Token no válido'));
+    });
 
     it('un token de recuperación no sirve como sesión', async () => {
       const reset = jwtService.createResetToken(7, currentHashOf(7));

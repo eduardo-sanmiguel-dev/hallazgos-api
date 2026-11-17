@@ -879,7 +879,25 @@ describe('UsersService', () => {
       );
     });
 
-    it('sin contraseña no toca la contraseña actual', async () => {
+    it('con contraseña nueva cierra las sesiones abiertas del usuario (sube su versión)', async () => {
+      users.findOne.mockResolvedValue(
+        Object.assign(existing(), { tokenVersion: 4 }),
+      );
+
+      await service.update(30, {
+        rule: ROLE_ADMINISTRADOR,
+        manufacturingPlantNames: ['Tepotzotlán'],
+        password: 'Nueva-clave-5',
+      });
+
+      expect(savedUser().tokenVersion).toBe(5);
+    });
+
+    it('sin contraseña no toca la contraseña actual ni cierra sesiones', async () => {
+      users.findOne.mockResolvedValue(
+        Object.assign(existing(), { tokenVersion: 4 }),
+      );
+
       await service.update(30, {
         rule: ROLE_ADMINISTRADOR,
         manufacturingPlantNames: ['Tepotzotlán'],
@@ -887,6 +905,7 @@ describe('UsersService', () => {
       });
 
       expect(savedUser()).not.toHaveProperty('password');
+      expect(savedUser().tokenVersion).toBe(4);
     });
 
     it('editar desde el formulario sin contraseña conserva la actual', async () => {

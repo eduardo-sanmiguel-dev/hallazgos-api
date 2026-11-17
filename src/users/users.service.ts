@@ -593,6 +593,8 @@ export class UsersService {
     user.email = email;
     if (password) {
       user.password = await argon2.hash(password);
+      // Contraseña nueva: se cierran las sesiones abiertas de ese usuario.
+      user.tokenVersion = (user.tokenVersion ?? 0) + 1;
     }
     user.role = rule;
     user.zones = zones;

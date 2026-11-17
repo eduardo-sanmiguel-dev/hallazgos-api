@@ -42,6 +42,11 @@ export class User {
   @Column({ default: true })
   isActive: boolean;
 
+  // Versión de sesión: los tokens llevan la suya (`tv`) y al subirla dejan de
+  // servir todos los emitidos antes (ver isCurrentSession en jwt.service).
+  @Column({ default: 0 })
+  tokenVersion: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

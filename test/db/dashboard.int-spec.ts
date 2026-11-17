@@ -204,6 +204,38 @@ describe('Integración: dashboard', () => {
       expect(body.categories).toEqual(['Tepotzotlán']);
       expect(body.series.map(({ data }) => data[0])).toEqual([2, 1]);
     });
+
+    it('status cuenta por planta y estado en la base (GROUP BY)', async () => {
+      const { body } = await get('status');
+
+      expect(body).toEqual({
+        statusData: [
+          { name: 'Tepotzotlán (5)', y: 100, drilldown: 'Tepotzotlán' },
+        ],
+        statusSeries: [
+          {
+            name: 'Tepotzotlán',
+            id: 'Tepotzotlán',
+            data: [
+              ['Abierto (2)', 40],
+              ['En progreso (1)', 20],
+              ['Cerrado (1)', 20],
+              ['Cancelado (1)', 20],
+            ],
+          },
+        ],
+      });
+    });
+
+    it('status: el administrador ve la proporción entre sus dos plantas', async () => {
+      const { body } = await get('status', e2e.tokens.admin);
+
+      expect(body.statusData.map(({ name, y }) => ({ name, y }))).toEqual([
+        { name: 'Tepotzotlán (5)', y: 83.33 },
+        { name: 'Manizales (1)', y: 16.67 },
+      ]);
+      expect(body.statusSeries[1].data).toEqual([['Abierto (1)', 100]]);
+    });
   });
 
   describe('el SQL de cada endpoint corre sobre el esquema real', () => {

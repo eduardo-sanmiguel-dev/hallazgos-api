@@ -61,6 +61,18 @@ export class AuthController {
     return response.json({ message: 'Sesión cerrada correctamente.' });
   }
 
+  // Requiere sesión (pasa por JwtMiddleware): cierra todas las del usuario.
+  @Post('/logout-all')
+  async logoutAll(@Res() response: Response) {
+    const cookie = await this.authService.logoutAll();
+
+    response.setHeader('Set-Cookie', cookie);
+
+    return response.json({
+      message: 'Sesión cerrada en todos los dispositivos.',
+    });
+  }
+
   @Post('/check-token')
   checkToken() {
     return this.authService.checkToken();

@@ -128,4 +128,43 @@ describe('JwtMiddleware', () => {
     ).rejects.toThrow(sessionEndedException());
     expect(next).not.toHaveBeenCalled();
   });
+
+  it('rechaza un token revocado (sesión cerrada en todos los dispositivos o contraseña cambiada)', async () => {
+    usersService.findSessionUser.mockResolvedValue(
+      buildUser({ id: 7, tokenVersion: 2 }),
+    );
+    const next = jest.fn();
+
+    await expect(
+      middleware.use(
+        request({ cookie: jwtService.create(7, 1) }),
+        response,
+        next,
+      ),
+    ).rejects.toThrow(sessionEndedException());
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('acepta el token con la versión vigente y los anteriores al cambio si la versión es 0', async () => {
+    const next = jest.fn();
+    usersService.findSessionUser.mockResolvedValue(
+      buildUser({ id: 7, tokenVersion: 2 }),
+    );
+    await middleware.use(
+      request({ cookie: jwtService.create(7, 2) }),
+      response,
+      next,
+    );
+
+    usersService.findSessionUser.mockResolvedValue(
+      buildUser({ id: 7, tokenVersion: 0 }),
+    );
+    const legacy = jwt.sign({ userId: 7, purpose: 'session' }, SECRET, {
+      algorithm: 'HS256',
+      expiresIn: 60,
+    });
+    await middleware.use(request({ cookie: legacy }), response, next);
+
+    expect(next).toHaveBeenCalledTimes(2);
+  });
 });

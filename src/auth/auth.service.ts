@@ -11,7 +11,11 @@ import { ENV_DEVELOPMENT, ENV_PRODUCTION } from '../shared/constants/index.js';
 import { User } from '../users/entities/user.entity.js';
 import { LoginAuthDto } from './dto/login-auth.dto.js';
 import { RestorePasswordDto } from './dto/restore-password.dto.js';
-import { JwtService } from './jwt.service.js';
+import {
+  isCurrentSession,
+  JwtService,
+  type JwtPayload,
+} from './jwt.service.js';
 import { MailService } from '../mail/mail.service.js';
 import { apiError, ERROR_CODES } from '../shared/errors/error-codes.js';
 
@@ -58,10 +62,10 @@ export class AuthService {
     } as const;
   }
 
-  private sessionCookie(userId: number): string {
+  private sessionCookie(userId: number, tokenVersion: number): string {
     return stringifySetCookie({
       name: this.nameCookie,
-      value: this.jwtService.create(userId),
+      value: this.jwtService.create(userId, tokenVersion),
       ...this.optsSerialize,
       maxAge: SESSION_COOKIE_MAX_AGE,
     });
@@ -71,7 +75,7 @@ export class AuthService {
     return this.userRepository.findOne({
       where: { ...where, isActive: true },
       relations: ['manufacturingPlants'],
-      select: { id: true, email: true, password: true },
+      select: { id: true, email: true, password: true, tokenVersion: true },
     });
   }
 
@@ -99,7 +103,7 @@ export class AuthService {
     if (!user.manufacturingPlants.length)
       throw new UnauthorizedException('Usuario no tiene plantas asignadas');
 
-    return this.sessionCookie(user.id);
+    return this.sessionCookie(user.id, user.tokenVersion ?? 0);
   }
 
   /**
@@ -126,15 +130,18 @@ export class AuthService {
 
     const previousHash = user.password;
     const nextHash = await argon2.hash(password);
+    const nextTokenVersion = (user.tokenVersion ?? 0) + 1;
+    // Subir la versión cierra las demás sesiones: quien tuviera la contraseña
+    // anterior (o un token robado) queda fuera.
     const { affected } = await this.userRepository.update(
       { id: user.id, password: previousHash, isActive: true },
-      { password: nextHash },
+      { password: nextHash, tokenVersion: () => '"tokenVersion" + 1' },
     );
     if (affected !== 1) throw new UnauthorizedException(INVALID_RESET_TOKEN);
 
     this.logger.log(`Contraseña restablecida para el usuario ${user.id}`);
 
-    return this.sessionCookie(user.id);
+    return this.sessionCookie(user.id, nextTokenVersion);
   }
 
   async logout(): Promise<string> {
@@ -145,6 +152,23 @@ export class AuthService {
       ...this.optsSerialize,
       maxAge: 0,
     });
+  }
+
+  /**
+   * Cierra la sesión del usuario actual en todos los dispositivos: sube su
+   * versión de sesión, así que todos sus tokens (incluido el de esta
+   * petición) dejan de servir. Devuelve la cookie vacía, como logout.
+   */
+  async logoutAll(): Promise<string> {
+    const userId = this.requestContext.userId;
+    await this.userRepository.update(
+      { id: userId },
+      { tokenVersion: () => '"tokenVersion" + 1' },
+    );
+    this.logger.log(
+      `Sesiones cerradas en todos los dispositivos del usuario ${userId}`,
+    );
+    return this.logout();
   }
 
   async forgotPassword(email: string): Promise<{
@@ -177,20 +201,27 @@ export class AuthService {
     return { message: FORGOT_PASSWORD_MESSAGE };
   }
 
-  checkToken(): {
+  async checkToken(): Promise<{
     message: string;
-  } {
+  }> {
     const authorization = this.requestContext.request.headers['authorization'];
     const token = `${authorization ?? ''}`.split(' ')[1];
 
     if (!token) throw new UnauthorizedException('Token no válido');
 
+    let payload: JwtPayload;
     try {
-      this.jwtService.verify(token);
-      return { message: 'Token válido.' };
+      payload = this.jwtService.verify(token);
     } catch {
       throw new UnauthorizedException('Token no válido');
     }
+
+    // Igual que JwtMiddleware: usuario activo y sesión no revocada.
+    const user = await this.findActiveUser({ id: payload.userId });
+    if (!user || !isCurrentSession(payload, user)) {
+      throw new UnauthorizedException('Token no válido');
+    }
+    return { message: 'Token válido.' };
   }
 
   async checkTokenRestorePassword(token: string): Promise<{

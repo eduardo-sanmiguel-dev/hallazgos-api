@@ -827,12 +827,46 @@ describe('DashboardService: reglas y resultados de reportes', () => {
       ]);
     });
     it('calcula proporciones por estado y conserva el detalle de cada planta', async () => {
-      const result = await as(() => service.findAllStatus());
-      expect(result.statusData.map((p) => p.y)).toEqual([66.67, 33.33]);
-      expect(result.statusSeries[0].data).toEqual([
-        ['Abierto (1)', 50],
-        ['Cerrado (1)', 50],
+      qb().getRawMany.mockResolvedValue([
+        { plantId: 1, plantName: 'México', status: 'Cerrado', total: '1' },
+        { plantId: 1, plantName: 'México', status: 'Abierto', total: '1' },
+        { plantId: 2, plantName: 'Colombia', status: 'Abierto', total: '1' },
       ]);
+      const result = await as(() => service.findAllStatus());
+      expect(result.statusData).toEqual([
+        { name: 'México (2)', y: 66.67, drilldown: 'México' },
+        { name: 'Colombia (1)', y: 33.33, drilldown: 'Colombia' },
+      ]);
+      // Estados en su orden habitual aunque la base los devuelva en otro.
+      expect(result.statusSeries).toEqual([
+        {
+          name: 'México',
+          id: 'México',
+          data: [
+            ['Abierto (1)', 50],
+            ['Cerrado (1)', 50],
+          ],
+        },
+        { name: 'Colombia', id: 'Colombia', data: [['Abierto (1)', 100]] },
+      ]);
+    });
+    it('cuenta por estado en la base, solo en plantas asignadas y activas', async () => {
+      await as(() => service.findAllStatus());
+      expect(plants.find).not.toHaveBeenCalled();
+      expect(qb().where).toHaveBeenCalledWith(
+        'plant.id IN (:...manufacturingPlantsIds)',
+        { manufacturingPlantsIds: [1, 2] },
+      );
+      expect(qb().andWhere).toHaveBeenCalledWith('plant."isActive" = true');
+      expect(qb().addGroupBy).toHaveBeenCalledWith('evidence.status');
+    });
+    it('sin plantas asignadas no consulta la base', async () => {
+      const result = await as(
+        () => service.findAllStatus(),
+        buildUser({ id: 11, manufacturingPlants: [] as never }),
+      );
+      expect(result).toEqual({ statusData: [], statusSeries: [] });
+      expect(qb().getRawMany).not.toHaveBeenCalled();
     });
     it('agrupa zonas repetidas dentro de cada planta', async () => {
       const result = await as(() => service.findAllZones());

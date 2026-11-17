@@ -1,7 +1,7 @@
 import { Injectable, Logger, type NestMiddleware } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
 import { DataSource, In } from 'typeorm';
-import { JwtService } from '../auth/jwt.service.js';
+import { isCurrentSession, JwtService } from '../auth/jwt.service.js';
 import { UsersService } from '../users/users.service.js';
 import { Ics } from '../ics/entities/ics.entity.js';
 import { Evidence } from './entities/evidence.entity.js';
@@ -47,6 +47,8 @@ export class EvidenceImageAccessMiddleware implements NestMiddleware {
       // Solo plantas activas (una consulta), igual que JwtMiddleware: cada
       // foto de la lista pasa por aquí.
       user = await this.users.findSessionUser(payload.userId);
+      // Sesión revocada (todos los dispositivos o contraseña cambiada).
+      if (!isCurrentSession(payload, user)) throw new Error('Sesión revocada');
     } catch {
       res
         .status(401)

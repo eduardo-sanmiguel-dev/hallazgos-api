@@ -177,6 +177,13 @@ describe('Flujos críticos con PostgreSQL', () => {
       .send({ email: user.email, token, password: 'Reutilizada-1' })
       .expect(401);
     await e2e.call('get', '/users/supervisors', token).expect(401);
+
+    // Restablecer la contraseña cierra las demás sesiones: la que abrió el
+    // arranque ya no sirve y la nueva sí. Las pruebas siguientes usan la nueva.
+    await e2e.call('get', '/users/supervisors', e2e.tokens.general).expect(401);
+    const newSession = results[winner].body.token as string;
+    await e2e.call('get', '/users/supervisors', newSession).expect(200);
+    e2e.tokens.general = newSession;
   });
 
   const deliver = (
