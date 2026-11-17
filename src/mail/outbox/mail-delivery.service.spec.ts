@@ -7,6 +7,7 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { DataSource } from 'typeorm';
 import {
   MailDeliveryService,
+  MailLeaseLostError,
   type Notification,
 } from './mail-delivery.service.js';
 import { encryptionKey, seal } from './mail-payload.js';
@@ -108,6 +109,99 @@ describe('MailDeliveryService', () => {
   it('does not send corrupt payloads', async () => {
     await processRow(notification({ payload: 'invalid' }));
     expect(sendMail).not.toHaveBeenCalled();
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('provider_message_id'),
+      expect.arrayContaining(['dead', 'payload_invalid']),
+    );
+  });
+
+  describe('reset preparation failures', () => {
+    // Estado con el que termina la fila (UPDATE de finish()).
+    const finishes = () =>
+      query.mock.calls
+        .filter(([sql]) => String(sql).includes('provider_message_id=$5'))
+        .map(([, args]) => [args[2], args[3]]);
+    const resetRow = (overrides: Partial<Notification> = {}) =>
+      notification({
+        type: 'reset',
+        payload: seal(
+          {
+            to: 'recipient@test.com',
+            html: 'reset?token=__COMPORTARTE_RESET_TOKEN__',
+            headers: {
+              'X-Comportarte-Reset-Token': new JwtService(
+                config,
+              ).createResetToken(7, 'hash'),
+            },
+          },
+          encryptionKey('test-key'),
+        ),
+        ...overrides,
+      });
+    const validUser = () =>
+      findOne.mockResolvedValue({
+        email: 'recipient@test.com',
+        password: 'hash',
+      });
+
+    it('retries (not dead) when the user lookup hits a transient DB error', async () => {
+      findOne.mockRejectedValue(new Error('connection terminated'));
+      await processRow(resetRow());
+      expect(sendMail).not.toHaveBeenCalled();
+      expect(finishes()).toEqual([['retry_wait', 'reset_preparation_failed']]);
+    });
+
+    it('retries when persisting the minted token fails', async () => {
+      validUser();
+      const defaultQuery = query.getMockImplementation();
+      query.mockImplementation(async (sql: string, args?: unknown[]) => {
+        if (sql.includes('SET payload=$3,expires_at'))
+          throw new Error('canceling statement due to statement timeout');
+        return defaultQuery(sql, args);
+      });
+      await processRow(resetRow());
+      expect(sendMail).not.toHaveBeenCalled();
+      expect(finishes()).toEqual([['retry_wait', 'reset_preparation_failed']]);
+    });
+
+    it('becomes dead once the attempt budget is exhausted', async () => {
+      findOne.mockRejectedValue(new Error('connection terminated'));
+      await processRow(resetRow({ attempt_count: 8 }));
+      expect(finishes()).toEqual([['dead', 'reset_preparation_failed']]);
+    });
+
+    it('becomes dead once the notification has expired', async () => {
+      findOne.mockRejectedValue(new Error('connection terminated'));
+      await processRow(resetRow({ expires_at: new Date(Date.now() - 1000) }));
+      expect(finishes()).toEqual([['dead', 'reset_preparation_failed']]);
+    });
+
+    it('propagates a lease lost while saving the token without dead-lettering', async () => {
+      validUser();
+      const defaultQuery = query.getMockImplementation();
+      query.mockImplementation(async (sql: string, args?: unknown[]) =>
+        sql.includes('SET payload=$3,expires_at')
+          ? []
+          : defaultQuery(sql, args),
+      );
+      await expect(processRow(resetRow())).rejects.toBeInstanceOf(
+        MailLeaseLostError,
+      );
+      expect(sendMail).not.toHaveBeenCalled();
+      expect(finishes()).toEqual([]);
+    });
+
+    it('propagates a failed cancel instead of finishing again as dead', async () => {
+      findOne.mockResolvedValue({
+        email: 'changed@test.com',
+        password: 'hash',
+      });
+      query.mockResolvedValue([]); // el finish('cancelled') ya no es dueño del lease
+      await expect(processRow(resetRow())).rejects.toBeInstanceOf(
+        MailLeaseLostError,
+      );
+      expect(finishes()).toEqual([['cancelled', 'reset_user_changed']]);
+    });
   });
   it('keeps a result uncertain without an acceptance confirmation', async () => {
     sendMail.mockResolvedValue({});
@@ -260,6 +354,87 @@ describe('MailDeliveryService', () => {
       config.set('MAIL_OUTBOX_DIR', undefined);
       await rm(directory, { recursive: true, force: true });
     }
+  });
+  describe('attachment cleanup with undecryptable payloads', () => {
+    let directory: string, unreferenced: string, referenced: string;
+    beforeEach(async () => {
+      directory = await mkdtemp(join(tmpdir(), 'mail-gc-invalid-'));
+      config.set('MAIL_OUTBOX_DIR', directory);
+      unreferenced = join(directory, 'a'.repeat(64));
+      referenced = join(directory, 'b'.repeat(64));
+      for (const path of [unreferenced, referenced]) {
+        await writeFile(path, 'image');
+        await utimes(path, new Date(0), new Date(0));
+      }
+    });
+    afterEach(async () => {
+      config.set('MAIL_OUTBOX_DIR', undefined);
+      await rm(directory, { recursive: true, force: true });
+    });
+    const payloads = (rows: { payload: string; invalid: boolean }[]) =>
+      query.mockImplementation(async (sql: string) => {
+        if (sql.includes('pg_try_advisory')) return [{ acquired: true }];
+        if (sql.includes('SELECT payload')) return rows;
+        return [];
+      });
+    const valid = () => ({
+      payload: seal(
+        { attachments: [{ path: referenced }] },
+        encryptionKey('test-key'),
+      ),
+      invalid: false,
+    });
+
+    // Antes, una sola fila corrupta (que queda dead con su payload para
+    // siempre) abortaba cada limpieza diaria y los blobs crecían sin límite.
+    it('skips rows already dead-lettered as payload_invalid and keeps cleaning', async () => {
+      payloads([valid(), { payload: 'corrupt', invalid: true }]);
+      await service.reconcile();
+      expect(await readdir(directory)).toEqual(['b'.repeat(64)]);
+      expect(Logger.prototype.error).not.toHaveBeenCalledWith(
+        expect.objectContaining({ event: 'mail_attachment_cleanup_failed' }),
+      );
+    });
+
+    it('still aborts without deleting anything if another payload cannot be decrypted (wrong key)', async () => {
+      payloads([valid(), { payload: 'corrupt', invalid: false }]);
+      await service.reconcile();
+      expect((await readdir(directory)).sort()).toEqual([
+        'a'.repeat(64),
+        'b'.repeat(64),
+      ]);
+      expect(Logger.prototype.error).toHaveBeenCalledWith(
+        expect.objectContaining({ event: 'mail_attachment_cleanup_failed' }),
+      );
+    });
+  });
+  it('a recipient-level 5.7.x rejection does not pause the sender account', async () => {
+    sendMail.mockRejectedValue({
+      responseCode: 550,
+      command: 'RCPT TO',
+      response: '550 5.7.1 Message rejected by recipient policy',
+    });
+    await processRow();
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('provider_message_id'),
+      expect.arrayContaining(['dead', 'smtp_permanent']),
+    );
+    expect(query).not.toHaveBeenCalledWith(
+      expect.stringContaining('paused=true'),
+      expect.anything(),
+    );
+  });
+  it('a sender-level 5.7.x rejection still pauses the account', async () => {
+    sendMail.mockRejectedValue({
+      responseCode: 530,
+      command: 'MAIL FROM',
+      response: '530 5.7.57 Client not authenticated to send mail',
+    });
+    await processRow();
+    expect(query).toHaveBeenCalledWith(expect.stringContaining('paused=true'), [
+      'sender@test.com',
+      'authentication',
+    ]);
   });
   it('does not block dispatch if safe attachment cleanup fails', async () => {
     query.mockImplementation(async (sql: string) => {

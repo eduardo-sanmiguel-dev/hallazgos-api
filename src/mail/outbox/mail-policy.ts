@@ -18,10 +18,18 @@ export function classifyMailError(error: unknown): {
     /StorageOverQuota|QuotaExceeded|Mailbox full/i.test(text)
   )
     return { status: 'blocked', category: 'sender_quota' };
+  // Un 5.7.x en la fase RCPT, o un código de política del servidor receptor
+  // (restricciones de grupo, SPF/DMARC, acceso denegado), rechaza a ese
+  // destinatario y no dice nada de la cuenta remitente: no debe pausarla y
+  // bloquear los correos de todos los demás.
+  const recipientRejection =
+    /^RCPT/i.test(e.command ?? '') ||
+    /\b5\.7\.(?:13[3-6]|23|25|26|509)\b/.test(text);
   if (
     e.responseCode === 535 ||
     e.code === 'EAUTH' ||
-    /SendAsDenied|5\.7\./i.test(text)
+    /SendAsDenied/i.test(text) ||
+    (/\b5\.7\.\d/.test(text) && !recipientRejection)
   )
     return { status: 'blocked', category: 'authentication' };
   if (

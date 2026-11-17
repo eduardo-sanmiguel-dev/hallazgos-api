@@ -18,6 +18,60 @@ describe('Persistent mail policy', () => {
       'blocked',
       'authentication',
     ],
+    [
+      {
+        responseCode: 530,
+        command: 'MAIL FROM',
+        response: '530 5.7.57 Client not authenticated to send mail',
+      },
+      'blocked',
+      'authentication',
+    ],
+    [
+      {
+        responseCode: 535,
+        command: 'AUTH LOGIN',
+        response: '535 5.7.139 Authentication unsuccessful',
+      },
+      'blocked',
+      'authentication',
+    ],
+    // Rechazos de un destinatario: no pausan la cuenta remitente.
+    [
+      {
+        responseCode: 550,
+        command: 'RCPT TO',
+        response: '550 5.7.1 Message rejected by recipient policy',
+      },
+      'dead',
+      'smtp_permanent',
+    ],
+    [
+      {
+        responseCode: 550,
+        response:
+          '550 5.7.509 Access denied, sending domain does not pass DMARC',
+      },
+      'dead',
+      'smtp_permanent',
+    ],
+    [
+      {
+        responseCode: 550,
+        response: '550 5.7.133 RESOLVER.RST.SenderNotAuthenticatedForGroup',
+      },
+      'dead',
+      'smtp_permanent',
+    ],
+    [
+      {
+        responseCode: 450,
+        command: 'RCPT TO',
+        response: '450 4.7.1 Recipient temporarily rejected',
+      },
+      'retry_wait',
+      'smtp_temporary',
+    ],
     [{ responseCode: 451 }, 'retry_wait', 'smtp_temporary'],
     [
       { responseCode: 554, response: '5.2.2 Mailbox full STOREDRV.Deliver' },

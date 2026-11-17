@@ -15,6 +15,12 @@ import {
   RESET_TOKEN_PLACEHOLDER,
 } from './mail-payload.js';
 
+/** La fila ya no es de este worker (otro lease o reconcile): no se toca más. */
+export class MailLeaseLostError extends Error {}
+
+/** Resultado de preparar un reset que no se envía (`undefined`: se envía). */
+type ResetOutcome = { status: string; category: string } | undefined;
+
 export interface Notification {
   id: string;
   event_id: string;
@@ -104,16 +110,33 @@ export class MailDeliveryService {
       const referenced = new Set<string>();
       const key = encryptionKey(this.config.get<string>('MAIL_OUTBOX_KEY'));
       // Decrypt every retained payload before deleting anything. A wrong key aborts cleanup safely.
+      // Excepción: una fila que el worker ya marcó dead/payload_invalid no se
+      // puede descifrar ni enviar, y conserva su payload para siempre; si
+      // abortara aquí, una sola fila corrupta detendría la limpieza para
+      // siempre y los blobs crecerían sin límite.
+      let skipped = 0;
       for (const row of await manager.query(
-        'SELECT payload FROM email_notifications WHERE payload IS NOT NULL',
+        `SELECT payload,(status='dead' AND last_error_category='payload_invalid') AS invalid
+        FROM email_notifications WHERE payload IS NOT NULL`,
       )) {
-        const options = unseal<ISendMailOptions>(row.payload, key);
+        let options: ISendMailOptions;
+        try {
+          options = unseal<ISendMailOptions>(row.payload, key);
+        } catch (error) {
+          if (!row.invalid) throw error;
+          skipped++;
+          continue;
+        }
         for (const attachment of (options.attachments ?? []) as {
           path?: string;
         }[]) {
           if (attachment.path) referenced.add(resolve(attachment.path));
         }
       }
+      if (skipped)
+        this.event('mail_attachment_cleanup_skipped_invalid', {
+          count: skipped,
+        });
       let names: string[];
       try {
         names = await readdir(root);
@@ -224,7 +247,9 @@ export class MailDeliveryService {
         ],
       );
       if (!changed.length)
-        throw new Error('Mail lease no longer belongs to this worker');
+        throw new MailLeaseLostError(
+          'Mail lease no longer belongs to this worker',
+        );
       await manager.query(
         `UPDATE email_attempts SET result=$3,category=$4,smtp_code=$5
         WHERE notification_id=$1 AND attempt=$2`,
@@ -269,6 +294,72 @@ export class MailDeliveryService {
     );
   }
 
+  /** Un fallo reintentable pasa a `dead` si ya agotó intentos o expiró. */
+  private retryOrDead(row: Notification): 'retry_wait' | 'dead' {
+    return row.attempt_count >= row.max_attempts ||
+      new Date(row.expires_at).getTime() <= Date.now()
+      ? 'dead'
+      : 'retry_wait';
+  }
+
+  /**
+   * Valida el reset (usuario y token) y emite el token definitivo. Devuelve
+   * el estado final si no debe enviarse; `undefined` si se envía. Los errores
+   * que lanza (base de datos, emisión del token) son de infraestructura.
+   */
+  private async prepareReset(
+    row: Notification,
+    options: ISendMailOptions,
+  ): Promise<ResetOutcome> {
+    const user =
+      row.user_id &&
+      (await this.db.getRepository(User).findOne({
+        where: { id: row.user_id, isActive: true },
+        select: { id: true, password: true, email: true },
+      }));
+    const headers = options.headers as Record<string, string>;
+    const token = headers?.['X-Comportarte-Reset-Token'];
+    if (
+      !user ||
+      (user.email.trim().toLowerCase() !== String(options.to).toLowerCase() &&
+        this.config.get('NODE_ENV') !== 'development')
+    )
+      return { status: 'cancelled', category: 'reset_user_changed' };
+    try {
+      new JwtService(this.config).verifyResetToken(token, user.password);
+    } catch {
+      return { status: 'expired', category: 'reset_token_expired' };
+    }
+    if (String(options.html).includes(RESET_TOKEN_PLACEHOLDER)) {
+      // Mint once when the request reaches SMTP, then persist that exact token for retries.
+      const issued = new JwtService(this.config).createResetToken(
+        row.user_id,
+        user.password,
+      );
+      options.html = String(options.html)
+        .split(RESET_TOKEN_PLACEHOLDER)
+        .join(issued);
+      headers['X-Comportarte-Reset-Token'] = issued;
+      const saved = await this.db.query(
+        `WITH changed AS (UPDATE email_notifications
+        SET payload=$3,expires_at=now()+interval '4 minutes',updated_at=now()
+        WHERE id=$1 AND lease_token=$2 AND status='sending' RETURNING id) SELECT * FROM changed`,
+        [
+          row.id,
+          row.lease_token,
+          seal(
+            options,
+            encryptionKey(this.config.get<string>('MAIL_OUTBOX_KEY')),
+          ),
+        ],
+      );
+      if (!saved.length)
+        throw new MailLeaseLostError('Reset mail lease lost before submission');
+      row.expires_at = new Date(Date.now() + 240_000);
+    }
+    delete options.headers;
+  }
+
   async process(id: string): Promise<void> {
     const row = await this.claim(id);
     if (!row) return;
@@ -278,62 +369,37 @@ export class MailDeliveryService {
         row.payload,
         encryptionKey(this.config.get<string>('MAIL_OUTBOX_KEY')),
       );
-      if (row.type === 'reset') {
-        const user =
-          row.user_id &&
-          (await this.db.getRepository(User).findOne({
-            where: { id: row.user_id, isActive: true },
-            select: { id: true, password: true, email: true },
-          }));
-        const headers = options.headers as Record<string, string>;
-        const token = headers?.['X-Comportarte-Reset-Token'];
-        if (
-          !user ||
-          (user.email.trim().toLowerCase() !==
-            String(options.to).toLowerCase() &&
-            this.config.get('NODE_ENV') !== 'development')
-        ) {
-          await this.finish(row, 'cancelled', 'reset_user_changed');
-          return;
-        }
-        try {
-          new JwtService(this.config).verifyResetToken(token, user.password);
-        } catch {
-          await this.finish(row, 'expired', 'reset_token_expired');
-          return;
-        }
-        if (String(options.html).includes(RESET_TOKEN_PLACEHOLDER)) {
-          // Mint once when the request reaches SMTP, then persist that exact token for retries.
-          const issued = new JwtService(this.config).createResetToken(
-            row.user_id,
-            user.password,
-          );
-          options.html = String(options.html)
-            .split(RESET_TOKEN_PLACEHOLDER)
-            .join(issued);
-          headers['X-Comportarte-Reset-Token'] = issued;
-          const saved = await this.db.query(
-            `WITH changed AS (UPDATE email_notifications
-            SET payload=$3,expires_at=now()+interval '4 minutes',updated_at=now()
-            WHERE id=$1 AND lease_token=$2 AND status='sending' RETURNING id) SELECT * FROM changed`,
-            [
-              row.id,
-              row.lease_token,
-              seal(
-                options,
-                encryptionKey(this.config.get<string>('MAIL_OUTBOX_KEY')),
-              ),
-            ],
-          );
-          if (!saved.length)
-            throw new Error('Reset mail lease lost before submission');
-          row.expires_at = new Date(Date.now() + 240_000);
-        }
-        delete options.headers;
-      }
     } catch {
+      // Solo un payload que no se puede descifrar es inválido: nunca podrá enviarse.
       await this.finish(row, 'dead', 'payload_invalid');
       return;
+    }
+    if (row.type === 'reset') {
+      let outcome: ResetOutcome;
+      try {
+        outcome = await this.prepareReset(row, options);
+      } catch (error) {
+        if (error instanceof MailLeaseLostError) throw error;
+        // Antes, un corte breve de la base (buscar al usuario, guardar el
+        // token) dejaba el reset en dead/payload_invalid para siempre. SMTP
+        // aún no se tocó: reintentar es seguro.
+        this.event('mail_reset_preparation_failed', {
+          notification_id: row.id,
+          error: (error as Error)?.message ?? String(error),
+        });
+        await this.finish(
+          row,
+          this.retryOrDead(row),
+          'reset_preparation_failed',
+        );
+        return;
+      }
+      // Fuera del try: si este finish falla (lease perdido), el error se
+      // propaga en vez de convertirse en un segundo finish('dead').
+      if (outcome) {
+        await this.finish(row, outcome.status, outcome.category);
+        return;
+      }
     }
     // Refresh both DB leases while SMTP is active. A lost lease is never automatically resent.
     const timer = setInterval(() => {
@@ -362,13 +428,10 @@ export class MailDeliveryService {
         info = await this.mailer.sendMail(options);
       } catch (error) {
         const policy = classifyMailError(error);
-        let status: string = policy.status;
-        if (
-          status === 'retry_wait' &&
-          (row.attempt_count >= row.max_attempts ||
-            new Date(row.expires_at).getTime() <= Date.now())
-        )
-          status = 'dead';
+        const status =
+          policy.status === 'retry_wait'
+            ? this.retryOrDead(row)
+            : policy.status;
         await this.finish(
           row,
           status,
