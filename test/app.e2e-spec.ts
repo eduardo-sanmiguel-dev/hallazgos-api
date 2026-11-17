@@ -195,6 +195,8 @@ describe('API (e2e)', () => {
           '',
           '1',
           '10',
+          undefined,
+          { orderBy: undefined, order: undefined },
         );
       });
 
