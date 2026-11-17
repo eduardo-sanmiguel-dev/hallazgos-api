@@ -55,7 +55,11 @@ export class AuthService {
     return {
       httpOnly: true,
       secure: this.environment === ENV_PRODUCTION,
-      sameSite: this.environment === ENV_PRODUCTION ? 'none' : 'lax',
+      // Lax: el navegador no la manda en POST/PATCH/DELETE hechos desde otro
+      // sitio (CSRF). El UI (comportarte.com) y el API (api.comportarte.com)
+      // son el mismo sitio, así que no le afecta. Antes era None en
+      // producción. Segunda capa: OriginMiddleware.
+      sameSite: 'lax',
       path: '/',
       domain:
         this.environment === ENV_PRODUCTION ? 'comportarte.com' : 'localhost',

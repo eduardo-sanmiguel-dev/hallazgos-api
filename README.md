@@ -42,9 +42,8 @@ validan con Joi al arrancar: si falta una obligatoria, la API no inicia.
 | ------------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------- |
 | `NODE_ENV`                                                    | Sí       | La fijan los scripts (`start:dev`, `start`, PM2).                                                           |
 | `PORT`                                                        | Sí       | Puerto HTTP (4000).                                                                                         |
-| `APP_KEY`                                                     | Sí       | Clave que la UI envía en `x-app-key`; sin ella, 400.                                                        |
-| `WHITE_LIST_DOMAINS`                                          | Sí       | Orígenes permitidos por CORS, separados por coma.                                                           |
-| `FRONTEND_URL`                                                | Sí       | URL pública de la UI (enlaces de los correos).                                                              |
+| `WHITE_LIST_DOMAINS`                                          | Sí       | Se valida al arrancar, pero hoy no se usa: CORS y el anti-CSRF solo permiten `FRONTEND_URL`.                |
+| `FRONTEND_URL`                                                | Sí       | URL pública de la UI: único origen de CORS y del anti-CSRF; enlaces de los correos.                         |
 | `JWT_SECRET_KEY`                                              | Sí       | Firma de los tokens de sesión.                                                                              |
 | `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME` | Sí       | PostgreSQL.                                                                                                 |
 | `DB_POOL_MAX` / `DB_POOL_MIN` / `DB_POOL_IDLE_MS`             | No       | Pool de conexiones: 10 / 2 / 300000 ms.                                                                     |
@@ -61,8 +60,14 @@ validan con Joi al arrancar: si falta una obligatoria, la API no inicia.
 ## Cómo está armada
 
 - **Prefijo** `/api/v1` para todas las rutas, salvo los archivos estáticos.
-- **Middlewares, en orden:** contexto de la petición → `x-app-key` → JWT. El JWT
-  llega en la cookie HttpOnly `token` o en `Authorization: Bearer`.
+- **Middlewares, en orden:** contexto de la petición → origen (anti-CSRF) → JWT.
+  El JWT llega en la cookie HttpOnly `token` (`SameSite=Lax`) o en
+  `Authorization: Bearer`.
+- **Anti-CSRF:** la cookie es `SameSite=Lax` (el navegador no la manda en
+  POST/PATCH/DELETE desde otro sitio) y `OriginMiddleware` rechaza con 403
+  (`FORBIDDEN_ORIGIN`) esas peticiones si su `Origin` no es `FRONTEND_URL`.
+  Sin `Origin` (curl, scripts) se aceptan. Reemplaza a la antigua cabecera
+  `x-app-key`, cuya clave iba en el JavaScript del UI.
 - **Usuario en sesión:** se carga con **una sola consulta** (sus plantas activas
   son sus permisos) y vive en `RequestContextService`. Los servicios leen de ahí;
   nunca guardan el usuario en propiedades.

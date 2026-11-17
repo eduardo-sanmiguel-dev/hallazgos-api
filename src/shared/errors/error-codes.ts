@@ -12,6 +12,7 @@ export const ERROR_CODES = {
   invalidCredentials: 'INVALID_CREDENTIALS',
   sessionExpired: 'SESSION_EXPIRED',
   forbidden: 'FORBIDDEN',
+  forbiddenOrigin: 'FORBIDDEN_ORIGIN',
   notFound: 'NOT_FOUND',
   conflict: 'CONFLICT',
   payloadTooLarge: 'PAYLOAD_TOO_LARGE',

@@ -96,7 +96,6 @@ jobs:
       DB_USERNAME: hallazgos_ci
       DB_PASSWORD: hallazgos_ci_only
       PORT: 4000
-      APP_KEY: app-key-de-pruebas
       JWT_SECRET_KEY: jwt-secreto-solo-para-pruebas
       WHITE_LIST_DOMAINS: http://localhost:3000
       FRONTEND_URL: http://localhost:3000

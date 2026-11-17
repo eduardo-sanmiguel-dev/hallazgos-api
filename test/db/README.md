@@ -16,7 +16,7 @@ pnpm test:db:cov    # lo mismo, con cobertura de dashboard.service (umbral 90/70
   vuelve a crear el esquema desde las entidades y marca las migraciones como
   ejecutadas. Corren uno a la vez (`maxWorkers: 1`).
 - Credenciales: se leen de `.env.development` (no se copian a ningún
-  archivo). `NODE_ENV=test`, `JWT_SECRET_KEY` y `APP_KEY` propios de pruebas.
+  archivo). `NODE_ENV=test` y `JWT_SECRET_KEY` propio de pruebas.
 - Correos: `MailService` se reemplaza por un simulado; no se envía nada.
 - Imágenes: las pruebas de hallazgos suben PNG de 1×1 a
   `public/static/images/evidences` y los borran al terminar.
@@ -33,7 +33,7 @@ pnpm test:db:cov    # lo mismo, con cobertura de dashboard.service (umbral 90/70
 | Archivo                               | Contenido                                                                       |
 | ------------------------------------- | ------------------------------------------------------------------------------- |
 | `schema.db-spec.ts`                   | La base es la de pruebas; esquema y datos base.                                 |
-| `auth.db-spec.ts`                     | Login, app key, sesión (401) y recuperación de contraseña.                      |
+| `auth.db-spec.ts`                     | Login, origen (anti-CSRF), sesión (401), logout-all y recuperación.             |
 | `users.db-spec.ts`                    | Usuarios (400/404).                                                             |
 | `evidences.db-spec.ts`                | Crear, ver, estados (403/409), comentar, cancelar, lista, descargas.            |
 | `epps.db-spec.ts`                     | Entregas de EPP, frecuencia, formato Excel, equipos, plantas ajenas (404).      |

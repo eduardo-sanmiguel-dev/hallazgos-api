@@ -68,7 +68,7 @@ describe('E2E: auth', () => {
     });
   });
 
-  describe('app key y sesión', () => {
+  describe('origen y sesión', () => {
     it.each([
       ['sin sesión', undefined],
       ['con un token que ya no sirve', 'no-es-un-jwt'],
@@ -84,18 +84,48 @@ describe('E2E: auth', () => {
       },
     );
 
-    it('sin app key responde 400 aunque la ruta sea pública', async () => {
-      await request(e2e.server)
-        .post('/api/v1/auth/login')
-        .send({ email: 'general@hallazgos.test', password: TEST_PASSWORD })
-        .expect(400, /API Key es requerido/);
+    // CSRF: un POST desde otro sitio llega con su Origin y se rechaza antes
+    // de llegar al controlador, aunque traiga una sesión válida.
+    it('un POST desde otro sitio responde 403 aunque traiga sesión', async () => {
+      const res = await request(e2e.server)
+        .post('/api/v1/auth/logout-all')
+        .set('Origin', 'https://sitio-malicioso.example')
+        .set('Authorization', `Bearer ${e2e.tokens.general}`)
+        .expect(403);
+
+      expect(res.body).toMatchObject({
+        statusCode: 403,
+        code: 'FORBIDDEN_ORIGIN',
+      });
+      // No cerró la sesión: la acción no se ejecutó.
+      await e2e
+        .call('get', '/users/supervisors', e2e.tokens.general)
+        .expect(200);
     });
 
-    it('con una app key distinta responde 400', async () => {
+    it('el login desde otro sitio también responde 403', async () => {
+      await request(e2e.server)
+        .post('/api/v1/auth/login')
+        .set('Origin', 'https://sitio-malicioso.example')
+        .send({ email: 'general@hallazgos.test', password: TEST_PASSWORD })
+        .expect(403, /FORBIDDEN_ORIGIN/);
+    });
+
+    // Con check-token y no con login: /auth/login permite 10 por minuto por
+    // IP y este archivo ya usa casi todos.
+    it('sin Origin (curl, scripts) y ya sin x-app-key un POST funciona', async () => {
+      await request(e2e.server)
+        .post('/api/v1/auth/check-token')
+        .set('Authorization', `Bearer ${e2e.tokens.general}`)
+        .expect(201, { message: 'Token válido.' });
+    });
+
+    it('un GET desde otro sitio no se bloquea aquí (CORS decide si se lee)', async () => {
       await request(e2e.server)
         .get('/api/v1/users/supervisors')
-        .set('x-app-key', 'otra')
-        .expect(400, /API Key es inválido/);
+        .set('Origin', 'https://sitio-malicioso.example')
+        .set('Authorization', `Bearer ${e2e.tokens.general}`)
+        .expect(200);
     });
 
     it('sin token responde 401 y con un token alterado también', async () => {
@@ -105,7 +135,7 @@ describe('E2E: auth', () => {
         .expect(401);
     });
 
-    it('/health es público (sin app key ni token)', async () => {
+    it('/health es público (sin token)', async () => {
       const res = await request(e2e.server).get('/api/v1/health').expect(200);
 
       expect(res.body.database).toBe('up');

@@ -135,17 +135,17 @@ describe('AuthService', () => {
       expect(cookie).toContain(`Max-Age=${THIRTY_DAYS_SECONDS};`);
     });
 
-    it('en producción la cookie es segura, cross-site y del dominio comportarte.com', async () => {
+    it('en producción la cookie es segura, SameSite=Lax (anti-CSRF) y del dominio comportarte.com', async () => {
       const cookie = await login('persona@hallazgos.test', 'Clave-correcta-1');
 
       expect(cookie).toContain('HttpOnly');
       expect(cookie).toContain('Secure');
-      expect(cookie).toContain('SameSite=None');
+      expect(cookie).toContain('SameSite=Lax');
       expect(cookie).toContain('Domain=comportarte.com');
       expect(cookie).toContain('Path=/');
       // Texto exacto (atributos y orden): el front depende de esta cookie.
       expect(cookie.replace(/^token=[^;]+/, 'token=<jwt>')).toBe(
-        'token=<jwt>; Max-Age=2592000; Domain=comportarte.com; Path=/; HttpOnly; Secure; SameSite=None',
+        'token=<jwt>; Max-Age=2592000; Domain=comportarte.com; Path=/; HttpOnly; Secure; SameSite=Lax',
       );
     });
 
@@ -351,7 +351,7 @@ describe('AuthService', () => {
       expect(cookie).toContain('Domain=comportarte.com');
       expect(cookie).toContain('HttpOnly');
       expect(cookie).toBe(
-        'token=; Max-Age=0; Domain=comportarte.com; Path=/; HttpOnly; Secure; SameSite=None',
+        'token=; Max-Age=0; Domain=comportarte.com; Path=/; HttpOnly; Secure; SameSite=Lax',
       );
     });
   });
@@ -368,7 +368,7 @@ describe('AuthService', () => {
       // No toca a otros usuarios.
       expect(table[1].tokenVersion ?? 0).toBe(0);
       expect(cookie).toBe(
-        'token=; Max-Age=0; Domain=comportarte.com; Path=/; HttpOnly; Secure; SameSite=None',
+        'token=; Max-Age=0; Domain=comportarte.com; Path=/; HttpOnly; Secure; SameSite=Lax',
       );
     });
   });

@@ -83,7 +83,6 @@ export const useTestEnvironment = () => {
   process.env.NODE_ENV = 'test';
   // El JWT de prueba no debe servir en desarrollo ni al revés.
   process.env.JWT_SECRET_KEY = 'jwt-secreto-solo-para-pruebas';
-  process.env.APP_KEY = 'app-key-de-pruebas';
 };
 
 const connectionOptions = () => ({

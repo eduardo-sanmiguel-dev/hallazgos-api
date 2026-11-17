@@ -12,7 +12,7 @@ import { join } from 'path';
 import { Comment } from '../../src/evidences/entities/comments.entity.js';
 import { Evidence } from '../../src/evidences/entities/evidence.entity.js';
 import { IdempotencyKey } from '../../src/idempotency/entities/idempotency-key.entity.js';
-import { APP_KEY, API, createE2eApp, type E2eApp } from './e2e-app.js';
+import { UI_ORIGIN, API, createE2eApp, type E2eApp } from './e2e-app.js';
 import { saveEvidence, STATUSES } from './fixtures.js';
 
 // JPG de ~1.5 MB: firma JPEG y relleno (el API valida la firma y el tamaño).
@@ -289,7 +289,7 @@ describe('E2E: idempotencia de envíos', () => {
               'Content-Type': `multipart/form-data; boundary=${boundary}`,
               'Content-Length': payload.length,
               'Idempotency-Key': key,
-              'x-app-key': APP_KEY(),
+              Origin: UI_ORIGIN(),
               Authorization: `Bearer ${e2e.tokens.general}`,
             },
           },

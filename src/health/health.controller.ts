@@ -7,8 +7,8 @@ import {
 
 import { DataSource } from 'typeorm';
 
-// Estado del servicio para monitoreo / balanceadores. Público (sin app key ni
-// JWT) y sin datos sensibles: solo indica si la API y la BD responden.
+// Estado del servicio para monitoreo / balanceadores. Público (sin JWT) y sin
+// datos sensibles: solo indica si la API y la BD responden.
 @Controller('health')
 export class HealthController {
   private readonly logger = new Logger(HealthController.name);

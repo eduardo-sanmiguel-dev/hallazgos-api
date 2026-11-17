@@ -16,11 +16,14 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { CreateMailOutbox1793900000000 } from '../../src/migrations/1793900000000-create-mail-outbox.js';
 import { createValidationPipe } from '../../src/shared/errors/validation-errors.js';
 import { ApiExceptionFilter } from '../../src/shared/filters/api-exception.filter.js';
+import { originOf } from '../../src/shared/middlewares/origin.middleware.js';
 import { seedBaseData, TEST_PASSWORD } from './fixtures.js';
 import { recreateTestSchema, createTestDataSource } from './test-database.js';
 
 export const API = '/api/v1';
-export const APP_KEY = () => process.env.APP_KEY as string;
+/** Origen del UI: el que manda el navegador y acepta OriginMiddleware. */
+export const UI_ORIGIN = () =>
+  originOf(process.env.FRONTEND_URL || 'http://localhost:3000');
 
 export const createE2eApp = async (
   options: { persistentMail?: boolean } = {},
@@ -65,7 +68,7 @@ export const createE2eApp = async (
   const base = await seedBaseData(dataSource);
   const server = app.getHttpServer();
 
-  /** Petición con app key; con `token`, además con sesión. */
+  /** Petición desde el UI (con su Origin); con `token`, además con sesión. */
   const call = (
     method: 'get' | 'post' | 'patch' | 'delete',
     path: string,
@@ -73,7 +76,7 @@ export const createE2eApp = async (
   ) => {
     const req = request(server)
       [method](`${API}${path}`)
-      .set('x-app-key', APP_KEY());
+      .set('Origin', UI_ORIGIN());
     return token ? req.set('Authorization', `Bearer ${token}`) : req;
   };
 

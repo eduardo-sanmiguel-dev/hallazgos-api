@@ -16,8 +16,8 @@ import { EnvConfiguration, JoiValidationSchema } from './config/index.js';
 import { dbPoolOptions } from './config/db-pool.config.js';
 
 import {
-  AppKeyMiddleware,
   JwtMiddleware,
+  OriginMiddleware,
   RequestContextMiddleware,
 } from './shared/middlewares/index.js';
 import { RequestContextModule } from './shared/services/request-context.module.js';
@@ -156,12 +156,14 @@ import { EvidenceImageAccessMiddleware } from './evidences/evidence-image-access
 })
 export class AppModule implements NestModule {
   public configure(consumer: MiddlewareConsumer): void {
-    // /health es público (monitoreo): sin app key ni JWT.
+    // /health es público (monitoreo): sin JWT.
     const healthRoute = { path: 'health', method: RequestMethod.GET };
 
     // Primero: abre el contexto de la petición que leen los servicios.
     consumer.apply(RequestContextMiddleware).forRoutes('/');
-    consumer.apply(AppKeyMiddleware).exclude(healthRoute).forRoutes('/');
+    // Anti-CSRF: lo que cambia datos solo desde el UI (incluye login y las
+    // rutas públicas). Ver OriginMiddleware.
+    consumer.apply(OriginMiddleware).forRoutes('/');
     consumer
       .apply(JwtMiddleware)
       .exclude(

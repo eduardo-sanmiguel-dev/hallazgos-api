@@ -3,7 +3,6 @@ import Joi from 'joi';
 export const JoiValidationSchema = Joi.object({
   NODE_ENV: Joi.string().required(),
   PORT: Joi.number().required(),
-  APP_KEY: Joi.string().required(),
   WHITE_LIST_DOMAINS: Joi.string().required(),
   JWT_SECRET_KEY: Joi.string().required(),
   DB_HOST: Joi.string().required(),
@@ -16,13 +15,11 @@ export const JoiValidationSchema = Joi.object({
   DB_POOL_MIN: Joi.number().integer().min(0).optional(),
   DB_POOL_IDLE_MS: Joi.number().integer().min(0).optional(),
   FRONTEND_URL: Joi.string().uri().required(),
-  MAIL_OUTBOX_KEY: Joi.string()
-    .min(32)
-    .when('NODE_ENV', {
-      is: 'production',
-      then: Joi.required(),
-      otherwise: Joi.optional(),
-    }),
+  MAIL_OUTBOX_KEY: Joi.string().min(32).when('NODE_ENV', {
+    is: 'production',
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
   MAIL_REDIS_URL: Joi.string()
     .uri({ scheme: ['redis', 'rediss'] })
     .optional(),
