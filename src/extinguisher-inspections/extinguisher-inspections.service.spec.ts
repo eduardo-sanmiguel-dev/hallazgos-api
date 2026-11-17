@@ -223,6 +223,30 @@ describe('ExtinguisherInspectionsService', () => {
       await as(async () => service.findAll({ page: 1, limit: -1 }));
       expect(qb().skip).not.toHaveBeenCalled();
     });
+
+    it('ordena en la BD: más recientes por omisión, o la columna pedida', async () => {
+      qb().getMany.mockResolvedValue([]);
+
+      await as(async () => service.findAll({}));
+      expect(qb().orderBy).toHaveBeenLastCalledWith(
+        'extinguisherInspection.id',
+        'DESC',
+        'NULLS LAST',
+      );
+
+      await as(async () =>
+        service.findAll({ orderBy: 'responsible', order: 'asc' }),
+      );
+      expect(qb().orderBy).toHaveBeenLastCalledWith(
+        'responsible.name',
+        'ASC',
+        'NULLS LAST',
+      );
+      expect(qb().addOrderBy).toHaveBeenLastCalledWith(
+        'extinguisherInspection.id',
+        'ASC',
+      );
+    });
   });
 
   describe('findOne', () => {

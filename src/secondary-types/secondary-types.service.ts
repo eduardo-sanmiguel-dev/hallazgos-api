@@ -12,6 +12,11 @@ import {
 } from './dto/index.js';
 import { SecondaryType } from './entities/secondary-type.entity.js';
 import { MainTypesService } from '../main-types/main-types.service.js';
+import { buildFindOrder } from '../shared/utils/sort.js';
+import {
+  SECONDARY_TYPE_DEFAULT_SORT,
+  SECONDARY_TYPE_SORT_COLUMNS,
+} from './dto/query-secondary-type.dto.js';
 
 @Injectable()
 export class SecondaryTypesService {
@@ -53,9 +58,11 @@ export class SecondaryTypesService {
         },
       },
       relations: ['mainType'],
-      order: {
-        id: 'DESC',
-      },
+      order: buildFindOrder(
+        SECONDARY_TYPE_SORT_COLUMNS,
+        querySecondaryTypeDto,
+        SECONDARY_TYPE_DEFAULT_SORT,
+      ),
     };
 
     return page && limit

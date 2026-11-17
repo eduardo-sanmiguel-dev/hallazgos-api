@@ -95,6 +95,35 @@ describe('EmergencyTeamsService', () => {
       await as(async () => service.findAll({ page: 1, limit: -1 } as never));
       expect(qb().skip).not.toHaveBeenCalled();
     });
+
+    it('ordena en la BD: más recientes por omisión, o la columna pedida', async () => {
+      qb().getManyAndCount.mockResolvedValue([[], 0]);
+
+      await as(async () => service.findAll({ page: 1, limit: 10 } as never));
+      expect(qb().orderBy).toHaveBeenLastCalledWith(
+        'emergencyTeam.id',
+        'DESC',
+        'NULLS LAST',
+      );
+
+      await as(async () =>
+        service.findAll({
+          page: 1,
+          limit: 10,
+          orderBy: 'capacity',
+          order: 'asc',
+        } as never),
+      );
+      expect(qb().orderBy).toHaveBeenLastCalledWith(
+        'emergencyTeam.capacity',
+        'ASC',
+        'NULLS LAST',
+      );
+      expect(qb().addOrderBy).toHaveBeenLastCalledWith(
+        'emergencyTeam.id',
+        'ASC',
+      );
+    });
   });
 
   it('findOne inexistente responde 404', async () => {

@@ -26,6 +26,11 @@ import {
   UpdateEmployeeDto,
 } from './dto/index.js';
 import { Zone } from '../zones/entities/zone.entity.js';
+import { buildFindOrder, type SortQuery } from '../shared/utils/sort.js';
+import {
+  EMPLOYEE_DEFAULT_SORT,
+  EMPLOYEE_SORT_COLUMNS,
+} from './dto/filters-employee.dto.js';
 
 @Injectable()
 export class EmployeesService {
@@ -271,23 +276,26 @@ export class EmployeesService {
       });
     }
 
-    return this.findAllPaginated(whereWithSearch, Number(page), Number(limit));
+    return this.findAllPaginated(
+      whereWithSearch,
+      Number(page),
+      Number(limit),
+      filtersEmployeeDto,
+    );
   }
 
   private async findAllPaginated(
     where: FindOptionsWhere<Employee>[],
     page: number,
     limit: number,
+    sort: SortQuery = {},
   ) {
     const isUnlimited = limit === -1;
 
     const [data, count] = await this.employeeRepository.findAndCount({
       where,
       relations: this.relations,
-      order: {
-        name: 'ASC',
-        id: 'ASC',
-      },
+      order: buildFindOrder(EMPLOYEE_SORT_COLUMNS, sort, EMPLOYEE_DEFAULT_SORT),
       ...(!isUnlimited && { take: limit, skip: (page - 1) * limit }),
     });
 

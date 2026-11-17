@@ -1500,6 +1500,20 @@ describe('EvidencesService', () => {
       expect(evidences.find.mock.calls[0][0].order).toEqual({ id: 'DESC' });
     });
 
+    it('ordena por la columna pedida, incluso de una relación anidada', async () => {
+      await findAll({ orderBy: 'area', order: 'asc' });
+      expect(evidences.find.mock.calls[0][0].order).toEqual({
+        zone: { area: { name: { direction: 'ASC', nulls: 'LAST' } } },
+        id: 'ASC',
+      });
+
+      await findAll({ orderBy: 'priority', order: 'desc' });
+      expect(evidences.find.mock.calls[1][0].order).toEqual({
+        priorityDays: { direction: 'DESC', nulls: 'LAST' },
+        id: 'DESC',
+      });
+    });
+
     it('combina filtros simples y listas sin repetir valores', async () => {
       await findAll({
         id: 5,
@@ -1759,6 +1773,16 @@ describe('EvidencesService', () => {
         const [[, withFilter], [, withoutFilter]] = evidences.query.mock.calls;
         expect(withFilter).toEqual([[77], [responsible.id]]);
         expect(withoutFilter).toEqual([[77], null]);
+      });
+
+      it('el Excel conserva el orden de la lista (el de los ids autorizados)', async () => {
+        await downloadXlsx({ orderBy: 'zone', order: 'asc' });
+
+        const [sql] = evidences.query.mock.calls[0];
+        expect(sql).toContain('ORDER BY array_position($1::int[], e.id)');
+        expect(evidences.find.mock.calls[0][0].order).toMatchObject({
+          zone: { name: { direction: 'ASC', nulls: 'LAST' } },
+        });
       });
 
       it('genera la hoja de hallazgos con relaciones, activo y fecha en la zona pedida', async () => {

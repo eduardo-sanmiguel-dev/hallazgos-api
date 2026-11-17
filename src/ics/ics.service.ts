@@ -13,6 +13,8 @@ import { Employee } from '../employees/entities/employee.entity.js';
 import { RulesOfLife } from '../rules-of-life/entities/index.js';
 import { CreateIcsDto, FiltersIcsDto, UpdateIcsDto } from './dto/index.js';
 import { Ics } from './entities/ics.entity.js';
+import { buildFindOrder } from '../shared/utils/sort.js';
+import { ICS_DEFAULT_SORT, ICS_SORT_COLUMNS } from './dto/filters-ics.dto.js';
 
 @Injectable()
 export class IcsService {
@@ -194,7 +196,7 @@ export class IcsService {
     const [data, count] = await this.icsRepository.findAndCount({
       where,
       relations: this.relations,
-      order: { createdAt: 'DESC', id: 'DESC' },
+      order: buildFindOrder(ICS_SORT_COLUMNS, filtersIcsDto, ICS_DEFAULT_SORT),
       ...(!isUnlimited && {
         take: limitNumber,
         skip: (Number(page) - 1) * limitNumber,

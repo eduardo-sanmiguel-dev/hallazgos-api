@@ -12,6 +12,11 @@ import {
   QueryEmergencyTeamDto,
   UpdateEmergencyTeamDto,
 } from './dto/index.js';
+import { applyQueryBuilderSort } from '../shared/utils/sort.js';
+import {
+  EMERGENCY_TEAM_DEFAULT_SORT,
+  EMERGENCY_TEAM_SORT_COLUMNS,
+} from './dto/query-emergency-team.dto.js';
 
 @Injectable()
 export class EmergencyTeamsService {
@@ -63,8 +68,15 @@ export class EmergencyTeamsService {
         allowedPlantIds: this.requestContext.manufacturingPlantIds.length
           ? this.requestContext.manufacturingPlantIds
           : [-1],
-      })
-      .orderBy('emergencyTeam.id', 'DESC');
+      });
+
+    applyQueryBuilderSort(
+      queryBuilder,
+      EMERGENCY_TEAM_SORT_COLUMNS,
+      queryEmergencyTeamDto,
+      EMERGENCY_TEAM_DEFAULT_SORT,
+      'emergencyTeam.id',
+    );
 
     if (search) {
       queryBuilder.andWhere(

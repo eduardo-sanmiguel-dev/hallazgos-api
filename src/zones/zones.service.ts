@@ -15,6 +15,8 @@ import { CreateZoneDto, QueryZoneDto, UpdateZoneDto } from './dto/index.js';
 import { ManufacturingPlantsService } from '../manufacturing-plants/manufacturing-plants.service.js';
 import { AreasService } from '../areas/areas.service.js';
 import { User } from '../users/entities/user.entity.js';
+import { buildFindOrder } from '../shared/utils/sort.js';
+import { ZONE_DEFAULT_SORT, ZONE_SORT_COLUMNS } from './dto/query-zone.dto.js';
 
 @Injectable()
 export class ZonesService {
@@ -118,9 +120,7 @@ export class ZonesService {
             }),
       },
       relations: this.relations,
-      order: {
-        id: 'DESC',
-      },
+      order: buildFindOrder(ZONE_SORT_COLUMNS, queryZoneDto, ZONE_DEFAULT_SORT),
     };
 
     if (view === 'options') {

@@ -23,6 +23,11 @@ import {
   toPlantCountry,
   toWallClock,
 } from '../shared/utils/index.js';
+import { applyQueryBuilderSort } from '../shared/utils/sort.js';
+import {
+  EXTINGUISHER_INSPECTION_DEFAULT_SORT,
+  EXTINGUISHER_INSPECTION_SORT_COLUMNS,
+} from './dto/query-extinguisher-inspection.dto.js';
 
 @Injectable()
 export class ExtinguisherInspectionsService {
@@ -158,8 +163,15 @@ export class ExtinguisherInspectionsService {
         allowedPlantIds: this.requestContext.manufacturingPlantIds.length
           ? this.requestContext.manufacturingPlantIds
           : [-1],
-      })
-      .orderBy('extinguisherInspection.id', 'DESC');
+      });
+
+    applyQueryBuilderSort(
+      queryBuilder,
+      EXTINGUISHER_INSPECTION_SORT_COLUMNS,
+      queryExtinguisherInspectionDto,
+      EXTINGUISHER_INSPECTION_DEFAULT_SORT,
+      'extinguisherInspection.id',
+    );
 
     if (search) {
       queryBuilder.andWhere(

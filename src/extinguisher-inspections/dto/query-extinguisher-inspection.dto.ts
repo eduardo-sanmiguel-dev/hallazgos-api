@@ -5,8 +5,29 @@ import {
   IsString,
   Matches,
 } from 'class-validator';
+import {
+  IsSortColumn,
+  IsSortOrder,
+} from '../../shared/dto/sort-query.decorators.js';
+import { sortKeys, type SortOrder } from '../../shared/utils/sort.js';
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Columnas por las que el listado se puede ordenar (lista blanca). */
+export const EXTINGUISHER_INSPECTION_SORT_COLUMNS = {
+  id: 'extinguisherInspection.id',
+  manufacturingPlant: 'manufacturingPlant.name',
+  responsible: 'responsible.name',
+  inspectionDate: 'extinguisherInspection.inspectionDate',
+  createdAt: 'extinguisherInspection.createdAt',
+  createdBy: 'createdBy.name',
+} as const;
+export type ExtinguisherInspectionSortColumn =
+  keyof typeof EXTINGUISHER_INSPECTION_SORT_COLUMNS;
+export const EXTINGUISHER_INSPECTION_DEFAULT_SORT = {
+  orderBy: 'id',
+  order: 'desc',
+} as const;
 
 export class QueryExtinguisherInspectionDto {
   @IsOptional()
@@ -40,4 +61,10 @@ export class QueryExtinguisherInspectionDto {
   @IsOptional()
   @IsInt()
   limit?: number;
+
+  @IsSortColumn(sortKeys(EXTINGUISHER_INSPECTION_SORT_COLUMNS))
+  orderBy?: ExtinguisherInspectionSortColumn;
+
+  @IsSortOrder()
+  order?: SortOrder;
 }

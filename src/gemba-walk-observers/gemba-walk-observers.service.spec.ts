@@ -175,6 +175,24 @@ describe('GembaWalkObserversService', () => {
         count: 1,
       });
     });
+
+    it('ordena en la BD por la columna pedida', async () => {
+      observers.findAndCount.mockResolvedValue([[], 0]);
+
+      await as(async () =>
+        service.findAll({
+          page: 1,
+          limit: 5,
+          orderBy: 'nameZone',
+          order: 'asc',
+        } as never),
+      );
+
+      expect(observers.findAndCount.mock.calls[0][0].order).toEqual({
+        gembaWalkZone: { nameZone: { direction: 'ASC', nulls: 'LAST' } },
+        id: 'ASC',
+      });
+    });
   });
 
   describe('findOne', () => {

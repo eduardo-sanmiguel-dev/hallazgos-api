@@ -18,6 +18,11 @@ import {
 import { GembaWalkZone } from './entities/gemba-walk-zone.entity.js';
 import { User } from '../users/entities/user.entity.js';
 import { ManufacturingPlantsService } from '../manufacturing-plants/manufacturing-plants.service.js';
+import { buildFindOrder } from '../shared/utils/sort.js';
+import {
+  GEMBA_WALK_ZONE_DEFAULT_SORT,
+  GEMBA_WALK_ZONE_SORT_COLUMNS,
+} from './dto/query-gemba-walk-zone.dto.js';
 
 @Injectable()
 export class GembaWalkZonesService {
@@ -122,9 +127,11 @@ export class GembaWalkZonesService {
         },
       },
       relations: this.relations,
-      order: {
-        id: 'DESC',
-      },
+      order: buildFindOrder(
+        GEMBA_WALK_ZONE_SORT_COLUMNS,
+        queryGembaWalkZoneDto,
+        GEMBA_WALK_ZONE_DEFAULT_SORT,
+      ),
     };
 
     return page && limit

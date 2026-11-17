@@ -11,6 +11,11 @@ import {
   UpdateMainTypeDto,
 } from './dto/index.js';
 import { MainType } from './entities/main-type.entity.js';
+import { buildFindOrder } from '../shared/utils/sort.js';
+import {
+  MAIN_TYPE_DEFAULT_SORT,
+  MAIN_TYPE_SORT_COLUMNS,
+} from './dto/query-main-type.dto.js';
 
 @Injectable()
 export class MainTypesService {
@@ -38,9 +43,11 @@ export class MainTypesService {
         ...(name && { name: ILike(`%${name}%`) }),
       },
       relations: ['secondaryTypes'],
-      order: {
-        id: 'DESC',
-      },
+      order: buildFindOrder(
+        MAIN_TYPE_SORT_COLUMNS,
+        queryMainTypeDto,
+        MAIN_TYPE_DEFAULT_SORT,
+      ),
     };
 
     // Filtrar la relación después de leer los padres conserva criterios sin

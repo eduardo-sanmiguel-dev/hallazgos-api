@@ -393,9 +393,15 @@ describe('UsersService', () => {
       expect(lastFindArgs().order).not.toHaveProperty('id');
     });
 
+    it('acepta la columna en orderBy y la dirección en order (tablas)', async () => {
+      await service.findAll({ orderBy: 'email', order: 'desc' } as never);
+
+      expect(lastFindArgs().order).toMatchObject({ email: 'DESC' });
+    });
+
     // El 400 por formato inválido lo da QueryUserDto (dto/user-dtos.spec.ts);
     // el servicio, además, nunca arma el orden con un valor fuera de la lista.
-    it.each(['name', 'password|asc', 'name|asc; DROP TABLE "user"'])(
+    it.each(['password', 'password|asc', 'name|asc; DROP TABLE "user"'])(
       'ignora un orderBy fuera del formato permitido (%s) y usa el orden por defecto',
       async (orderBy) => {
         await service.findAll({ orderBy } as never);
@@ -421,6 +427,22 @@ describe('UsersService', () => {
         );
         expect(result).toMatchObject({ count: 31 });
         expect(users.find).not.toHaveBeenCalled();
+      });
+
+      it('ordena la página en la BD por la columna pedida', async () => {
+        users.findAndCount.mockResolvedValue([[], 0]);
+
+        await service.findAll({
+          page: 1,
+          limit: 10,
+          orderBy: 'role',
+          order: 'asc',
+        } as never);
+
+        expect(users.findAndCount.mock.calls[0][0].order).toEqual({
+          role: { direction: 'ASC', nulls: 'LAST' },
+          id: 'ASC',
+        });
       });
 
       it('con limit -1 devuelve todos los registros', async () => {

@@ -170,7 +170,21 @@ describe('GembaWalkCalendarService', () => {
         },
       });
       expect(calendars.find.mock.calls[0][0].order).toEqual({
-        scheduledAt: 'ASC',
+        scheduledAt: { direction: 'ASC', nulls: 'LAST' },
+        id: 'ASC',
+      });
+    });
+
+    it('ordena por la planta de la zona si se pide', async () => {
+      await as(async () =>
+        service.findAll({ orderBy: 'manufacturingPlant', order: 'desc' }),
+      );
+
+      expect(calendars.find.mock.calls[0][0].order).toEqual({
+        gembaWalkZone: {
+          manufacturingPlant: { name: { direction: 'DESC', nulls: 'LAST' } },
+        },
+        id: 'DESC',
       });
     });
 

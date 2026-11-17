@@ -10,7 +10,16 @@ import {
 } from '@nestjs/common';
 
 import { OptionalUserPlantPipe, UserPlantPipe } from '../shared/pipes/index.js';
-import { CreateEquipmentDto, UpdateEquipmentDto } from './dto/index.js';
+import {
+  CreateEquipmentDto,
+  EQUIPMENT_SORT_COLUMNS,
+  UpdateEquipmentDto,
+} from './dto/index.js';
+import {
+  sortColumnPipe,
+  sortOrderPipe,
+} from '../shared/dto/sort-query.decorators.js';
+import { sortKeys } from '../shared/utils/sort.js';
 import { EquipmentsService } from './equipments.service.js';
 
 @Controller('equipments')
@@ -43,6 +52,9 @@ export class EquipmentsController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('includeInactive') includeInactive?: string,
+    @Query('orderBy', sortColumnPipe(sortKeys(EQUIPMENT_SORT_COLUMNS)))
+    orderBy?: string,
+    @Query('order', sortOrderPipe()) order?: string,
   ) {
     return page && limit
       ? this.equipmentsService.findAllPaginated(
@@ -50,7 +62,8 @@ export class EquipmentsController {
           name,
           page,
           limit,
-          ...(includeInactive === undefined ? [] : [includeInactive]),
+          includeInactive,
+          { orderBy, order },
         )
       : this.equipmentsService.findAll(
           manufacturingPlantId,

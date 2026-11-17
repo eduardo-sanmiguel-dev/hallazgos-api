@@ -10,6 +10,26 @@ import {
 } from 'class-validator';
 
 import { parseStringArrayQueryByKey } from '../../shared/utils/index.js';
+import {
+  IsSortColumn,
+  IsSortOrder,
+} from '../../shared/dto/sort-query.decorators.js';
+import { sortKeys, type SortOrder } from '../../shared/utils/sort.js';
+
+/** Columnas por las que el listado se puede ordenar (lista blanca). */
+export const PROCESS_SORT_COLUMNS = {
+  id: 'id',
+  name: 'name',
+  manufacturingPlant: 'manufacturingPlant.name',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  isActive: 'isActive',
+} as const;
+export type ProcessSortColumn = keyof typeof PROCESS_SORT_COLUMNS;
+export const PROCESS_DEFAULT_SORT = {
+  orderBy: 'id',
+  order: 'desc',
+} as const;
 
 export class QueryProcessesDto extends CatalogVisibilityDto {
   @IsOptional()
@@ -35,4 +55,10 @@ export class QueryProcessesDto extends CatalogVisibilityDto {
   @IsOptional()
   @IsInt()
   limit?: number;
+
+  @IsSortColumn(sortKeys(PROCESS_SORT_COLUMNS))
+  orderBy?: ProcessSortColumn;
+
+  @IsSortOrder()
+  order?: SortOrder;
 }

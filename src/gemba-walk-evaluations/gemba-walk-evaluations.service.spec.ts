@@ -136,6 +136,24 @@ describe('GembaWalkEvaluationsService', () => {
       };
       expect(Array.isArray(where)).toBe(false);
     });
+
+    it('ordena en la BD por la columna pedida', async () => {
+      evaluations.findAndCount.mockResolvedValue([[], 0]);
+
+      await as(async () =>
+        service.findAll({
+          page: 1,
+          limit: 5,
+          orderBy: 'category',
+          order: 'asc',
+        } as never),
+      );
+
+      expect(evaluations.findAndCount.mock.calls[0][0].order).toEqual({
+        category: { direction: 'ASC', nulls: 'LAST' },
+        id: 'ASC',
+      });
+    });
   });
 
   describe('findOne', () => {

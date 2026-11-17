@@ -5,8 +5,31 @@ import {
   IsString,
   Matches,
 } from 'class-validator';
+import {
+  IsSortColumn,
+  IsSortOrder,
+} from '../../shared/dto/sort-query.decorators.js';
+import { sortKeys, type SortOrder } from '../../shared/utils/sort.js';
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Columnas por las que el listado se puede ordenar (lista blanca). */
+export const CIAEL_SORT_COLUMNS = {
+  id: 'id',
+  typeOfEvent: 'typeOfEvent.name',
+  employee: 'employee.name',
+  eventDate: 'eventDate',
+  cieDiagnosis: 'cieDiagnosis.name',
+  area: 'zone.area.name',
+  zone: 'zone.name',
+  createdAt: 'createdAt',
+  createdBy: 'createdBy.name',
+} as const;
+export type CiaelSortColumn = keyof typeof CIAEL_SORT_COLUMNS;
+export const CIAEL_DEFAULT_SORT = {
+  orderBy: 'createdAt',
+  order: 'desc',
+} as const;
 
 export class FiltersCiaelDto {
   @IsOptional()
@@ -43,4 +66,10 @@ export class FiltersCiaelDto {
   @IsOptional()
   @IsInt()
   limit?: number;
+
+  @IsSortColumn(sortKeys(CIAEL_SORT_COLUMNS))
+  orderBy?: CiaelSortColumn;
+
+  @IsSortOrder()
+  order?: SortOrder;
 }

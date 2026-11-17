@@ -21,8 +21,11 @@ import {
   CreateUserDto,
   QueryUserDto,
   UpdateUserDto,
+  USER_DEFAULT_SORT,
   USER_ORDER_BY_PATTERN,
+  USER_SORT_COLUMNS,
 } from './dto/index.js';
+import { buildFindOrder, type SortQuery } from '../shared/utils/sort.js';
 import { User } from './entities/user.entity.js';
 import {
   evidencePermissionsFor,
@@ -176,12 +179,16 @@ export class UsersService {
     const search = queryUserDto.search?.trim();
 
     let order;
+    let sort: SortQuery | undefined;
 
     // El DTO ya valida el formato; se revisa también aquí para no armar el
-    // orden con un valor que no sea `campo|asc|desc` de la lista permitida.
+    // orden con un valor fuera de la lista permitida. La dirección va en
+    // `campo|dir` (selectores) o en `order` (tablas).
     if (orderBy && USER_ORDER_BY_PATTERN.test(orderBy)) {
       const [key, direction] = orderBy.split('|');
-      order = { [key]: direction.toUpperCase() };
+      const dir = (direction ?? queryUserDto.order ?? 'asc').toLowerCase();
+      sort = { orderBy: key, order: dir };
+      order = { [key]: dir.toUpperCase() };
     }
 
     const plantIds =
@@ -213,7 +220,7 @@ export class UsersService {
       : [base];
 
     if (page !== undefined && limit !== undefined) {
-      return this.findAllPaginated(where, Number(page), Number(limit));
+      return this.findAllPaginated(where, Number(page), Number(limit), sort);
     }
 
     if (view === 'options') {
@@ -295,13 +302,14 @@ export class UsersService {
     where: FindOptionsWhere<User>[],
     page: number,
     limit: number,
+    sort: SortQuery = {},
   ) {
     // Con skip/take solo se ordena por la entidad principal; las plantas se
     // ordenan después en memoria.
     const [data, count] = await this.userRepository.findAndCount({
       where,
       relations: ['manufacturingPlants'],
-      order: { id: 'DESC' },
+      order: buildFindOrder(USER_SORT_COLUMNS, sort, USER_DEFAULT_SORT),
       ...(limit !== -1 && { take: limit, skip: (page - 1) * limit }),
     });
 

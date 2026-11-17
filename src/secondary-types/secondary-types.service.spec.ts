@@ -67,6 +67,22 @@ describe('SecondaryTypesService', () => {
         service.findAll({ page: 1, limit: 5 } as never),
       ).resolves.toMatchObject({ count: 0 });
     });
+
+    it('ordena en la BD por la columna pedida (vacíos al final) con desempate por id', async () => {
+      types.findAndCount.mockResolvedValue([[], 0]);
+
+      await service.findAll({
+        page: 1,
+        limit: 5,
+        orderBy: 'mainType',
+        order: 'desc',
+      } as never);
+
+      expect(types.findAndCount.mock.calls[0][0].order).toEqual({
+        mainType: { name: { direction: 'DESC', nulls: 'LAST' } },
+        id: 'DESC',
+      });
+    });
   });
 
   it('findAllByManufacturingPlant lista los tipos activos de un tipo principal por nombre', async () => {

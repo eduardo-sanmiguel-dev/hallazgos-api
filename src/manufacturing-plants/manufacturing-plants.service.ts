@@ -11,6 +11,11 @@ import {
   QueryManufacturingPlantDto,
   UpdateManufacturingPlantDto,
 } from './dto/index.js';
+import { buildFindOrder } from '../shared/utils/sort.js';
+import {
+  MANUFACTURING_PLANT_DEFAULT_SORT,
+  MANUFACTURING_PLANT_SORT_COLUMNS,
+} from './dto/query.manufacturing-plant.dto.js';
 
 @Injectable()
 export class ManufacturingPlantsService {
@@ -40,9 +45,11 @@ export class ManufacturingPlantsService {
         ...(!includeInactive && { isActive: true }),
         ...(name && { name: ILike(`%${name}%`) }),
       },
-      order: {
-        id: 'DESC',
-      },
+      order: buildFindOrder(
+        MANUFACTURING_PLANT_SORT_COLUMNS,
+        queryManufacturingPlantDto,
+        MANUFACTURING_PLANT_DEFAULT_SORT,
+      ),
     };
 
     return page && limit

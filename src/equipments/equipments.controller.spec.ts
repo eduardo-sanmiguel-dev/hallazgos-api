@@ -50,7 +50,41 @@ describe('EquipmentsController (HTTP)', () => {
       .get('/equipments')
       .query({ manufacturingPlantId: '1', page: '2', limit: '5' })
       .expect(200);
-    expect(service.findAllPaginated).toHaveBeenCalledWith(1, '', '2', '5');
+    expect(service.findAllPaginated).toHaveBeenCalledWith(
+      1,
+      '',
+      '2',
+      '5',
+      undefined,
+      { orderBy: undefined, order: undefined },
+    );
+
+    await http
+      .http()
+      .get('/equipments')
+      .query({
+        page: '1',
+        limit: '5',
+        orderBy: 'deliveryFrequency',
+        order: 'desc',
+      })
+      .expect(200);
+    expect(service.findAllPaginated).toHaveBeenLastCalledWith(
+      undefined,
+      '',
+      '1',
+      '5',
+      undefined,
+      { orderBy: 'deliveryFrequency', order: 'desc' },
+    );
+
+    for (const query of [{ orderBy: 'price' }, { order: 'up' }]) {
+      await http
+        .http()
+        .get('/equipments')
+        .query({ page: '1', limit: '5', ...query })
+        .expect(400);
+    }
 
     await http
       .http()

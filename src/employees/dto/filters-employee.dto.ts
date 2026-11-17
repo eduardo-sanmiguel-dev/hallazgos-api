@@ -7,6 +7,28 @@ import {
   IsPositive,
   IsString,
 } from 'class-validator';
+import {
+  IsSortColumn,
+  IsSortOrder,
+} from '../../shared/dto/sort-query.decorators.js';
+import { sortKeys, type SortOrder } from '../../shared/utils/sort.js';
+
+/** Columnas por las que el listado se puede ordenar (lista blanca). */
+export const EMPLOYEE_SORT_COLUMNS = {
+  code: 'code',
+  name: 'name',
+  dateOfAdmission: 'dateOfAdmission',
+  birthdate: 'birthdate',
+  isActive: 'isActive',
+  area: 'area.name',
+  position: 'position.name',
+  gender: 'gender.name',
+} as const;
+export type EmployeeSortColumn = keyof typeof EMPLOYEE_SORT_COLUMNS;
+export const EMPLOYEE_DEFAULT_SORT = {
+  orderBy: 'name',
+  order: 'asc',
+} as const;
 
 export class FiltersEmployeeDto extends CatalogVisibilityDto {
   @IsOptional()
@@ -47,4 +69,10 @@ export class FiltersEmployeeDto extends CatalogVisibilityDto {
   @IsOptional()
   @IsIn(['options'])
   readonly view?: 'options';
+
+  @IsSortColumn(sortKeys(EMPLOYEE_SORT_COLUMNS))
+  orderBy?: EmployeeSortColumn;
+
+  @IsSortOrder()
+  order?: SortOrder;
 }

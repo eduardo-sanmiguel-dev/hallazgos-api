@@ -168,6 +168,29 @@ describe('EmployeesService', () => {
       expect(employees.findAndCount).not.toHaveBeenCalled();
     });
 
+    it('paginado ordena por nombre por omisión o por la columna pedida', async () => {
+      employees.findAndCount.mockResolvedValue([[], 0]);
+
+      await as(() => service.findAll({ page: 1, limit: 10 }));
+      expect(employees.findAndCount.mock.calls[0][0].order).toEqual({
+        name: { direction: 'ASC', nulls: 'LAST' },
+        id: 'ASC',
+      });
+
+      await as(() =>
+        service.findAll({
+          page: 1,
+          limit: 10,
+          orderBy: 'dateOfAdmission',
+          order: 'desc',
+        }),
+      );
+      expect(employees.findAndCount.mock.calls[1][0].order).toEqual({
+        dateOfAdmission: { direction: 'DESC', nulls: 'LAST' },
+        id: 'DESC',
+      });
+    });
+
     it('filtra puesto, área y género y conserva activos sin includeInactive', async () => {
       await as(() =>
         service.findAll({

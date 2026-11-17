@@ -85,6 +85,22 @@ describe('ProcessesService', () => {
         service.findAll({ page: 1, limit: 5 } as never),
       ).resolves.toMatchObject({ count: 0 });
     });
+
+    it('ordena en la BD por la columna pedida (vacíos al final) con desempate por id', async () => {
+      processes.findAndCount.mockResolvedValue([[], 0]);
+
+      await service.findAll({
+        page: 1,
+        limit: 5,
+        orderBy: 'name',
+        order: 'desc',
+      } as never);
+
+      expect(processes.findAndCount.mock.calls[0][0].order).toEqual({
+        name: { direction: 'DESC', nulls: 'LAST' },
+        id: 'DESC',
+      });
+    });
   });
 
   describe('findOne', () => {

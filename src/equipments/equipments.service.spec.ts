@@ -175,6 +175,22 @@ describe('EquipmentsService', () => {
         result.data[0].costHistory.map(({ createdAt }) => createdAt),
       ).toEqual([new Date('2026-03-01'), new Date('2026-01-01')]);
     });
+
+    it('paginado ordena en la BD por la columna pedida', async () => {
+      equipments.findAndCount.mockResolvedValue([[], 0]);
+
+      await as(() =>
+        service.findAllPaginated(undefined, '', '1', '10', undefined, {
+          orderBy: 'manufacturingPlant',
+          order: 'desc',
+        }),
+      );
+
+      expect(equipments.findAndCount.mock.calls[0][0].order).toEqual({
+        manufacturingPlant: { name: { direction: 'DESC', nulls: 'LAST' } },
+        id: 'DESC',
+      });
+    });
   });
 
   describe('update', () => {

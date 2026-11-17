@@ -40,6 +40,11 @@ import {
   toWallClock,
   wallClockToInstant,
 } from '../shared/utils/index.js';
+import { buildFindOrder } from '../shared/utils/sort.js';
+import {
+  GEMBA_WALK_DEFAULT_SORT,
+  GEMBA_WALK_SORT_COLUMNS,
+} from './dto/query-gemba-walk.dto.js';
 
 const UNIQUE_VIOLATION = '23505';
 
@@ -512,7 +517,11 @@ export class GembaWalksService {
         gembaWalkCalendar: calendarWhere,
       },
       relations: [...this.relations, 'results'],
-      order: { performedAt: 'DESC', id: 'DESC' },
+      order: buildFindOrder(
+        GEMBA_WALK_SORT_COLUMNS,
+        queryGembaWalkDto,
+        GEMBA_WALK_DEFAULT_SORT,
+      ),
     } satisfies FindManyOptions<GembaWalk>;
 
     if (page === undefined || limit === undefined) {

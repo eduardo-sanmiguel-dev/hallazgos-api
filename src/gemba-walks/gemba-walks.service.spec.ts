@@ -601,6 +601,31 @@ describe('GembaWalksService', () => {
       await as(observer, () => service.findAll({ page: 1, limit: -1 }));
       expect(walks.findAndCount.mock.calls[1][0]).not.toHaveProperty('take');
     });
+
+    it('ordena: realizados más recientes por omisión, o la columna pedida', async () => {
+      walks.findAndCount.mockResolvedValue([[], 0]);
+
+      await as(observer, () => service.findAll({ page: 1, limit: 5 }));
+      await as(observer, () =>
+        service.findAll({
+          page: 1,
+          limit: 5,
+          orderBy: 'scheduledAt',
+          order: 'asc',
+        }),
+      );
+
+      expect(walks.findAndCount.mock.calls[0][0].order).toEqual({
+        performedAt: { direction: 'DESC', nulls: 'LAST' },
+        id: 'DESC',
+      });
+      expect(walks.findAndCount.mock.calls[1][0].order).toEqual({
+        gembaWalkCalendar: {
+          scheduledAt: { direction: 'ASC', nulls: 'LAST' },
+        },
+        id: 'ASC',
+      });
+    });
   });
 
   describe('findOne', () => {

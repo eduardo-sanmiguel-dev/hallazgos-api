@@ -71,6 +71,7 @@ export * from './timezone.js';
 export * from './file-name.js';
 export * from './storage-timezones.js';
 export * from './paginate.js';
+export * from './sort.js';
 export * from './temp-dir.js';
 export * from './image-upload.js';
 export * from './plant-scope.js';

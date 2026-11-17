@@ -85,6 +85,11 @@ import {
   canCancelEvidences,
   hasSupervisorOverride,
 } from './evidence-permissions.js';
+import { buildFindOrder } from '../shared/utils/sort.js';
+import {
+  EVIDENCE_DEFAULT_SORT,
+  EVIDENCE_SORT_COLUMNS,
+} from './dto/query.evidence.dto.js';
 
 // pdfmake es CommonJS y su fuente se resuelve como archivo del paquete.
 const require = createRequire(import.meta.url);
@@ -1506,9 +1511,11 @@ export class EvidencesService {
         ...(createdAtFilter && { createdAt: createdAtFilter }),
       },
       relations: this.relations,
-      order: {
-        id: 'DESC',
-      },
+      order: buildFindOrder(
+        EVIDENCE_SORT_COLUMNS,
+        queryEvidenceDto,
+        EVIDENCE_DEFAULT_SORT,
+      ),
     };
 
     return options;
@@ -1573,7 +1580,8 @@ export class EvidencesService {
          LEFT JOIN "user" u ON u.id = e."userId"
          LEFT JOIN processes pr ON pr.id = e."processId"
         WHERE e.id = ANY($1)
-        ORDER BY e.id DESC`,
+        -- Mismo orden que la lista (los ids ya vienen ordenados).
+        ORDER BY array_position($1::int[], e.id)`,
       [
         authorized.map(({ id }) => id),
         responsibleIds.length ? responsibleIds : null,

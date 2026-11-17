@@ -116,6 +116,22 @@ describe('AreasService', () => {
         count: 0,
       });
     });
+
+    it('ordena en la BD por la columna pedida (vacíos al final) con desempate por id', async () => {
+      areas.findAndCount.mockResolvedValue([[], 0]);
+
+      await service.findAll({
+        page: 1,
+        limit: 5,
+        orderBy: 'manufacturingPlant',
+        order: 'desc',
+      } as never);
+
+      expect(areas.findAndCount.mock.calls[0][0].order).toEqual({
+        manufacturingPlant: { name: { direction: 'DESC', nulls: 'LAST' } },
+        id: 'DESC',
+      });
+    });
   });
 
   describe('findOne', () => {

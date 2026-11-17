@@ -226,6 +226,29 @@ describe('IcsService', () => {
       });
       expect(ics.findAndCount.mock.calls[1][0]).not.toHaveProperty('take');
     });
+
+    it('paginado: más recientes por omisión o la columna pedida', async () => {
+      ics.findAndCount.mockResolvedValue([[], 0]);
+
+      await as(async () => service.findAll({ page: 1, limit: 10 }));
+      await as(async () =>
+        service.findAll({
+          page: 1,
+          limit: 10,
+          orderBy: 'icsPercentage',
+          order: 'asc',
+        }),
+      );
+
+      expect(ics.findAndCount.mock.calls[0][0].order).toEqual({
+        createdAt: { direction: 'DESC', nulls: 'LAST' },
+        id: 'DESC',
+      });
+      expect(ics.findAndCount.mock.calls[1][0].order).toEqual({
+        icsPercentage: { direction: 'ASC', nulls: 'LAST' },
+        id: 'ASC',
+      });
+    });
   });
 
   describe('findOne y remove', () => {

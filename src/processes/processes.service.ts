@@ -12,6 +12,11 @@ import {
   QueryProcessesDto,
   UpdateProcessesDto,
 } from './dto/index.js';
+import { buildFindOrder } from '../shared/utils/sort.js';
+import {
+  PROCESS_DEFAULT_SORT,
+  PROCESS_SORT_COLUMNS,
+} from './dto/query-processes.dto.js';
 
 @Injectable()
 export class ProcessesService {
@@ -72,9 +77,11 @@ export class ProcessesService {
             }),
       },
       relations: ['manufacturingPlant'],
-      order: {
-        id: 'DESC',
-      },
+      order: buildFindOrder(
+        PROCESS_SORT_COLUMNS,
+        queryProcessesDto,
+        PROCESS_DEFAULT_SORT,
+      ),
     };
 
     return page && limit

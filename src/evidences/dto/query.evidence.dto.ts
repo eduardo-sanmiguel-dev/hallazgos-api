@@ -6,6 +6,33 @@ import {
   Matches,
   MaxLength,
 } from 'class-validator';
+import {
+  IsSortColumn,
+  IsSortOrder,
+} from '../../shared/dto/sort-query.decorators.js';
+import { sortKeys, type SortOrder } from '../../shared/utils/sort.js';
+
+/** Columnas por las que el listado se puede ordenar (lista blanca). */
+export const EVIDENCE_SORT_COLUMNS = {
+  id: 'id',
+  manufacturingPlant: 'manufacturingPlant.name',
+  mainType: 'mainType.name',
+  secondaryType: 'secondaryType.name',
+  area: 'zone.area.name',
+  zone: 'zone.name',
+  process: 'process.name',
+  user: 'user.name',
+  status: 'status',
+  priority: 'priorityDays',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  solutionDate: 'solutionDate',
+} as const;
+export type EvidenceSortColumn = keyof typeof EVIDENCE_SORT_COLUMNS;
+export const EVIDENCE_DEFAULT_SORT = {
+  orderBy: 'id',
+  order: 'desc',
+} as const;
 
 export class QueryEvidenceDto {
   @IsOptional()
@@ -109,4 +136,10 @@ export class QueryEvidenceDto {
   @IsString()
   @MaxLength(64)
   timeZone: string;
+
+  @IsSortColumn(sortKeys(EVIDENCE_SORT_COLUMNS))
+  orderBy?: EvidenceSortColumn;
+
+  @IsSortOrder()
+  order?: SortOrder;
 }

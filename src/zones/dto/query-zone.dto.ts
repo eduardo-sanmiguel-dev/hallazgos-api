@@ -12,6 +12,29 @@ import {
 } from 'class-validator';
 
 import { parseStringArrayQueryByKey } from '../../shared/utils/index.js';
+import {
+  IsSortColumn,
+  IsSortOrder,
+} from '../../shared/dto/sort-query.decorators.js';
+import { sortKeys, type SortOrder } from '../../shared/utils/sort.js';
+
+/** Columnas por las que el listado se puede ordenar (lista blanca). */
+export const ZONE_SORT_COLUMNS = {
+  id: 'id',
+  name: 'name',
+  manufacturingPlant: 'manufacturingPlant.name',
+  area: 'area.name',
+  createdBy: 'createdBy.name',
+  updatedBy: 'updatedBy.name',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  isActive: 'isActive',
+} as const;
+export type ZoneSortColumn = keyof typeof ZONE_SORT_COLUMNS;
+export const ZONE_DEFAULT_SORT = {
+  orderBy: 'id',
+  order: 'desc',
+} as const;
 
 export class QueryZoneDto extends CatalogVisibilityDto {
   @IsOptional()
@@ -54,4 +77,10 @@ export class QueryZoneDto extends CatalogVisibilityDto {
   @IsOptional()
   @IsIn(['options'])
   view?: 'options';
+
+  @IsSortColumn(sortKeys(ZONE_SORT_COLUMNS))
+  orderBy?: ZoneSortColumn;
+
+  @IsSortOrder()
+  order?: SortOrder;
 }

@@ -8,9 +8,15 @@ import {
 import { RequestContextService } from '../shared/services/request-context.service.js';
 
 import { type FindManyOptions, ILike, Repository } from 'typeorm';
-import { findPaginated } from '../shared/utils/index.js';
+import { buildFindOrder, findPaginated } from '../shared/utils/index.js';
 
-import { CreateAreaDto, QueryAreaDto, UpdateAreaDto } from './dto/index.js';
+import {
+  AREA_DEFAULT_SORT,
+  AREA_SORT_COLUMNS,
+  CreateAreaDto,
+  QueryAreaDto,
+  UpdateAreaDto,
+} from './dto/index.js';
 import { Area } from './entities/area.entity.js';
 import { User } from '../users/entities/user.entity.js';
 import { ManufacturingPlantsService } from '../manufacturing-plants/manufacturing-plants.service.js';
@@ -120,9 +126,7 @@ export class AreasService {
         },
       },
       relations: this.relations,
-      order: {
-        id: 'DESC',
-      },
+      order: buildFindOrder(AREA_SORT_COLUMNS, queryAreaDto, AREA_DEFAULT_SORT),
     };
 
     return page && limit

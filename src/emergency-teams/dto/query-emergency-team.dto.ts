@@ -8,6 +8,31 @@ import {
 } from 'class-validator';
 
 import { ExtinguisherType } from '../entities/emergency-team.entity.js';
+import {
+  IsSortColumn,
+  IsSortOrder,
+} from '../../shared/dto/sort-query.decorators.js';
+import { sortKeys, type SortOrder } from '../../shared/utils/sort.js';
+
+/** Columnas por las que el listado se puede ordenar (lista blanca). */
+export const EMERGENCY_TEAM_SORT_COLUMNS = {
+  id: 'emergencyTeam.id',
+  manufacturingPlant: 'manufacturingPlant.name',
+  extinguisherNumber: 'emergencyTeam.extinguisherNumber',
+  location: 'emergencyTeam.location',
+  typeOfExtinguisher: 'emergencyTeam.typeOfExtinguisher',
+  capacity: 'emergencyTeam.capacity',
+  createdAt: 'emergencyTeam.createdAt',
+  createdBy: 'createdBy.name',
+  updatedAt: 'emergencyTeam.updatedAt',
+  updatedBy: 'updatedBy.name',
+  isActive: 'emergencyTeam.isActive',
+} as const;
+export type EmergencyTeamSortColumn = keyof typeof EMERGENCY_TEAM_SORT_COLUMNS;
+export const EMERGENCY_TEAM_DEFAULT_SORT = {
+  orderBy: 'id',
+  order: 'desc',
+} as const;
 
 export class QueryEmergencyTeamDto extends CatalogVisibilityDto {
   @IsOptional()
@@ -31,4 +56,10 @@ export class QueryEmergencyTeamDto extends CatalogVisibilityDto {
   @IsOptional()
   @IsInt()
   limit?: number;
+
+  @IsSortColumn(sortKeys(EMERGENCY_TEAM_SORT_COLUMNS))
+  orderBy?: EmergencyTeamSortColumn;
+
+  @IsSortOrder()
+  order?: SortOrder;
 }

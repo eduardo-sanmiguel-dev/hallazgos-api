@@ -27,6 +27,11 @@ import {
 import { GembaWalkCalendar } from './entities/gemba-walk-calendar.entity.js';
 import { GembaWalkZone } from '../gemba-walk-zones/entities/gemba-walk-zone.entity.js';
 import { User } from '../users/entities/user.entity.js';
+import { buildFindOrder } from '../shared/utils/sort.js';
+import {
+  GEMBA_WALK_CALENDAR_DEFAULT_SORT,
+  GEMBA_WALK_CALENDAR_SORT_COLUMNS,
+} from './dto/query-gemba-walk-calendar.dto.js';
 
 interface EventSlot {
   id?: number;
@@ -209,9 +214,11 @@ export class GembaWalkCalendarService {
     const options: FindManyOptions<GembaWalkCalendar> = {
       where,
       relations: this.relations,
-      order: {
-        scheduledAt: 'ASC',
-      },
+      order: buildFindOrder(
+        GEMBA_WALK_CALENDAR_SORT_COLUMNS,
+        queryGembaWalkCalendarDto,
+        GEMBA_WALK_CALENDAR_DEFAULT_SORT,
+      ),
     };
 
     return page && limit

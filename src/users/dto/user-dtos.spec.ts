@@ -95,6 +95,7 @@ describe('DTOs de usuarios', () => {
   describe('QueryUserDto.orderBy', () => {
     it.each(
       USER_SORTABLE_COLUMNS.flatMap((column) => [
+        column,
         `${column}|asc`,
         `${column}|DESC`,
       ]),
@@ -105,7 +106,6 @@ describe('DTOs de usuarios', () => {
     });
 
     it.each([
-      ['sin dirección', 'name'],
       ['con una dirección inválida', 'name|up'],
       ['con una columna no permitida', 'password|asc'],
       ['con texto extra', 'name|asc; DROP TABLE "user"'],
@@ -115,6 +115,18 @@ describe('DTOs de usuarios', () => {
       await expect(invalidFields(QueryUserDto, { orderBy })).resolves.toEqual([
         'orderBy',
       ]);
+    });
+  });
+
+  describe('QueryUserDto.order', () => {
+    it.each(['asc', 'desc'])('acepta %s', async (order) => {
+      await expect(invalidFields(QueryUserDto, { order })).resolves.toEqual([]);
+    });
+
+    it('responde 400 con otra dirección', async () => {
+      await expect(
+        invalidFields(QueryUserDto, { order: 'up' }),
+      ).resolves.toEqual(['order']);
     });
   });
 

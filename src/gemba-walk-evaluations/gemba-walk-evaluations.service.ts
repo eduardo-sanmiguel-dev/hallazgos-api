@@ -24,6 +24,11 @@ import {
 import { GembaWalkEvaluation } from './entities/gemba-walk-evaluation.entity.js';
 import { User } from '../users/entities/user.entity.js';
 import { ManufacturingPlantsService } from '../manufacturing-plants/manufacturing-plants.service.js';
+import { buildFindOrder } from '../shared/utils/sort.js';
+import {
+  GEMBA_WALK_EVALUATION_DEFAULT_SORT,
+  GEMBA_WALK_EVALUATION_SORT_COLUMNS,
+} from './dto/query-gemba-walk-evaluation.dto.js';
 
 @Injectable()
 export class GembaWalkEvaluationsService {
@@ -129,9 +134,11 @@ export class GembaWalkEvaluationsService {
           ]
         : where,
       relations: this.relations,
-      order: {
-        id: 'DESC',
-      },
+      order: buildFindOrder(
+        GEMBA_WALK_EVALUATION_SORT_COLUMNS,
+        queryGembaWalkEvaluationDto,
+        GEMBA_WALK_EVALUATION_DEFAULT_SORT,
+      ),
     };
 
     return page && limit

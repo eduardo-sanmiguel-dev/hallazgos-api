@@ -12,21 +12,27 @@ import {
 } from 'class-validator';
 
 import { parseStringArrayQueryByKey } from '../../shared/utils/index.js';
+import { IsSortOrder } from '../../shared/dto/sort-query.decorators.js';
+import { sortKeys, type SortOrder } from '../../shared/utils/sort.js';
 
-// Columnas por las que se puede ordenar el listado de usuarios.
-export const USER_SORTABLE_COLUMNS = [
-  'id',
-  'name',
-  'email',
-  'role',
-  'createdAt',
-  'updatedAt',
-] as const;
-export type UserSortableColumn = (typeof USER_SORTABLE_COLUMNS)[number];
+// Columnas por las que se puede ordenar el listado de usuarios (lista blanca).
+export const USER_SORT_COLUMNS = {
+  id: 'id',
+  name: 'name',
+  email: 'email',
+  role: 'role',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  isActive: 'isActive',
+} as const;
+export const USER_SORTABLE_COLUMNS = sortKeys(USER_SORT_COLUMNS);
+export type UserSortableColumn = keyof typeof USER_SORT_COLUMNS;
+export const USER_DEFAULT_SORT = { orderBy: 'id', order: 'desc' } as const;
 
-// Formato `campo|asc` o `campo|desc` (dirección sin importar mayúsculas).
+// `campo` (con la dirección en `order`) o `campo|asc` / `campo|desc`, el
+// formato de los selectores (dirección sin importar mayúsculas).
 export const USER_ORDER_BY_PATTERN = new RegExp(
-  `^(${USER_SORTABLE_COLUMNS.join('|')})[|](asc|desc)$`,
+  `^(${USER_SORTABLE_COLUMNS.join('|')})([|](asc|desc))?$`,
   'i',
 );
 
@@ -73,9 +79,12 @@ export class QueryUserDto extends CatalogVisibilityDto {
   @IsOptional()
   @IsString()
   @Matches(USER_ORDER_BY_PATTERN, {
-    message: `Debe tener el formato campo|asc o campo|desc, con campo en: ${USER_SORTABLE_COLUMNS.join(', ')}`,
+    message: `Debe ser un campo, o campo|asc o campo|desc, con campo en: ${USER_SORTABLE_COLUMNS.join(', ')}`,
   })
   orderBy: string;
+
+  @IsSortOrder()
+  order?: SortOrder;
 
   @IsOptional()
   @IsPositive()

@@ -9,6 +9,11 @@ import { ManufacturingPlantsService } from '../manufacturing-plants/manufacturin
 import { CreateEquipmentDto, UpdateEquipmentDto } from './dto/index.js';
 import { Equipment, EquipmentCostHistory } from './entities/index.js';
 import { findPaginated, getColombiaNow } from '../shared/utils/index.js';
+import { buildFindOrder, type SortQuery } from '../shared/utils/sort.js';
+import {
+  EQUIPMENT_DEFAULT_SORT,
+  EQUIPMENT_SORT_COLUMNS,
+} from './dto/equipment-sort.js';
 
 @Injectable()
 export class EquipmentsService {
@@ -122,13 +127,18 @@ export class EquipmentsService {
     page: string,
     limit: string,
     includeInactive?: string,
+    sort: SortQuery = {},
   ) {
     const result = await findPaginated(
       this.equipmentRepository,
       {
         where: this.listWhere(manufacturingPlantId, name, includeInactive),
         relations: this.relations,
-        order: { name: 'ASC', id: 'ASC' },
+        order: buildFindOrder(
+          EQUIPMENT_SORT_COLUMNS,
+          sort,
+          EQUIPMENT_DEFAULT_SORT,
+        ),
       },
       page,
       limit,

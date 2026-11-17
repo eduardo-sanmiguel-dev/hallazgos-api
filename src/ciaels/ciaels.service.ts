@@ -35,6 +35,11 @@ import { Area } from '../areas/entities/area.entity.js';
 import { User } from '../users/entities/user.entity.js';
 import { Ciael } from './entities/ciael.entity.js';
 import { Employee, EmployeeArea } from '../employees/entities/index.js';
+import { buildFindOrder } from '../shared/utils/sort.js';
+import {
+  CIAEL_DEFAULT_SORT,
+  CIAEL_SORT_COLUMNS,
+} from './dto/filters-ciael.dto.js';
 
 @Injectable()
 export class CiaelsService {
@@ -494,7 +499,11 @@ export class CiaelsService {
       where: this.buildWhere(filtersCiaelDto),
       select: this.select,
       relations: this.relations,
-      order: { createdAt: 'DESC', id: 'DESC' },
+      order: buildFindOrder(
+        CIAEL_SORT_COLUMNS,
+        filtersCiaelDto,
+        CIAEL_DEFAULT_SORT,
+      ),
       ...(limitNumber !== -1 && {
         take: limitNumber,
         skip: (Number(page) - 1) * limitNumber,

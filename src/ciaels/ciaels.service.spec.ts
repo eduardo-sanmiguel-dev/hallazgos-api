@@ -328,6 +328,15 @@ describe('CiaelsService', () => {
 
       expect(ciaels.findAndCount.mock.calls[0][0]).not.toHaveProperty('take');
     });
+
+    it('paginado ordena por la columna pedida, incluso de una relación anidada', async () => {
+      await service.findAllPaginated({ orderBy: 'area', order: 'desc' });
+
+      expect(ciaels.findAndCount.mock.calls[0][0].order).toEqual({
+        zone: { area: { name: { direction: 'DESC', nulls: 'LAST' } } },
+        id: 'DESC',
+      });
+    });
   });
 
   describe('findOne', () => {

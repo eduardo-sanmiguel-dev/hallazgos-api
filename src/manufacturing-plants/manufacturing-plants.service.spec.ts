@@ -82,6 +82,22 @@ describe('ManufacturingPlantsService', () => {
       expect(order).toEqual({ id: 'DESC' });
     });
 
+    it('ordena en la BD por la columna pedida (vacíos al final) con desempate por id', async () => {
+      plants.findAndCount.mockResolvedValue([[], 0]);
+
+      await service.findAll({
+        page: 1,
+        limit: 5,
+        orderBy: 'lat',
+        order: 'desc',
+      } as never);
+
+      expect(plants.findAndCount.mock.calls[0][0].order).toEqual({
+        lat: { direction: 'DESC', nulls: 'LAST' },
+        id: 'DESC',
+      });
+    });
+
     it('con page y limit responde paginado', async () => {
       plants.findAndCount.mockResolvedValue([[], 0]);
 

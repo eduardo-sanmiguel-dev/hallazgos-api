@@ -172,6 +172,22 @@ describe('ZonesService', () => {
       expect(zones.findAndCount).not.toHaveBeenCalled();
     });
 
+    it('ordena en la BD por la columna pedida (vacíos al final) con desempate por id', async () => {
+      zones.findAndCount.mockResolvedValue([[], 0]);
+
+      await service.findAll({
+        page: 1,
+        limit: 5,
+        orderBy: 'area',
+        order: 'desc',
+      } as never);
+
+      expect(zones.findAndCount.mock.calls[0][0].order).toEqual({
+        area: { name: { direction: 'DESC', nulls: 'LAST' } },
+        id: 'DESC',
+      });
+    });
+
     it('con page y limit responde paginado', async () => {
       zones.findAndCount.mockResolvedValue([[], 0]);
 

@@ -47,6 +47,22 @@ describe('MainTypesService', () => {
     ).resolves.toMatchObject({ count: 0 });
   });
 
+  it('ordena en la BD por la columna pedida (vacíos al final) con desempate por id', async () => {
+    types.findAndCount.mockResolvedValue([[], 0]);
+
+    await service.findAll({
+      page: 1,
+      limit: 5,
+      orderBy: 'createdAt',
+      order: 'desc',
+    } as never);
+
+    expect(types.findAndCount.mock.calls[0][0].order).toEqual({
+      createdAt: { direction: 'DESC', nulls: 'LAST' },
+      id: 'DESC',
+    });
+  });
+
   it('el catálogo omite tipos inactivos y conserva criterios sin tipos activos', async () => {
     const active = { id: 24, isActive: true };
     const inactive = { id: 23, isActive: false };
