@@ -450,6 +450,22 @@ describe('EvidencesService', () => {
   describe('findOne (solo hallazgos de las plantas del usuario)', () => {
     const evidence = () => buildEvidence({ id: 5, manufacturingPlant: plant });
 
+    it('si una colección ya no se puede cargar queda vacía', async () => {
+      stored = [evidence()];
+      const original = evidences.findOne.getMockImplementation();
+      evidences.findOne.mockImplementation(async (options) =>
+        (options.where as { manufacturingPlant?: unknown }).manufacturingPlant
+          ? original(options)
+          : null,
+      );
+
+      const found = await runAsUser(reporter, () => service.findOne(5));
+
+      expect(found.supervisors).toEqual([]);
+      expect(found.responsibles).toEqual([]);
+      expect(found.comments).toEqual([]);
+    });
+
     it('devuelve el hallazgo de una planta del usuario', async () => {
       const own = evidence();
       stored = [own];
@@ -740,6 +756,17 @@ describe('EvidencesService', () => {
         status: STATUS_IN_PROGRESS,
       });
       expect(mail.withOutbox).toHaveBeenCalledTimes(1);
+    });
+
+    it('si el correo de inicio falla sin outbox, lo registra y el inicio queda guardado', async () => {
+      mail.sendInProgress.mockRejectedValue(new Error('SMTP caído'));
+
+      await expect(start(supervisor)).resolves.toMatchObject({
+        status: STATUS_IN_PROGRESS,
+      });
+      expect(logError).toHaveBeenCalledWith(
+        expect.stringContaining('SMTP caído'),
+      );
     });
 
     it('propaga un fallo de persistencia del correo para abortar la transaccion', async () => {
@@ -1114,6 +1141,50 @@ describe('EvidencesService', () => {
           expect(mail.sendReassign).not.toHaveBeenCalled();
         },
       );
+
+      it('responde 404 si el hallazgo desaparece al bloquearlo', async () => {
+        const original = evidences.findOne.getMockImplementation();
+        evidences.findOne.mockImplementation(async (options) =>
+          options.lock ? null : original(options),
+        );
+
+        await expect(reassign(supervisor, [newResponsible.id])).rejects.toThrow(
+          new NotFoundException('Hallazgo no encontrado'),
+        );
+        expect(evidences.save).not.toHaveBeenCalled();
+      });
+
+      it('responde 409 si el hallazgo se actualizó mientras tanto', async () => {
+        evidence.updatedAt = new Date('2026-10-01T10:00:00Z');
+        const original = evidences.findOne.getMockImplementation();
+        evidences.findOne.mockImplementation(async (options) => {
+          const row = await original(options);
+          return options.lock
+            ? ({
+                ...row,
+                updatedAt: new Date('2026-10-01T10:00:01Z'),
+              } as Evidence)
+            : row;
+        });
+
+        await expect(reassign(supervisor, [newResponsible.id])).rejects.toThrow(
+          new ConflictException(
+            'El hallazgo cambió; recargue e intente de nuevo',
+          ),
+        );
+        expect(evidences.save).not.toHaveBeenCalled();
+      });
+
+      it('sin responsables antes ni después no avisa a nadie', async () => {
+        evidence.responsibles = [];
+
+        const result = await reassign(supervisor, []);
+
+        expect(result.responsibles).toEqual([]);
+        expect(usersService.findOne).not.toHaveBeenCalled();
+        await flushBackgroundWork();
+        expect(mail.sendReassign).not.toHaveBeenCalled();
+      });
 
       it('rechaza un cierre concurrente antes de guardar responsables', async () => {
         const original = evidences.findOne.getMockImplementation();
@@ -1597,6 +1668,11 @@ describe('EvidencesService', () => {
           'La fecha de inicio debe tener el formato DD/MM/YYYY',
         ],
         [
+          'una fecha en ceros',
+          { startDate: '00/00/0000' },
+          'La fecha de inicio debe tener el formato DD/MM/YYYY',
+        ],
+        [
           'un día que no existe',
           { endDate: '31/02/2026' },
           'La fecha de fin debe tener el formato DD/MM/YYYY',
@@ -1829,6 +1905,71 @@ describe('EvidencesService', () => {
         expect(byField['Fecha fin']).toBe(PERIOD.endDate);
       });
 
+      it('los filtros sueltos se suman a sus listas sin repetir', async () => {
+        namesById.set(5, 'Piso mojado');
+        namesById.set(6, 'Producción');
+        namesById.set(7, 'Almacén');
+        namesById.set(300, 'Responsable');
+        const { file } = await downloadXlsx({
+          id: 77,
+          ids: '77',
+          mainTypeId: 2,
+          secondaryType: 5,
+          area: 6,
+          zone: 7,
+          responsible: 300,
+          process: 12,
+          status: STATUS_CLOSE,
+        });
+        const rows = (await workbookOf(file))
+          .sheet('Filtros')
+          .usedRange()
+          .value() as string[][];
+        const byField = Object.fromEntries(
+          rows.map(([field, value]) => [field, value]),
+        );
+
+        expect(String(byField['ID(s)'])).toBe('77');
+        expect(byField['Clasificación']).toBe('Condición insegura');
+        expect(byField['Tipo']).toBe('Piso mojado');
+        expect(byField['Zonas']).toBe('Producción');
+        expect(byField['Lugar']).toBe('Almacén');
+        expect(byField['Responsables']).toBe('Responsable');
+        expect(byField['Proceso']).toBe('Producción');
+        expect(byField['Estatus']).toBe(STATUS_CLOSE);
+        // El responsable suelto también acota la columna de responsables.
+        const [, params] = evidences.query.mock.calls[0];
+        expect(params).toContainEqual([300]);
+      });
+
+      it('un hallazgo inactivo sale con 0 en la columna de activo', async () => {
+        const [row] = await evidences.query('');
+        evidences.query.mockResolvedValue([{ ...row, isActive: false }]);
+
+        const { file } = await downloadXlsx();
+        const sheet = (await workbookOf(file)).sheet('Hallazgos');
+
+        expect(sheet.cell('C2').value()).toBe(0);
+      });
+
+      it('un usuario sin plantas (y sin nombre) descarga solo encabezados', async () => {
+        const { res, body } = excelResponse();
+        await runAsUser(buildUser({ name: '', manufacturingPlants: [] }), () =>
+          service.downloadFile('xlsx', PERIOD as never, res as never),
+        );
+        const workbook = await workbookOf(await body());
+
+        expect(evidences.find).not.toHaveBeenCalled();
+        expect(workbook.sheet('Hallazgos').cell('A2').value()).toBeUndefined();
+        const rows = workbook
+          .sheet('Filtros')
+          .usedRange()
+          .value() as string[][];
+        expect(rows.find(([field]) => field === 'Descargado por')[1]).toBe(
+          undefined,
+        );
+      });
+
       it('nombra el archivo con la planta y cuántos filtros extra se aplicaron', async () => {
         const { res } = await downloadXlsx({
           manufacturingPlantId: 1,
@@ -1934,6 +2075,21 @@ describe('EvidencesService', () => {
         expect(stem(pdfName)).toBe(stem(xlsxName));
       });
 
+      it('arma filas sin proceso, abiertas, con solución y sin foto de evidencia', async () => {
+        evidences.find.mockResolvedValue([
+          Object.assign(listed(), {
+            status: STATUS_OPEN,
+            process: null,
+            imgEvidence: '',
+            imgSolution: 'no-existe.png',
+          }),
+        ]);
+
+        const body = await ended(await download('pdf'));
+
+        expect(body.subarray(0, 4).toString()).toBe('%PDF');
+      });
+
       it('sin resultados también responde un PDF (antes respondía 500)', async () => {
         evidences.find.mockResolvedValue([]);
 
@@ -1942,5 +2098,84 @@ describe('EvidencesService', () => {
         expect(body.subarray(0, 4).toString()).toBe('%PDF');
       });
     });
+  });
+
+  describe('correos: errores al avisar', () => {
+    const evidence = () =>
+      buildEvidence({ id: 7, manufacturingPlant: plant, user: reporter });
+    const capture = () =>
+      Object.defineProperty(mail, 'capturingMail', {
+        value: true,
+        configurable: true,
+      });
+
+    it('con outbox, un correo fallido se propaga para abortar la transacción', async () => {
+      capture();
+      mail.sendCreate.mockRejectedValue(new Error('outbox caído'));
+
+      await expect(
+        runAsUser(reporter, () =>
+          service.sendEmailUsers([plantUser], evidence(), 'create'),
+        ),
+      ).rejects.toThrow('outbox caído');
+    });
+
+    it('con outbox, si falta la cuenta de desarrollo se propaga el error', async () => {
+      await setup(ENV_DEVELOPMENT);
+      capture();
+      usersService.findOne.mockRejectedValue(new NotFoundException());
+
+      await expect(
+        runAsUser(reporter, () =>
+          service.sendEmailUsers([plantUser], evidence(), 'create'),
+        ),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('con outbox, si no se pueden consultar los usuarios de la planta se propaga', async () => {
+      capture();
+      usersService.findAllByPlant.mockRejectedValue(new Error('BD caída'));
+
+      await expect(
+        runAsUser(reporter, () =>
+          service.notifyByEmail({
+            manufacturingPlant: plant,
+            evidenceCurrent: evidence(),
+            type: 'cancel',
+          }),
+        ),
+      ).rejects.toThrow('BD caída');
+    });
+
+    it('sin outbox registra tipos y errores desconocidos tal cual', async () => {
+      usersService.findAllByPlant.mockRejectedValue('BD caída');
+
+      await runAsUser(reporter, () =>
+        service.notifyByEmail({
+          manufacturingPlant: plant,
+          evidenceCurrent: evidence(),
+          type: 'otro',
+        }),
+      );
+
+      expect(logError).toHaveBeenCalledWith(
+        'No se pudo enviar el correo de otro del hallazgo #7 a los usuarios de la planta Tepotzotlán: BD caída',
+      );
+    });
+  });
+
+  it('update es un stub sin acceso a datos', () => {
+    expect(service.update(5, {} as never)).toEqual({
+      id: 5,
+      updateEvidenceDto: {},
+    });
+    expect(evidences.save).not.toHaveBeenCalled();
+  });
+
+  it('pdfmake no descarga URLs ni lee archivos fuera de sus fuentes', () => {
+    const pdfMake = jest.requireActual('pdfmake');
+
+    expect(pdfMake.urlAccessPolicy('https://example.com/x.png')).toBe(false);
+    expect(pdfMake.localAccessPolicy('/etc/passwd')).toBe(false);
   });
 });

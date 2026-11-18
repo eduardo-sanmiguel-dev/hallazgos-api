@@ -2,8 +2,10 @@ import { NotFoundException } from '@nestjs/common';
 import { FindOperator } from 'typeorm';
 
 import {
+  buildAdmin,
   createServiceTestingModule,
   type RepositoryMock,
+  runAsUser,
 } from '../../test/utils/index.js';
 import { MainType } from './entities/main-type.entity.js';
 import { MainTypesService } from './main-types.service.js';
@@ -122,5 +124,19 @@ describe('MainTypesService', () => {
     await service.remove(1);
 
     expect(types.update).toHaveBeenCalledWith(1, { isActive: false });
+  });
+
+  it('un admin con includeInactive ve también los tipos inactivos', async () => {
+    const inactive = { id: 23, isActive: false };
+    types.find.mockResolvedValue([
+      { id: 3, secondaryTypes: [inactive] },
+    ] as MainType[]);
+
+    const result = await runAsUser(buildAdmin(), async () =>
+      service.findAll({ includeInactive: 'true' } as never),
+    );
+
+    expect(result).toEqual([{ id: 3, secondaryTypes: [inactive] }]);
+    expect(types.find.mock.calls[0][0].where).not.toHaveProperty('isActive');
   });
 });

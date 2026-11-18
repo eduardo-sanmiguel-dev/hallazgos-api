@@ -2,6 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import { Brackets } from 'typeorm';
 
 import {
+  buildAdmin,
   buildUser,
   createServiceTestingModule,
   type RepositoryMock,
@@ -80,6 +81,41 @@ describe('EmergencyTeamsService', () => {
       expect(qb().andWhere).toHaveBeenCalledWith(
         'manufacturingPlant.id IN (:...allowedPlantIds)',
         { allowedPlantIds: [1, 2] },
+      );
+    });
+
+    it('la búsqueda filtra por ubicación o número de extintor', async () => {
+      qb().getMany.mockResolvedValue([]);
+
+      await as(async () => service.findAll({ search: 'alm' } as never));
+
+      const brackets = qb().andWhere.mock.calls
+        .map(([condition]) => condition)
+        .find((condition) => condition instanceof Brackets) as Brackets;
+      const inner = { where: jest.fn(), orWhere: jest.fn() };
+      inner.where.mockReturnValue(inner);
+      brackets.whereFactory(inner as never);
+      expect(inner.where).toHaveBeenCalledWith(
+        'emergencyTeam.location ILIKE :search',
+        { search: '%alm%' },
+      );
+      expect(inner.orWhere).toHaveBeenCalledWith(
+        'emergencyTeam.extinguisherNumber ILIKE :search',
+        { search: '%alm%' },
+      );
+    });
+
+    it('un admin sin plantas con includeInactive no filtra por activo ni ve plantas', async () => {
+      qb().getMany.mockResolvedValue([]);
+
+      await runAsUser(buildAdmin({ manufacturingPlants: [] }), async () =>
+        service.findAll({ includeInactive: 'true' } as never),
+      );
+
+      expect(qb().where).toHaveBeenCalledWith('1=1', { isActive: true });
+      expect(qb().andWhere).toHaveBeenCalledWith(
+        'manufacturingPlant.id IN (:...allowedPlantIds)',
+        { allowedPlantIds: [-1] },
       );
     });
 

@@ -82,6 +82,8 @@ describe('AuthService', () => {
       };
       Object.assign(user, rest);
       if (typeof tokenVersion === 'function') {
+        // La expresión SQL que TypeORM manda tal cual a la base.
+        expect((tokenVersion as () => string)()).toBe('"tokenVersion" + 1');
         user.tokenVersion = (user.tokenVersion ?? 0) + 1;
       }
       return { affected: 1, raw: [], generatedMaps: [] };
@@ -169,6 +171,16 @@ describe('AuthService', () => {
       ).rejects.toThrow(new UnauthorizedException('Credenciales no válidas'));
       await expect(
         login('persona@hallazgos.test', 'Clave-incorrecta'),
+      ).rejects.toThrow(new UnauthorizedException('Credenciales no válidas'));
+    });
+
+    it('si la verificación de relleno falla (correo inexistente) responde el mismo 401', async () => {
+      // argon2 rechaza una contraseña que no es texto: el error se ignora.
+      await expect(
+        service.login({
+          email: 'nadie@hallazgos.test',
+          password: undefined as never,
+        }),
       ).rejects.toThrow(new UnauthorizedException('Credenciales no válidas'));
     });
 

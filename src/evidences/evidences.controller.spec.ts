@@ -121,6 +121,20 @@ describe('EvidencesController (HTTP)', () => {
     });
   });
 
+  it('GET /evidences delega la lista con sus filtros', async () => {
+    service.findAll.mockResolvedValue([] as never);
+
+    await http
+      .http()
+      .get('/evidences')
+      .query({ page: 1, limit: 10 })
+      .expect(200, []);
+
+    expect(service.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ page: 1, limit: 10 }),
+    );
+  });
+
   describe('GET /evidences/:id', () => {
     it('devuelve el hallazgo', async () => {
       service.findOne.mockResolvedValue({ id: 12 } as never);

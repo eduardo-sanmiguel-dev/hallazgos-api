@@ -9,7 +9,7 @@ import {
 import { inspectionStoredWallClockToInstant } from './extinguisher-inspection-storage-timezones.js';
 
 /** Código del formato: siempre al inicio del nombre. */
-export const INSPECTION_FORMAT_CODE = 'RGOSGSST49';
+const INSPECTION_FORMAT_CODE = 'RGOSGSST49';
 
 interface InspectionFileNameParts {
   id: number;

@@ -287,6 +287,17 @@ describe('EppsService', () => {
       expect(deliveryDate.getUTCHours()).toBe(0);
     });
 
+    it('si el empleado se desactiva antes del bloqueo responde 404 sin guardar', async () => {
+      employees.findOne
+        .mockResolvedValueOnce({ id: 7, manufacturingPlants: [{ id: 1 }] } as never)
+        .mockResolvedValueOnce(null);
+
+      await expect(as(() => service.create(dto))).rejects.toThrow(
+        new NotFoundException('Colaborador #7 no encontrado.'),
+      );
+      expect(epps.save).not.toHaveBeenCalled();
+    });
+
     it('busca al empleado solo en las plantas del usuario (ajeno → 404 sin guardar)', async () => {
       employees.findOne.mockResolvedValue(null);
 
@@ -471,6 +482,21 @@ describe('EppsService', () => {
       });
     });
 
+    it('la búsqueda compara nombre o cédula', async () => {
+      await service.findPaginated({ manufacturingPlantId: 1, search: 'ana' });
+
+      const [brackets] = qb().andWhere.mock.calls.find(
+        ([condition]) => condition instanceof Brackets,
+      ) as [Brackets];
+      const inner = { where: jest.fn(), orWhere: jest.fn() };
+      inner.where.mockReturnValue(inner);
+      brackets.whereFactory(inner as never);
+      expect(inner.where).toHaveBeenCalledWith('employee.name ILIKE :term');
+      expect(inner.orWhere).toHaveBeenCalledWith(
+        'CAST(employee.code AS TEXT) ILIKE :term',
+      );
+    });
+
     it('sin filtros opcionales no los agrega', async () => {
       await service.findPaginated({ manufacturingPlantId: 1 });
 
@@ -597,6 +623,22 @@ describe('EppsService', () => {
       expect(operand(where.employee.manufacturingPlants.id)).toEqual([1]);
     });
 
+    it('una entrega sin equipos visibles en las plantas del usuario responde 404', async () => {
+      epps.findOne.mockResolvedValue(
+        buildEpp({}, [
+          {
+            id: 1,
+            isActive: true,
+            equipment: { manufacturingPlant: { id: 2 } } as never,
+          },
+        ]),
+      );
+
+      await expect(as(() => service.findOne(50))).rejects.toThrow(
+        new NotFoundException('Entrega de EPP #50 no encontrada.'),
+      );
+    });
+
     it('una entrega de otra planta o inexistente responde 404', async () => {
       await expect(as(() => service.findOne(50))).rejects.toThrow(
         new NotFoundException('Entrega de EPP #50 no encontrada.'),
@@ -604,7 +646,34 @@ describe('EppsService', () => {
     });
   });
 
+  it('update y remove son stubs sin acceso a datos', () => {
+    expect(service.update(5, {} as never)).toEqual({
+      id: 5,
+      updateEppDto: {},
+    });
+    expect(service.remove(5)).toContain('#5');
+    expect(epps.save).not.toHaveBeenCalled();
+  });
+
   describe('removeHistory', () => {
+    it('si la entrega incluye equipos de otra planta responde 404 sin borrar', async () => {
+      eppEquipments.findOne.mockResolvedValue({
+        id: 9,
+        epp: {
+          id: 50,
+          equipments: [
+            { equipment: { manufacturingPlant: { id: 1 } } },
+            { equipment: { manufacturingPlant: { id: 2 } } },
+          ],
+        },
+      } as never);
+
+      await expect(as(() => service.removeHistory(9))).rejects.toThrow(
+        new NotFoundException('Registro de historial no encontrado.'),
+      );
+      expect(epps.delete).not.toHaveBeenCalled();
+    });
+
     it('borra la entrega completa y todos sus renglones', async () => {
       eppEquipments.findOne.mockResolvedValue({
         id: 9,

@@ -4,25 +4,7 @@ import { safeFilePath } from './safe-file-path.js';
 
 export const expireTime = 60 * 60 * 24 * 30; // 30 days in seconds
 
-export const expiresIn = () => {
-  return Math.floor(Date.now() / 1000) + expireTime;
-};
-
 export { stringToDateWithTime, durantionToTime } from './date-time.js';
-
-export const groupBy = (
-  items: {
-    [key: string]: any;
-  }[],
-  key: string,
-) =>
-  items.reduce(
-    (result, item) => ({
-      ...result,
-      [item[key]]: [...(result[item[key]] || []), item],
-    }),
-    {},
-  );
 
 export const formatDateToYYYYMMDD = (dateString: string) => {
   const date = dateString.split('T')[0].split('-');

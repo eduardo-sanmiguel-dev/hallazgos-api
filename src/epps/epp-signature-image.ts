@@ -9,7 +9,7 @@
 
 /** Celda de firma: columna F de 20 caracteres y renglón de 20.1 pt, en px. */
 export const SIGNATURE_CELL = { width: 145, height: (20.1 * 96) / 72 };
-export const SIGNATURE_CELL_PADDING = 3;
+const SIGNATURE_CELL_PADDING = 3;
 const SIGNATURE_COLUMN = 5; // F (base 0)
 const EMU_PER_PX = 9525;
 
@@ -30,7 +30,7 @@ export const pngSize = (buffer: Buffer) => {
     : null;
 };
 
-export const isLegacySignature = (size: { width: number; height: number }) =>
+const isLegacySignature = (size: { width: number; height: number }) =>
   LEGACY_SIZES.some(
     ([width, height]) => size.width === width && size.height === height,
   );

@@ -12,8 +12,7 @@
 #
 # Variables opcionales: BACKUP_VPS, BACKUP_DEST, BACKUP_DBS,
 # BACKUP_PHOTOS_SRC, BACKUP_PHOTOS_DEST, BACKUP_HDS_SRC, BACKUP_HDS_DEST,
-# BACKUP_KEEP_DAILY_DAYS,
-# BACKUP_KEEP_MONTHLY.
+# BACKUP_KEEP_DAILY_DAYS.
 
 set -Eeuo pipefail
 
@@ -31,7 +30,6 @@ PHOTOS_DEST="${BACKUP_PHOTOS_DEST:-/mnt/c/Users/eduar/proyects/hallazgos/hallazg
 HDS_SRC="${BACKUP_HDS_SRC:-hallazgos-api/data/hds/}"
 HDS_DEST="${BACKUP_HDS_DEST:-/mnt/c/Users/eduar/proyects/hallazgos/hallazgos-api/data/hds}"
 KEEP_DAILY_DAYS="${BACKUP_KEEP_DAILY_DAYS:-30}"
-KEEP_MONTHLY="${BACKUP_KEEP_MONTHLY:-12}"
 PG_CONN="-h 127.0.0.1 -p 5324 -U postgres -w"
 SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=20 -o ServerAliveInterval=30)
 
@@ -65,33 +63,6 @@ prune_daily() {
   shopt -u nullglob
 }
 
-# Deja en DIR solo los KEEP respaldos mensuales más recientes de PREFIX.
-prune_monthly() {
-  local dir=$1 prefix=$2 keep=$3 file
-  shopt -s nullglob
-  local files=("$dir/$prefix"-*)
-  shopt -u nullglob
-  ((${#files[@]} > keep)) || return 0
-  while IFS= read -r file; do
-    rm -f -- "$file"
-    log "Borrado mensual antiguo: $(basename "$file")"
-  done < <(printf '%s\n' "${files[@]}" | sort | head -n "-$keep")
-}
-
-# Copia FILE a DIR como respaldo mensual si aún no hay uno de ese mes.
-keep_monthly() {
-  local file=$1 dir=$2 prefix=$3 month
-  month=$(file_date "$file")
-  month=${month:0:7}
-  shopt -s nullglob
-  local existing=("$dir/$prefix-$month"-*)
-  shopt -u nullglob
-  if ((${#existing[@]} == 0)); then
-    cp -- "$file" "$dir/"
-    log "Mensual de $month: $(basename "$file")"
-  fi
-}
-
 remote() {
   ssh "${SSH_OPTS[@]}" "$VPS" "$@"
 }
@@ -113,7 +84,7 @@ wait_for_vps() {
 # pg_dump en el VPS, verificado allá (pg_restore --list) y comparado con
 # sha256 al bajarlo. El archivo solo queda con su nombre final si todo cuadra.
 backup_db() {
-  local db=$1 stamp=$2 daily=$3 monthly=$4
+  local db=$1 stamp=$2 daily=$3
   local name="$db-$stamp.dump"
   local tmp="/tmp/backup-$name"
   local local_file="$daily/$name"
@@ -139,18 +110,16 @@ backup_db() {
   fi
   mv -- "$local_file.part" "$local_file"
   log "Base $db: OK $(du -h "$local_file" | cut -f1) ($name)"
-  keep_monthly "$local_file" "$monthly" "$db"
 }
 
 # Roles y permisos (no van en pg_dump): necesarios para restaurar en un
 # servidor nuevo.
 backup_globals() {
-  local stamp=$1 daily=$2 monthly=$3
+  local stamp=$1 daily=$2
   local name="globals-$stamp.sql"
   remote "pg_dumpall $PG_CONN --globals-only" > "$daily/$name.part"
   mv -- "$daily/$name.part" "$daily/$name"
   log "Roles: OK ($name)"
-  keep_monthly "$daily/$name" "$monthly" "globals"
 }
 
 # Fotos: solo baja lo nuevo o cambiado. Sin --delete: si una foto se borra en
@@ -179,9 +148,9 @@ notify_failure() {
 }
 
 main() {
-  local daily="$DEST/db/daily" monthly="$DEST/db/monthly"
+  local daily="$DEST/db"
   local photos="$PHOTOS_DEST" hds="$HDS_DEST" logs="$DEST/logs"
-  mkdir -p "$daily" "$monthly" "$photos" "$hds" "$logs"
+  mkdir -p "$daily" "$photos" "$hds" "$logs"
 
   local logfile="$logs/backup-$(date +%Y-%m).log"
   exec > >(tee -a "$logfile") 2>&1
@@ -201,16 +170,13 @@ main() {
   local stamp db
   stamp=$(date +%F_%H%M)
   for db in $DBS; do
-    backup_db "$db" "$stamp" "$daily" "$monthly"
+    backup_db "$db" "$stamp" "$daily"
   done
-  backup_globals "$stamp" "$daily" "$monthly"
+  backup_globals "$stamp" "$daily"
   backup_photos "$photos"
   backup_hds "$hds"
 
   prune_daily "$daily" "$(date +%F)" "$KEEP_DAILY_DAYS"
-  for db in $DBS globals; do
-    prune_monthly "$monthly" "$db" "$KEEP_MONTHLY"
-  done
 
   printf 'OK %s\nBases: %s\nCarpeta: %s\n' "$(date '+%F %T')" "$DBS" "$DEST" \
     > "$DEST/ULTIMO_RESPALDO.txt"

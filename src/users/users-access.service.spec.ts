@@ -57,6 +57,8 @@ describe('UsersService: aislamiento por planta en HTTP', () => {
     await runAsUser(admin, async () =>
       service.assertPlantsForRequest(['México']),
     );
+    // Sin plantas no hay nada que revisar.
+    await runAsUser(admin, async () => service.assertPlantsForRequest());
   });
   it.each([undefined, 1, 2])(
     'la lista respeta las plantas del usuario con filtro %s',

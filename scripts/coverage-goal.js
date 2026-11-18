@@ -1,12 +1,12 @@
 /**
  * Metas sobre TODO el código del reporte unitario, incluido dashboard.service.
- * Los umbrales de carpetas de Jest se conservan como controles adicionales.
+ * Debe coincidir con el umbral global de jest.config.js (100 %).
  * Uso: node scripts/coverage-goal.js [ruta a coverage-summary.json]
  */
 import { readFileSync } from 'fs';
 import { join, resolve } from 'path';
 
-const GOAL = { statements: 85, branches: 80, functions: 85, lines: 85 };
+const GOAL = { statements: 100, branches: 100, functions: 100, lines: 100 };
 const report = process.argv[2]
   ? resolve(process.argv[2])
   : join(import.meta.dirname, '..', 'coverage', 'coverage-summary.json');

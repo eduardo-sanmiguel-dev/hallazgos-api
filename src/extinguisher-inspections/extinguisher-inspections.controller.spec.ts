@@ -194,6 +194,64 @@ describe('GET /extinguisher-inspections/download/file/:id (Excel)', () => {
     expect(sheet.row(9).height()).toBeGreaterThan(15);
   });
 
+  it('soporta una plantilla sin alturas, anchos ni tamaño de letra fijos', async () => {
+    const original = XlsxPopulate.fromFileAsync.bind(XlsxPopulate);
+    const fromFile = jest
+      .spyOn(XlsxPopulate, 'fromFileAsync')
+      .mockImplementationOnce(async (path: string) => {
+        const workbook = await original(path);
+        for (const sheet of workbook.sheets()) {
+          // Una combinación con referencia no reconocible se ignora.
+          (sheet as any)._mergeCells['MALFORMADA'] = {
+            name: 'mergeCell',
+            attributes: { ref: 'A100:A101' },
+            children: [],
+          };
+          sheet.row(34).height(undefined);
+          sheet.row(35).height(undefined);
+          sheet.column('R').width(undefined);
+          sheet.cell('R9').style('fontSize', undefined);
+        }
+        return workbook;
+      });
+    const longText = 'Observación muy larga que no cabe en una línea. '.repeat(
+      6,
+    );
+    const many = Array.from({ length: 27 }, (_, i) =>
+      row(i + 1, i === 0 ? { observations: longText } : {}),
+    );
+
+    const { sheets } = await download(many);
+
+    expect(sheets[0].cell('B35').value()).toBe('Ubicación 27');
+    expect(sheets[0].row(9).height()).toBeGreaterThan(15);
+    fromFile.mockRestore();
+  });
+
+  it('una evaluación sin datos usa "-" o "C" (cumple) en cada columna', async () => {
+    const empty = row(1, {
+      typeOfExtinguisher: '',
+      capacity: null,
+      pressureManometer: '',
+      valve: '',
+      cylinder: '',
+      barrette: '',
+      seal: '',
+      cornet: '',
+      access: '',
+      support: '',
+    });
+
+    const { sheets } = await download([empty]);
+    const [sheet] = sheets;
+
+    expect(sheet.cell('D9').value()).toBe('-');
+    expect(sheet.cell('E9').value()).toBe('-');
+    for (const column of 'FGHIJKLMNO') {
+      expect(sheet.cell(`${column}9`).value()).toBe('C');
+    }
+  });
+
   it('propaga el 404 si la inspección no existe', async () => {
     service.findOne.mockRejectedValue(new NotFoundException());
 

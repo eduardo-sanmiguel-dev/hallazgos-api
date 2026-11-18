@@ -55,8 +55,8 @@ export class MainTypesService {
     const activeChildren = (mainType: MainType): MainType => ({
       ...mainType,
       secondaryTypes: includeInactive
-        ? (mainType.secondaryTypes ?? [])
-        : (mainType.secondaryTypes ?? []).filter(({ isActive }) => isActive),
+        ? mainType.secondaryTypes
+        : mainType.secondaryTypes.filter(({ isActive }) => isActive),
     });
     if (page && limit) {
       const result = await findPaginated(

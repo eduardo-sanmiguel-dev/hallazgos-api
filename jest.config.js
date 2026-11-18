@@ -5,9 +5,6 @@ import { join, relative, sep } from 'path';
 
 const SRC = join(import.meta.dirname, 'src');
 
-// Las claves de coverageThreshold se resuelven como rutas absolutas.
-const inSrc = (path) => join(SRC, path);
-
 /**
  * Transformación con SWC: mucho más rápida que ts-jest, pero NO revisa tipos.
  * Los tipos de los tests se revisan con `pnpm typecheck`. La app es ESM, pero
@@ -58,91 +55,11 @@ const findReexportOnlyIndexes = (dir) =>
   });
 
 /**
- * Umbral global por etapas (plan aprobado). Para subir de etapa se cambia
- * STAGE. Aplica a los archivos que NO tienen umbral propio: en Jest, los
- * archivos que caen en una clave por carpeta/archivo se miden aparte y se
- * restan del cálculo global (el resumen de texto sí incluye todo).
+ * Cobertura obligatoria: 100 % en todo el código medido (alcanzada el
+ * 2026-11-18). Un archivo nuevo o un cambio sin tests rompe `pnpm test:cov`.
+ * Lo que no tiene lógica propia se excluye en collectCoverageFrom.
  */
-const STAGES = {
-  // Piso actual redondeado hacia abajo: la cobertura no puede bajar.
-  inicial: { statements: 20, branches: 14, functions: 11, lines: 18 },
-  // Al terminar la prioridad P1 de la Fase 3.
-  p1: { statements: 35, branches: 25, functions: 30, lines: 35 },
-  p2: { statements: 55, branches: 45, functions: 50, lines: 55 },
-  p3: { statements: 70, branches: 60, functions: 65, lines: 70 },
-  final: { statements: 80, branches: 70, functions: 75, lines: 80 },
-};
-const STAGE = 'final'; // alcanzada al terminar la P3 (2026-10-20)
-
-// Piso real de los archivos sin umbral de carpeta (ver coverageThreshold).
-const RESTO = { statements: 79, branches: 70, functions: 56, lines: 76 };
-
-const META = 'meta';
-
-/**
- * Meta de los módulos con lógica de negocio (plan: 85 % de sentencias). Las
- * funciones quedan en 70: algunos módulos conservan stubs generados por Nest
- * (update/remove que solo devuelven un texto) que no se prueban a propósito.
- */
-const SERVICE_META = { statements: 85, branches: 70, functions: 70, lines: 85 };
-
-const BUSINESS_FOLDERS = [
-  'users',
-  'epps',
-  'ciaels',
-  'employees',
-  'equipments',
-  'gemba-walks',
-  'gemba-walk-calendar',
-  'gemba-walk-evaluations',
-  'gemba-walk-observers',
-  'gemba-walk-zones',
-  'mail',
-  'extinguisher-inspections',
-  'manufacturing-plants',
-  'areas',
-  'zones',
-  'processes',
-  'main-types',
-  'secondary-types',
-  'ics',
-  'emergency-teams',
-  'shared/utils',
-  'shared/pipes',
-  'shared/services',
-  'shared/filters',
-  'shared/interceptors',
-];
-/**
- * Carpetas sensibles con umbral propio, más alto que el global. Cada una
- * tiene su meta y el mínimo vigente; en cuanto una carpeta alcanza su meta,
- * su mínimo pasa a ser la meta (META), sin esperar al resto.
- */
-const FOLDERS = {
-  auth: {
-    meta: { statements: 90, branches: 85, functions: 90, lines: 90 },
-    minimo: META, // alcanzada en la Fase 3, bloque A
-  },
-  'shared/middlewares': {
-    meta: { statements: 85, branches: 80, functions: 85, lines: 85 },
-    minimo: META, // alcanzada en la Fase 3, bloque A
-  },
-  evidences: {
-    meta: { statements: 80, branches: 70, functions: 80, lines: 80 },
-    minimo: META, // alcanzada en la Fase 3, flujos C3 y C5
-  },
-};
-
-for (const folder of BUSINESS_FOLDERS) {
-  FOLDERS[folder] = { meta: SERVICE_META, minimo: META }; // alcanzada en P1–P3
-}
-
-const critical = Object.fromEntries(
-  Object.entries(FOLDERS).map(([folder, { meta, minimo }]) => [
-    inSrc(folder),
-    minimo === META ? meta : minimo,
-  ]),
-);
+const FULL = { statements: 100, branches: 100, functions: 100, lines: 100 };
 
 export default {
   moduleFileExtensions: ['js', 'json', 'ts'],
@@ -187,15 +104,8 @@ export default {
     ...findReexportOnlyIndexes(SRC),
   ],
   coverageThreshold: {
-    // Con umbral propio en cada carpeta de negocio, el "global" de Jest solo
-    // mide el resto: sobre todo catálogos con stubs generados por Nest
-    // (findOne/update/remove que devuelven un texto y no se prueban). Por eso
-    // aquí va el piso real de ese resto; la meta global (85/80/85/85 sobre
-    // todo el código medido) la verifica `pnpm test:cov:goal`.
-    global: RESTO,
-    ...critical,
-    // Sus consultas SQL se verifican además con PostgreSQL en test/db.
-    // La meta total 85/80/85/85 incluye este archivo y se valida en CI.
-    [inSrc('dashboard/dashboard.service.ts')]: {},
+    // Las consultas SQL de dashboard.service se verifican además con
+    // PostgreSQL en test/db.
+    global: FULL,
   },
 };

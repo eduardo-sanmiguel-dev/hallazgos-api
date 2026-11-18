@@ -63,7 +63,7 @@ const BOGOTA = PLANT_TIME_ZONES.CO;
 
 const SERVER_TZ_CUT = SERVER_TZ_TO_MEXICO_CUT;
 
-export const EVIDENCE_STORAGE_TIME_ZONES: StorageTimeZoneRules<StoredDateColumn> =
+const EVIDENCE_STORAGE_TIME_ZONES: StorageTimeZoneRules<StoredDateColumn> =
   {
     createdAt: [
       // Node en UTC y new Date() para todas las plantas.

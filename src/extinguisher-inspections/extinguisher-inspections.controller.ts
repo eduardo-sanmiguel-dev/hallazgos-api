@@ -64,7 +64,8 @@ export class ExtinguisherInspectionsController {
   @Get('download/file/:id')
   async downloadFile(@Param('id') id: string, @Res() res: Response) {
     const inspection = await this.extinguisherInspectionsService.findOne(+id);
-    const evaluations = inspection.evaluations || [];
+    // El LEFT JOIN de findOne siempre trae la lista (vacía si no hay).
+    const evaluations = inspection.evaluations;
 
     const workbook = await XlsxPopulate.fromFileAsync(this.filePath);
 
@@ -119,42 +120,33 @@ export class ExtinguisherInspectionsController {
 
       // La fila 35 del layout es el footer y debe mantenerse al final.
       const footerRowHeight = sheet.row(footerTemplateRow).height();
-      const footerMergeRefs = Object.keys((sheet as any)._mergeCells || {})
-        .filter((ref) => {
-          const match = ref.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
-          if (!match) return false;
-
-          const startRowRef = Number(match[2]);
-          const endRowRef = Number(match[4]);
-          const startColRef = columnNameToNumber(match[1]);
-          const endColRef = columnNameToNumber(match[3]);
-
-          const isFooterRowMerge =
-            startRowRef <= footerTemplateRow && endRowRef >= footerTemplateRow;
-          const isWithinDataColumns = startColRef >= 2 && endColRef <= 19;
-
-          return isFooterRowMerge && isWithinDataColumns;
-        })
-        .map((ref) => {
-          const match = ref.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
-          if (!match) {
-            return null;
-          }
-
-          return {
-            ref,
-            startCol: columnNameToNumber(match[1]),
-            startRowRef: Number(match[2]),
-            endCol: columnNameToNumber(match[3]),
-            endRowRef: Number(match[4]),
-          };
-        })
-        .filter((item): item is NonNullable<typeof item> => item !== null);
+      // xlsx-populate siempre inicializa _mergeCells (objeto ref → nodo).
+      const footerMergeRefs = Object.keys((sheet as any)._mergeCells)
+        .map((ref) => ({
+          ref,
+          match: ref.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/),
+        }))
+        .filter(({ match }) => match !== null)
+        .map(({ ref, match }) => ({
+          ref,
+          startCol: columnNameToNumber(match[1]),
+          startRowRef: Number(match[2]),
+          endCol: columnNameToNumber(match[3]),
+          endRowRef: Number(match[4]),
+        }))
+        .filter(
+          ({ startCol, startRowRef, endCol, endRowRef }) =>
+            // Combinaciones que tocan la fila del footer, dentro de B:S.
+            startRowRef <= footerTemplateRow &&
+            endRowRef >= footerTemplateRow &&
+            startCol >= 2 &&
+            endCol <= 19,
+        );
 
       // Combinaciones horizontales de las filas de datos de la plantilla (ej.
       // observaciones en R:S). Se replican en las filas agregadas y se usan
       // para medir el ancho real de la celda al calcular su altura.
-      const dataRowMerges = Object.keys((sheet as any)._mergeCells || {})
+      const dataRowMerges = Object.keys((sheet as any)._mergeCells)
         .map((ref) => ref.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/))
         .filter(
           (match) =>
@@ -406,11 +398,8 @@ export class ExtinguisherInspectionsController {
             target.style('fontColor', '000000');
           }
 
-          if (colorByColumn.bold !== undefined) {
-            target.style('bold', colorByColumn.bold);
-          } else {
-            target.style('bold', false);
-          }
+          // bold siempre es booleano en xlsx-populate.
+          target.style('bold', colorByColumn.bold);
         }
       }
     }

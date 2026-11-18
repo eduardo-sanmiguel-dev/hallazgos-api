@@ -9,6 +9,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { PassThrough } from 'stream';
 import { lastValueFrom, of, throwError } from 'rxjs';
+import { QueryFailedError } from 'typeorm';
 
 import {
   Idempotent,
@@ -175,6 +176,74 @@ describe('IdempotencyInterceptor', () => {
     await expect(failure(run())).resolves.toBe(crash);
     expect(service.markFailed).toHaveBeenCalledWith(7, KEY);
     expect(service.release).not.toHaveBeenCalled();
+  });
+
+  it('si el cuerpo ya se leyó completo no espera más para responder', async () => {
+    const req = buildRequest({ 'idempotency-key': 'abc' });
+    req.end();
+    req.resume();
+    await new Promise((resolve) => req.once('end', resolve));
+    expect(req.readableEnded).toBe(true);
+
+    const error = await failure(run(req));
+
+    expect(error).toBeInstanceOf(BadRequestException);
+  });
+
+  it('si la subida se corta con error igual responde', async () => {
+    const req = buildRequest({ 'idempotency-key': 'abc' });
+    const pending = failure(run(req));
+    req.emit('error', new Error('conexión cortada'));
+
+    await expect(pending).resolves.toBeInstanceOf(BadRequestException);
+  });
+
+  it('un PATCH guarda la respuesta con estatus 200', async () => {
+    service.claim.mockResolvedValue({ kind: 'new' });
+    const req = Object.assign(buildRequest({ 'idempotency-key': KEY }), {
+      method: 'PATCH',
+    });
+
+    await expect(run(req)).resolves.toBe('ok');
+    expect(service.complete).toHaveBeenCalledWith(7, KEY, 200, 'ok');
+  });
+
+  it('un duplicado de la base (23505) cuenta como 4xx: libera la clave', async () => {
+    service.claim.mockResolvedValue({ kind: 'new' });
+    const duplicate = new QueryFailedError('INSERT', [], {
+      code: '23505',
+    } as never);
+    next.handle.mockReturnValue(throwError(() => duplicate));
+
+    await expect(failure(run())).resolves.toBe(duplicate);
+    expect(service.release).toHaveBeenCalledWith(7, KEY);
+  });
+
+  it.each([
+    ['release', new ConflictException('x'), new Error('BD caída'), 'BD caída'],
+    ['markFailed', new Error('x'), 'sin conexión', 'sin conexión'],
+  ] as const)(
+    'si %s falla, lo registra y propaga el error original',
+    async (method, original, cleanupError, message) => {
+      service.claim.mockResolvedValue({ kind: 'new' });
+      service[method].mockRejectedValue(cleanupError);
+      next.handle.mockReturnValue(throwError(() => original));
+
+      await expect(failure(run())).resolves.toBe(original);
+      expect(Logger.prototype.error).toHaveBeenCalledWith(
+        `No se pudo actualizar la clave ${KEY} (POST /api/v1/evidences) tras un error: ${message}`,
+      );
+    },
+  );
+
+  it('registra fallos de complete aunque no sean Error', async () => {
+    service.claim.mockResolvedValue({ kind: 'new' });
+    service.complete.mockRejectedValue('sin conexión');
+
+    await expect(run()).resolves.toBe('ok');
+    expect(Logger.prototype.error).toHaveBeenCalledWith(
+      expect.stringContaining('como terminada: sin conexión'),
+    );
   });
 
   it('si no se puede marcar la clave como terminada, responde igual (ya se guardó)', async () => {

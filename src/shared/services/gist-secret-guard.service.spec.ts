@@ -93,6 +93,10 @@ describe('GistSecretGuardService', () => {
       () => respond({ files: { a: { content: 'hola' } } }),
     ],
     [
+      'el secret del archivo viene vacío',
+      () => respond({ files: { a: { content: '{"secret":""}' } } }),
+    ],
+    [
       'el JSON no tiene secret',
       () => respond({ files: { a: { content: '{"x":1}' } } }),
     ],

@@ -169,7 +169,7 @@ export class RulesOfLifeService {
       await this.rulesOfLifeRepository.save(ruleEntity);
 
       for (const { name: nameStd, areas } of standard) {
-        for (const areaName of areas || []) {
+        for (const areaName of areas) {
           const areaEntity = await this.areaOfBehaviorRepository.findOne({
             where: { name: areaName },
           });
@@ -181,7 +181,7 @@ export class RulesOfLifeService {
         }
 
         const currentAreas = await this.areaOfBehaviorRepository.find({
-          where: { name: In(areas || []) },
+          where: { name: In(areas) },
         });
 
         const standardEntity = this.standardOfBehaviorRepository.create({

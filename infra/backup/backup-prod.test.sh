@@ -47,30 +47,6 @@ check "prune_daily borra solo lo anterior al corte y respeta otros archivos" \
   "LEEME.txt hallazgos_db_prod-2026-10-18_0900.dump hallazgos_db_prod-2026-11-17_1400.dump hallazgos_db_prod-2026-11-17_1400.dump.part" \
   "$(listing "$daily")"
 
-# keep_monthly: solo el primer respaldo de cada mes.
-monthly="$tmp/monthly"
-mkdir -p "$monthly"
-keep_monthly "$daily/hallazgos_db_prod-2026-11-17_1400.dump" "$monthly" hallazgos_db_prod
-touch "$daily/hallazgos_db_prod-2026-11-18_1400.dump"
-keep_monthly "$daily/hallazgos_db_prod-2026-11-18_1400.dump" "$monthly" hallazgos_db_prod
-check "keep_monthly guarda un solo respaldo por mes" \
-  "hallazgos_db_prod-2026-11-17_1400.dump" "$(listing "$monthly")"
-
-# prune_monthly: conserva los N más recientes de cada prefijo.
-rm -f "$monthly"/*
-for month in 01 02 03 04; do
-  touch "$monthly/hallazgos_db_prod-2026-$month-01_1400.dump"
-done
-touch "$monthly/globals-2026-01-01_1400.sql"
-prune_monthly "$monthly" hallazgos_db_prod 2
-check "prune_monthly conserva los más recientes y no toca otros prefijos" \
-  "globals-2026-01-01_1400.sql hallazgos_db_prod-2026-03-01_1400.dump hallazgos_db_prod-2026-04-01_1400.dump" \
-  "$(listing "$monthly")"
-prune_monthly "$monthly" globals 2
-check "prune_monthly no borra si hay menos que el límite" \
-  "globals-2026-01-01_1400.sql hallazgos_db_prod-2026-03-01_1400.dump hallazgos_db_prod-2026-04-01_1400.dump" \
-  "$(listing "$monthly")"
-
 if ((failures > 0)); then
   echo "$failures prueba(s) fallaron"
   exit 1

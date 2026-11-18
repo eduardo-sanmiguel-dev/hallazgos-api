@@ -33,7 +33,7 @@ export type InspectionStoredDateColumn = 'createdAt';
 const UTC = 'UTC';
 const MEXICO = PLANT_TIME_ZONES.MX;
 
-export const EXTINGUISHER_INSPECTION_STORAGE_TIME_ZONES: StorageTimeZoneRules<InspectionStoredDateColumn> =
+const EXTINGUISHER_INSPECTION_STORAGE_TIME_ZONES: StorageTimeZoneRules<InspectionStoredDateColumn> =
   {
     createdAt: [
       // Node en UTC (historia del servidor). Hoy no hay filas en este tramo:

@@ -17,12 +17,11 @@ servidor no puede borrar los respaldos.
 
 `C:\Users\eduar\proyects\hallazgos\backups-db\`
 
-| Carpeta / archivo     | Contenido                                         |
-| --------------------- | ------------------------------------------------- |
-| `db\daily\`           | Cada respaldo de los últimos 30 días              |
-| `db\monthly\`         | El primer respaldo de cada mes (últimos 12 meses) |
-| `logs\`               | Bitácora por mes                                  |
-| `ULTIMO_RESPALDO.txt` | `OK` o `ERROR` de la última corrida               |
+| Carpeta / archivo     | Contenido                            |
+| --------------------- | ------------------------------------ |
+| `db\`                 | Cada respaldo de los últimos 30 días |
+| `logs\`               | Bitácora por mes                     |
+| `ULTIMO_RESPALDO.txt` | `OK` o `ERROR` de la última corrida  |
 
 Las **fotos** y las **HDS** no van ahí: se respaldan directo en
 `hallazgos-api\public\static\` y `hallazgos-api\data\hds\` (las carpetas que
@@ -44,8 +43,13 @@ Si una corrida falla aparece un aviso de Windows (`msg.exe`).
    powershell -ExecutionPolicy Bypass -File infra\backup\register-task.ps1
    ```
 
-Correr a mano: `Start-ScheduledTask 'Hallazgos - respaldo produccion'` o, en
-WSL, `bash infra/backup/backup-prod.sh`.
+Correr a mano (en caliente, viendo el avance):
+`& "C:\Users\eduar\proyects\hallazgos\backups-db\respaldar-prod.ps1"`, o
+`Start-ScheduledTask 'Hallazgos - respaldo produccion'`, o en WSL
+`bash infra/backup/backup-prod.sh`.
+
+Restaurar el respaldo más reciente en la base local `hallazgos_dev`:
+`& "C:\Users\eduar\proyects\hallazgos\backups-db\restaurar-dev.ps1"`.
 
 Pruebas de la retención (sin red): `bash infra/backup/backup-prod.test.sh`.
 

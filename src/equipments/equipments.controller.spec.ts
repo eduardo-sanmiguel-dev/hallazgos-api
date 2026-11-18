@@ -106,6 +106,26 @@ describe('EquipmentsController (HTTP)', () => {
 
     await http.http().patch('/equipments/5').send({ price: 10 }).expect(200);
     expect(service.update).toHaveBeenCalledWith(5, { price: 10 });
+
+    await http
+      .http()
+      .patch('/equipments/5')
+      .send({ price: 10, manufacturingPlantId: 1 })
+      .expect(200);
+    expect(service.update).toHaveBeenLastCalledWith(5, {
+      price: 10,
+      manufacturingPlantId: 1,
+    });
+  });
+
+  it('GET lista sin paginar pasa includeInactive solo si llega', async () => {
+    await http
+      .http()
+      .get('/equipments')
+      .query({ includeInactive: 'true' })
+      .expect(200);
+
+    expect(service.findAll).toHaveBeenCalledWith(undefined, '', 'true');
   });
 
   it('POST valida el cuerpo', async () => {

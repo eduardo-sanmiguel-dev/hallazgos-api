@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import express from 'express';
 import XlsxPopulate from 'xlsx-populate';
 
 import {
@@ -212,6 +213,52 @@ describe('CiaelsController (HTTP)', () => {
       expect(logError).toHaveBeenCalled();
       logError.mockRestore();
     });
+
+    it('registra también errores que no son Error (sin stack)', async () => {
+      service.findAll.mockResolvedValue([
+        {
+          get employee() {
+            throw 'fallo sin stack';
+          },
+        },
+      ] as never);
+      const logError = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation();
+
+      await http
+        .http()
+        .get('/ciaels/download/excel')
+        .expect(500, 'Error al procesar el archivo');
+
+      expect(logError).toHaveBeenCalledWith(
+        'Error al procesar el archivo',
+        'fallo sin stack',
+      );
+      logError.mockRestore();
+    });
+
+    it('si el archivo no se puede enviar responde 500', async () => {
+      service.findAll.mockResolvedValue([buildRecord()] as never);
+      const sendFile = jest
+        .spyOn(express.response, 'sendFile')
+        .mockImplementation(function (_path, callback) {
+          (callback as (err: Error) => void)(new Error('disco'));
+        });
+
+      await http
+        .http()
+        .get('/ciaels/download/excel')
+        .expect(500, 'Error al descargar el archivo');
+
+      sendFile.mockRestore();
+    });
+  });
+
+  it('POST /ciaels/seed delega al servicio', async () => {
+    service.seed.mockResolvedValue({ message: 'ok' });
+
+    await http.http().post('/ciaels/seed').expect(201, { message: 'ok' });
   });
 
   describe('por id', () => {
@@ -221,6 +268,17 @@ describe('CiaelsController (HTTP)', () => {
       await http.http().get('/ciaels/5').expect(200, { id: 5 });
 
       expect(service.findOne).toHaveBeenCalledWith(5);
+    });
+
+    it('PATCH y DELETE /ciaels/:id delegan al servicio', async () => {
+      service.update.mockReturnValue({ id: 5 } as never);
+      service.remove.mockReturnValue('ok');
+
+      await http.http().patch('/ciaels/5').send({}).expect(200);
+      await http.http().delete('/ciaels/5').expect(200);
+
+      expect(service.update).toHaveBeenCalledWith(5, {});
+      expect(service.remove).toHaveBeenCalledWith(5);
     });
   });
 });

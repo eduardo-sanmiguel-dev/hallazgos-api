@@ -3,6 +3,7 @@ import { DataSource, type EntityManager } from 'typeorm';
 import { MailerService } from '@nestjs-modules/mailer';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { MailOutboxService } from './mail-outbox.service.js';
 import { MailService } from '../mail.service.js';
@@ -114,6 +115,46 @@ describe('MailOutboxService', () => {
     expect(insert[1][4]).toBe('reset');
     expect(insert[1][9]).toBe(1);
     expect(insert[1][7]).not.toContain('secret-token');
+  });
+  it('no duplicates a recipient within the same event (case and spaces ignored)', async () => {
+    await mail.withOutbox(manager, () =>
+      createFor('a@test.com', ' A@test.com '),
+    );
+    expect(sqlCalls('INSERT INTO email_notifications')).toHaveLength(1);
+  });
+  it('without MAIL_OUTBOX_DIR stores blobs in var/mail-outbox/blobs', async () => {
+    const previous = process.cwd();
+    process.chdir(directory);
+    try {
+      const defaults = new MailOutboxService(
+        {
+          transaction: async (callback) => callback(manager),
+        } as unknown as DataSource,
+        new ConfigService({
+          MAIL_OUTBOX_KEY: 'test',
+          MAIL_USER: 'sender@test.com',
+        }),
+      );
+      const plain = new MailService(
+        { sendMail: jest.fn() } as unknown as MailerService,
+        new ConfigService({
+          email: { user: 'sender@test.com' },
+          environment: 'production',
+        }),
+        defaults,
+      );
+      await plain.withOutbox(manager, () =>
+        plain.sendCreate({
+          user: buildUser({ email: 'a@test.com' }),
+          evidenceCurrent: buildEvidence({ imgEvidence: '', supervisors: [] }),
+        }),
+      );
+      expect(existsSync(join(directory, 'var', 'mail-outbox', 'blobs'))).toBe(
+        true,
+      );
+    } finally {
+      process.chdir(previous);
+    }
   });
   it('requires a transaction to enqueue', async () => {
     await expect(service.enqueue({})).rejects.toThrow('transaction');

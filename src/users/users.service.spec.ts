@@ -183,6 +183,26 @@ describe('UsersService', () => {
       expect(users.save).not.toHaveBeenCalled();
     });
 
+    it('sin las listas de zonas ni procesos no asigna ninguno', async () => {
+      zones.findAllByManufacturingPlantNames.mockResolvedValue([]);
+      processes.findAllByManufacturingPlantNames.mockResolvedValue([]);
+      const { zoneNames: _zones, processNames: _processes, ...rest } = dto;
+
+      await service.create(rest as never);
+
+      const saved = users.save.mock.calls[0][0] as User;
+      expect(saved.zones).toBeUndefined();
+      expect(saved.processes).toBeUndefined();
+    });
+
+    it('sin la lista de plantas responde 400', async () => {
+      await expect(
+        service.create({ ...dto, manufacturingPlantNames: undefined }),
+      ).rejects.toThrow(
+        new BadRequestException('Debe asignar al menos una planta'),
+      );
+    });
+
     it('acepta nombres de planta repetidos (cuenta cada planta una vez)', async () => {
       await service.create({
         ...dto,
@@ -393,6 +413,44 @@ describe('UsersService', () => {
       expect(lastFindArgs().order).not.toHaveProperty('id');
     });
 
+    it('sin dirección ordena ascendente', async () => {
+      await service.findAll({ orderBy: 'name' } as never);
+
+      expect(lastFindArgs().order).toMatchObject({ name: 'ASC' });
+    });
+
+    it('con zoneIds cada usuario trae solo esas zonas', async () => {
+      users.find.mockResolvedValue([
+        buildUser({
+          id: 9,
+          zones: [
+            { id: 3, name: 'Patio' },
+            { id: 4, name: 'Almacén' },
+          ] as never,
+        }),
+      ]);
+
+      const [user] = (await service.findAll({
+        zoneIds: ['3'],
+      } as never)) as User[];
+
+      expect(user.zones.map(({ id }) => id)).toEqual([3]);
+    });
+
+    it('ignora filas de relaciones de usuarios que no están en la lista', async () => {
+      users.find
+        .mockResolvedValueOnce([buildUser({ id: 9 })])
+        .mockResolvedValue([
+          buildUser({ id: 9, zones: [zone] as never }),
+          buildUser({ id: 99, zones: [zone] as never }),
+        ]);
+
+      const result = (await service.findAll({} as never)) as User[];
+
+      expect(result.map(({ id }) => id)).toEqual([9]);
+      expect(result[0].zones).toEqual([zone]);
+    });
+
     it('acepta la columna en orderBy y la dirección en order (tablas)', async () => {
       await service.findAll({ orderBy: 'email', order: 'desc' } as never);
 
@@ -492,6 +550,11 @@ describe('UsersService', () => {
       };
       const filter = where.email as FindOperator<unknown>;
       expect(filter.type).toBe('raw');
+      expect(
+        (filter as unknown as { getSql: (alias: string) => string }).getSql(
+          '"email"',
+        ),
+      ).toBe('LOWER("email") IN (:...plant3Emails)');
       expect(where).toMatchObject({
         isActive: true,
         manufacturingPlants: { id: 3 },

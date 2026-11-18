@@ -92,6 +92,8 @@ describe('IcsController (HTTP)', () => {
 
     await http.http().get('/ics/4').expect(200);
     expect(service.findOne).toHaveBeenCalledWith(4);
+    await http.http().patch('/ics/4').send({}).expect(200);
+    expect(service.update).toHaveBeenCalledWith(4, {});
     await http.http().delete('/ics/4').expect(200);
     expect(service.remove).toHaveBeenCalledWith(4);
     await http.close();
@@ -114,6 +116,26 @@ describe('RulesOfLifeController (HTTP)', () => {
       .http()
       .post('/rules-of-life/seed')
       .expect(201, { message: 'Catálogo de reglas de vida cargado.' });
+    await http.close();
+  });
+});
+
+describe('RulesOfLifeController (HTTP, lecturas)', () => {
+  it('GET / y GET /:id delegan al servicio', async () => {
+    const http = await createHttpTestApp({
+      user: buildAdmin(),
+      controllers: [RulesOfLifeController],
+      providers: [mockProvider(RulesOfLifeService)],
+    });
+    const service = http.get(RulesOfLifeService);
+    service.findAll.mockReturnValue('todas');
+    service.findOne.mockReturnValue('una');
+
+    await http.http().get('/rules-of-life').expect(200);
+    await http.http().get('/rules-of-life/5').expect(200);
+
+    expect(service.findAll).toHaveBeenCalled();
+    expect(service.findOne).toHaveBeenCalledWith(5);
     await http.close();
   });
 });

@@ -2,8 +2,8 @@ import { buildAdmin } from '../test/utils/index.js';
 /**
  * Catálogos de CIAEL y de configuración con la misma forma: crear (guarda el
  * cuerpo tal cual) y listar activos. findOne/update/remove son stubs generados
- * por Nest (responden un texto sin hacer nada): no se prueban; están
- * registrados como decisión pendiente en docs/avance-pruebas.md.
+ * por Nest (responden un texto sin hacer nada): se prueba solo que no tocan el
+ * repositorio; siguen como decisión pendiente en docs/avance-pruebas.md.
  */
 import { type Type } from '@nestjs/common';
 import { type ObjectLiteral } from 'typeorm';
@@ -210,6 +210,21 @@ describe.each(CATALOGS)(
           expect(repo.save).toHaveBeenCalledWith({ name: 'Nuevo' });
         },
       );
+
+      it('findOne/update/remove son stubs: responden sin tocar el repositorio', async () => {
+        const { service, repo } = await setup();
+
+        expect(service.findOne(7)).toEqual(expect.stringContaining('#7'));
+        expect(service.update(7, { name: 'X' })).toEqual(
+          expect.objectContaining({ id: 7 }),
+        );
+        expect(service.remove(7)).toEqual(expect.stringContaining('#7'));
+        if (list === 'stub') {
+          expect(service.findAll()).toEqual(expect.any(String));
+        }
+        expect(repo.find).not.toHaveBeenCalled();
+        expect(repo.save).not.toHaveBeenCalled();
+      });
 
       if (list === 'byName') {
         it('findAll lista activos ordenados por nombre', async () => {

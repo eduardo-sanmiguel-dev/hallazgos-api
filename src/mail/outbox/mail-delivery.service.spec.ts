@@ -472,4 +472,214 @@ describe('MailDeliveryService', () => {
       expect.any(Array),
     );
   });
+  describe('casos de borde', () => {
+    const settle = async () => {
+      for (let i = 0; i < 10; i++) await new Promise(setImmediate);
+    };
+
+    it('event sin campos registra solo el componente y el evento', () => {
+      service.event('mail_ping');
+
+      expect(Logger.prototype.log).toHaveBeenCalledWith({
+        component: 'mail-worker',
+        event: 'mail_ping',
+      });
+    });
+
+    it('avisa de correos de hallazgos vencidos (no de recuperación)', async () => {
+      query.mockImplementation(async (sql: string) =>
+        sql.includes("SET status='expired'")
+          ? [
+              { type: 'evidence', count: '2' },
+              { type: 'reset', count: '5' },
+              { type: 'evidence', count: null },
+            ]
+          : [],
+      );
+
+      await service.reconcile();
+
+      expect(Logger.prototype.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: 'mail_review_required',
+          category: 'expired',
+          count: 2,
+        }),
+      );
+    });
+
+    it('limpia adjuntos como máximo una vez al día', async () => {
+      const cleanup = jest
+        .spyOn(service as never, 'cleanupAttachments')
+        .mockResolvedValue(undefined as never);
+      query.mockResolvedValue([]);
+
+      await service.reconcile();
+      await service.reconcile();
+
+      expect(cleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it('sin carpeta de adjuntos no hay nada que limpiar', async () => {
+      config.set('MAIL_OUTBOX_DIR', join(tmpdir(), 'no-existe-mail-gc'));
+      query.mockImplementation(async (sql: string) => {
+        if (sql.includes('pg_try_advisory')) return [{ acquired: true }];
+        if (sql.includes('SELECT payload'))
+          return [
+            { payload: seal({ to: 'a@test.com' }, encryptionKey('test-key')) },
+            {
+              payload: seal(
+                { attachments: [{ content: 'en línea' }] },
+                encryptionKey('test-key'),
+              ),
+            },
+          ];
+        return [];
+      });
+      try {
+        await service.reconcile();
+        expect(Logger.prototype.error).not.toHaveBeenCalledWith(
+          expect.objectContaining({ event: 'mail_attachment_cleanup_failed' }),
+        );
+      } finally {
+        config.set('MAIL_OUTBOX_DIR', undefined);
+      }
+    });
+
+    it('si la carpeta de adjuntos no se puede leer, lo avisa', async () => {
+      const directory = await mkdtemp(join(tmpdir(), 'mail-gc-file-'));
+      const file = join(directory, 'no-es-carpeta');
+      await writeFile(file, 'x');
+      config.set('MAIL_OUTBOX_DIR', file);
+      query.mockImplementation(async (sql: string) =>
+        sql.includes('pg_try_advisory') ? [{ acquired: true }] : [],
+      );
+      try {
+        await service.reconcile();
+        expect(Logger.prototype.error).toHaveBeenCalledWith(
+          expect.objectContaining({ event: 'mail_attachment_cleanup_failed' }),
+        );
+      } finally {
+        config.set('MAIL_OUTBOX_DIR', undefined);
+        await rm(directory, { recursive: true, force: true });
+      }
+    });
+
+    it('si la fila ya no se puede reclamar, libera el turno de la cuenta', async () => {
+      query
+        .mockResolvedValueOnce([notification()])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ account: 'sender@test.com' }])
+        .mockResolvedValueOnce([]);
+
+      expect(await service.claim('id')).toBeUndefined();
+      expect(query).toHaveBeenLastCalledWith(
+        expect.stringContaining('SET active_lease=NULL'),
+        ['sender@test.com', expect.any(String)],
+      );
+    });
+
+    it('si la cuenta ya estaba pausada no vuelve a alertar', async () => {
+      const defaultQuery = query.getMockImplementation();
+      query.mockImplementation(async (sql: string, args?: unknown[]) =>
+        sql.includes('paused=true') ? [] : defaultQuery(sql, args),
+      );
+      sendMail.mockRejectedValue({
+        responseCode: 530,
+        command: 'MAIL FROM',
+        response: '530 5.7.57 Client not authenticated to send mail',
+      });
+
+      await processRow();
+
+      expect(Logger.prototype.error).not.toHaveBeenCalledWith(
+        expect.objectContaining({ event: 'mail_account_blocked' }),
+      );
+    });
+
+    it('registra fallos de preparación del reset que no son Error', async () => {
+      findOne.mockRejectedValue('sin conexión');
+      await processRow(
+        notification({
+          type: 'reset',
+          payload: seal(
+            {
+              to: 'recipient@test.com',
+              headers: {
+                'X-Comportarte-Reset-Token': new JwtService(
+                  config,
+                ).createResetToken(7, 'hash'),
+              },
+            },
+            encryptionKey('test-key'),
+          ),
+        }),
+      );
+
+      expect(Logger.prototype.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: 'mail_reset_preparation_failed',
+          error: 'sin conexión',
+        }),
+      );
+    });
+
+    describe('renovación del lease durante el envío', () => {
+      let release: () => void;
+
+      beforeEach(() => {
+        jest.useFakeTimers({
+          doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'],
+        });
+        sendMail.mockImplementation(
+          () =>
+            new Promise((resolve) => {
+              release = () =>
+                resolve({ accepted: ['recipient@test.com'], messageId: 'm' });
+            }),
+        );
+      });
+
+      afterEach(() => jest.useRealTimers());
+
+      it('cada 30 s extiende el lease de la cuenta y de la fila', async () => {
+        const sending = processRow();
+        await settle();
+
+        jest.advanceTimersByTime(30_000);
+        await settle();
+        release();
+        await sending;
+
+        expect(query).toHaveBeenCalledWith(
+          expect.stringContaining('SET active_until=now()'),
+          ['sender@test.com', 'lease'],
+        );
+        expect(query).toHaveBeenCalledWith(
+          expect.stringContaining('SET locked_until=now()'),
+          ['id', 'lease'],
+        );
+      });
+
+      it('si no se puede renovar el lease, lo avisa', async () => {
+        const defaultQuery = query.getMockImplementation();
+        query.mockImplementation(async (sql: string, args?: unknown[]) => {
+          if (sql.includes('SET active_until=now()'))
+            throw new Error('BD caída');
+          return defaultQuery(sql, args);
+        });
+        const sending = processRow();
+        await settle();
+
+        jest.advanceTimersByTime(30_000);
+        await settle();
+        release();
+        await sending;
+
+        expect(Logger.prototype.error).toHaveBeenCalledWith(
+          expect.objectContaining({ event: 'mail_lease_refresh_failed' }),
+        );
+      });
+    });
+  });
 });

@@ -109,6 +109,19 @@ describe('SafetyDataFilesService', () => {
       expect(existsSync(join(dir, 'ACEITE.pdf'))).toBe(false);
     });
 
+    it('un error inesperado al guardar se propaga (aunque el PDF ya no esté)', async () => {
+      files.exists.mockResolvedValue(false);
+      files.save.mockImplementation(async () => {
+        rmSync(join(dir, 'ACEITE.pdf'));
+        throw new Error('BD caída');
+      });
+
+      await expect(service.upload(uploaded('ACEITE.pdf'))).rejects.toThrow(
+        'BD caída',
+      );
+      expect(existsSync(join(dir, 'ACEITE.pdf'))).toBe(false);
+    });
+
     it.each([
       ['sin extensión pdf', 'notas.txt'],
       ['solo extensión', '.pdf'],
@@ -179,6 +192,17 @@ describe('SafetyDataFilesService', () => {
       await expect(service.remove(3)).resolves.toBeDefined();
       expect(existsSync(join(dir, '..', 'fuera-hds-test.pdf'))).toBe(true);
       rmSync(join(dir, '..', 'fuera-hds-test.pdf'));
+    });
+  });
+
+  it('findActiveByName busca la HDS activa con ese nombre', async () => {
+    files.findOne.mockResolvedValue({ id: 1 } as SafetyDataFile);
+
+    await expect(service.findActiveByName('aceite.pdf')).resolves.toEqual({
+      id: 1,
+    });
+    expect(files.findOne).toHaveBeenCalledWith({
+      where: { name: 'aceite.pdf', isActive: true },
     });
   });
 

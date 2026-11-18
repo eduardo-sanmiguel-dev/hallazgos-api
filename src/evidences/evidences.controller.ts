@@ -30,6 +30,9 @@ import {
   UpdateEvidenceDto,
 } from './dto/index.js';
 
+// Archivo subido como `Express.Multer.File | undefined`: puede faltar y, con
+// la unión, los metadatos del decorador emiten Object directo (sin una
+// condición sobre el global Express, que no existe en ejecución).
 @Controller('evidences')
 export class EvidencesController {
   constructor(private readonly evidencesService: EvidencesService) {}
@@ -39,7 +42,8 @@ export class EvidencesController {
   @UseInterceptors(FileInterceptor('file', imageUploadOptions('evidence')))
   create(
     @Body() createEvidenceDto: CreateEvidenceDto,
-    @UploadedFile(ImageFileValidationPipe) file: Express.Multer.File,
+    @UploadedFile(ImageFileValidationPipe)
+    file: Express.Multer.File | undefined,
   ) {
     return this.evidencesService.create(createEvidenceDto, file);
   }
@@ -48,7 +52,8 @@ export class EvidencesController {
   @Idempotent()
   @UseInterceptors(FileInterceptor('file', imageUploadOptions('solution')))
   saveSolution(
-    @UploadedFile(ImageFileValidationPipe) file: Express.Multer.File,
+    @UploadedFile(ImageFileValidationPipe)
+    file: Express.Multer.File | undefined,
     @Param('id') id: string,
     @Body('descriptionSolution') descriptionSolution: string,
   ) {
@@ -59,7 +64,8 @@ export class EvidencesController {
   @Idempotent()
   @UseInterceptors(FileInterceptor('file', imageUploadOptions('process')))
   saveProcessStart(
-    @UploadedFile(ImageFileValidationPipe) file: Express.Multer.File,
+    @UploadedFile(ImageFileValidationPipe)
+    file: Express.Multer.File | undefined,
     @Param('id') id: string,
   ) {
     return this.evidencesService.saveProcessStart(+id, file);

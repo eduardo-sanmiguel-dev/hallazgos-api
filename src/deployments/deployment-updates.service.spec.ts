@@ -1,8 +1,9 @@
+import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { once } from 'node:events';
 import { mkdtemp, rename, rm, writeFile } from 'node:fs/promises';
 import { createServer, type Server } from 'node:http';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import WebSocket from 'ws';
 
@@ -211,6 +212,105 @@ describe('DeploymentUpdatesService (WebSocket y archivo reales)', () => {
     expect(await nextMessage(connect())).toEqual({
       type: 'ui-version',
       version: 'ui-A',
+    });
+  });
+
+  describe('casos de borde', () => {
+    type Internals = {
+      file: string;
+      server: {
+        emit: (event: string, error: Error) => void;
+        clients: Set<WebSocket>;
+      };
+      watcher: { emit: (event: string, error: Error) => void };
+      send: (client: unknown, version: string) => void;
+    };
+    const internals = (target = service) => target as unknown as Internals;
+
+    it('sin UI_VERSION_FILE usa ~/.local/state/hallazgos/ui-version.json', () => {
+      const plain = new DeploymentUpdatesService(new ConfigService({}));
+
+      expect(internals(plain).file).toBe(
+        join(homedir(), '.local', 'state', 'hallazgos', 'ui-version.json'),
+      );
+      // Sin attach no hay nada que cerrar.
+      expect(() => plain.onModuleDestroy()).not.toThrow();
+    });
+
+    it.each([
+      ['producción', 'production'],
+      ['desarrollo', 'development'],
+    ])('sin API_VERSION_FILE en %s arranca igual', async (_c, environment) => {
+      service = new DeploymentUpdatesService(
+        new ConfigService({
+          UI_VERSION_FILE: file,
+          frontendUrl: origin,
+          environment,
+        }),
+      );
+
+      await expect(start()).resolves.toBeUndefined();
+    });
+
+    it('registra errores del servidor, de los clientes y del observador', async () => {
+      const logError = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation();
+      const logWarn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+      await start();
+      const client = connect();
+      await once(client, 'open');
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      const [serverSide] = internals().server.clients;
+
+      internals().server.emit('error', new Error('servidor'));
+      internals().watcher.emit('error', new Error('observador'));
+      (serverSide as unknown as WebSocket).emit('error', new Error('cliente'));
+      (serverSide as unknown as WebSocket).emit('pong');
+
+      expect(logError).toHaveBeenCalledWith('servidor');
+      expect(logError).toHaveBeenCalledWith(
+        'No se pudo observar la versión de UI: observador',
+      );
+      expect(logWarn).toHaveBeenCalledWith('cliente');
+      logError.mockRestore();
+      logWarn.mockRestore();
+    });
+
+    it('el latido hace ping a los vivos y cierra a quien no respondió', async () => {
+      let beat: () => void = () => undefined;
+      const realSetInterval = global.setInterval;
+      const interval = jest.spyOn(global, 'setInterval').mockImplementation(((
+        callback: () => void,
+        ms: number,
+      ) => {
+        if (ms === 25_000) {
+          beat = callback;
+          return { unref: () => undefined } as never;
+        }
+        return realSetInterval(callback, ms);
+      }) as never);
+      await start();
+      interval.mockRestore();
+      const client = connect();
+      await once(client, 'open');
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      const [serverSide] = internals().server.clients;
+      const ping = jest.spyOn(serverSide, 'ping');
+      const terminate = jest.spyOn(serverSide, 'terminate');
+
+      beat(); // vivo: se marca pendiente y recibe ping
+      expect(ping).toHaveBeenCalledTimes(1);
+      beat(); // no contestó (el pong aún no llega): se cierra
+      expect(terminate).toHaveBeenCalledTimes(1);
+    });
+
+    it('no envía a un cliente que ya no está abierto', () => {
+      const client = { readyState: WebSocket.CLOSED, send: jest.fn() };
+
+      internals().send(client, 'build-X');
+
+      expect(client.send).not.toHaveBeenCalled();
     });
   });
 });

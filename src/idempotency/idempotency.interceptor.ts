@@ -22,9 +22,9 @@ import { apiError, ERROR_CODES } from '../shared/errors/error-codes.js';
 import { IdempotencyService } from './idempotency.service.js';
 
 const IDEMPOTENT = 'idempotent';
-export const IDEMPOTENCY_HEADER = 'idempotency-key';
+const IDEMPOTENCY_HEADER = 'idempotency-key';
 /** En la respuesta de un reintento que ya se había procesado. */
-export const REPLAYED_HEADER = 'Idempotent-Replayed';
+const REPLAYED_HEADER = 'Idempotent-Replayed';
 
 /**
  * Marca un endpoint que crea registros o manda correos: con el header
@@ -35,7 +35,7 @@ export const Idempotent = () => SetMetadata(IDEMPOTENT, true);
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export const IDEMPOTENCY_MESSAGES = {
+const IDEMPOTENCY_MESSAGES = {
   inProgress:
     'Tu envío anterior todavía se está procesando. Espera unos segundos.',
   unconfirmed:
@@ -50,7 +50,7 @@ export const IDEMPOTENCY_MESSAGES = {
  * navegador sigue subiéndola, Node podría cerrar la conexión y el navegador
  * vería un error de red en lugar de la respuesta.
  */
-export const drainRequest = (req: Request) =>
+const drainRequest = (req: Request) =>
   req.readableEnded
     ? Promise.resolve()
     : new Promise<void>((resolve) => {

@@ -207,6 +207,40 @@ describe('ExtinguisherInspectionsService', () => {
       );
     });
 
+    it('la búsqueda compara el folio o el nombre del responsable', async () => {
+      qb().getMany.mockResolvedValue([]);
+
+      await as(async () => service.findAll({ search: '12' }));
+
+      const brackets = qb()
+        .andWhere.mock.calls.map(([condition]) => condition)
+        .find((condition) => condition instanceof Brackets) as Brackets;
+      const inner = { where: jest.fn(), orWhere: jest.fn() };
+      inner.where.mockReturnValue(inner);
+      brackets.whereFactory(inner as never);
+      expect(inner.where).toHaveBeenCalledWith(
+        'CAST(extinguisherInspection.id AS TEXT) ILIKE :search',
+        { search: '%12%' },
+      );
+      expect(inner.orWhere).toHaveBeenCalledWith(
+        'responsible.name ILIKE :search',
+        { search: '%12%' },
+      );
+    });
+
+    it('un usuario sin plantas no ve ninguna planta', async () => {
+      qb().getMany.mockResolvedValue([]);
+
+      await runAsUser(buildUser({ manufacturingPlants: [] }), async () =>
+        service.findAll({}),
+      );
+
+      expect(qb().andWhere).toHaveBeenCalledWith(
+        'manufacturingPlant.id IN (:...allowedPlantIds)',
+        { allowedPlantIds: [-1] },
+      );
+    });
+
     it('paginado aplica skip/take; limit -1 trae todo', async () => {
       qb().getManyAndCount.mockResolvedValue([[], 7]);
 
@@ -250,6 +284,17 @@ describe('ExtinguisherInspectionsService', () => {
   });
 
   describe('findOne', () => {
+    it('un usuario sin plantas no ve ninguna planta', async () => {
+      await runAsUser(buildUser({ manufacturingPlants: [] }), async () =>
+        service.findOne(30),
+      );
+
+      expect(inspections.queryBuilder.andWhere).toHaveBeenCalledWith(
+        'manufacturingPlant.id IN (:...allowedPlantIds)',
+        { allowedPlantIds: [-1] },
+      );
+    });
+
     it('una inspección inexistente o inactiva responde 404', async () => {
       inspections.queryBuilder.getOne.mockResolvedValue(null);
 
@@ -298,6 +343,35 @@ describe('ExtinguisherInspectionsService', () => {
       expect(evaluations.save).toHaveBeenCalledWith([
         expect.objectContaining({ extinguisherInspection: { id: 30 } }),
       ]);
+    });
+
+    it('sin planta nueva valida las fechas con el día de la planta actual', async () => {
+      await as(() =>
+        service.update(30, { evaluations: [evaluation()] as never }),
+      );
+
+      expect(inspections.manager.findOne).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ where: { id: 1 } }),
+      );
+      expect(evaluations.save).toHaveBeenCalled();
+    });
+
+    it('rechaza fechas de recarga o mantenimiento anteriores a hoy', async () => {
+      await expect(
+        as(() =>
+          service.update(30, {
+            evaluations: [
+              evaluation({ maintenanceDate: '2020-01-01' }),
+            ] as never,
+          }),
+        ),
+      ).rejects.toThrow(
+        new BadRequestException(
+          'No se permiten fechas de próxima recarga o mantenimiento anteriores a la fecha actual.',
+        ),
+      );
+      expect(inspections.save).not.toHaveBeenCalled();
     });
 
     it('con lista vacía solo desactiva; sin lista no toca las evaluaciones', async () => {

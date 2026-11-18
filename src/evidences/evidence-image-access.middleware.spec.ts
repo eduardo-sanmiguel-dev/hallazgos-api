@@ -170,6 +170,14 @@ describe('EvidenceImageAccessMiddleware', () => {
     await middleware.use(req, res, next);
     expect(res.status).toHaveBeenCalledWith(404);
   });
+  it('si el error llega con la respuesta ya enviada no responde otra vez', async () => {
+    res.sendFile.mockImplementation((_file, _options, callback) => {
+      res.headersSent = true;
+      callback(Error('conexión cerrada'));
+    });
+    await middleware.use(req, res, next);
+    expect(res.status).not.toHaveBeenCalled();
+  });
   it('registra la protección en la ruta estática actual', () => {
     const app = { get: jest.fn().mockReturnValue(middleware), use: jest.fn() };
     registerEvidenceImageAccess(app);

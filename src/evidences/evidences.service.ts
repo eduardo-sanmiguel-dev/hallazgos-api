@@ -107,11 +107,11 @@ pdfMake.setLocalAccessPolicy((path: string) =>
   resolve(path).startsWith(PDF_FONTS_DIR + sep),
 );
 
-export const MISSING_EVIDENCE_MESSAGE =
+const MISSING_EVIDENCE_MESSAGE =
   'Debe capturar o adjuntar una imagen como evidencia del hallazgo';
 
 // Excel de hallazgos: período máximo por descarga y formato de las fechas.
-export const EXPORT_MAX_MONTHS = 12;
+const EXPORT_MAX_MONTHS = 12;
 const EXCEL_DATE_FORMAT = 'yyyy-mm-dd hh:mm:ss';
 
 /** Fila del Excel tal como la devuelve la consulta (nombres ya resueltos). */
@@ -326,11 +326,8 @@ export class EvidencesService {
       return Between(parsedStartDate, new Date());
     }
 
-    if (parsedEndDate) {
-      return LessThanOrEqual(parsedEndDate);
-    }
-
-    return undefined;
+    // Solo queda la fecha de fin (sin ninguna se salió al inicio).
+    return LessThanOrEqual(parsedEndDate);
   }
 
   private parseMainTypeIds(mainTypeIds?: string): number[] {
@@ -972,9 +969,10 @@ export class EvidencesService {
     };
 
     const plantName = manufacturingPlantId
-      ? ((
+      ? // namesByIds siempre responde un nombre por id (o "ID n").
+        (
           await namesByIds(ManufacturingPlant, [Number(manufacturingPlantId)])
-        )[0] ?? null)
+        )[0]
       : null;
 
     const rows: Array<{ field: string; values: string[] }> = [
@@ -1258,123 +1256,122 @@ export class EvidencesService {
 
     const datos = (await this.findAll(exportQuery)) as Evidence[];
 
-    if (type === 'pdf') {
-      // Mismo nombre que el Excel (planta, filtros extra y hora local).
-      const timeZone = resolveTimeZone(queryEvidenceDto.timeZone);
-      const fileName = this.downloadFileName(
-        await this.buildExcelFilters(queryEvidenceDto),
-        timeZone,
-        new Date(),
-        'pdf',
-      );
+    // Solo queda pdf: el tipo ya se validó y xlsx salió arriba.
+    // Mismo nombre que el Excel (planta, filtros extra y hora local).
+    const timeZone = resolveTimeZone(queryEvidenceDto.timeZone);
+    const fileName = this.downloadFileName(
+      await this.buildExcelFilters(queryEvidenceDto),
+      timeZone,
+      new Date(),
+      'pdf',
+    );
 
-      const styles: StyleDictionary = {
-        header: {
-          fontSize: 22,
-          bold: true,
-          alignment: 'center',
-          margin: [0, 60, 0, 20],
+    const styles: StyleDictionary = {
+      header: {
+        fontSize: 22,
+        bold: true,
+        alignment: 'center',
+        margin: [0, 60, 0, 20],
+      },
+      body: {
+        alignment: 'justify',
+        margin: [0, 0, 0, 70],
+      },
+      signature: {
+        //fontSize: 14,
+        bold: true,
+        // alignment: 'left',
+        background: '#66BB6A',
+      },
+      footer: {
+        fontSize: 10,
+        italics: true,
+        alignment: 'center',
+        margin: [0, 0, 0, 20],
+      },
+    };
+
+    const headers = [
+      'ID',
+      'Grupo',
+      'Tipo de hallazgo',
+      'Lugar',
+      'Proceso',
+      'Creado por',
+      'Estatus',
+      'Fecha de creación',
+      'Imagen de hallazgo',
+      'Imagen de solución',
+    ];
+
+    const dataPdf = [];
+
+    const notFoundImage = uploadStaticImage('image-not-found.png');
+
+    // Ruta relativa a public/static/images: con "/" al inicio,
+    // safeFilePath la rechaza como absoluta y todas las fotos salían como
+    // "imagen no encontrada".
+    for (const evidence of datos) {
+      const imgSolution =
+        uploadStaticImage(
+          evidence.imgSolution ? `evidences/${evidence.imgSolution}` : '',
+        ) || notFoundImage;
+      const imgEvidence =
+        uploadStaticImage(
+          evidence.imgEvidence ? `evidences/${evidence.imgEvidence}` : '',
+        ) || notFoundImage;
+
+      dataPdf.push([
+        evidence.id,
+        evidence.mainType.name,
+        evidence.secondaryType.name,
+        evidence.zone.name,
+        evidence.process?.name || '',
+        evidence.user.name,
+        {
+          text: evidence.status,
+          style: evidence.status === 'Cerrado' ? 'signature' : '',
         },
-        body: {
-          alignment: 'justify',
-          margin: [0, 0, 0, 70],
+        stringToDateWithTime(evidence.createdAt),
+        {
+          image: `data:image/png;base64,${imgEvidence}`,
+          width: 50,
+          height: 50,
         },
-        signature: {
-          //fontSize: 14,
-          bold: true,
-          // alignment: 'left',
-          background: '#66BB6A',
+        {
+          image: `data:image/png;base64,${imgSolution}`,
+          width: 50,
+          height: 50,
         },
-        footer: {
-          fontSize: 10,
-          italics: true,
-          alignment: 'center',
-          margin: [0, 0, 0, 20],
-        },
-      };
-
-      const headers = [
-        'ID',
-        'Grupo',
-        'Tipo de hallazgo',
-        'Lugar',
-        'Proceso',
-        'Creado por',
-        'Estatus',
-        'Fecha de creación',
-        'Imagen de hallazgo',
-        'Imagen de solución',
-      ];
-
-      const dataPdf = [];
-
-      const notFoundImage = uploadStaticImage('image-not-found.png');
-
-      // Ruta relativa a public/static/images: con "/" al inicio,
-      // safeFilePath la rechaza como absoluta y todas las fotos salían como
-      // "imagen no encontrada".
-      for (const evidence of datos) {
-        const imgSolution =
-          uploadStaticImage(
-            evidence.imgSolution ? `evidences/${evidence.imgSolution}` : '',
-          ) || notFoundImage;
-        const imgEvidence =
-          uploadStaticImage(
-            evidence.imgEvidence ? `evidences/${evidence.imgEvidence}` : '',
-          ) || notFoundImage;
-
-        dataPdf.push([
-          evidence.id,
-          evidence.mainType.name,
-          evidence.secondaryType.name,
-          evidence.zone.name,
-          evidence.process?.name || '',
-          evidence.user.name,
-          {
-            text: evidence.status,
-            style: evidence.status === 'Cerrado' ? 'signature' : '',
-          },
-          stringToDateWithTime(evidence.createdAt),
-          {
-            image: `data:image/png;base64,${imgEvidence}`,
-            width: 50,
-            height: 50,
-          },
-          {
-            image: `data:image/png;base64,${imgSolution}`,
-            width: 50,
-            height: 50,
-          },
-        ]);
-      }
-
-      const docDefinition: TDocumentDefinitions = {
-        styles,
-        //pageMargins: [40, 110, 40, 60],
-        pageOrientation: 'landscape',
-        content: [
-          {
-            layout: 'lightHorizontalLines',
-            table: {
-              headerRows: 1,
-              // Por columnas del encabezado: sin resultados, dataPdf[0] no
-              // existe (antes respondía 500).
-              widths: headers.map(() => 'auto'),
-              body: [[...headers], ...dataPdf],
-            },
-          },
-        ],
-      };
-
-      const pdf: Buffer = await pdfMake.createPdf(docDefinition).getBuffer();
-
-      res.writeHead(200, {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': buildAttachmentContentDisposition(fileName),
-        'Content-Length': pdf.length,
-      });
-      res.end(pdf);
+      ]);
     }
+
+    const docDefinition: TDocumentDefinitions = {
+      styles,
+      //pageMargins: [40, 110, 40, 60],
+      pageOrientation: 'landscape',
+      content: [
+        {
+          layout: 'lightHorizontalLines',
+          table: {
+            headerRows: 1,
+            // Por columnas del encabezado: sin resultados, dataPdf[0] no
+            // existe (antes respondía 500).
+            widths: headers.map(() => 'auto'),
+            body: [[...headers], ...dataPdf],
+          },
+        },
+      ],
+    };
+
+    const pdf: Buffer = await pdfMake.createPdf(docDefinition).getBuffer();
+
+    res.writeHead(200, {
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': buildAttachmentContentDisposition(fileName),
+      'Content-Length': pdf.length,
+    });
+    res.end(pdf);
   }
 
   private buildFindOptions(
@@ -1677,7 +1674,8 @@ export class EvidencesService {
   ) {
     const requestUser = this.requestContext.user;
     const evidence = await this.findOne(id, repository);
-    const previousResponsibles = evidence.responsibles || [];
+    // findOne siempre carga las colecciones (vacías si no hay).
+    const previousResponsibles = evidence.responsibles;
 
     if (!this.canReassignEvidence(requestUser, evidence)) {
       throw new ForbiddenException(
@@ -1689,7 +1687,7 @@ export class EvidencesService {
 
     const responsibleIds = Array.from(
       new Set(
-        (reassignResponsiblesDto.responsibleIds || [])
+        reassignResponsiblesDto.responsibleIds
           .map((responsibleId) => Number(responsibleId))
           .filter(
             (responsibleId) =>

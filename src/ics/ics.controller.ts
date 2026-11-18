@@ -20,6 +20,9 @@ import {
 import { CreateIcsDto, FiltersIcsDto, UpdateIcsDto } from './dto/index.js';
 import { IcsService } from './ics.service.js';
 
+// Archivo subido como `Express.Multer.File | undefined`: puede faltar y, con
+// la unión, los metadatos del decorador emiten Object directo (sin una
+// condición sobre el global Express, que no existe en ejecución).
 @Controller('ics')
 export class IcsController {
   constructor(private readonly icsService: IcsService) {}
@@ -29,7 +32,8 @@ export class IcsController {
   @UseInterceptors(FileInterceptor('file', imageUploadOptions('evidence')))
   create(
     @Body() createIcsDto: CreateIcsDto,
-    @UploadedFile(ImageFileValidationPipe) file: Express.Multer.File,
+    @UploadedFile(ImageFileValidationPipe)
+    file: Express.Multer.File | undefined,
   ) {
     return this.icsService.create(createIcsDto, file);
   }

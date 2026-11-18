@@ -9,7 +9,7 @@ import { open, unlink } from 'fs/promises';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 
-export const EVIDENCE_IMAGES_DIR = './public/static/images/evidences';
+const EVIDENCE_IMAGES_DIR = './public/static/images/evidences';
 
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2 MB
 

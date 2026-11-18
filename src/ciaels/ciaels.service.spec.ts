@@ -353,6 +353,18 @@ describe('CiaelsService', () => {
     });
   });
 
+  it('update, remove y seed son stubs sin acceso a datos', async () => {
+    expect(service.update(5, { description: 'x' } as never)).toEqual({
+      id: 5,
+      updateCiaelDto: { description: 'x' },
+    });
+    expect(service.remove(5)).toContain('#5');
+    await expect(service.seed()).resolves.toEqual({
+      message: 'Se llamó al método seed',
+    });
+    expect(ciaels.save).not.toHaveBeenCalled();
+  });
+
   it('getPlantMx busca la planta de Tepotzotlán', async () => {
     await service.getPlantMx();
 

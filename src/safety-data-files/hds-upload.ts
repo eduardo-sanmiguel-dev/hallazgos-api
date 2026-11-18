@@ -23,9 +23,9 @@ export const hdsDir = () =>
 const uploadsDir = () => join(hdsDir(), '.uploads');
 
 /** Algunas HDS pesan más de 20 MB (fichas con imágenes escaneadas). */
-export const HDS_MAX_SIZE = 30 * 1024 * 1024;
+const HDS_MAX_SIZE = 30 * 1024 * 1024;
 
-export const INVALID_PDF_MESSAGE = 'Solo se permiten archivos PDF.';
+const INVALID_PDF_MESSAGE = 'Solo se permiten archivos PDF.';
 
 export const hdsUploadOptions = (): MulterOptions => ({
   storage: diskStorage({

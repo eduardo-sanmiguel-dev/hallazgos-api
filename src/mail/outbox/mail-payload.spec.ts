@@ -1,7 +1,13 @@
 import { ConfigService } from '@nestjs/config';
 import type { ISendMailOptions } from '@nestjs-modules/mailer';
 import { MailerService } from '@nestjs-modules/mailer';
-import { mkdtemp, readdir, rm, unlink, writeFile } from 'node:fs/promises';
+import fsPromises, {
+  mkdtemp,
+  readdir,
+  rm,
+  unlink,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { MailService } from '../mail.service.js';
@@ -129,5 +135,50 @@ describe('freezeMail', () => {
     await expect(freezeMail(missing, blobs)).rejects.toMatchObject({
       code: 'ENOENT',
     });
+  });
+
+  it('sin adjuntos solo renderiza el HTML', async () => {
+    const { attachments: _omit, ...withoutAttachments } = options;
+
+    const frozen = await freezeMail(withoutAttachments, blobs);
+
+    expect(frozen.attachments).toEqual([]);
+    expect(frozen.html).toEqual(expect.any(String));
+  });
+
+  it('en desarrollo recompila la plantilla e ignora archivos que no son .hbs', async () => {
+    const previous = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
+    const real = fsPromises.readdir.bind(fsPromises);
+    const listing = jest
+      .spyOn(fsPromises, 'readdir')
+      .mockImplementation((async (path: string) =>
+        String(path).endsWith('partials')
+          ? [...(await real(path)), 'LEEME.txt']
+          : real(path)) as never);
+    try {
+      const frozen = await freezeMail(options, blobs);
+
+      expect(frozen.html).toEqual(expect.any(String));
+      expect(listing).toHaveBeenCalled();
+    } finally {
+      listing.mockRestore();
+      process.env.NODE_ENV = previous;
+    }
+  });
+
+  it('un error al enlazar el adjunto (distinto de "ya existe") se propaga', async () => {
+    const failure = jest
+      .spyOn(fsPromises, 'link')
+      .mockRejectedValue(Object.assign(new Error('EPERM'), { code: 'EPERM' }));
+    try {
+      await expect(freezeMail(options, blobs)).rejects.toThrow('EPERM');
+      // El temporal se borra igual.
+      expect(
+        (await readdir(blobs)).filter((name) => name.endsWith('.tmp')),
+      ).toEqual([]);
+    } finally {
+      failure.mockRestore();
+    }
   });
 });

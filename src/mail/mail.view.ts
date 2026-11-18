@@ -16,7 +16,7 @@ import {
 
 // Logos optimizados para correo (recortados, 2x). Van como adjuntos en línea
 // (CID): se ven aunque el cliente bloquee las imágenes remotas.
-export const MAIL_IMAGES_DIR = join(
+const MAIL_IMAGES_DIR = join(
   import.meta.dirname,
   '..',
   '..',
@@ -40,7 +40,7 @@ export const LOGO_ATTACHMENTS = [
 ];
 
 // Hecho / a tiempo: el verde de "Cerrado" (como el seguimiento de la UI).
-export const DONE_GREEN = '#15803d';
+const DONE_GREEN = '#15803d';
 const PENDING = '#e5e7eb';
 const INK = '#111827';
 const DANGER = '#d32f2f';
@@ -56,7 +56,7 @@ export interface MailTheme {
 // mismos colores de estatus que la UI (EVIDENCE_STATUS_COLOR en
 // semanticTones): ámbar abierto, azul en progreso, verde cerrado, gris
 // cancelado. El rojo queda solo para lo urgente (plazo vencido).
-export const STATUS_ACCENTS: Record<string, string> = {
+const STATUS_ACCENTS: Record<string, string> = {
   [STATUS_OPEN]: '#b45309',
   [STATUS_IN_PROGRESS]: '#1d4ed8',
   [STATUS_CLOSE]: '#15803d',
@@ -293,7 +293,7 @@ export interface DetailCell {
 }
 
 /** Celdas en filas de dos (la plantilla no puede agruparlas). */
-export const detailRows = (cells: DetailCell[]) => {
+const detailRows = (cells: DetailCell[]) => {
   const visible = cells.filter(({ value }) => !!value);
   const rows: { left: DetailCell; right: DetailCell | null }[] = [];
   for (let i = 0; i < visible.length; i += 2) {

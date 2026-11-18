@@ -24,6 +24,9 @@ import { QuerySafetyDataFileDto } from './dto/index.js';
 import { hdsUploadOptions, PdfFileValidationPipe } from './hds-upload.js';
 import { SafetyDataFilesService } from './safety-data-files.service.js';
 
+// Archivo subido como `Express.Multer.File | undefined`: puede faltar y, con
+// la unión, los metadatos del decorador emiten Object directo (sin una
+// condición sobre el global Express, que no existe en ejecución).
 @Controller('safety-data-files')
 export class SafetyDataFilesController {
   constructor(
@@ -39,7 +42,9 @@ export class SafetyDataFilesController {
   @Post()
   @UseGuards(AdminGuard)
   @UseInterceptors(FileInterceptor('file', hdsUploadOptions()))
-  upload(@UploadedFile(PdfFileValidationPipe) file: Express.Multer.File) {
+  upload(
+    @UploadedFile(PdfFileValidationPipe) file: Express.Multer.File | undefined,
+  ) {
     return this.safetyDataFilesService.upload(file);
   }
 
@@ -49,7 +54,7 @@ export class SafetyDataFilesController {
   @UseInterceptors(FileInterceptor('file', hdsUploadOptions()))
   replace(
     @Param('id', ParseIntPipe) id: number,
-    @UploadedFile(PdfFileValidationPipe) file: Express.Multer.File,
+    @UploadedFile(PdfFileValidationPipe) file: Express.Multer.File | undefined,
   ) {
     return this.safetyDataFilesService.replace(id, file);
   }

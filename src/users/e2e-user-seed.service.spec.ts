@@ -1,5 +1,6 @@
 import * as argon2 from 'argon2';
 import type { ConfigService } from '@nestjs/config';
+import { Logger } from '@nestjs/common';
 
 import {
   createRepositoryMock,
@@ -42,6 +43,7 @@ describe('E2eUserSeedService', () => {
     ['producción', { environment: 'production' }],
     ['pruebas', { environment: 'test' }],
     ['base remota', { 'db.host': '82.197.95.145' }],
+    ['sin host de base configurado', { 'db.host': undefined }],
     ['sin credenciales', { E2E_EMAIL: undefined, E2E_PASSWORD: undefined }],
     ['correo que no es de pruebas', { E2E_EMAIL: 'admin@hadamexico.com' }],
     ['contraseña corta', { E2E_PASSWORD: 'corta' }],
@@ -104,5 +106,69 @@ describe('E2eUserSeedService', () => {
     users.findOne.mockRejectedValue(new Error('sin conexión'));
 
     await expect(service().onApplicationBootstrap()).resolves.toBeUndefined();
+  });
+
+  it('una contraseña guardada que no es un hash válido se reemplaza', async () => {
+    users.findOne.mockResolvedValue({
+      id: 9,
+      password: 'no-es-un-hash',
+      role: ROLE_ADMINISTRADOR,
+      isActive: true,
+      manufacturingPlants: PLANTS,
+    } as User);
+
+    await expect(service().ensureE2eUser()).resolves.toBe('updated');
+    await expect(
+      argon2.verify(users.save.mock.calls[0][0].password, PASSWORD),
+    ).resolves.toBe(true);
+  });
+
+  describe('al arrancar', () => {
+    let log: jest.SpyInstance;
+    let warn: jest.SpyInstance;
+
+    beforeEach(() => {
+      log = jest.spyOn(Logger.prototype, 'log').mockImplementation();
+      warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    });
+
+    afterEach(() => jest.restoreAllMocks());
+
+    it.each([
+      ['created', 'Usuario de pruebas e2e creado.'],
+      ['updated', 'Usuario de pruebas e2e actualizado.'],
+    ] as const)(
+      'registra cuando el usuario quedó %s',
+      async (result, message) => {
+        const seed = service();
+        jest.spyOn(seed, 'ensureE2eUser').mockResolvedValue(result);
+
+        await seed.onApplicationBootstrap();
+
+        expect(log).toHaveBeenCalledWith(message);
+      },
+    );
+
+    it.each(['ok', 'skipped'] as const)(
+      'no registra nada si quedó %s',
+      async (result) => {
+        const seed = service();
+        jest.spyOn(seed, 'ensureE2eUser').mockResolvedValue(result);
+
+        await seed.onApplicationBootstrap();
+
+        expect(log).not.toHaveBeenCalled();
+      },
+    );
+
+    it('un error que no es Error también se registra', async () => {
+      users.findOne.mockRejectedValue('sin conexión');
+
+      await service().onApplicationBootstrap();
+
+      expect(warn).toHaveBeenCalledWith(
+        'No se pudo preparar el usuario e2e: sin conexión',
+      );
+    });
   });
 });

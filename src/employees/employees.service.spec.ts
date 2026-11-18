@@ -2,6 +2,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { FindOperator } from 'typeorm';
 
 import {
+  buildAdmin,
   buildManufacturingPlant,
   buildUser,
   createServiceTestingModule,
@@ -214,6 +215,23 @@ describe('EmployeesService', () => {
       expect(findArgs().where[0].isActive).toBe(true);
     });
 
+    it('un admin con includeInactive ve todos, o filtra por isActive si lo pide', async () => {
+      const admin = buildAdmin({ manufacturingPlants: [tepotzotlan] });
+
+      await runAsUser(admin, async () =>
+        service.findAll({ includeInactive: 'true' }),
+      );
+      expect(findArgs().where[0]).not.toHaveProperty('isActive');
+
+      await runAsUser(admin, async () =>
+        service.findAll({ includeInactive: 'true', isActive: 'false' }),
+      );
+      expect(
+        (employees.find.mock.lastCall[0] as { where: { isActive: boolean }[] })
+          .where[0].isActive,
+      ).toBe(false);
+    });
+
     it('isActive "true" e inválido se tratan como activos', async () => {
       await as(() => service.findAll({ isActive: 'true' }));
       await as(() => service.findAll({ isActive: 'x' }));
@@ -363,5 +381,11 @@ describe('EmployeesService', () => {
     await as(() => service.remove(7));
 
     expect(employees.save).toHaveBeenCalledWith({ id: 7, isActive: false });
+  });
+
+  it('seed solo responde el mensaje de carga', async () => {
+    await expect(service.seed()).resolves.toEqual({
+      message: 'Carga inicial de colaboradores completada.',
+    });
   });
 });

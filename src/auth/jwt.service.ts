@@ -156,7 +156,8 @@ export class JwtService {
 
   private sameFingerprint(fingerprint: string, passwordHash: string) {
     const expected = Buffer.from(this.passwordFingerprint(passwordHash));
-    const received = Buffer.from(fingerprint ?? '');
+    // decodeResetToken ya exige la huella (pwd).
+    const received = Buffer.from(fingerprint);
     return (
       expected.length === received.length && timingSafeEqual(expected, received)
     );

@@ -86,10 +86,10 @@ const UPLOAD_FAILED =
 const REF_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 
 /** Referencia corta del error 500, la misma en la respuesta y en el log. */
-export const createErrorRef = () =>
+const createErrorRef = () =>
   `E-${Array.from({ length: 6 }, () => REF_ALPHABET[randomInt(REF_ALPHABET.length)]).join('')}`;
 
-export const internalErrorMessage = (ref: string) =>
+const internalErrorMessage = (ref: string) =>
   `Ocurrió un error inesperado. Intenta de nuevo; si continúa, avisa al administrador con la referencia ${ref}.`;
 
 // Detalle de Postgres: "Ya existe la llave (id)=(3819)." o, en inglés,
@@ -122,7 +122,8 @@ const describeHttpException = (exception: HttpException): Described => {
 
   const rawMessage = Array.isArray(body.message)
     ? body.message.join(' ')
-    : String(body.message ?? exception.message ?? '');
+    : // HttpException siempre tiene message (Nest lo arma si falta).
+      String(body.message ?? exception.message);
 
   if (statusCode >= 500) {
     return {
@@ -160,7 +161,8 @@ const describeHttpException = (exception: HttpException): Described => {
 // Errores de base de datos que ningún servicio manejó: mensajes en español y
 // sin nombres de tablas, columnas ni ids.
 const describeQueryFailed = (exception: QueryFailedError): Described => {
-  const driverError = (exception.driverError ?? {}) as PgDriverError;
+  // QueryFailedError siempre trae el error del driver (lo usa en su mensaje).
+  const driverError = exception.driverError as PgDriverError;
   const logDetail = [
     `código=${driverError.code}`,
     `tabla=${driverError.table ?? '-'}`,

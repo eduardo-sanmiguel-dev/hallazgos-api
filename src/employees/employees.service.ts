@@ -222,7 +222,8 @@ export class EmployeesService {
 
     const where: FindOptionsWhere<Employee> = {
       ...((!includeInactive || parsedIsActive !== undefined) && {
-        isActive: includeInactive ? (parsedIsActive ?? true) : true,
+        // Con includeInactive solo se llega aquí si isActive vino definido.
+        isActive: includeInactive ? parsedIsActive : true,
       }),
       manufacturingPlants: { id: In(plantIds) },
     };
@@ -288,7 +289,7 @@ export class EmployeesService {
     where: FindOptionsWhere<Employee>[],
     page: number,
     limit: number,
-    sort: SortQuery = {},
+    sort: SortQuery,
   ) {
     const isUnlimited = limit === -1;
 

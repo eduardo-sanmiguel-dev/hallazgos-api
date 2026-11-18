@@ -258,6 +258,15 @@ describe('IcsService', () => {
       );
     });
 
+    it('update valida que exista y aún no cambia datos', async () => {
+      ics.findOne.mockResolvedValue({ id: 3 } as Ics);
+
+      await expect(
+        as(async () => service.update(3, { totalPeople: 5 } as never)),
+      ).resolves.toEqual({ id: 3, updateIcDto: { totalPeople: 5 } });
+      expect(ics.update).not.toHaveBeenCalled();
+    });
+
     it('remove desactiva el registro', async () => {
       ics.findOne.mockResolvedValue({ id: 3 } as Ics);
 

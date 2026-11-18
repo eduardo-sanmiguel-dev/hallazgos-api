@@ -196,6 +196,21 @@ describe('DeleteUploadsOnErrorInterceptor (HTTP)', () => {
     logError.mockRestore();
   });
 
+  it('registra también fallos al borrar que no son Error', async () => {
+    mockUnlink.mockRejectedValueOnce('disco ocupado');
+    const logError = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+
+    await http()
+      .post('/upload/fail/403')
+      .attach('file', png, 'foto.png')
+      .expect(403);
+
+    expect(logError).toHaveBeenCalledWith(
+      expect.stringContaining(': disco ocupado'),
+    );
+    logError.mockRestore();
+  });
+
   it('sin archivo subido el error pasa igual', async () => {
     await http().post('/upload/fail/404').expect(404);
   });

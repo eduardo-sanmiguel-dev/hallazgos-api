@@ -2,7 +2,7 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { existsSync } from 'fs';
-import { join } from 'path';
+import { join, relative } from 'path';
 
 import { ENV_DEVELOPMENT, ENV_PRODUCTION } from '../shared/constants/index.js';
 import { buildEvidence, buildUser } from '../../test/utils/index.js';
@@ -63,8 +63,9 @@ describe('MailService', () => {
   beforeEach(() => setup());
 
   it('la carpeta local de imágenes es <proyecto>/public/static/images/evidences', () => {
-    expect(LOCAL_EVIDENCE_IMAGES_DIR).toBe(
-      join(process.cwd(), 'public', 'static', 'images', 'evidences'),
+    // relative() ignora la mayúscula de la unidad en Windows (c: vs C:).
+    expect(relative(process.cwd(), LOCAL_EVIDENCE_IMAGES_DIR)).toBe(
+      join('public', 'static', 'images', 'evidences'),
     );
     expect(existsSync(LOCAL_EVIDENCE_IMAGES_DIR)).toBe(true);
   });
@@ -457,6 +458,17 @@ describe('MailService', () => {
       });
     });
 
+    it('sin fecha de actualización usa la hora actual como fecha de cancelación', async () => {
+      await service.sendCancel({
+        cancelledBy: actor,
+        user: recipient,
+        evidenceCurrent: evidence({ updatedAt: null }),
+      });
+
+      expect(sent().context.cancelledAt).toEqual(expect.any(String));
+      expect(sent().context.cancelledAt).not.toBe('');
+    });
+
     it('sin imagen no adjunta', async () => {
       await service.sendCancel({
         cancelledBy: actor,
@@ -480,6 +492,41 @@ describe('MailService', () => {
         token: 'tok123',
         resetLink: 'https://ui.test/restore?token=tok123',
       },
+    });
+  });
+
+  describe('outbox', () => {
+    const config = { get: () => undefined } as unknown as ConfigService;
+    const mailer = { sendMail: jest.fn() } as unknown as MailerService;
+
+    it('sin outbox no captura y withOutbox avisa que falta el proveedor', async () => {
+      const plain = new MailService(mailer, config);
+
+      expect(plain.capturingMail).toBe(false);
+      await expect(
+        plain.withOutbox({} as never, async () => 'x'),
+      ).rejects.toThrow('Mail outbox provider is missing');
+    });
+
+    it('con outbox, withOutbox captura y un envío fuera de la transacción falla', async () => {
+      const outbox = {
+        capturing: false,
+        capture: jest.fn(async (_manager, work) => work()),
+        enqueue: jest.fn(),
+      };
+      const withOutbox = new MailService(mailer, config, outbox as never);
+
+      await expect(
+        withOutbox.withOutbox({} as never, async () => 'hecho'),
+      ).resolves.toBe('hecho');
+      await expect(
+        withOutbox.sendCancel({
+          cancelledBy: actor,
+          user: recipient,
+          evidenceCurrent: evidence(),
+        }),
+      ).rejects.toThrow('Mail must be saved with its business transaction');
+      expect(mailer.sendMail).not.toHaveBeenCalled();
     });
   });
 });

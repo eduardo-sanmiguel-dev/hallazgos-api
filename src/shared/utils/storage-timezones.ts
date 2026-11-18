@@ -9,7 +9,7 @@ import { parseWallClock, wallClockToInstant } from './timezone.js';
 
 export type PlantCountry = 'MX' | 'CO';
 
-export const COLOMBIA_COUNTRY_NAME = 'Colombia';
+const COLOMBIA_COUNTRY_NAME = 'Colombia';
 
 /** Zona horaria con la que se muestra una fecha fuera del navegador, por país de la planta. */
 export const PLANT_TIME_ZONES: Record<PlantCountry, string> = {

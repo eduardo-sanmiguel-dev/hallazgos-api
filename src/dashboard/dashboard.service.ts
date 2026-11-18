@@ -124,7 +124,7 @@ export class DashboardService {
 
   private isRestrictedDashboardUser() {
     const user = this.requestContext.userOrNull;
-    const currentEmail = this.normalizeForComparison(user?.email || '');
+    const currentEmail = this.normalizeForComparison(user?.email);
 
     return (
       currentEmail ===
@@ -156,9 +156,7 @@ export class DashboardService {
     });
 
     const allowedMainTypeIds = activeMainTypes
-      .filter(
-        (item) => !excluded.has(this.normalizeForComparison(item.name || '')),
-      )
+      .filter((item) => !excluded.has(this.normalizeForComparison(item.name)))
       .map((item) => item.id);
 
     if (providedMainTypeIds.length > 0) {
@@ -1321,7 +1319,8 @@ export class DashboardService {
       return query;
     };
 
-    const buildCountBaseQuery = (withPriority: boolean) => {
+    // Conteo de los hallazgos sin prioridad asignada.
+    const buildCountBaseQuery = () => {
       const query = this.evidenceRepository
         .createQueryBuilder('evidence')
         .leftJoin('evidence.zone', 'zone')
@@ -1334,11 +1333,7 @@ export class DashboardService {
           endDate: parsedEndDate,
         });
 
-      if (withPriority) {
-        query.andWhere('COALESCE(evidence."priorityDays", 0) > 0');
-      } else {
-        query.andWhere('COALESCE(evidence."priorityDays", 0) <= 0');
-      }
+      query.andWhere('COALESCE(evidence."priorityDays", 0) <= 0');
 
       if (areaIds && areaIds.length > 0) {
         query.andWhere('zone."areaId" IN (:...areaIds)', {
@@ -1406,7 +1401,7 @@ export class DashboardService {
     // Decide por su cuenta (responsables o supervisores), igual que antes.
     const { result: countRow } = await byResponsibleOrSupervisor(
       responsibleIds,
-      () => buildCountBaseQuery(false),
+      () => buildCountBaseQuery(),
       (query) => query.getRawOne<RawCount>(),
       zeroTotal,
     );
@@ -1495,7 +1490,8 @@ export class DashboardService {
       return query;
     };
 
-    const buildCountBaseQuery = (withPriority: boolean) => {
+    // Conteo de los hallazgos sin prioridad asignada.
+    const buildCountBaseQuery = () => {
       const query = this.evidenceRepository
         .createQueryBuilder('evidence')
         .leftJoin('evidence.zone', 'zone')
@@ -1508,11 +1504,7 @@ export class DashboardService {
           endDate: parsedEndDate,
         });
 
-      if (withPriority) {
-        query.andWhere('COALESCE(evidence."priorityDays", 0) > 0');
-      } else {
-        query.andWhere('COALESCE(evidence."priorityDays", 0) <= 0');
-      }
+      query.andWhere('COALESCE(evidence."priorityDays", 0) <= 0');
 
       if (areaIds && areaIds.length > 0) {
         query.andWhere('zone."areaId" IN (:...areaIds)', {
@@ -1550,7 +1542,7 @@ export class DashboardService {
     );
     // El conteo sin prioridad sigue la misma decisión que las filas.
     const countWithoutPriority = await filterByRole(
-      buildCountBaseQuery(false),
+      buildCountBaseQuery(),
       role,
       responsibleIds ?? [],
     ).getRawOne<RawCount>();
@@ -2263,10 +2255,8 @@ export class DashboardService {
         });
       }
 
+      // Siempre existe: se crea arriba si faltaba.
       const responsibleData = responsiblesById.get(userId);
-
-      if (!responsibleData) continue;
-
       responsibleData.statusCounts[status] =
         (responsibleData.statusCounts[status] || 0) + total;
     }
@@ -2287,8 +2277,8 @@ export class DashboardService {
     const series = statusOrder
       .map((status) => ({
         name: status,
-        data: sortedResponsibles.map((responsible) =>
-          responsible ? responsible.statusCounts[status] || 0 : 0,
+        data: sortedResponsibles.map(
+          (responsible) => responsible.statusCounts[status] || 0,
         ),
       }))
       .filter((item) => item.data.some((value) => value > 0));
@@ -2346,7 +2336,6 @@ export class DashboardService {
     );
 
     const categories: string[] = [];
-    const monthKeyByIndex = new Map<number, string>();
     const monthIndexByKey = new Map<string, number>();
 
     for (
@@ -2360,7 +2349,6 @@ export class DashboardService {
       const index = categories.length;
 
       categories.push(monthKey);
-      monthKeyByIndex.set(index, monthKey);
       monthIndexByKey.set(monthKey, index);
     }
 
@@ -2427,8 +2415,9 @@ export class DashboardService {
     );
 
     return {
-      startMonth: monthKeyByIndex.get(0) || '',
-      endMonth: monthKeyByIndex.get(categories.length - 1) || '',
+      // La ventana siempre tiene al menos el mes actual.
+      startMonth: categories[0],
+      endMonth: categories.at(-1),
       categories,
       series,
     };
@@ -2540,20 +2529,13 @@ export class DashboardService {
       .sort((a, b) => b[1] - a[1])
       .map(([name]) => name);
 
-    const areaNodeIds = new Map<string, string>();
-    orderedAreas.forEach((areaName) => {
-      areaNodeIds.set(areaName, `area:${areaName}`);
-    });
-
-    const statusNodeIds = new Map<string, string>();
-    statusOrder.forEach((statusName) => {
-      statusNodeIds.set(statusName, `status:${statusName}`);
-    });
+    const areaNodeId = (areaName: string) => `area:${areaName}`;
+    const statusNodeId = (statusName: string) => `status:${statusName}`;
 
     const links = rows
       .map((row) => ({
-        from: areaNodeIds.get(row.areaName) || `area:${row.areaName}`,
-        to: statusNodeIds.get(row.status) || `status:${row.status}`,
+        from: areaNodeId(row.areaName),
+        to: statusNodeId(row.status),
         weight: Number(row.total),
       }))
       .filter((item) => item.weight > 0)
@@ -2564,22 +2546,16 @@ export class DashboardService {
 
     const nodes = [
       ...orderedAreas
-        .filter((areaName) =>
-          usedAreaNodeIds.has(areaNodeIds.get(areaName) || `area:${areaName}`),
-        )
+        .filter((areaName) => usedAreaNodeIds.has(areaNodeId(areaName)))
         .map((areaName) => ({
-          id: areaNodeIds.get(areaName) || `area:${areaName}`,
+          id: areaNodeId(areaName),
           name: areaName,
           column: 0,
         })),
       ...statusOrder
-        .filter((statusName) =>
-          usedStatusNodeIds.has(
-            statusNodeIds.get(statusName) || `status:${statusName}`,
-          ),
-        )
+        .filter((statusName) => usedStatusNodeIds.has(statusNodeId(statusName)))
         .map((statusName) => ({
-          id: statusNodeIds.get(statusName) || `status:${statusName}`,
+          id: statusNodeId(statusName),
           name: statusName,
           column: 1,
         })),
@@ -2983,10 +2959,7 @@ export class DashboardService {
         wmaWeightsNewestFirst.length,
       );
 
-      if (availablePoints === 0) {
-        return 0;
-      }
-
+      // Siempre hay al menos un mes histórico (inicio <= fin).
       let weightedSum = 0;
       let totalWeight = 0;
 
@@ -2997,7 +2970,7 @@ export class DashboardService {
         totalWeight += weight;
       }
 
-      return totalWeight > 0 ? weightedSum / totalWeight : 0;
+      return weightedSum / totalWeight;
     };
 
     let monthCursor = new Date(endMonthDate);
@@ -3028,18 +3001,14 @@ export class DashboardService {
 
     const forecastSeries = [
       ...Array(historicalCategories.length - 1).fill(null),
-      historicalCategories.length > 0
-        ? actualData[historicalCategories.length - 1]
-        : null,
+      actualData[historicalCategories.length - 1],
       ...forecastDataOnly,
     ];
 
     const windowForVolatility = actualData.slice(-6);
     const mean =
-      windowForVolatility.length > 0
-        ? windowForVolatility.reduce((sum, value) => sum + value, 0) /
-          windowForVolatility.length
-        : 0;
+      windowForVolatility.reduce((sum, value) => sum + value, 0) /
+      windowForVolatility.length;
 
     const variance =
       windowForVolatility.length > 1
@@ -3055,12 +3024,10 @@ export class DashboardService {
 
     const rangeSeries: Array<[number, number] | null> = [
       ...Array(historicalCategories.length - 1).fill(null),
-      historicalCategories.length > 0
-        ? [
-            actualData[historicalCategories.length - 1],
-            actualData[historicalCategories.length - 1],
-          ]
-        : null,
+      [
+        actualData[historicalCategories.length - 1],
+        actualData[historicalCategories.length - 1],
+      ],
     ];
 
     forecastDataOnly.forEach((value, index) => {
@@ -3353,23 +3320,13 @@ export class DashboardService {
       series: [
         {
           name: 'Abiertos',
-          data: categories.map((category) => {
-            const item = result.find(
-              (item) => item.manufacturingplantname === category,
-            );
-            return item ? Number(item.open) : 0;
-          }),
+          data: result.map((item) => Number(item.open)),
           // Mismos colores de estatus que la UI (Abierto / Cerrado).
           color: '#B45309',
         },
         {
           name: 'Cerrados',
-          data: categories.map((category) => {
-            const item = result.find(
-              (item) => item.manufacturingplantname === category,
-            );
-            return item ? Number(item.closed) : 0;
-          }),
+          data: result.map((item) => Number(item.closed)),
           color: '#15803D',
         },
       ],

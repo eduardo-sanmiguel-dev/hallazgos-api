@@ -191,6 +191,14 @@ describe('GembaWalkEvaluationsService', () => {
     });
   });
 
+  it('update con descripción vacía conserva la actual', async () => {
+    await as(() => service.update(4, { description: '  ' }));
+
+    expect(evaluations.preload).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 4, description: 'Pasillos libres' }),
+    );
+  });
+
   it('remove desactiva el concepto', async () => {
     evaluations.save.mockImplementation(async (e) => e as never);
 

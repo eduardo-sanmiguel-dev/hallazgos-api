@@ -63,7 +63,8 @@ export const countWrappedLines = (
 
     for (const word of paragraph.split(/\s+/).filter(Boolean)) {
       // Trozos de la palabra entre los que Excel puede cortar (tras cada "-").
-      const pieces = word.match(/[^-]*-+|[^-]+$/g) ?? [word];
+      // Una palabra no vacía siempre coincide (al menos un trozo).
+      const pieces = word.match(/[^-]*-+|[^-]+$/g);
 
       pieces.forEach((piece, index) => {
         const piecePx = textWidthPx(piece, fontPx);

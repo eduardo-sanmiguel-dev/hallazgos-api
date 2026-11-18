@@ -49,8 +49,7 @@ export const apiError = (message: string, code: ErrorCode) => ({
   code,
 });
 
-export const SESSION_ENDED_MESSAGE =
-  'Tu sesión terminó. Inicia sesión de nuevo.';
+const SESSION_ENDED_MESSAGE = 'Tu sesión terminó. Inicia sesión de nuevo.';
 
 /**
  * 401 de una petición sin sesión válida: sin token, token vencido o usuario

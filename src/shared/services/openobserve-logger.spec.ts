@@ -123,6 +123,33 @@ describe('OpenObserveLogger', () => {
     expect(unserializable.message).toBe('[object Object]');
   });
 
+  it('sin nivel registra como log y convierte otros valores a texto', async () => {
+    const { logger, fetchFn } = createLogger();
+
+    (
+      logger as unknown as { printMessages: (messages: unknown[]) => void }
+    ).printMessages([42]);
+    await logger.flush();
+
+    expect(sentBatch(fetchFn)[0]).toMatchObject({
+      level: 'log',
+      message: '42',
+    });
+  });
+
+  it('avisa fallos de envío que no son Error', async () => {
+    const { logger } = createLogger({
+      fetchFn: jest.fn().mockRejectedValue('sin red'),
+    });
+
+    logger.warn('hola');
+    await logger.flush();
+
+    expect(process.stderr.write).toHaveBeenCalledWith(
+      expect.stringContaining(': sin red'),
+    );
+  });
+
   it('envía al juntar un lote completo, sin esperar al intervalo', async () => {
     const { logger, fetchFn } = createLogger({ maxBatchSize: 2 });
 

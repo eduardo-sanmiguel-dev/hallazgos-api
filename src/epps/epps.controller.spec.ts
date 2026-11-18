@@ -1,4 +1,5 @@
 import { Logger, NotFoundException } from '@nestjs/common';
+import express from 'express';
 import XlsxPopulate from 'xlsx-populate';
 
 import {
@@ -97,6 +98,19 @@ describe('EppsController (HTTP)', () => {
       expect(service.findPaginated).toHaveBeenCalledWith(
         expect.objectContaining({ withHistory: 'false' }),
       );
+    });
+
+    it('sin page devuelve la lista completa de la planta', async () => {
+      service.findAll.mockResolvedValue([] as never);
+
+      await http
+        .http()
+        .get('/epps')
+        .query({ manufacturingPlantId: 1 })
+        .expect(200, []);
+
+      expect(service.findAll).toHaveBeenCalledWith(1);
+      expect(service.findPaginated).not.toHaveBeenCalled();
     });
 
     it.each([
@@ -292,6 +306,78 @@ describe('EppsController (HTTP)', () => {
       );
       logError.mockRestore();
     });
+
+    it('si la plantilla no trae el texto legal, no lo reemplaza', async () => {
+      service.findEppsByEmployeeId.mockResolvedValue(history() as never);
+      const original = XlsxPopulate.fromFileAsync.bind(XlsxPopulate);
+      const fromFile = jest
+        .spyOn(XlsxPopulate, 'fromFileAsync')
+        .mockImplementationOnce(async (path: string) => {
+          const workbook = await original(path);
+          workbook.sheet('EPP Personas').cell('B34').value(undefined);
+          return workbook;
+        });
+
+      const res = await http
+        .http()
+        .get('/epps/download/file/7')
+        .buffer(true)
+        .parse(binaryParser)
+        .expect(200);
+
+      const sheet = (await XlsxPopulate.fromDataAsync(res.body)).sheet(0);
+      expect(sheet.cell('B34').value()).toBeUndefined();
+      fromFile.mockRestore();
+    });
+
+    it('registra también errores que no son Error (sin stack)', async () => {
+      service.findEppsByEmployeeId.mockResolvedValue(history() as never);
+      const fromFile = jest
+        .spyOn(XlsxPopulate, 'fromFileAsync')
+        .mockRejectedValueOnce('fallo sin stack');
+      const logError = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation();
+
+      await http
+        .http()
+        .get('/epps/download/file/7')
+        .expect(500, 'Error al procesar el archivo');
+
+      expect(logError).toHaveBeenCalledWith(
+        'Error al procesar el archivo',
+        'fallo sin stack',
+      );
+      logError.mockRestore();
+      fromFile.mockRestore();
+    });
+
+    it('si el archivo no se puede enviar responde 500', async () => {
+      service.findEppsByEmployeeId.mockResolvedValue(history() as never);
+      const sendFile = jest
+        .spyOn(express.response, 'sendFile')
+        .mockImplementation(function (_path, callback) {
+          (callback as (err: Error) => void)(new Error('disco'));
+        });
+
+      await http
+        .http()
+        .get('/epps/download/file/7')
+        .expect(500, 'Error al descargar el archivo');
+
+      sendFile.mockRestore();
+    });
+  });
+
+  it('PATCH y DELETE /epps/:id delegan al servicio', async () => {
+    service.update.mockReturnValue({ id: 50 } as never);
+    service.remove.mockReturnValue('ok');
+
+    await http.http().patch('/epps/50').send({}).expect(200);
+    await http.http().delete('/epps/50').expect(200);
+
+    expect(service.update).toHaveBeenCalledWith(50, {});
+    expect(service.remove).toHaveBeenCalledWith(50);
   });
 
   it('GET /epps/:id devuelve la entrega', async () => {

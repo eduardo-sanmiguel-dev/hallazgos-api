@@ -1253,4 +1253,158 @@ describe('DashboardService: reglas y resultados de reportes', () => {
     ).rejects.toThrow(NotFoundException);
     expect(query).toHaveBeenCalledTimes(1);
   });
+
+  describe('casos de borde', () => {
+    it('estados desconocidos van al final, ordenados por nombre', async () => {
+      qb().getRawMany.mockResolvedValue([
+        { plantId: 1, plantName: 'México', label: 'Zeta', total: '1' },
+        { plantId: 1, plantName: 'México', label: 'Alfa', total: '1' },
+        { plantId: 1, plantName: 'México', label: 'Abierto', total: '1' },
+      ]);
+
+      const result = await as(() => service.findAllStatus());
+
+      expect(result.statusSeries[0].data.map(([name]) => name)).toEqual([
+        'Abierto (1)',
+        'Alfa (1)',
+        'Zeta (1)',
+      ]);
+    });
+
+    it('un usuario sin correo no tiene restricción de tipos', async () => {
+      await as(
+        () => service.findStatusByFilters(1, start, end),
+        buildUser({ ...user, email: undefined }),
+      );
+
+      expect(types.find).not.toHaveBeenCalled();
+    });
+
+    it('al usuario restringido se le permiten tipos sin nombre', async () => {
+      types.find.mockResolvedValue([{ id: 4, name: null }] as never);
+
+      await as(
+        () => service.findStatusByFilters(1, start, end),
+        buildUser({ ...user, email: 'glora@hadainternational.com' }),
+      );
+
+      expect(qb().andWhere).toHaveBeenCalledWith(
+        'evidence."mainTypeId" IN (:...mainTypeIds)',
+        { mainTypeIds: [4] },
+      );
+    });
+
+    it('un fallo inesperado al calcular el periodo de comparación se propaga', async () => {
+      jest.spyOn(service as never, 'today').mockImplementation(() => {
+        throw new Error('reloj');
+      });
+
+      await expect(
+        as(() => service.findStatusByFilters(1, start, end)),
+      ).rejects.toThrow('reloj');
+    });
+
+    it.each([
+      ['findPriorityInterventionByFilters', { priorityDays: '2', total: null }],
+      ['findRiskLevelByFilters', { riskLevel: 'Alto', total: null }],
+    ] as const)('%s cuenta 0 si el total viene vacío', async (method, row) => {
+      qb().getRawMany.mockResolvedValue([row]);
+
+      const result = (await as(() =>
+        (
+          service[method] as (
+            ...args: unknown[]
+          ) => Promise<{ seriesData: { y: number }[] }>
+        )(1, start, end),
+      )) as { seriesData: { y: number }[] };
+
+      expect(result.seriesData.every(({ y }) => y === 0)).toBe(true);
+    });
+
+    describe('selector de responsables: validaciones', () => {
+      it.each([
+        ['sin planta', [0, start, end], 'Selecciona una planta.'],
+        [
+          'sin fechas',
+          [1, '', end],
+          'Las fechas de inicio y fin son obligatorias',
+        ],
+        [
+          'con inicio después del fin',
+          [1, end, start],
+          'La fecha de inicio no puede ser mayor a la fecha de fin',
+        ],
+      ] as const)('responde 400 %s', async (_c, [plant, from, to], message) => {
+        await expect(
+          as(() => service.findResponsiblesByFilters(plant, from, to, [4])),
+        ).rejects.toThrow(new BadRequestException(message));
+      });
+
+      it('sin tipos no filtra por tipo', async () => {
+        await as(() => service.findResponsiblesByFilters(1, start, end, [4]));
+
+        expect(qb().andWhere).not.toHaveBeenCalledWith(
+          'evidence."mainTypeId" IN (:...mainTypeIds)',
+          expect.anything(),
+        );
+      });
+    });
+
+    it('BI EPP: códigos, frecuencias y anticipación vacíos quedan en null', async () => {
+      query
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          { employee_id: 5, name: 'Ana', code: null, equipment_id: 36 },
+        ]);
+      const outOfRange = await service.findBusinessIntelligenceEppOutOfRange(
+        1,
+        '01/10/2026',
+        '22/10/2026',
+      );
+      expect(outOfRange.byEmployeeEquipment[0].code).toBeNull();
+
+      query
+        .mockResolvedValueOnce([{ id: 5, name: 'Ana', code: null }])
+        .mockResolvedValueOnce([
+          { id: 90, frecuencia: null, dias_anticipacion: null },
+        ]);
+      const detail = await service.findBusinessIntelligenceEppEmployee(
+        1,
+        5,
+        '01/10/2026',
+        '22/10/2026',
+      );
+      expect(detail.employee.code).toBeNull();
+      expect(detail.deliveries[0]).toMatchObject({
+        frequencyDays: null,
+        daysEarly: null,
+      });
+    });
+
+    it.each([
+      ['findGlobalSummary', [1], 'single'],
+      ['findCriticalZones', [1], 'list'],
+      ['findRankingOfResponsibles', [1], 'list'],
+      ['findAverageResolutionTime', [1], 'single'],
+      ['findMonthlyTypeTrend', [1], 'list'],
+      ['findMonthlySubtypeTrend', [1], 'list'],
+      ['findMainTypesGlobalTrend', [1], 'list'],
+      ['findMainTypesGlobalTrendDetails', [1, 3], 'list'],
+      ['findPercentageComplianceByZone', [1, 3], 'list'],
+    ] as const)(
+      '%s consulta con parámetros (sin valores en el SQL)',
+      async (method, params, shape) => {
+        query.mockResolvedValue([{ total: 1 }]);
+
+        const result = await (
+          service[method] as (...args: number[]) => Promise<unknown>
+        )(...params);
+
+        expect(query).toHaveBeenCalledWith(expect.any(String), params);
+        expect(result).toEqual(
+          shape === 'single' ? { total: 1 } : [{ total: 1 }],
+        );
+      },
+    );
+  });
 });

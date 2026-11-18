@@ -77,4 +77,14 @@ describe('instrumentationEnvFile', () => {
       rmSync(project, { recursive: true, force: true });
     }
   });
+
+  describe('valores por omisión', () => {
+    it('sin entorno explícito lee process.env', () => {
+      expect(instrumentationNodeEnv()).toBe(process.env.NODE_ENV);
+    });
+
+    it('sin URL del módulo resuelve el .env junto a la raíz del proyecto', () => {
+      expect(instrumentationEnvFile('pruebas')).toMatch(/\.env\.pruebas$/);
+    });
+  });
 });

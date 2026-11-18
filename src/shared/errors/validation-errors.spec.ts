@@ -1,4 +1,18 @@
 import { BadRequestException, type Type } from '@nestjs/common';
+import { Type as TransformType } from 'class-transformer';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsDateString,
+  IsDefined,
+  IsEmail,
+  IsISO8601,
+  IsNumberString,
+  Length,
+  Max,
+  MinLength,
+  ValidateNested,
+} from 'class-validator';
 
 import { CreateEmergencyTeamDto } from '../../emergency-teams/dto/create-emergency-team.dto.js';
 import { CreateEvidenceDto } from '../../evidences/dto/create-evidence.dto.js';
@@ -141,6 +155,106 @@ describe('Traductor de validaciones', () => {
     expect(body.errors).toEqual({
       'evaluations.0.observations': 'Debe tener máximo 500 caracteres.',
       'evaluations.0.capacity': 'Debe ser un número con máximo 2 decimales.',
+    });
+  });
+
+  describe('una regla por tipo de restricción', () => {
+    class Nested {
+      @IsDefined()
+      value: string;
+    }
+
+    class AllRules {
+      @IsDefined()
+      required: string;
+
+      @IsNumberString()
+      numeric: string;
+
+      @IsArray()
+      list: string[];
+
+      @IsEmail()
+      email: string;
+
+      @IsISO8601()
+      iso: string;
+
+      @IsDateString()
+      date: string;
+
+      @ValidateNested()
+      @TransformType(() => Nested)
+      nested: Nested;
+
+      @Max(5)
+      top: number;
+
+      @MinLength(3)
+      short: string;
+
+      @ArrayMaxSize(1)
+      many: string[];
+
+      @Length(4)
+      atLeast: string;
+    }
+
+    it('traduce cada restricción a su mensaje', async () => {
+      const body = await validationBody(AllRules, {
+        numeric: 'abc',
+        list: 'no',
+        email: 'correo',
+        iso: 'ayer',
+        date: 'ayer',
+        nested: 'texto',
+        top: 9,
+        short: 'a',
+        many: ['a', 'b'],
+        atLeast: 'ab',
+      });
+
+      expect(body.errors).toEqual({
+        required: 'Dato obligatorio.',
+        numeric: 'Debe ser un número.',
+        list: 'Debe ser una lista.',
+        email: 'Correo no válido.',
+        iso: 'Fecha no válida.',
+        date: 'Fecha no válida.',
+        nested: 'Datos incompletos o no válidos.',
+        top: 'Debe ser 5 o menor.',
+        short: 'Debe tener al menos 3 caracteres.',
+        many: 'Elige máximo 1.',
+        atLeast: 'Debe tener al menos 4 caracteres.',
+      });
+    });
+  });
+
+  describe('fábrica de excepciones', () => {
+    const factory = () =>
+      (
+        createValidationPipe() as unknown as {
+          exceptionFactory: (errors: object[]) => BadRequestException;
+        }
+      ).exceptionFactory;
+
+    it('sin errores por campo pide revisar los datos', () => {
+      const error = factory()([]);
+
+      expect(error.getResponse()).toMatchObject({
+        message: 'Revisa los datos enviados.',
+        errors: {},
+      });
+    });
+
+    it('sin objeto validado ni nombre de campo usa la regla y la ruta tal cual', () => {
+      const error = factory()([
+        { property: '0', constraints: { isDefined: 'falta' }, children: [] },
+      ]);
+
+      expect(error.getResponse()).toMatchObject({
+        errors: { '0': 'Dato obligatorio.' },
+      });
     });
   });
 });

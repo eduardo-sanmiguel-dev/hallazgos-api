@@ -253,4 +253,10 @@ describe('EquipmentsService', () => {
       expect(equipments.save).not.toHaveBeenCalled();
     });
   });
+
+  it('seed solo responde el mensaje de carga', async () => {
+    await expect(service.seed()).resolves.toEqual({
+      message: 'Carga inicial de equipos completada.',
+    });
+  });
 });

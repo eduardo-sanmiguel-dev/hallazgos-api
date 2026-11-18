@@ -83,4 +83,16 @@ describe('EmployeesController: catálogos', () => {
     expect(service.create.mock.calls[0][0].birthdate).toBeInstanceOf(Date);
     await http.close();
   });
+
+  it('POST seed delega al servicio', async () => {
+    const http = await createHttpTestApp({
+      controllers: [EmployeesController],
+      providers: [mockProvider(EmployeesService)],
+    });
+    const service = http.get(EmployeesService);
+    service.seed.mockResolvedValue({ message: 'ok' });
+
+    await http.http().post('/employees/seed').expect(201, { message: 'ok' });
+    await http.close();
+  });
 });

@@ -120,6 +120,17 @@ describe('JwtService', () => {
       expect(service.verifyResetToken(token, 'hash-actual').userId).toBe(3);
     });
 
+    it('sin hash de contraseña se firma con huella de texto vacío', () => {
+      const token = service.createResetToken(3, undefined as never);
+
+      expect(service.verifyResetToken(token, undefined as never).userId).toBe(
+        3,
+      );
+      expect(() => service.verifyResetToken(token, 'hash-actual')).toThrow(
+        jwt.JsonWebTokenError,
+      );
+    });
+
     it('dejan de servir en cuanto cambia la contraseña (un solo uso)', () => {
       const token = service.createResetToken(3, 'hash-actual');
 

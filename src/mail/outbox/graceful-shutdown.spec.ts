@@ -63,4 +63,18 @@ describe('exitOnSignal', () => {
     jest.advanceTimersByTime(90_000);
     expect(target.exit).toHaveBeenCalledWith(1);
   });
+
+  it('sin target escucha las señales del proceso actual', () => {
+    const on = jest
+      .spyOn(process, 'on')
+      .mockImplementation(() => process as never);
+    try {
+      exitOnSignal(() => Promise.resolve());
+
+      expect(on).toHaveBeenCalledWith('SIGTERM', expect.any(Function));
+      expect(on).toHaveBeenCalledWith('SIGINT', expect.any(Function));
+    } finally {
+      on.mockRestore();
+    }
+  });
 });

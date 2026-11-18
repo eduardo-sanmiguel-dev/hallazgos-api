@@ -85,7 +85,8 @@ const pickConstraint = (constraints: Record<string, string>) => {
 
 /** Mensaje junto al campo para un error con `constraints`. */
 const fieldMessage = (error: ValidationError) => {
-  const constraints = error.constraints ?? {};
+  // Solo se llama con constraints (ver flattenValidationErrors).
+  const constraints = error.constraints;
   const constraint = pickConstraint(constraints);
   const meta = findMetadata(error.target, error.property, constraint);
 
@@ -105,7 +106,7 @@ export interface FieldError {
 }
 
 /** Errores de class-validator (anidados) → un error por campo. */
-export const flattenValidationErrors = (
+const flattenValidationErrors = (
   errors: ValidationError[],
   parentPath: string[] = [],
   rowIndexes: number[] = [],
@@ -148,13 +149,12 @@ const labelFor = (path: string[], rows: number[]) => {
 const lowerFirst = (text: string) =>
   text.charAt(0).toLowerCase() + text.slice(1);
 
+/** Con dos o más etiquetas (un solo campo usa su detalle). */
 const joinLabels = (labels: string[]) =>
-  labels.length === 1
-    ? labels[0]
-    : `${labels.slice(0, -1).join(', ')} y ${labels.at(-1)}`;
+  `${labels.slice(0, -1).join(', ')} y ${labels.at(-1)}`;
 
 /** Resumen para el aviso: con un campo, el detalle; con varios, cuáles. */
-export const validationSummary = (fields: FieldError[]) => {
+const validationSummary = (fields: FieldError[]) => {
   if (fields.length === 0) return 'Revisa los datos enviados.';
   if (fields.length === 1) {
     const [{ label, message }] = fields;
@@ -164,7 +164,7 @@ export const validationSummary = (fields: FieldError[]) => {
 };
 
 /** Excepción con el formato único: resumen, código y errores por campo. */
-export const validationException = (errors: ValidationError[]) => {
+const validationException = (errors: ValidationError[]) => {
   const fields = flattenValidationErrors(errors);
 
   return new BadRequestException({
@@ -176,7 +176,7 @@ export const validationException = (errors: ValidationError[]) => {
 };
 
 /** Opciones de siempre (main.ts) más el traductor de errores. */
-export const VALIDATION_PIPE_OPTIONS: ValidationPipeOptions = {
+const VALIDATION_PIPE_OPTIONS: ValidationPipeOptions = {
   whitelist: true,
   forbidNonWhitelisted: true,
   // Los controladores reciben la instancia del DTO (con sus tipos) en lugar

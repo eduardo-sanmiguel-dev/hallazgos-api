@@ -1,7 +1,7 @@
 // Utilidades de zona horaria basadas solo en Intl (reglas IANA históricas del runtime).
 // Nunca usan la TZ del proceso: todo se calcula con la zona IANA que se recibe.
 
-export const DEFAULT_TIME_ZONE = 'America/Mexico_City';
+const DEFAULT_TIME_ZONE = 'America/Mexico_City';
 
 export interface WallClock {
   year: number;

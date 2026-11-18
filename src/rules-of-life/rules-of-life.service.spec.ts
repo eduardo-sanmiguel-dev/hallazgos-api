@@ -62,3 +62,40 @@ describe('RulesOfLifeService.seed', () => {
     expect(rules.save).toHaveBeenCalledTimes(8);
   });
 });
+
+describe('RulesOfLifeService (stubs y áreas faltantes)', () => {
+  const setup = async () => {
+    const testing = await createServiceTestingModule(RulesOfLifeService, {
+      repositories: [RulesOfLife, StandardOfBehavior, AreaOfBehavior],
+    });
+    return {
+      service: testing.service,
+      areas: testing.repository(AreaOfBehavior),
+    };
+  };
+
+  it('crea el área de un estándar si no existe al consultarla', async () => {
+    const { service, areas } = await setup();
+    // findOne devuelve null (área no encontrada) por defecto.
+
+    await service.seed();
+
+    // 18 de la carga inicial + las de cada estándar que no se encontraron.
+    expect(areas.save.mock.calls.length).toBeGreaterThan(18);
+    expect(areas.create).toHaveBeenCalledWith({ name: 'Bodegas' });
+  });
+
+  it('create, findAll, findOne, update y remove son stubs sin acceso a datos', async () => {
+    const { service, areas } = await setup();
+
+    expect(service.create({} as never)).toEqual({});
+    expect(service.findAll()).toEqual(expect.any(String));
+    expect(service.findOne(3)).toContain('#3');
+    expect(service.update(3, {} as never)).toEqual({
+      id: 3,
+      updateRulesOfLifeDto: {},
+    });
+    expect(service.remove(3)).toContain('#3');
+    expect(areas.find).not.toHaveBeenCalled();
+  });
+});

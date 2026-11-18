@@ -71,7 +71,7 @@ const sortByName = (user: User) => {
 };
 
 /** Únicos destinatarios de los avisos de la planta 3 (pendiente: configuración). */
-export const PLANT_3_RECIPIENT_EMAILS = [
+const PLANT_3_RECIPIENT_EMAILS = [
   'strujillo@hadamexico.com',
   'Dspaggiari@hadamexico.com',
   'Aholguin@hada.com.co',
@@ -273,7 +273,7 @@ export class UsersService {
       const nested = relations.filter(
         (name) => name === relation || name.startsWith(`${relation}.`),
       );
-      if (!nested.length) continue;
+      // Todos los llamadores piden zonas y procesos (con sus plantas).
 
       const rows = await this.userRepository.find({
         where: { id: In(ids) },

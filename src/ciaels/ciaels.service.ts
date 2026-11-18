@@ -326,7 +326,8 @@ export class CiaelsService {
           `Máquina o equipo #${machineId} no encontrado`,
         );
       }
-    } else if (machineName) {
+    } else {
+      // Sin id, el nombre es obligatorio (validado al inicio).
       machine = await this.machineRepository.save({ name: machineName });
     }
 

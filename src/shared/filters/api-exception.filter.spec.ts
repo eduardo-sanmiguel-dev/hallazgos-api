@@ -418,4 +418,77 @@ describe('ApiExceptionFilter', () => {
     expect(response.status).not.toHaveBeenCalled();
     expect(logError).toHaveBeenCalled();
   });
+
+  describe('casos de borde', () => {
+    it('un estatus sin mensaje ni nombre conocido usa los genéricos', () => {
+      const { status, body } = respond(new HttpException('', 499));
+
+      expect(status).toBe(499);
+      expect(body).toMatchObject({ code: 'HTTP_499', error: 'Error' });
+      expect(body.message).toEqual(expect.any(String));
+      expect(body.message).not.toBe('');
+    });
+
+    it('una respuesta sin mensaje usa el texto de la excepción', () => {
+      const { body } = respond(
+        new HttpException({ code: 'PROPIO' }, HttpStatus.BAD_REQUEST),
+      );
+
+      expect(body.code).toBe('PROPIO');
+      expect(body.message).toEqual(expect.any(String));
+    });
+
+    it('un error del lector con estatus sin mensaje propio usa los genéricos', () => {
+      const { status, body } = respond({
+        status: 418,
+        expose: true,
+        message: 'teapot',
+      });
+
+      expect(status).toBe(418);
+      expect(body.code).toBe('HTTP_418');
+      expect(body.message).toEqual(expect.any(String));
+    });
+
+    it('un duplicado sin detalle responde el 409 de datos repetidos', () => {
+      const { status, body } = respond(queryError({ code: '23505' }));
+
+      expect(status).toBe(409);
+      expect(body.message).toBe(
+        'No se pudo guardar: ya existe un registro con esos datos.',
+      );
+    });
+
+    it('un valor lanzado que no es Error queda en el log como texto', () => {
+      const { status } = respond('fallo raro');
+
+      expect(status).toBe(500);
+      expect(logError).toHaveBeenCalledWith(
+        expect.stringContaining('fallo raro'),
+        undefined,
+      );
+    });
+
+    it('sin originalUrl registra la url de la petición', () => {
+      const response = {
+        headersSent: false,
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const host = {
+        getType: () => 'http',
+        switchToHttp: () => ({
+          getResponse: () => response,
+          getRequest: () => ({ method: 'GET', url: '/api/v1/sin-original' }),
+        }),
+      } as unknown as ArgumentsHost;
+
+      filter.catch(new Error('x'), host);
+
+      expect(logError).toHaveBeenCalledWith(
+        expect.stringContaining('GET /api/v1/sin-original'),
+        expect.anything(),
+      );
+    });
+  });
 });

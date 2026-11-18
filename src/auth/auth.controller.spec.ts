@@ -54,6 +54,24 @@ describe('AuthController', () => {
     },
   );
 
+  it.each(['login', 'loginRestorePassword'] as const)(
+    '%s devuelve token vacío si la cookie no trae token',
+    async (method) => {
+      auth[method].mockResolvedValue('otra=1; Path=/');
+      const response = fakeResponse();
+
+      const body = await controller[method](
+        { email: 'persona@hallazgos.test', password: 'x', token: 't' },
+        response,
+      );
+
+      expect(body).toEqual({
+        message: 'Inicio de sesión correctamente.',
+        token: '',
+      });
+    },
+  );
+
   it('logout pone la cookie vacía', async () => {
     auth.logout.mockResolvedValue('token=; Max-Age=0; Path=/');
     const response = fakeResponse();
