@@ -48,12 +48,10 @@ describe('Mail outbox: real PostgreSQL, controlled SMTP transport', () => {
       NODE_ENV: 'production',
     });
     outbox = new MailOutboxService(db, config);
-    sendMail = jest
-      .fn()
-      .mockResolvedValue({
-        accepted: ['recipient@example.test'],
-        messageId: 'accepted-test',
-      });
+    sendMail = jest.fn().mockResolvedValue({
+      accepted: ['recipient@example.test'],
+      messageId: 'accepted-test',
+    });
     const transport = { sendMail } as unknown as MailerService;
     mail = new MailService(transport, config, outbox);
     delivery = new MailDeliveryService(db, config, transport);
@@ -65,12 +63,10 @@ describe('Mail outbox: real PostgreSQL, controlled SMTP transport', () => {
     await db.query(
       'TRUNCATE email_attempts,email_notifications,email_provider_state,mail_atomicity_probe RESTART IDENTITY',
     );
-    sendMail
-      .mockReset()
-      .mockResolvedValue({
-        accepted: ['recipient@example.test'],
-        messageId: 'accepted-test',
-      });
+    sendMail.mockReset().mockResolvedValue({
+      accepted: ['recipient@example.test'],
+      messageId: 'accepted-test',
+    });
   });
   afterAll(async () => {
     log?.mockRestore();

@@ -51,7 +51,11 @@ describe('HTTP hallazgos with the real transactional mail outbox', () => {
         description: 'atomic outbox test',
         priorityDays: '8',
       })
-      .attach('file', Buffer.concat([image,Buffer.from([0])]), 'mail-test.png');
+      .attach(
+        'file',
+        Buffer.concat([image, Buffer.from([0])]),
+        'mail-test.png',
+      );
   it('commits the real hallazgo and its deduplicated pending recipients without calling SMTP', async () => {
     const response = await create().expect(201);
     const rows = await app.dataSource.query(

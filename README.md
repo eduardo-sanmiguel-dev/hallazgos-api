@@ -80,6 +80,12 @@ validan con Joi al arrancar: si falta una obligatoria, la API no inicia.
 - **Correos:** se guardan cifrados en la misma transacción que el cambio (outbox)
   y los envía `mail-worker` mediante BullMQ. Si falla el correo, el cambio no se
   pierde ni se duplica. Una foto que falte en disco no bloquea el correo.
+- **Excel (dos librerías a propósito):** `xlsx-populate` para **llenar
+  plantillas** (`src/files/*.xlsx`: CIAEL, EPP, extintores), porque solo
+  edita las celdas y conserva logos, dibujos y celdas combinadas; `exceljs`
+  para **reportes nuevos, imágenes y streaming** (exportación de hallazgos,
+  firmas de EPP), que `xlsx-populate` no soporta. No mezclar: llenar una
+  plantilla oficial con `exceljs` la reescribe completa y puede perder formato.
 - **Imágenes de evidencias:** `/static/images/evidences/*` exige sesión y planta.
 - **Hojas de datos de seguridad (HDS):** los PDF viven en `data/hds/`
   (`HDS_DIR`), fuera del repositorio; la tabla `safety_data_files` es el

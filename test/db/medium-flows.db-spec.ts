@@ -384,16 +384,14 @@ describe('Regresión de flujos de prioridad media', () => {
       .expect(400);
   });
   it('ICS y equipos de emergencia no exponen ni modifican registros de otras plantas', async () => {
-    const ics = await e2e.dataSource
-      .getRepository(Ics)
-      .save({
-        totalPeople: 1,
-        totalCorrectPeople: 1,
-        totalIncorrectPeople: 0,
-        icsPercentage: 100,
-        manufacturingPlant: e2e.base.plants.manizales,
-        createdBy: e2e.base.users.generalColombia,
-      });
+    const ics = await e2e.dataSource.getRepository(Ics).save({
+      totalPeople: 1,
+      totalCorrectPeople: 1,
+      totalIncorrectPeople: 0,
+      icsPercentage: 100,
+      manufacturingPlant: e2e.base.plants.manizales,
+      createdBy: e2e.base.users.generalColombia,
+    });
     const team = await e2e
       .call('post', '/emergency-teams', e2e.tokens.generalColombia)
       .send({
