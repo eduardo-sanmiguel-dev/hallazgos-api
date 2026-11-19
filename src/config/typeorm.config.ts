@@ -2,7 +2,6 @@ import { join } from 'path';
 import { existsSync, readFileSync } from 'fs';
 import { DataSource } from 'typeorm';
 import type { DataSourceOptions } from 'typeorm';
-import type { SeederOptions } from 'typeorm-extension';
 
 const envFilePath = join(
   process.cwd(),
@@ -37,8 +36,4 @@ export default new DataSource({
   logging: false,
   entities: [join(process.cwd(), 'src', '**', 'entities', '*{.ts,.js}')],
   migrations: [join(process.cwd(), 'src', 'migrations', '*{.ts,.js}')],
-  seeds: [join(process.cwd(), 'src', 'database', 'seeds', '*{.ts,.js}')],
-  factories: [
-    join(process.cwd(), 'src', 'database', 'factories', '*{.ts,.js}'),
-  ],
-} as DataSourceOptions & SeederOptions);
+} as DataSourceOptions);

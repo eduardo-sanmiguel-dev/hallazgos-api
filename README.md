@@ -104,7 +104,6 @@ en `src/shared/` y la configuración en `src/config/`.
 ```bash
 pnpm migration:run      # aplicar migraciones (desarrollo)
 pnpm migration:revert   # revertir la última
-pnpm seed:dev           # datos de catálogos en desarrollo
 ```
 
 En producción las migraciones se aplican al arrancar; existen `migration:run:prod`

@@ -3,7 +3,8 @@ import type { FindManyOptions, ObjectLiteral, Repository } from 'typeorm';
 /**
  * Listado paginado en la BD con el mismo `options` del listado completo.
  * `page` es 1-based; `limit = -1` devuelve todos los registros.
- * Los query params llegan como texto (el ValidationPipe global no transforma).
+ * Con DTO, el ValidationPipe global ya los convierte a número; también
+ * acepta texto por si el valor llega sin pasar por un DTO.
  */
 export async function findPaginated<T extends ObjectLiteral>(
   repository: Repository<T>,

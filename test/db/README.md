@@ -50,12 +50,13 @@ con permiso para crear bases (`CREATEDB`).
 `critical-flows.db-spec.ts` agrega pruebas de roles de usuarios, aislamiento por
 planta, recuperación de contraseña concurrente, rollback de creación y borrado de
 EPP, frecuencia en entregas simultáneas y carreras de estados de hallazgos. Se
-ejecuta automáticamente con `pnpm test:db`; ver `docs/flujos-criticos.md`.
+ejecuta automáticamente con `pnpm test:db`; cada caso está descrito en el
+propio archivo.
 
 ## GitHub Actions
 
-El job `database-tests` de `.github/workflows/deploy.yml` usa PostgreSQL 14
-como servicio temporal del runner, con la base `hallazgos_test` y credenciales
+El job `database-tests` de `.github/workflows/deploy.yml` usa PostgreSQL 18.6
+(la misma versión que producción y `compose.ci.yaml`) como servicio temporal del runner, con la base `hallazgos_test` y credenciales
 exclusivas de CI. El contenedor se elimina al terminar el job y el deploy por
 SSH requiere que pasen tanto las pruebas unitarias como las de base de datos.
 

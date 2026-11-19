@@ -51,7 +51,14 @@ Correr a mano (en caliente, viendo el avance):
 Restaurar el respaldo más reciente en la base local `hallazgos_dev`:
 `& "C:\Users\eduar\proyects\hallazgos\backups-db\restaurar-dev.ps1"`.
 
-Pruebas de la retención (sin red): `bash infra/backup/backup-prod.test.sh`.
+La tarea no llama a WSL directo sino a `run-backup.ps1`, que espera a que WSL
+esté listo (al iniciar sesión puede tardar) y, si el respaldo falla, escribe
+`ERROR` en `ULTIMO_RESPALDO.txt`, lo anota en la bitácora y muestra el aviso.
+
+Pruebas (sin red):
+
+- Retención: `bash infra/backup/backup-prod.test.sh`.
+- Lanzador: `powershell -ExecutionPolicy Bypass -File infra\backup\run-backup.test.ps1`.
 
 ## Restaurar
 

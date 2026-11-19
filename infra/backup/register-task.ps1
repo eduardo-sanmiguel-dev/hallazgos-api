@@ -8,13 +8,14 @@
 $ErrorActionPreference = 'Stop'
 
 $taskName = 'Hallazgos - respaldo produccion'
-$script = (Join-Path $PSScriptRoot 'backup-prod.sh')
-$wslScript = (wsl.exe -e wslpath -a ($script -replace '\\', '/')).Trim()
+$launcher = (Join-Path $PSScriptRoot 'run-backup.ps1')
 $user = "$env:USERDOMAIN\$env:USERNAME"
 
-# conhost --headless: corre sin abrir una ventana de consola.
+# conhost --headless: corre sin abrir una ventana de consola. run-backup.ps1
+# espera a que WSL esté listo y avisa si el respaldo falla (wsl.exe directo
+# fallaba en silencio al iniciar sesión y la tarea quedaba como exitosa).
 $action = New-ScheduledTaskAction -Execute 'conhost.exe' `
-  -Argument "--headless wsl.exe -e bash `"$wslScript`""
+  -Argument "--headless powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$launcher`""
 
 $atLogon = New-ScheduledTaskTrigger -AtLogOn -User $user
 $atLogon.Delay = 'PT2M'
@@ -35,4 +36,4 @@ Register-ScheduledTask -TaskName $taskName -Action $action `
   -Force | Out-Null
 
 Write-Host "Tarea registrada: $taskName"
-Write-Host "Script: $wslScript"
+Write-Host "Lanzador: $launcher"

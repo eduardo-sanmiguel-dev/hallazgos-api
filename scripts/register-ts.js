@@ -1,7 +1,6 @@
 /**
- * Permite ejecutar archivos .ts de src/ directamente con Node (CLI de TypeORM
- * y de typeorm-extension). Sustituye a ts-node, cuyo resolvedor ESM no es
- * compatible con los paquetes ESM de Nest; esbuild/tsx tampoco sirven porque
+ * Permite ejecutar archivos .ts de src/ directamente con Node (CLI de
+ * TypeORM). Sustituye a ts-node, cuyo resolvedor ESM no es compatible con los paquetes ESM de Nest; esbuild/tsx tampoco sirven porque
  * no emiten los metadatos de decoradores que usan las entidades.
  *
  *   node --import ./scripts/register-ts.js <script> ...
