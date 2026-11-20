@@ -98,11 +98,20 @@ describe('EmployeesController: catálogos', () => {
 });
 
 describe('EmployeesController: paginación', () => {
-  it('la tabla siempre pagina: sin page ni limit, la primera página', async () => {
-    const http = await createHttpTestApp({
+  let http: Awaited<ReturnType<typeof createHttpTestApp>>;
+
+  beforeEach(async () => {
+    http = await createHttpTestApp({
       controllers: [EmployeesController],
       providers: [mockProvider(EmployeesService)],
     });
+  });
+
+  // Sin cerrarla, el servidor HTTP de la prueba deja vivo el proceso de Jest
+  // con --runInBand (CI) y el push no termina.
+  afterEach(() => http.close());
+
+  it('la tabla siempre pagina: sin page ni limit, la primera página', async () => {
     const service = http.get(EmployeesService);
     service.findAll.mockResolvedValue({ data: [], count: 0 } as never);
 
@@ -114,11 +123,6 @@ describe('EmployeesController: paginación', () => {
   });
 
   it('un listado de más de 100 por página responde 400', async () => {
-    const http = await createHttpTestApp({
-      controllers: [EmployeesController],
-      providers: [mockProvider(EmployeesService)],
-    });
-
     await http
       .http()
       .get('/employees')
