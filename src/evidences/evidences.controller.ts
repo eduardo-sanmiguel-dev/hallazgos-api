@@ -29,6 +29,7 @@ import {
   ReassignResponsiblesDto,
   UpdateEvidenceDto,
 } from './dto/index.js';
+import { withDefaultPage } from '../shared/dto/pagination.decorators.js';
 
 // Archivo subido como `Express.Multer.File | undefined`: puede faltar y, con
 // la unión, los metadatos del decorador emiten Object directo (sin una
@@ -81,7 +82,9 @@ export class EvidencesController {
   // { data, count } (lista de la UI), sin ellos todos.
   @Get()
   findAll(@Query() queryEvidenceDto: QueryEvidenceDto) {
-    return this.evidencesService.findAll(queryEvidenceDto);
+    // Siempre paginado por HTTP (sin page/limit, la primera página).
+    // Las descargas usan el listado completo desde el servicio.
+    return this.evidencesService.findAll(withDefaultPage(queryEvidenceDto));
   }
 
   @Get(':id')

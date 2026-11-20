@@ -94,7 +94,15 @@ describe('Flujos críticos con PostgreSQL', () => {
     const response = await e2e
       .call('get', '/users?manufacturingPlantId=2', e2e.tokens.general)
       .expect(200);
-    expect(response.body).toEqual([]);
+    expect(response.body).toEqual({ data: [], count: 0 });
+    // Sin filtro: cada usuario muestra solo plantas compartidas.
+    const all = await e2e
+      .call('get', '/users?page=1&limit=100', e2e.tokens.general)
+      .expect(200);
+    for (const user of all.body.data)
+      expect(user.manufacturingPlants.map(({ name }) => name).sort()).toEqual([
+        'Tepotzotlán',
+      ]);
   });
 
   it('un administrador limitado no asigna ni modifica usuarios de plantas ajenas', async () => {

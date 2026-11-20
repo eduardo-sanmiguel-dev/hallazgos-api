@@ -6,7 +6,16 @@ import { ExtinguisherInspectionEvaluation } from '../../src/extinguisher-inspect
 import { User } from '../../src/users/entities/user.entity.js';
 import { JwtService } from '../../src/auth/jwt.service.js';
 import request from 'supertest';
-import { mkdirSync, writeFileSync, unlinkSync } from 'fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+  unlinkSync,
+} from 'fs';
+import { tmpdir } from 'os';
+import sharp from 'sharp';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
 import { createE2eApp, type E2eApp } from './e2e-app.js';
@@ -126,10 +135,11 @@ describe('Regresión de flujos de prioridad media', () => {
         e2e.tokens.supervisor,
       )
       .expect(404);
+    // Sin page, la primera página (nunca la lista completa).
     const list = await e2e
       .call('get', '/extinguisher-inspections', e2e.tokens.supervisor)
       .expect(200);
-    expect(list.body).toEqual([]);
+    expect(list.body).toMatchObject({ data: [], count: 0 });
   });
   it('editar valida fechas y reemplaza evaluaciones dentro de una transacción', async () => {
     const created = await e2e
@@ -187,6 +197,74 @@ describe('Regresión de flujos de prioridad media', () => {
       .get('/static/images/evidences/' + randomUUID() + '.png')
       .set('Authorization', 'Bearer ' + e2e.tokens.general)
       .expect(404);
+  });
+  it('las fotos se entregan en AVIF o WebP según Accept, con el original intacto', async () => {
+    const variants = mkdtempSync(join(tmpdir(), 'hallazgos-variants-'));
+    const previous = process.env.IMAGE_VARIANTS_DIR;
+    process.env.IMAGE_VARIANTS_DIR = variants;
+    try {
+      const filename = randomUUID() + '-evidence.jpg';
+      const full = join(
+        process.cwd(),
+        'public/static/images/evidences',
+        filename,
+      );
+      mkdirSync(join(full, '..'), { recursive: true });
+      await sharp({
+        create: {
+          width: 320,
+          height: 240,
+          channels: 3,
+          background: { r: 90, g: 140, b: 200 },
+          noise: { type: 'gaussian', mean: 128, sigma: 40 },
+        },
+      })
+        .jpeg({ quality: 95 })
+        .toFile(full);
+      images.push(full);
+      await saveEvidence(e2e.dataSource, e2e.base, { imgEvidence: filename });
+      const url = '/static/images/evidences/' + filename;
+      const original = readFileSync(full);
+      const get = (accept: string) =>
+        request(e2e.server)
+          .get(url)
+          .set('Cookie', 'token=' + e2e.tokens.general)
+          .set('Accept', accept)
+          .buffer(true)
+          .parse((res, done) => {
+            const chunks: Buffer[] = [];
+            res.on('data', (chunk: Buffer) => chunks.push(chunk));
+            res.on('end', () => done(null, Buffer.concat(chunks)));
+          })
+          .expect(200);
+
+      const avif = await get('image/avif,image/webp,*/*');
+      expect(avif.headers['content-type']).toBe('image/avif');
+      expect(avif.headers.vary).toContain('Accept');
+      expect(avif.headers['cache-control']).toContain('no-store');
+      expect(avif.body.length).toBeLessThan(original.length);
+
+      const webp = await get('image/webp,*/*');
+      expect(webp.headers['content-type']).toBe('image/webp');
+      expect(webp.body.length).toBeLessThan(original.length);
+
+      const jpeg = await get('*/*');
+      expect(jpeg.headers['content-type']).toBe('image/jpeg');
+      expect(Buffer.compare(jpeg.body, original)).toBe(0);
+      // El original (correos y PDF) no cambia.
+      expect(Buffer.compare(readFileSync(full), original)).toBe(0);
+
+      // Otra planta no recibe ni la variante ya generada.
+      await request(e2e.server)
+        .get(url)
+        .set('Authorization', 'Bearer ' + e2e.tokens.generalColombia)
+        .set('Accept', 'image/avif')
+        .expect(404);
+    } finally {
+      if (previous === undefined) delete process.env.IMAGE_VARIANTS_DIR;
+      else process.env.IMAGE_VARIANTS_DIR = previous;
+      rmSync(variants, { recursive: true, force: true });
+    }
   });
   it.each(['31/02/2026', '20/10/2026/extra', '2026-10-20'])(
     'los reportes rechazan fechas inválidas: %s',

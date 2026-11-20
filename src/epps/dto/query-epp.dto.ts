@@ -5,10 +5,10 @@ import {
   IsPositive,
   IsString,
   Matches,
-  Max,
   MaxLength,
   Min,
 } from 'class-validator';
+import { IsPageLimit } from '../../shared/dto/pagination.decorators.js';
 
 export const EPP_SORTABLE_COLUMNS = [
   'name',
@@ -31,10 +31,8 @@ export class QueryEppDto {
   @Min(1)
   page?: number;
 
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(100)
+  // De 1 a 100 (MAX_PAGE_LIMIT).
+  @IsPageLimit()
   limit?: number;
 
   @IsOptional()

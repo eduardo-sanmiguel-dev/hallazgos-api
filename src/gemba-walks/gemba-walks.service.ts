@@ -32,6 +32,7 @@ import { GembaWalkResult } from './entities/gemba-walk-result.entity.js';
 import { GembaWalkCalendar } from '../gemba-walk-calendar/entities/gemba-walk-calendar.entity.js';
 import { GembaWalkEvaluation } from '../gemba-walk-evaluations/entities/gemba-walk-evaluation.entity.js';
 import { GembaWalkObserver } from '../gemba-walk-observers/entities/gemba-walk-observer.entity.js';
+import { isGembaWalkObserver } from '../gemba-walk-observers/gemba-walk-observer-access.js';
 import { ManufacturingPlant } from '../manufacturing-plants/entities/manufacturing-plant.entity.js';
 import { User } from '../users/entities/user.entity.js';
 import {
@@ -93,19 +94,11 @@ export class GembaWalksService {
 
   // Solo los usuarios registrados como observadores activos usan el módulo.
   // El administrador tiene acceso completo aunque no esté registrado.
-  async isObserver(): Promise<boolean> {
-    if (this.requestContext.isAdmin) return true;
-
-    const count = await this.gembaWalkObserverRepository.count({
-      where: {
-        isActive: true,
-        user: { id: this.requestContext.user.id },
-        gembaWalkZone: { isActive: true },
-        manufacturingPlant: { isActive: true },
-      },
+  isObserver(): Promise<boolean> {
+    return isGembaWalkObserver(this.gembaWalkObserverRepository, {
+      userId: this.requestContext.user.id,
+      isAdmin: this.requestContext.isAdmin,
     });
-
-    return count > 0;
   }
 
   private async assertObserver() {

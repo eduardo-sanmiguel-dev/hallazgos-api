@@ -63,29 +63,28 @@ const BOGOTA = PLANT_TIME_ZONES.CO;
 
 const SERVER_TZ_CUT = SERVER_TZ_TO_MEXICO_CUT;
 
-const EVIDENCE_STORAGE_TIME_ZONES: StorageTimeZoneRules<StoredDateColumn> =
-  {
-    createdAt: [
-      // Node en UTC y new Date() para todas las plantas.
-      // Última fila de Colombia en UTC: 2026-01-30 01:19; primera en Bogotá: 2026-02-18 10:29.
-      { until: '2026-02-05 10:28:00', zones: { MX: UTC, CO: UTC } },
-      // dde2a17: Colombia pasa a getColombiaNow() (hora de Bogotá). Node sigue en UTC.
-      // Última fila de México en UTC: 2026-02-11 00:42; siguiente: id 2879 (2026-02-25 18:32).
-      { until: SERVER_TZ_CUT, zones: { MX: UTC, CO: BOGOTA } },
-      // Node en America/Mexico_City.
-      { until: null, zones: { MX: MEXICO, CO: BOGOTA } },
-    ],
-    solutionDate: [
-      // Node en UTC y new Date() para todas las plantas.
-      // Última fila en UTC: 2026-02-23 19:45; primera en hora de México: 2026-02-26 06:34.
-      { until: SERVER_TZ_CUT, zones: { MX: UTC, CO: UTC } },
-      // Node en America/Mexico_City y todavía new Date() también para Colombia.
-      // Última fila de Colombia así: 2026-04-01 09:01; primera en Bogotá: 2026-04-07 07:56.
-      { until: '2026-04-06 09:36:00', zones: { MX: MEXICO, CO: MEXICO } },
-      // c0e5006: Colombia pasa a getColombiaNow().
-      { until: null, zones: { MX: MEXICO, CO: BOGOTA } },
-    ],
-  };
+const EVIDENCE_STORAGE_TIME_ZONES: StorageTimeZoneRules<StoredDateColumn> = {
+  createdAt: [
+    // Node en UTC y new Date() para todas las plantas.
+    // Última fila de Colombia en UTC: 2026-01-30 01:19; primera en Bogotá: 2026-02-18 10:29.
+    { until: '2026-02-05 10:28:00', zones: { MX: UTC, CO: UTC } },
+    // dde2a17: Colombia pasa a getColombiaNow() (hora de Bogotá). Node sigue en UTC.
+    // Última fila de México en UTC: 2026-02-11 00:42; siguiente: id 2879 (2026-02-25 18:32).
+    { until: SERVER_TZ_CUT, zones: { MX: UTC, CO: BOGOTA } },
+    // Node en America/Mexico_City.
+    { until: null, zones: { MX: MEXICO, CO: BOGOTA } },
+  ],
+  solutionDate: [
+    // Node en UTC y new Date() para todas las plantas.
+    // Última fila en UTC: 2026-02-23 19:45; primera en hora de México: 2026-02-26 06:34.
+    { until: SERVER_TZ_CUT, zones: { MX: UTC, CO: UTC } },
+    // Node en America/Mexico_City y todavía new Date() también para Colombia.
+    // Última fila de Colombia así: 2026-04-01 09:01; primera en Bogotá: 2026-04-07 07:56.
+    { until: '2026-04-06 09:36:00', zones: { MX: MEXICO, CO: MEXICO } },
+    // c0e5006: Colombia pasa a getColombiaNow().
+    { until: null, zones: { MX: MEXICO, CO: BOGOTA } },
+  ],
+};
 
 const RULES_NAME = 'EVIDENCE_STORAGE_TIME_ZONES';
 

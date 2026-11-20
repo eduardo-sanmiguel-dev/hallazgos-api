@@ -125,7 +125,7 @@ export class EquipmentsService {
     manufacturingPlantId: number | undefined,
     name: string,
     page: string,
-    limit: string,
+    limit: number | string,
     includeInactive?: string,
     sort: SortQuery = {},
   ) {

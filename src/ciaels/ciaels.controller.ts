@@ -27,6 +27,7 @@ import {
   UpdateCiaelDto,
 } from './dto/index.js';
 import { CiaelsService } from './ciaels.service.js';
+import { withDefaultPage } from '../shared/dto/pagination.decorators.js';
 
 @Controller('ciaels')
 export class CiaelsController {
@@ -149,11 +150,10 @@ export class CiaelsController {
 
   @Get()
   findAll(@Query() filtersCiaelDto: FiltersCiaelDto) {
-    const { page, limit } = filtersCiaelDto;
-
-    return page !== undefined && limit !== undefined
-      ? this.ciaelsService.findAllPaginated(filtersCiaelDto)
-      : this.ciaelsService.findAll(filtersCiaelDto);
+    // Siempre paginado por HTTP (sin page/limit, la primera página).
+    return this.ciaelsService.findAllPaginated(
+      withDefaultPage(filtersCiaelDto),
+    );
   }
 
   @Get(':id')

@@ -54,7 +54,7 @@ describe('EquipmentsController (HTTP)', () => {
       1,
       '',
       '2',
-      '5',
+      5,
       undefined,
       { orderBy: undefined, order: undefined },
     );
@@ -73,12 +73,19 @@ describe('EquipmentsController (HTTP)', () => {
       undefined,
       '',
       '1',
-      '5',
+      5,
       undefined,
       { orderBy: 'deliveryFrequency', order: 'desc' },
     );
 
-    for (const query of [{ orderBy: 'price' }, { order: 'up' }]) {
+    for (const query of [
+      { orderBy: 'price' },
+      { order: 'up' },
+      // De 1 a 100 por página; "todos" (-1) ya no.
+      { limit: '101' },
+      { limit: '-1' },
+      { limit: 'diez' },
+    ]) {
       await http
         .http()
         .get('/equipments')

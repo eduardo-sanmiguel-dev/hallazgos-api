@@ -15,6 +15,7 @@ import {
   UpdateEmergencyTeamDto,
 } from './dto/index.js';
 import { EmergencyTeamsService } from './emergency-teams.service.js';
+import { withDefaultPage } from '../shared/dto/pagination.decorators.js';
 
 @Controller('emergency-teams')
 export class EmergencyTeamsController {
@@ -27,7 +28,10 @@ export class EmergencyTeamsController {
 
   @Get()
   findAll(@Query() queryEmergencyTeamDto: QueryEmergencyTeamDto) {
-    return this.emergencyTeamsService.findAll(queryEmergencyTeamDto);
+    // Siempre paginado por HTTP (sin page/limit, la primera página).
+    return this.emergencyTeamsService.findAll(
+      withDefaultPage(queryEmergencyTeamDto),
+    );
   }
 
   @Get(':id')

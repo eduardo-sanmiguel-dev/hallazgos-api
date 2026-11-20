@@ -32,9 +32,9 @@ describe('E2E: HDS (PDF fuera del repositorio)', () => {
   const list = async () =>
     (
       await e2e
-        .call('get', '/safety-data-files', e2e.tokens.general)
+        .call('get', '/safety-data-files?page=1&limit=100', e2e.tokens.general)
         .expect(200)
-    ).body.map(({ name }: { name: string }) => name);
+    ).body.data.map(({ name }: { name: string }) => name);
 
   const download = (name: string, token = e2e.tokens.general) =>
     e2e

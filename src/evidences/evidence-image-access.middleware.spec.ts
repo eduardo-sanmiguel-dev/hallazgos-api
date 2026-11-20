@@ -7,6 +7,7 @@ import {
   registerEvidenceImageAccess,
 } from './evidence-image-access.middleware.js';
 import { Evidence } from './entities/evidence.entity.js';
+import { ImageVariantCache } from './evidence-image-variants.js';
 describe('EvidenceImageAccessMiddleware', () => {
   let middleware: EvidenceImageAccessMiddleware;
   let temp: string;
@@ -74,6 +75,39 @@ describe('EvidenceImageAccessMiddleware', () => {
       [1],
       [1],
     ]);
+  });
+  it('entrega AVIF o WebP al navegador que lo acepta, después de autorizar', async () => {
+    const resolve = jest
+      .spyOn(ImageVariantCache.prototype, 'resolve')
+      .mockResolvedValue('/variantes/photo.png.avif');
+    req.headers.accept = 'image/avif,image/webp,*/*';
+    await middleware.use(req, res, next);
+    expect(repository.exists).toHaveBeenCalled();
+    expect(resolve).toHaveBeenCalledWith(
+      join(temp, 'public/static/images/evidences/photo.png'),
+      'photo.png',
+      'avif',
+    );
+    expect(res.sendFile.mock.calls[0][0]).toBe('/variantes/photo.png.avif');
+    // Una caché intermedia no debe mezclar formatos entre navegadores.
+    expect(res.vary).toHaveBeenCalledWith('Accept');
+  });
+  it('sin AVIF ni WebP en Accept entrega el original sin convertir', async () => {
+    const resolve = jest.spyOn(ImageVariantCache.prototype, 'resolve');
+    req.headers.accept = '*/*';
+    await middleware.use(req, res, next);
+    expect(resolve).not.toHaveBeenCalled();
+    expect(res.sendFile.mock.calls[0][0]).toBe(
+      join(temp, 'public/static/images/evidences/photo.png'),
+    );
+  });
+  it('no convierte ni revela nada sin autorización', async () => {
+    const resolve = jest.spyOn(ImageVariantCache.prototype, 'resolve');
+    req.headers.accept = 'image/avif';
+    repository.exists.mockResolvedValue(false);
+    await middleware.use(req, res, next);
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(resolve).not.toHaveBeenCalled();
   });
   it('acepta Authorization y conserva la protección sin plantas', async () => {
     req.cookies = {};

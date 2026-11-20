@@ -21,6 +21,7 @@ import {
 } from '../shared/dto/sort-query.decorators.js';
 import { sortKeys } from '../shared/utils/sort.js';
 import { EquipmentsService } from './equipments.service.js';
+import { PageLimitPipe } from '../shared/dto/pagination.decorators.js';
 
 @Controller('equipments')
 export class EquipmentsController {
@@ -48,9 +49,10 @@ export class EquipmentsController {
     @Query('manufacturingPlantId', OptionalUserPlantPipe)
     manufacturingPlantId: number | undefined,
     @Query('name') name: string = '',
-    // Con page y limit responde paginado ({ data, count }); limit -1 = todos.
+    // Con page y limit responde paginado ({ data, count }), de 1 a 100 por
+    // página. Sin ellos, la lista para el selector de la entrega de EPP.
     @Query('page') page?: string,
-    @Query('limit') limit?: string,
+    @Query('limit', new PageLimitPipe()) limit?: number,
     @Query('includeInactive') includeInactive?: string,
     @Query('orderBy', sortColumnPipe(sortKeys(EQUIPMENT_SORT_COLUMNS)))
     orderBy?: string,

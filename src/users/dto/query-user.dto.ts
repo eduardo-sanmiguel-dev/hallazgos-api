@@ -3,7 +3,6 @@ import { Transform } from 'class-transformer';
 import {
   IsArray,
   IsIn,
-  IsInt,
   IsNumberString,
   IsOptional,
   IsPositive,
@@ -14,6 +13,7 @@ import {
 import { parseStringArrayQueryByKey } from '../../shared/utils/index.js';
 import { IsSortOrder } from '../../shared/dto/sort-query.decorators.js';
 import { sortKeys, type SortOrder } from '../../shared/utils/sort.js';
+import { IsPageLimit } from '../../shared/dto/pagination.decorators.js';
 
 // Columnas por las que se puede ordenar el listado de usuarios (lista blanca).
 export const USER_SORT_COLUMNS = {
@@ -90,8 +90,7 @@ export class QueryUserDto extends CatalogVisibilityDto {
   @IsPositive()
   page?: number;
 
-  // -1 = sin límite (todos los registros)
-  @IsOptional()
-  @IsInt()
+  // De 1 a 100 (MAX_PAGE_LIMIT).
+  @IsPageLimit()
   limit?: number;
 }

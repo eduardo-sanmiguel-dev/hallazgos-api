@@ -19,6 +19,7 @@ import {
 
 import { CreateIcsDto, FiltersIcsDto, UpdateIcsDto } from './dto/index.js';
 import { IcsService } from './ics.service.js';
+import { withDefaultPage } from '../shared/dto/pagination.decorators.js';
 
 // Archivo subido como `Express.Multer.File | undefined`: puede faltar y, con
 // la unión, los metadatos del decorador emiten Object directo (sin una
@@ -40,7 +41,8 @@ export class IcsController {
 
   @Get()
   findAll(@Query() filtersIcsDto: FiltersIcsDto) {
-    return this.icsService.findAll(filtersIcsDto);
+    // Siempre paginado por HTTP (sin page/limit, la primera página).
+    return this.icsService.findAll(withDefaultPage(filtersIcsDto));
   }
 
   @Get('catalogs')

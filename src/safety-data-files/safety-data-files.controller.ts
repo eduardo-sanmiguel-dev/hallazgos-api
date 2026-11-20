@@ -23,6 +23,7 @@ import { safeFilePath } from '../shared/utils/safe-file-path.js';
 import { QuerySafetyDataFileDto } from './dto/index.js';
 import { hdsUploadOptions, PdfFileValidationPipe } from './hds-upload.js';
 import { SafetyDataFilesService } from './safety-data-files.service.js';
+import { withDefaultPage } from '../shared/dto/pagination.decorators.js';
 
 // Archivo subido como `Express.Multer.File | undefined`: puede faltar y, con
 // la unión, los metadatos del decorador emiten Object directo (sin una
@@ -35,7 +36,10 @@ export class SafetyDataFilesController {
 
   @Get()
   findAll(@Query() querySafetyDataFileDto: QuerySafetyDataFileDto) {
-    return this.safetyDataFilesService.findAll(querySafetyDataFileDto);
+    // Siempre paginado por HTTP (sin page/limit, la primera página).
+    return this.safetyDataFilesService.findAll(
+      withDefaultPage(querySafetyDataFileDto),
+    );
   }
 
   /** Sube una HDS nueva (PDF, campo `file`); el nombre es el del archivo. */

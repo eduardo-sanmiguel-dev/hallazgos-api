@@ -9,6 +9,7 @@ import {
   type RepositoryMock,
   runAsUser,
 } from '../../test/utils/index.js';
+import { GembaWalkObserver } from '../gemba-walk-observers/entities/gemba-walk-observer.entity.js';
 import { UsersService } from './users.service.js';
 import { User } from './entities/user.entity.js';
 import { ManufacturingPlantsService } from '../manufacturing-plants/manufacturing-plants.service.js';
@@ -23,7 +24,7 @@ describe('UsersService: aislamiento por planta en HTTP', () => {
   let users: RepositoryMock<User>;
   beforeEach(async () => {
     const testing = await createServiceTestingModule(UsersService, {
-      repositories: [User],
+      repositories: [User, GembaWalkObserver],
       providers: [
         mockProvider(ManufacturingPlantsService),
         mockProvider(ZonesService),
@@ -63,10 +64,11 @@ describe('UsersService: aislamiento por planta en HTTP', () => {
   it.each([undefined, 1, 2])(
     'la lista respeta las plantas del usuario con filtro %s',
     async (manufacturingPlantId) => {
+      users.findAndCount.mockResolvedValue([[], 0]);
       await runAsUser(admin, async () =>
         service.findAllForRequest({ manufacturingPlantId } as never),
       );
-      const [{ where }] = users.find.mock.calls[0] as [
+      const [{ where }] = users.findAndCount.mock.calls[0] as [
         { where: { manufacturingPlants: { id: FindOperator<number> } }[] },
       ];
       expect(where[0].manufacturingPlants.id.value).toEqual(

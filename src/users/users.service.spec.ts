@@ -24,6 +24,7 @@ import { ManufacturingPlantsService } from '../manufacturing-plants/manufacturin
 import { ProcessesService } from '../processes/processes.service.js';
 import { ZonesService } from '../zones/zones.service.js';
 import { User } from './entities/user.entity.js';
+import { GembaWalkObserver } from '../gemba-walk-observers/entities/gemba-walk-observer.entity.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { UsersService } from './users.service.js';
 
@@ -46,6 +47,7 @@ const expectExcludes = (filter: unknown, emails: string[]) => {
 describe('UsersService', () => {
   let service: UsersService;
   let users: RepositoryMock<User>;
+  let observers: RepositoryMock<GembaWalkObserver>;
   let plants: jest.Mocked<ManufacturingPlantsService>;
   let zones: jest.Mocked<ZonesService>;
   let processes: jest.Mocked<ProcessesService>;
@@ -56,7 +58,7 @@ describe('UsersService', () => {
 
   beforeEach(async () => {
     const testing = await createServiceTestingModule(UsersService, {
-      repositories: [User],
+      repositories: [User, GembaWalkObserver],
       providers: [
         mockProvider(ManufacturingPlantsService),
         mockProvider(ZonesService),
@@ -65,6 +67,8 @@ describe('UsersService', () => {
     });
     service = testing.service;
     users = testing.repository(User);
+    observers = testing.repository(GembaWalkObserver);
+    observers.count.mockResolvedValue(0);
     plants = testing.get(ManufacturingPlantsService);
     zones = testing.get(ZonesService);
     processes = testing.get(ProcessesService);
@@ -215,121 +219,24 @@ describe('UsersService', () => {
   });
 
   describe('findAll', () => {
+    const lastPageArgs = () => users.findAndCount.mock.calls.at(-1)[0];
     const lastFindArgs = () => users.find.mock.calls.at(-1)[0];
 
-    it('lista solo usuarios activos, del más reciente al más antiguo', async () => {
-      await service.findAll({} as never);
+    beforeEach(() => {
+      users.findAndCount.mockResolvedValue([[], 0]);
+    });
 
-      const { where, order, relations, relationLoadStrategy } = lastFindArgs();
+    it('sin page ni limit responde la primera página, nunca todos', async () => {
+      const result = await service.findAll({} as never);
+
+      const { where, order, relations, take, skip } = lastPageArgs();
       expect(where).toEqual([{ isActive: true }]);
       expect(order).toEqual({ id: 'DESC' });
-      // Solo plantas en la principal: con JOIN de todo serían plantas ×
-      // zonas × procesos filas. Zonas y procesos van aparte.
+      // La tabla solo muestra plantas: zonas y procesos se cargan al editar.
       expect(relations).toEqual(['manufacturingPlants']);
-      expect(relationLoadStrategy).toBeUndefined();
-    });
-
-    // pg marca obsoleto (y quitará en pg 9) consultar en una conexión que ya
-    // está ejecutando otra: TypeORM lo hacía con relationLoadStrategy 'query'.
-    it('carga zonas y procesos aparte, una consulta tras otra (nunca en paralelo)', async () => {
-      let inFlight = 0;
-      let maxInFlight = 0;
-      users.find.mockImplementation((async () => {
-        inFlight++;
-        maxInFlight = Math.max(maxInFlight, inFlight);
-        await new Promise((resolve) => setTimeout(resolve, 5));
-        inFlight--;
-        return [
-          buildUser({
-            id: 9,
-            zones: [{ id: 10, name: 'Almacén' }] as never,
-            processes: [{ id: 20, name: 'Producción' }] as never,
-          }),
-        ];
-      }) as never);
-
-      const [user] = (await service.findAll({} as never)) as User[];
-
-      expect(users.find.mock.calls.map(([args]) => args.relations)).toEqual([
-        ['manufacturingPlants'],
-        ['zones', 'zones.manufacturingPlant'],
-        ['processes', 'processes.manufacturingPlant'],
-      ]);
-      expect(users.find.mock.calls[1][0].where).toMatchObject({ id: {} });
-      expect(maxInFlight).toBe(1);
-      expect(user.zones.map(({ id }) => id)).toEqual([10]);
-      expect(user.processes.map(({ id }) => id)).toEqual([20]);
-    });
-
-    it('ordena las plantas y zonas de cada usuario por nombre', async () => {
-      users.find.mockResolvedValue([
-        buildUser({
-          manufacturingPlants: [
-            buildManufacturingPlant({ name: 'Tepotzotlán' }),
-            buildManufacturingPlant({ name: 'Manizales' }),
-          ],
-          zones: [{ name: 'Z2' }, { name: 'Almacén' }] as never,
-        }),
-      ]);
-
-      const [user] = (await service.findAll({} as never)) as User[];
-
-      expect(user.manufacturingPlants.map((p) => p.name)).toEqual([
-        'Manizales',
-        'Tepotzotlán',
-      ]);
-      expect(user.zones.map((z) => z.name)).toEqual(['Almacén', 'Z2']);
-    });
-
-    it('cada usuario trae solo la planta, zona y proceso filtrados (como con JOIN)', async () => {
-      users.find.mockResolvedValue([
-        buildUser({
-          manufacturingPlants: [
-            buildManufacturingPlant({ id: 1, name: 'Tepotzotlán' }),
-            buildManufacturingPlant({ id: 2, name: 'Manizales' }),
-          ],
-          zones: [
-            { id: 10, name: 'Almacén' },
-            { id: 11, name: 'Bodega' },
-          ] as never,
-          processes: [
-            { id: 20, name: 'Producción' },
-            { id: 21, name: 'Calidad' },
-          ] as never,
-        }),
-      ]);
-
-      const [user] = (await service.findAll({
-        manufacturingPlantId: '1',
-        zoneId: '10',
-        processId: '20',
-      } as never)) as User[];
-
-      expect(user.manufacturingPlants.map((p) => p.id)).toEqual([1]);
-      expect(user.zones.map((z) => z.id)).toEqual([10]);
-      expect(user.processes.map((p) => p.id)).toEqual([20]);
-    });
-
-    it('sin filtros de relación conserva todas sus plantas, zonas y procesos', async () => {
-      users.find.mockResolvedValue([
-        buildUser({
-          manufacturingPlants: [
-            buildManufacturingPlant({ id: 1 }),
-            buildManufacturingPlant({ id: 2 }),
-          ],
-          zones: [
-            { id: 10, name: 'A' },
-            { id: 11, name: 'B' },
-          ] as never,
-          processes: [{ id: 20 }, { id: 21 }] as never,
-        }),
-      ]);
-
-      const [user] = (await service.findAll({} as never)) as User[];
-
-      expect(user.manufacturingPlants).toHaveLength(2);
-      expect(user.zones).toHaveLength(2);
-      expect(user.processes).toHaveLength(2);
+      expect({ take, skip }).toEqual({ take: 10, skip: 0 });
+      expect(result).toEqual({ data: [], count: 0 });
+      expect(users.find).not.toHaveBeenCalled();
     });
 
     it('view=options no carga relaciones: solo id, nombre, correo y rol', async () => {
@@ -344,29 +251,82 @@ describe('UsersService', () => {
       });
       expect(args).not.toHaveProperty('relations');
       expect(args.order).toEqual({ name: 'ASC' });
+      expect(users.findAndCount).not.toHaveBeenCalled();
+    });
+
+    it('view=options con page también pagina', async () => {
+      await service.findAll({ view: 'options', page: 2, limit: 5 } as never);
+
+      expect(lastPageArgs()).toMatchObject({ take: 5, skip: 5 });
+      expect(users.find).not.toHaveBeenCalled();
+    });
+
+    it('con plantas permitidas deja en cada usuario solo esas (nunca plantas ajenas)', async () => {
+      users.findAndCount.mockResolvedValue([
+        [
+          buildUser({
+            manufacturingPlants: [
+              buildManufacturingPlant({ id: 1 }),
+              buildManufacturingPlant({ id: 2 }),
+            ],
+          }),
+        ],
+        1,
+      ]);
+
+      const { data } = (await service.findAll({} as never, [2])) as {
+        data: User[];
+      };
+
+      expect(data[0].manufacturingPlants.map((p) => p.id)).toEqual([2]);
+    });
+
+    it('filtrar por planta deja en cada usuario solo esa planta', async () => {
+      users.findAndCount.mockResolvedValue([
+        [
+          buildUser({
+            manufacturingPlants: [
+              buildManufacturingPlant({ id: 1 }),
+              buildManufacturingPlant({ id: 2 }),
+            ],
+          }),
+        ],
+        1,
+      ]);
+
+      const { data } = (await service.findAll({
+        manufacturingPlantId: '1',
+      } as never)) as { data: User[] };
+
+      expect(data[0].manufacturingPlants.map((p) => p.id)).toEqual([1]);
+    });
+
+    it('sin filtro de planta ni plantas permitidas conserva todas', async () => {
+      users.findAndCount.mockResolvedValue([
+        [
+          buildUser({
+            manufacturingPlants: [
+              buildManufacturingPlant({ id: 1 }),
+              buildManufacturingPlant({ id: 2 }),
+            ],
+          }),
+        ],
+        1,
+      ]);
+
+      const { data } = (await service.findAll({} as never)) as {
+        data: User[];
+      };
+
+      expect(data[0].manufacturingPlants).toHaveLength(2);
     });
 
     it('zoneIds filtra por cualquiera de esas zonas sin forzar el rol', async () => {
       await service.findAll({ zoneIds: ['3', '7'] } as never);
 
-      const [where] = lastFindArgs().where as Record<string, unknown>[];
+      const [where] = lastPageArgs().where as Record<string, unknown>[];
       expect(operand((where.zones as { id: unknown }).id)).toEqual([3, 7]);
       expect(where).not.toHaveProperty('role');
-    });
-
-    it('con plantas permitidas deja solo esas en cada usuario', async () => {
-      users.find.mockResolvedValue([
-        buildUser({
-          manufacturingPlants: [
-            buildManufacturingPlant({ id: 1 }),
-            buildManufacturingPlant({ id: 2 }),
-          ],
-        }),
-      ]);
-
-      const [user] = (await service.findAll({} as never, [2])) as User[];
-
-      expect(user.manufacturingPlants.map((p) => p.id)).toEqual([2]);
     });
 
     it('aplica los filtros de nombre, planta, rol y proceso', async () => {
@@ -377,7 +337,7 @@ describe('UsersService', () => {
         processId: 20,
       } as never);
 
-      const [where] = lastFindArgs().where as Record<string, unknown>[];
+      const [where] = lastPageArgs().where as Record<string, unknown>[];
       expect(operand(where.name)).toBe('%ana%');
       expect(
         operand((where.manufacturingPlants as { id: unknown }).id),
@@ -392,7 +352,7 @@ describe('UsersService', () => {
         rule: ROLE_ADMINISTRADOR,
       } as never);
 
-      const [where] = lastFindArgs().where as Record<string, unknown>[];
+      const [where] = lastPageArgs().where as Record<string, unknown>[];
       expect(operand((where.zones as { id: unknown }).id)).toEqual([10]);
       expect(where.role).toBe(ROLE_SUPERVISOR);
     });
@@ -400,61 +360,43 @@ describe('UsersService', () => {
     it('la búsqueda libre coincide por nombre o por correo', async () => {
       await service.findAll({ search: '  perez ' } as never);
 
-      const where = lastFindArgs().where as Record<string, unknown>[];
+      const where = lastPageArgs().where as Record<string, unknown>[];
       expect(where).toHaveLength(2);
       expect(operand(where[0].name)).toBe('%perez%');
       expect(operand(where[1].email)).toBe('%perez%');
     });
 
     it('ordena por la columna pedida en orderBy (campo|dirección)', async () => {
-      await service.findAll({ orderBy: 'name|asc' } as never);
+      await service.findAll({ orderBy: 'name|desc' } as never);
 
-      expect(lastFindArgs().order).toMatchObject({ name: 'ASC' });
-      expect(lastFindArgs().order).not.toHaveProperty('id');
+      expect(lastPageArgs().order).toMatchObject({
+        name: { direction: 'DESC' },
+      });
     });
 
     it('sin dirección ordena ascendente', async () => {
       await service.findAll({ orderBy: 'name' } as never);
 
-      expect(lastFindArgs().order).toMatchObject({ name: 'ASC' });
-    });
-
-    it('con zoneIds cada usuario trae solo esas zonas', async () => {
-      users.find.mockResolvedValue([
-        buildUser({
-          id: 9,
-          zones: [
-            { id: 3, name: 'Patio' },
-            { id: 4, name: 'Almacén' },
-          ] as never,
-        }),
-      ]);
-
-      const [user] = (await service.findAll({
-        zoneIds: ['3'],
-      } as never)) as User[];
-
-      expect(user.zones.map(({ id }) => id)).toEqual([3]);
-    });
-
-    it('ignora filas de relaciones de usuarios que no están en la lista', async () => {
-      users.find
-        .mockResolvedValueOnce([buildUser({ id: 9 })])
-        .mockResolvedValue([
-          buildUser({ id: 9, zones: [zone] as never }),
-          buildUser({ id: 99, zones: [zone] as never }),
-        ]);
-
-      const result = (await service.findAll({} as never)) as User[];
-
-      expect(result.map(({ id }) => id)).toEqual([9]);
-      expect(result[0].zones).toEqual([zone]);
+      expect(lastPageArgs().order).toMatchObject({
+        name: { direction: 'ASC' },
+      });
     });
 
     it('acepta la columna en orderBy y la dirección en order (tablas)', async () => {
       await service.findAll({ orderBy: 'email', order: 'desc' } as never);
 
-      expect(lastFindArgs().order).toMatchObject({ email: 'DESC' });
+      expect(lastPageArgs().order).toMatchObject({
+        email: { direction: 'DESC' },
+      });
+    });
+
+    it('en los selectores ordena por la columna pedida', async () => {
+      await service.findAll({
+        view: 'options',
+        orderBy: 'email|desc',
+      } as never);
+
+      expect(lastFindArgs().order).toEqual({ email: 'DESC' });
     });
 
     // El 400 por formato inválido lo da QueryUserDto (dto/user-dtos.spec.ts);
@@ -464,9 +406,7 @@ describe('UsersService', () => {
       async (orderBy) => {
         await service.findAll({ orderBy } as never);
 
-        expect(lastFindArgs().order).toMatchObject({ id: 'DESC' });
-        expect(lastFindArgs().order).not.toHaveProperty('password');
-        expect(lastFindArgs().order).not.toHaveProperty('name');
+        expect(lastPageArgs().order).toEqual({ id: 'DESC' });
       },
     );
 
@@ -488,8 +428,6 @@ describe('UsersService', () => {
       });
 
       it('ordena la página en la BD por la columna pedida', async () => {
-        users.findAndCount.mockResolvedValue([[], 0]);
-
         await service.findAll({
           page: 1,
           limit: 10,
@@ -501,22 +439,6 @@ describe('UsersService', () => {
           role: { direction: 'ASC', nulls: 'LAST' },
           id: 'ASC',
         });
-      });
-
-      it('con limit -1 devuelve todos los registros', async () => {
-        await service.findAll({ page: 1, limit: -1 } as never);
-
-        const args = users.findAndCount.mock.calls[0][0];
-        expect(args).not.toHaveProperty('take');
-        expect(args).not.toHaveProperty('skip');
-      });
-
-      it('solo carga las plantas (la tabla no muestra zonas ni procesos)', async () => {
-        await service.findAll({ page: 1, limit: 10 } as never);
-
-        expect(users.findAndCount.mock.calls[0][0].relations).toEqual([
-          'manufacturingPlants',
-        ]);
       });
 
       it('ordena las plantas de cada usuario por nombre', async () => {
@@ -754,6 +676,58 @@ describe('UsersService', () => {
       expect(supervisor.manufacturingPlants.map((p) => p.id)).toEqual([1]);
     });
 
+    // pg marca obsoleto (y quitará en pg 9) consultar en una conexión que ya
+    // está ejecutando otra: TypeORM lo hacía con relationLoadStrategy 'query'.
+    it('carga zonas y procesos aparte, una consulta tras otra (nunca en paralelo)', async () => {
+      const me = buildUser({
+        manufacturingPlants: [buildManufacturingPlant({ id: 1 })],
+      });
+      let inFlight = 0;
+      let maxInFlight = 0;
+      users.find.mockImplementation((async () => {
+        inFlight++;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        inFlight--;
+        return [
+          buildUser({
+            id: 9,
+            zones: [{ id: 10, name: 'Almacén' }] as never,
+            processes: [{ id: 20, name: 'Producción' }] as never,
+          }),
+        ];
+      }) as never);
+
+      const [supervisor] = await runAsUser(me, () => service.getSupervisors());
+
+      expect(users.find.mock.calls.map(([args]) => args.relations)).toEqual([
+        ['manufacturingPlants'],
+        ['zones'],
+        ['processes'],
+      ]);
+      expect(users.find.mock.calls[1][0].where).toMatchObject({ id: {} });
+      expect(maxInFlight).toBe(1);
+      expect(supervisor.zones.map(({ id }) => id)).toEqual([10]);
+      expect(supervisor.processes.map(({ id }) => id)).toEqual([20]);
+    });
+
+    it('ignora filas de relaciones de usuarios que no están en la lista', async () => {
+      const me = buildUser({
+        manufacturingPlants: [buildManufacturingPlant({ id: 1 })],
+      });
+      users.find
+        .mockResolvedValueOnce([buildUser({ id: 9 })])
+        .mockResolvedValue([
+          buildUser({ id: 9, zones: [zone] as never }),
+          buildUser({ id: 99, zones: [zone] as never }),
+        ]);
+
+      const result = await runAsUser(me, () => service.getSupervisors());
+
+      expect(result.map(({ id }) => id)).toEqual([9]);
+      expect(result[0].zones).toEqual([zone]);
+    });
+
     it('sin sesión responde 401', async () => {
       await expect(
         runAsUser(null, () => service.getSupervisors()),
@@ -813,12 +787,45 @@ describe('UsersService', () => {
           supervisorOverride: false,
           cancelEvidence: false,
         },
+        isGembaWalkObserver: false,
       });
       expect(users.findOne).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({ id: 12, isActive: true }),
         }),
       );
+    });
+
+    it('dice si es observador de Gemba Walk (sin otra petición del UI)', async () => {
+      const me = buildUser({ id: 12 });
+      users.findOne.mockResolvedValue(me);
+      observers.count.mockResolvedValue(1);
+
+      const user = await runAsUser(me, () =>
+        service.getInformationCurrentUser(),
+      );
+
+      expect(user.isGembaWalkObserver).toBe(true);
+      expect(observers.count).toHaveBeenCalledWith({
+        where: {
+          isActive: true,
+          user: { id: 12 },
+          gembaWalkZone: { isActive: true },
+          manufacturingPlant: { isActive: true },
+        },
+      });
+    });
+
+    it('el administrador usa Gemba Walk aunque no esté registrado como observador', async () => {
+      const admin = buildUser({ id: 12, role: ROLE_ADMINISTRADOR });
+      users.findOne.mockResolvedValue(admin);
+
+      const user = await runAsUser(admin, () =>
+        service.getInformationCurrentUser(),
+      );
+
+      expect(user.isGembaWalkObserver).toBe(true);
+      expect(observers.count).not.toHaveBeenCalled();
     });
 
     it('incluye sus permisos especiales sobre hallazgos, nunca las listas de correos', async () => {

@@ -33,6 +33,9 @@ export const JoiValidationSchema = Joi.object({
   OBSERVE_STREAM: Joi.string().optional(),
   // Carpeta de las HDS en PDF (por omisión, data/hds del proyecto).
   HDS_DIR: Joi.string().optional(),
+  // Carpeta de las variantes AVIF/WebP de las fotos (por omisión,
+  // data/image-variants del proyecto).
+  IMAGE_VARIANTS_DIR: Joi.string().optional(),
   // Usuario de pruebas e2e del UI: solo se usa en desarrollo.
   // (el servicio valida el formato y solo avisa; nunca impide arrancar).
   E2E_EMAIL: Joi.string().optional(),

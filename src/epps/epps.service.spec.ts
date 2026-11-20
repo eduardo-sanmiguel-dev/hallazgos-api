@@ -289,7 +289,10 @@ describe('EppsService', () => {
 
     it('si el empleado se desactiva antes del bloqueo responde 404 sin guardar', async () => {
       employees.findOne
-        .mockResolvedValueOnce({ id: 7, manufacturingPlants: [{ id: 1 }] } as never)
+        .mockResolvedValueOnce({
+          id: 7,
+          manufacturingPlants: [{ id: 1 }],
+        } as never)
         .mockResolvedValueOnce(null);
 
       await expect(as(() => service.create(dto))).rejects.toThrow(
@@ -372,21 +375,6 @@ describe('EppsService', () => {
 
       expect(result.map(({ id }) => id)).toEqual([1]);
       expect(result[0].equipments.map(({ id }) => id)).toEqual([10]);
-    });
-
-    it('findAll deja fuera a empleados sin entregas activas', async () => {
-      employees.find.mockResolvedValue([
-        { id: 1, epps: [buildEpp()] },
-        { id: 2, epps: [buildEpp({ isActive: false })] },
-      ] as never);
-
-      const result = await service.findAll(1);
-
-      expect(result.map(({ id }) => id)).toEqual([1]);
-      const [{ where }] = employees.find.mock.calls[0] as [
-        { where: { manufacturingPlants: { id: number } } },
-      ];
-      expect(where.manufacturingPlants.id).toBe(1);
     });
   });
 

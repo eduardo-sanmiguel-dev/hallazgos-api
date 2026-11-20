@@ -7,10 +7,15 @@ import { Ics } from '../ics/entities/ics.entity.js';
 import { Evidence } from './entities/evidence.entity.js';
 import { safeFilePath } from '../shared/utils/safe-file-path.js';
 import { join, posix } from 'path';
+import {
+  ImageVariantCache,
+  preferredImageVariant,
+} from './evidence-image-variants.js';
 
 @Injectable()
 export class EvidenceImageAccessMiddleware implements NestMiddleware {
   private readonly logger = new Logger(EvidenceImageAccessMiddleware.name);
+  private readonly variants = new ImageVariantCache();
   constructor(
     private readonly jwt: JwtService,
     private readonly users: UsersService,
@@ -38,6 +43,8 @@ export class EvidenceImageAccessMiddleware implements NestMiddleware {
     res.setHeader('Cache-Control', 'private, no-store');
     res.vary('Cookie');
     res.vary('Authorization');
+    // AVIF o WebP según lo que acepte el navegador (ver evidence-image-variants).
+    res.vary('Accept');
     let user;
     try {
       const token =
@@ -86,7 +93,11 @@ export class EvidenceImageAccessMiddleware implements NestMiddleware {
           .json({ statusCode: 404, message: 'Imagen no encontrada' });
         return;
       }
-      res.sendFile(file, { cacheControl: false }, (error) => {
+      const format = preferredImageVariant(req.headers.accept, filename);
+      const served = format
+        ? await this.variants.resolve(file, filename, format)
+        : file;
+      res.sendFile(served, { cacheControl: false }, (error) => {
         if (error && !res.headersSent)
           res
             .status(404)

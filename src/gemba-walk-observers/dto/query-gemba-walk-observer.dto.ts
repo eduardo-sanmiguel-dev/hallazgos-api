@@ -1,10 +1,11 @@
 import { CatalogVisibilityDto } from '../../shared/dto/catalog-visibility.dto.js';
-import { IsOptional, IsPositive, IsString, IsInt } from 'class-validator';
+import { IsOptional, IsPositive, IsString } from 'class-validator';
 import {
   IsSortColumn,
   IsSortOrder,
 } from '../../shared/dto/sort-query.decorators.js';
 import { sortKeys, type SortOrder } from '../../shared/utils/sort.js';
+import { IsPageLimit } from '../../shared/dto/pagination.decorators.js';
 
 /** Columnas por las que el listado se puede ordenar (lista blanca). */
 export const GEMBA_WALK_OBSERVER_SORT_COLUMNS = {
@@ -43,9 +44,8 @@ export class QueryGembaWalkObserverDto extends CatalogVisibilityDto {
   @IsPositive()
   readonly page?: number;
 
-  // -1 = sin límite (todos los registros)
-  @IsOptional()
-  @IsInt()
+  // De 1 a 100; -1 = todos (catálogo chico).
+  @IsPageLimit({ allowAll: true })
   readonly limit?: number;
 
   @IsSortColumn(sortKeys(GEMBA_WALK_OBSERVER_SORT_COLUMNS))

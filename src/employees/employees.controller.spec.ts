@@ -35,14 +35,14 @@ describeCrudContract({
       manufacturingPlantId: '1',
       isActive: 'false',
       page: '1',
-      limit: '-1',
+      limit: '25',
       view: 'options',
     },
     expected: {
       manufacturingPlantId: 1,
       isActive: 'false',
       page: 1,
-      limit: -1,
+      limit: 25,
       view: 'options',
     },
     invalid: [
@@ -94,5 +94,36 @@ describe('EmployeesController: catálogos', () => {
 
     await http.http().post('/employees/seed').expect(201, { message: 'ok' });
     await http.close();
+  });
+});
+
+describe('EmployeesController: paginación', () => {
+  it('la tabla siempre pagina: sin page ni limit, la primera página', async () => {
+    const http = await createHttpTestApp({
+      controllers: [EmployeesController],
+      providers: [mockProvider(EmployeesService)],
+    });
+    const service = http.get(EmployeesService);
+    service.findAll.mockResolvedValue({ data: [], count: 0 } as never);
+
+    await http.http().get('/employees').query({ name: 'ana' }).expect(200);
+
+    expect(service.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'ana', page: 1, limit: 10 }),
+    );
+  });
+
+  it('un listado de más de 100 por página responde 400', async () => {
+    const http = await createHttpTestApp({
+      controllers: [EmployeesController],
+      providers: [mockProvider(EmployeesService)],
+    });
+
+    await http
+      .http()
+      .get('/employees')
+      .query({ page: 1, limit: 500 })
+      .expect(400);
+    expect(http.get(EmployeesService).findAll).not.toHaveBeenCalled();
   });
 });

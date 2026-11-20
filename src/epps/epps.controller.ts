@@ -32,6 +32,7 @@ import { CreateEppDto, QueryEppDto, UpdateEppDto } from './dto/index.js';
 import { EppsService } from './epps.service.js';
 //import { writeFileSync } from 'fs';
 import { writeFile } from 'fs/promises';
+import { withDefaultPage } from '../shared/dto/pagination.decorators.js';
 
 @Controller('epps')
 export class EppsController {
@@ -66,11 +67,12 @@ export class EppsController {
     @Query() query: QueryEppDto,
     @Query('manufacturingPlantId', UserPlantPipe) manufacturingPlantId: number,
   ) {
-    // Con `page` responde paginado ({ data, count, page, limit }); sin él, la
-    // lista completa como antes (compatibilidad durante el despliegue).
-    return query.page
-      ? this.eppsService.findPaginated({ ...query, manufacturingPlantId })
-      : this.eppsService.findAll(manufacturingPlantId);
+    // Siempre paginado ({ data, count, page, limit }): la lista completa,
+    // con el historial y las firmas, pesaba decenas de MB.
+    return this.eppsService.findPaginated({
+      ...withDefaultPage(query),
+      manufacturingPlantId,
+    });
   }
 
   // Historial de un colaborador: el UI lo pide al expandir su fila.

@@ -100,18 +100,33 @@ describe('EppsController (HTTP)', () => {
       );
     });
 
-    it('sin page devuelve la lista completa de la planta', async () => {
-      service.findAll.mockResolvedValue([] as never);
-
+    it('sin page responde la primera página, nunca la lista completa', async () => {
       await http
         .http()
         .get('/epps')
         .query({ manufacturingPlantId: 1 })
-        .expect(200, []);
+        .expect(200);
 
-      expect(service.findAll).toHaveBeenCalledWith(1);
-      expect(service.findPaginated).not.toHaveBeenCalled();
+      expect(service.findPaginated).toHaveBeenCalledWith(
+        expect.objectContaining({
+          manufacturingPlantId: 1,
+          page: 1,
+          limit: 10,
+        }),
+      );
     });
+
+    it.each(['0', '101', '-1'])(
+      'responde 400 con limit=%s (de 1 a 100)',
+      async (limit) => {
+        await http
+          .http()
+          .get('/epps')
+          .query({ manufacturingPlantId: 1, page: 1, limit })
+          .expect(400);
+        expect(service.findPaginated).not.toHaveBeenCalled();
+      },
+    );
 
     it.each([
       ['una columna de orden no permitida', { orderBy: 'password' }],

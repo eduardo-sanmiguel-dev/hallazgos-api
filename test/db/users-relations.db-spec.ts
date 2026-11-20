@@ -39,24 +39,19 @@ describe('E2E: relaciones de usuarios', () => {
 
   afterAll(() => e2e?.close());
 
-  it('el listado completo trae plantas, zonas y procesos (con su planta), por nombre', async () => {
+  it('sin page responde la primera página con sus plantas, nunca todos con zonas y procesos', async () => {
+    // Antes respondía todos los usuarios con zonas y procesos (~4.6 MB en
+    // producción); zonas y procesos se cargan al editar (findOne).
     const res = await e2e.call('get', '/users', e2e.tokens.admin).expect(200);
-    const supervisor = byEmail(res.body, 'supervisor@hallazgos.test');
 
+    expect(res.body.count).toBe(4);
+    const supervisor = byEmail(res.body.data, 'supervisor@hallazgos.test');
     expect(names(supervisor.manufacturingPlants)).toEqual([
       'Manizales',
       'Tepotzotlán',
     ]);
-    expect(names(supervisor.zones)).toEqual(['Bodega', 'Pasillo norte']);
-    expect(supervisor.zones?.[1].manufacturingPlant.name).toBe('Tepotzotlán');
-    expect(names(supervisor.processes).sort()).toEqual([
-      'Calidad',
-      'Producción',
-    ]);
-    expect(
-      supervisor.processes?.find((p) => p.name === 'Producción')
-        ?.manufacturingPlant.name,
-    ).toBe('Tepotzotlán');
+    expect(supervisor).not.toHaveProperty('zones');
+    expect(supervisor).not.toHaveProperty('processes');
   });
 
   it('filtrar por planta deja en cada usuario solo esa planta', async () => {
@@ -64,38 +59,35 @@ describe('E2E: relaciones de usuarios', () => {
     const res = await e2e
       .call(
         'get',
-        `/users?manufacturingPlantId=${tepotzotlan.id}`,
+        `/users?manufacturingPlantId=${tepotzotlan.id}&page=1&limit=100`,
         e2e.tokens.admin,
       )
       .expect(200);
 
-    expect(res.body.map((u: UserBody) => u.email)).not.toContain(
+    expect(res.body.data.map((u: UserBody) => u.email)).not.toContain(
       'general.co@hallazgos.test',
     );
-    for (const user of res.body as UserBody[]) {
+    for (const user of res.body.data as UserBody[]) {
       expect(names(user.manufacturingPlants)).toEqual(['Tepotzotlán']);
     }
-    // Zonas y procesos no se filtran por planta (igual que antes).
-    expect(
-      names(byEmail(res.body, 'supervisor@hallazgos.test').zones),
-    ).toHaveLength(2);
   });
 
-  it('filtrar por zona o proceso deja en el usuario solo esa zona o proceso', async () => {
+  it('filtrar por zona o proceso trae solo a quienes los tienen', async () => {
     const { zone, process } = e2e.base;
 
     const byZone = await e2e
       .call('get', `/users?zoneId=${zone.id}`, e2e.tokens.admin)
       .expect(200);
-    expect(byZone.body.map((u: UserBody) => u.email)).toEqual([
+    expect(byZone.body.data.map((u: UserBody) => u.email)).toEqual([
       'supervisor@hallazgos.test',
     ]);
-    expect(names(byZone.body[0].zones)).toEqual(['Pasillo norte']);
 
     const byProcess = await e2e
       .call('get', `/users?processId=${process.id}`, e2e.tokens.admin)
       .expect(200);
-    expect(names(byProcess.body[0].processes)).toEqual(['Producción']);
+    expect(byProcess.body.data.map((u: UserBody) => u.email)).toContain(
+      'supervisor@hallazgos.test',
+    );
   });
 
   it('el listado paginado (tabla de /users) solo trae plantas', async () => {
@@ -322,12 +314,13 @@ describe('E2E: relaciones de usuarios', () => {
 
     // El admin ya solo ve usuarios de Tepotzotlán.
     const list = await e2e.call('get', '/users', e2e.tokens.admin).expect(200);
-    expect(list.body.map((u: UserBody) => u.email)).not.toContain(
+    expect(list.body.data.map((u: UserBody) => u.email)).not.toContain(
       'general.co@hallazgos.test',
     );
     expect(
       names(
-        byEmail(list.body, 'supervisor@hallazgos.test').manufacturingPlants,
+        byEmail(list.body.data, 'supervisor@hallazgos.test')
+          .manufacturingPlants,
       ),
     ).toEqual(['Tepotzotlán']);
   });

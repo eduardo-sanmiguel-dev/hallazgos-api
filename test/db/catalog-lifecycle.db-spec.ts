@@ -119,7 +119,7 @@ describe('Tablas administrativas y reactivación con PostgreSQL real', () => {
       const path = route(key);
       const get = (extra = '') =>
         app
-          .call('get', path + '?page=1&limit=-1' + extra, app.tokens.admin)
+          .call('get', path + '?page=1&limit=100' + extra, app.tokens.admin)
           .expect(200);
       expect((await get()).body.data.map((r) => r.id)).not.toContain(ids[key]);
       const inactive = (await get('&includeInactive=true')).body.data.find(

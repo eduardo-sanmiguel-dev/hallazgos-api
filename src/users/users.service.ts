@@ -26,6 +26,8 @@ import {
   USER_SORT_COLUMNS,
 } from './dto/index.js';
 import { buildFindOrder, type SortQuery } from '../shared/utils/sort.js';
+import { GembaWalkObserver } from '../gemba-walk-observers/entities/gemba-walk-observer.entity.js';
+import { isGembaWalkObserver } from '../gemba-walk-observers/gemba-walk-observer-access.js';
 import { User } from './entities/user.entity.js';
 import {
   evidencePermissionsFor,
@@ -36,28 +38,17 @@ import { ManufacturingPlantsService } from '../manufacturing-plants/manufacturin
 import { ZonesService } from '../zones/zones.service.js';
 import { ProcessesService } from '../processes/processes.service.js';
 import { ManufacturingPlant } from '../manufacturing-plants/entities/manufacturing-plant.entity.js';
-import type { Zone } from '../zones/entities/zone.entity.js';
-import type { Processes } from '../processes/entities/processes.entity.js';
+import { DEFAULT_PAGE_LIMIT } from '../shared/dto/pagination.decorators.js';
 
 /**
- * Zonas y procesos se cargan aparte (loadAssignments): con un solo JOIN cada
- * usuario devolvía plantas × zonas × procesos filas, miles para un
- * supervisor con muchas zonas. Así llegan completas, sin el filtro del
- * `where` (p. ej. solo la zona filtrada): esto lo reaplica.
+ * Deja en el usuario solo las plantas que cumplen `filters.plant`. Quien la
+ * llama ya cargó la relación `manufacturingPlants`.
  */
 const keepMatching = (
   user: User,
-  filters: {
-    plant?: ((plant: ManufacturingPlant) => boolean) | false;
-    zone?: ((zone: Zone) => boolean) | false;
-    process?: ((process: Processes) => boolean) | false;
-  },
+  filters: { plant: (plant: ManufacturingPlant) => boolean },
 ) => {
-  if (filters.plant && user.manufacturingPlants)
-    user.manufacturingPlants = user.manufacturingPlants.filter(filters.plant);
-  if (filters.zone && user.zones) user.zones = user.zones.filter(filters.zone);
-  if (filters.process && user.processes)
-    user.processes = user.processes.filter(filters.process);
+  user.manufacturingPlants = user.manufacturingPlants.filter(filters.plant);
   return user;
 };
 
@@ -83,6 +74,9 @@ const PLANT_3_RECIPIENT_EMAILS = [
 /** Usuario en sesión que recibe el UI: datos planos (sin métodos) y permisos. */
 export type CurrentUser = Omit<User, 'hashPassword'> & {
   evidencePermissions: EvidencePermissions;
+  // Si puede usar Gemba Walk: antes el UI lo pedía aparte en cada carga
+  // (GET /gemba-walk/walks/access, que se conserva).
+  isGembaWalkObserver: boolean;
 };
 
 @Injectable()
@@ -90,6 +84,8 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(GembaWalkObserver)
+    private readonly gembaWalkObserverRepository: Repository<GembaWalkObserver>,
     private readonly requestContext: RequestContextService,
     private readonly manufacturingPlantsService: ManufacturingPlantsService,
     private readonly zonesService: ZonesService,
@@ -219,11 +215,10 @@ export class UsersService {
         ]
       : [base];
 
-    if (page !== undefined && limit !== undefined) {
-      return this.findAllPaginated(where, Number(page), Number(limit), sort);
-    }
-
-    if (view === 'options') {
+    // Selectores (view=options): la lista ligera completa. La tabla, siempre
+    // paginada: sin page/limit, la primera página (antes respondía todos los
+    // usuarios con zonas y procesos, ~4.6 MB).
+    if (view === 'options' && page === undefined) {
       return this.userRepository.find({
         where,
         select: { id: true, name: true, email: true, role: true },
@@ -231,29 +226,20 @@ export class UsersService {
       });
     }
 
-    const users = await this.loadAssignments(
-      await this.userRepository.find({
-        where,
-        relations: ['manufacturingPlants'],
-        order: order ?? { id: 'DESC' },
-      }),
-      this.listRelations,
+    const result = await this.findAllPaginated(
+      where,
+      Number(page ?? 1),
+      Number(limit ?? DEFAULT_PAGE_LIMIT),
+      sort,
     );
-
-    for (const user of users) {
-      keepMatching(user, {
-        plant: plantIds && ((plant) => plantIds.includes(Number(plant.id))),
-        zone:
-          (zoneId && ((zone) => Number(zone.id) === Number(zoneId))) ||
-          (!!zoneIds?.length &&
-            ((zone) => zoneIds.map(Number).includes(Number(zone.id)))),
-        process:
-          processId && ((process) => Number(process.id) === Number(processId)),
-      });
-      sortByName(user);
-    }
-
-    return users;
+    // Cada usuario muestra solo las plantas del filtro o, sin él, las que
+    // comparte con quien consulta (nunca nombres de plantas ajenas).
+    if (plantIds !== undefined)
+      for (const user of result.data)
+        keepMatching(user, {
+          plant: (plant) => plantIds.includes(Number(plant.id)),
+        });
+    return result;
   }
 
   /**
@@ -310,7 +296,8 @@ export class UsersService {
       where,
       relations: ['manufacturingPlants'],
       order: buildFindOrder(USER_SORT_COLUMNS, sort, USER_DEFAULT_SORT),
-      ...(limit !== -1 && { take: limit, skip: (page - 1) * limit }),
+      take: limit,
+      skip: (page - 1) * limit,
     });
 
     data.forEach(sortByName);
@@ -555,8 +542,16 @@ export class UsersService {
 
     await this.loadAssignments([user], ['zones', 'processes']);
     keepMatching(user, { plant: (plant) => plant.isActive });
+    const isObserver = await isGembaWalkObserver(
+      this.gembaWalkObserverRepository,
+      { userId, isAdmin: this.requestContext.isAdmin },
+    );
     // `password` no se selecciona (select: false): la copia no lo incluye.
-    return { ...user, evidencePermissions: evidencePermissionsFor(user) };
+    return {
+      ...user,
+      evidencePermissions: evidencePermissionsFor(user),
+      isGembaWalkObserver: isObserver,
+    };
   }
 
   async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {

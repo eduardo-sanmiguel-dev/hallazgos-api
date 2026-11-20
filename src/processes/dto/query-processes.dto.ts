@@ -6,7 +6,6 @@ import {
   IsOptional,
   IsPositive,
   IsString,
-  IsInt,
 } from 'class-validator';
 
 import { parseStringArrayQueryByKey } from '../../shared/utils/index.js';
@@ -15,6 +14,7 @@ import {
   IsSortOrder,
 } from '../../shared/dto/sort-query.decorators.js';
 import { sortKeys, type SortOrder } from '../../shared/utils/sort.js';
+import { IsPageLimit } from '../../shared/dto/pagination.decorators.js';
 
 /** Columnas por las que el listado se puede ordenar (lista blanca). */
 export const PROCESS_SORT_COLUMNS = {
@@ -51,9 +51,8 @@ export class QueryProcessesDto extends CatalogVisibilityDto {
   @IsPositive()
   page?: number;
 
-  // -1 = sin límite (todos los registros)
-  @IsOptional()
-  @IsInt()
+  // De 1 a 100; -1 = todos (catálogo chico).
+  @IsPageLimit({ allowAll: true })
   limit?: number;
 
   @IsSortColumn(sortKeys(PROCESS_SORT_COLUMNS))

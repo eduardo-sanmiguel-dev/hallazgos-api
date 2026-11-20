@@ -399,7 +399,7 @@ describe('E2E: hallazgos', () => {
       });
 
       const list = (token: string) =>
-        e2e.call('get', '/evidences?page=1&limit=-1', token).expect(200);
+        e2e.call('get', '/evidences?page=1&limit=100', token).expect(200);
       const general = await list(e2e.tokens.general);
       const colombia = await list(e2e.tokens.generalColombia);
 
@@ -416,7 +416,7 @@ describe('E2E: hallazgos', () => {
 
     it('la lista pagina: page y limit con el total', async () => {
       const all = await e2e
-        .call('get', '/evidences?page=1&limit=-1', e2e.tokens.general)
+        .call('get', '/evidences?page=1&limit=100', e2e.tokens.general)
         .expect(200);
       const firstPage = await e2e
         .call('get', '/evidences?page=1&limit=1', e2e.tokens.general)
@@ -424,6 +424,33 @@ describe('E2E: hallazgos', () => {
 
       expect(firstPage.body.count).toBe(all.body.count);
       expect(firstPage.body.data).toHaveLength(Math.min(1, all.body.count));
+    });
+
+    it('por HTTP siempre pagina: sin page la primera página y como máximo 100', async () => {
+      // Sin page ni limit: la primera página, no todos los hallazgos.
+      const first = await e2e
+        .call('get', '/evidences', e2e.tokens.general)
+        .expect(200);
+      expect(first.body).toEqual({
+        data: expect.any(Array),
+        count: expect.any(Number),
+      });
+      expect(first.body.data.length).toBeLessThanOrEqual(10);
+
+      for (const limit of ['101', '100000', '-1', '0']) {
+        const res = await e2e
+          .call('get', `/evidences?page=1&limit=${limit}`, e2e.tokens.general)
+          .expect(400);
+        expect(res.body.message).toBe(
+          'Registros por página: debe ser de 1 a 100.',
+        );
+      }
+
+      // Los catálogos chicos de administración conservan "Todos".
+      const zones = await e2e
+        .call('get', '/zones?page=1&limit=-1', e2e.tokens.admin)
+        .expect(200);
+      expect(zones.body.data.length).toBe(zones.body.count);
     });
 
     it('la lista sin sesión responde 401', async () => {
@@ -494,8 +521,13 @@ describe('E2E: hallazgos', () => {
         `ids=${ids}&manufacturingPlantId=${plants.manizales.id}&${period}`,
       ];
       for (const query of cases) {
+        // La lista HTTP siempre pagina: 100 alcanzan para estos casos.
         const list = await e2e
-          .call('get', `/evidences?${query}`, e2e.tokens.general)
+          .call(
+            'get',
+            `/evidences?${query}&page=1&limit=100`,
+            e2e.tokens.general,
+          )
           .expect(200);
         const res = await e2e
           .call(
@@ -508,12 +540,12 @@ describe('E2E: hallazgos', () => {
           .expect(200);
         const workbook = await XlsxPopulate.fromDataAsync(res.body);
         const rows = workbook.sheet('Hallazgos').usedRange().value();
-        expect(rows).toHaveLength(list.body.length + 1);
+        expect(rows).toHaveLength(list.body.data.length + 1);
         expect(rows.slice(1).map((row) => row[0])).toEqual(
-          list.body.map((e) => e.id),
+          list.body.data.map((e) => e.id),
         );
         expect(rows.slice(1).map((row) => row[0])).not.toContain(foreign.id);
-        list.body.forEach((e, index) => {
+        list.body.data.forEach((e, index) => {
           const row = rows[index + 1];
           const names = (values) => values.map((v) => v.name).sort();
           const cellNames = (value) =>

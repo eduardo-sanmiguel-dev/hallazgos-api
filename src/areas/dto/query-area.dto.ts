@@ -4,7 +4,8 @@ import {
   IsSortOrder,
 } from '../../shared/dto/sort-query.decorators.js';
 import { sortKeys, type SortOrder } from '../../shared/utils/sort.js';
-import { IsOptional, IsPositive, IsString, IsInt } from 'class-validator';
+import { IsOptional, IsPositive, IsString } from 'class-validator';
+import { IsPageLimit } from '../../shared/dto/pagination.decorators.js';
 
 /** Columnas por las que el listado se puede ordenar (lista blanca). */
 export const AREA_SORT_COLUMNS = {
@@ -33,9 +34,8 @@ export class QueryAreaDto extends CatalogVisibilityDto {
   @IsPositive()
   page?: number;
 
-  // -1 = sin límite (todos los registros)
-  @IsOptional()
-  @IsInt()
+  // De 1 a 100; -1 = todos (catálogo chico).
+  @IsPageLimit({ allowAll: true })
   limit?: number;
 
   @IsSortColumn(sortKeys(AREA_SORT_COLUMNS))

@@ -30,6 +30,7 @@ import {
   QueryExtinguisherInspectionDto,
   UpdateExtinguisherInspectionDto,
 } from './dto/index.js';
+import { withDefaultPage } from '../shared/dto/pagination.decorators.js';
 
 @Controller('extinguisher-inspections')
 export class ExtinguisherInspectionsController {
@@ -56,8 +57,9 @@ export class ExtinguisherInspectionsController {
   findAll(
     @Query() queryExtinguisherInspectionDto: QueryExtinguisherInspectionDto,
   ) {
+    // Siempre paginado por HTTP (sin page/limit, la primera página).
     return this.extinguisherInspectionsService.findAll(
-      queryExtinguisherInspectionDto,
+      withDefaultPage(queryExtinguisherInspectionDto),
     );
   }
 

@@ -41,30 +41,6 @@ export class EppsService {
     private readonly equipmentRepository: Repository<Equipment>,
   ) {}
 
-  private mapActiveHistory<T extends { epps: Epp[] }>(
-    items: T[],
-    plantIds: number[],
-  ): T[] {
-    return items
-      .map((item) => ({
-        ...item,
-        epps: item.epps
-          .filter((epp) => epp.isActive)
-          .map((epp) => ({
-            ...epp,
-            equipments: epp.equipments.filter(
-              (equipment) =>
-                equipment.isActive &&
-                plantIds.includes(
-                  Number(equipment.equipment?.manufacturingPlant?.id),
-                ),
-            ),
-          }))
-          .filter((epp) => epp.equipments.length > 0),
-      }))
-      .filter((item) => item.epps.length > 0);
-  }
-
   private mapActiveEquipments(epps: Epp[], plantIds: number[]): Epp[] {
     return epps
       .filter((epp) => epp.isActive)
@@ -282,7 +258,7 @@ export class EppsService {
 
   /**
    * Empleados de la planta con historial de EPP activo, paginados en la BD.
-   * Mismo criterio que findAll/mapActiveHistory, pero el filtro de "tiene al
+   * Solo entregas y equipos activos de la planta; el filtro de "tiene al
    * menos un equipo activo" va en SQL para que el total y las páginas cuadren.
    */
   async findPaginated({
@@ -449,34 +425,6 @@ export class EppsService {
         createBy: createBy && { id: createBy.id, name: createBy.name },
       })),
     );
-  }
-
-  async findAll(manufacturingPlantId: number) {
-    const employees = await this.employeeRepository.find({
-      where: {
-        isActive: true,
-        manufacturingPlants: {
-          id: manufacturingPlantId,
-        },
-        epps: {
-          isActive: true,
-        },
-      },
-      relations: [
-        'position',
-        'area',
-        'epps',
-        'epps.createBy',
-        'epps.equipments',
-        'epps.equipments.equipment',
-        'epps.equipments.equipment.manufacturingPlant',
-      ],
-      order: {
-        name: 'ASC',
-      },
-    });
-
-    return this.mapActiveHistory(employees, [Number(manufacturingPlantId)]);
   }
 
   async findOne(id: number) {

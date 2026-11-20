@@ -1,15 +1,10 @@
-import {
-  IsInt,
-  IsOptional,
-  IsPositive,
-  IsString,
-  Matches,
-} from 'class-validator';
+import { IsOptional, IsPositive, IsString, Matches } from 'class-validator';
 import {
   IsSortColumn,
   IsSortOrder,
 } from '../../shared/dto/sort-query.decorators.js';
 import { sortKeys, type SortOrder } from '../../shared/utils/sort.js';
+import { IsPageLimit } from '../../shared/dto/pagination.decorators.js';
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -62,9 +57,8 @@ export class FiltersCiaelDto {
   @IsPositive()
   page?: number;
 
-  // -1 = sin límite (todos los registros)
-  @IsOptional()
-  @IsInt()
+  // De 1 a 100 (MAX_PAGE_LIMIT).
+  @IsPageLimit()
   limit?: number;
 
   @IsSortColumn(sortKeys(CIAEL_SORT_COLUMNS))

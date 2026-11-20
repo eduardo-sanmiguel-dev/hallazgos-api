@@ -55,6 +55,7 @@ validan con Joi al arrancar: si falta una obligatoria, la API no inicia.
 | `GIST_SECRET_URL`                                             | Sí       | Interruptor remoto: en producción se comprueba al arrancar y cada hora, y la API se detiene si no coincide. |
 | `OBSERVE_ENDPOINT`, `OBSERVE_AUTH_HEADER`, `OBSERVE_STREAM`   | No       | Logs y trazas a OpenObserve; solo con `NODE_ENV=production`.                                                |
 | `HDS_DIR`                                                     | No       | Carpeta de las hojas de datos de seguridad en PDF (`data/hds`, fuera del repo).                             |
+| `IMAGE_VARIANTS_DIR`                                          | No       | Carpeta de las variantes AVIF/WebP de las fotos (`data/image-variants`, fuera del repo).                    |
 | `UI_VERSION_FILE` / `API_VERSION_FILE`                        | No       | Rutas de las versiones publicadas (ver [Versión de despliegue](#versión-de-despliegue-y-recarga-de-la-ui)). |
 | `E2E_EMAIL`, `E2E_PASSWORD`                                   | No       | Usuario de pruebas e2e de la UI; solo desarrollo.                                                           |
 
@@ -87,6 +88,10 @@ validan con Joi al arrancar: si falta una obligatoria, la API no inicia.
   firmas de EPP), que `xlsx-populate` no soporta. No mezclar: llenar una
   plantilla oficial con `exceljs` la reescribe completa y puede perder formato.
 - **Imágenes de evidencias:** `/static/images/evidences/*` exige sesión y planta.
+  Al navegador que acepta AVIF o WebP (cabecera `Accept`) se le entrega una
+  variante en ese formato, generada con `sharp` la primera vez que se pide y
+  guardada en `data/image-variants/` (`IMAGE_VARIANTS_DIR`); el original JPG/PNG
+  no cambia y es el que usan los correos y los PDF.
 - **Hojas de datos de seguridad (HDS):** los PDF viven en `data/hds/`
   (`HDS_DIR`), fuera del repositorio; la tabla `safety_data_files` es el
   catálogo. Los administradores las suben, reemplazan y eliminan desde la UI

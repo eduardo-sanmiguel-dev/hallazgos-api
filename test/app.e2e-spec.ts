@@ -39,7 +39,6 @@ describe('API (e2e)', () => {
   const eppsService = {
     assertEmployeeInUserPlants: jest.fn(),
     getDownloadFileName: jest.fn(),
-    findAll: jest.fn().mockResolvedValue([]),
     findPaginated: jest.fn().mockResolvedValue({ data: [], count: 0 }),
   };
   const equipmentsService = {
@@ -149,11 +148,18 @@ describe('API (e2e)', () => {
     });
 
     describe('GET /epps (planta obligatoria)', () => {
-      it('con planta propia consulta esa planta (lista y paginado)', async () => {
+      it('con planta propia consulta esa planta, siempre paginado', async () => {
         await server().get('/epps?manufacturingPlantId=1').expect(200);
         await server().get('/epps?manufacturingPlantId=1&page=2').expect(200);
 
-        expect(eppsService.findAll).toHaveBeenCalledWith(1);
+        // Sin page, la primera página (antes, la lista completa: ~44 MB).
+        expect(eppsService.findPaginated).toHaveBeenCalledWith(
+          expect.objectContaining({
+            manufacturingPlantId: 1,
+            page: 1,
+            limit: 10,
+          }),
+        );
         expect(eppsService.findPaginated).toHaveBeenCalledWith(
           expect.objectContaining({ manufacturingPlantId: 1, page: 2 }),
         );
@@ -165,7 +171,6 @@ describe('API (e2e)', () => {
       ])('%s con planta ajena responde 404', async (_c, url) => {
         await server().get(url).expect(404);
 
-        expect(eppsService.findAll).not.toHaveBeenCalled();
         expect(eppsService.findPaginated).not.toHaveBeenCalled();
       });
     });
@@ -199,7 +204,7 @@ describe('API (e2e)', () => {
           undefined,
           '',
           '1',
-          '10',
+          10,
           undefined,
           { orderBy: undefined, order: undefined },
         );

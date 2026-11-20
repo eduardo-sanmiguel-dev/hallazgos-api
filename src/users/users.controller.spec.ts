@@ -121,3 +121,17 @@ describe('UsersController: permisos de escritura', () => {
     },
   );
 });
+
+describe('UsersController: paginación', () => {
+  it('más de 100 por página o "todos" (-1) responde 400', async () => {
+    const http = await createHttpTestApp({
+      controllers: [UsersController],
+      providers: [mockProvider(UsersService)],
+    });
+
+    await http.http().get('/users').query({ page: 1, limit: -1 }).expect(400);
+    await http.http().get('/users').query({ page: 1, limit: 101 }).expect(400);
+    expect(http.get(UsersService).findAllForRequest).not.toHaveBeenCalled();
+    await http.close();
+  });
+});

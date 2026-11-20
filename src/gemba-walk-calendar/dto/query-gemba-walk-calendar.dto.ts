@@ -4,7 +4,6 @@ import {
   IsOptional,
   IsPositive,
   Matches,
-  IsInt,
   IsBooleanString,
 } from 'class-validator';
 
@@ -14,6 +13,7 @@ import {
   IsSortOrder,
 } from '../../shared/dto/sort-query.decorators.js';
 import { sortKeys, type SortOrder } from '../../shared/utils/sort.js';
+import { IsPageLimit } from '../../shared/dto/pagination.decorators.js';
 
 /** Columnas por las que el listado se puede ordenar (lista blanca). */
 export const GEMBA_WALK_CALENDAR_SORT_COLUMNS = {
@@ -68,9 +68,8 @@ export class QueryGembaWalkCalendarDto extends CatalogVisibilityDto {
   @IsPositive()
   readonly page?: number;
 
-  // -1 = sin límite (todos los registros)
-  @IsOptional()
-  @IsInt()
+  // De 1 a 100 (MAX_PAGE_LIMIT).
+  @IsPageLimit()
   readonly limit?: number;
 
   @IsSortColumn(sortKeys(GEMBA_WALK_CALENDAR_SORT_COLUMNS))

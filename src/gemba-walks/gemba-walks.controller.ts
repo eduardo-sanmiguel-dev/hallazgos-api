@@ -9,6 +9,7 @@ import {
 } from './dto/index.js';
 import { Idempotent } from '../idempotency/idempotency.interceptor.js';
 import { GembaWalksService } from './gemba-walks.service.js';
+import { withDefaultPage } from '../shared/dto/pagination.decorators.js';
 
 // Registro de recorridos. Sin edición ni eliminación.
 @Controller('gemba-walk/walks')
@@ -49,7 +50,8 @@ export class GembaWalksController {
 
   @Get()
   findAll(@Query() queryGembaWalkDto: QueryGembaWalkDto) {
-    return this.gembaWalksService.findAll(queryGembaWalkDto);
+    // Siempre paginado por HTTP (sin page/limit, la primera página).
+    return this.gembaWalksService.findAll(withDefaultPage(queryGembaWalkDto));
   }
 
   @Get(':id')

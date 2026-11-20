@@ -15,6 +15,7 @@ import {
   FiltersEmployeeDto,
   UpdateEmployeeDto,
 } from './dto/index.js';
+import { withDefaultPage } from '../shared/dto/pagination.decorators.js';
 
 @Controller('employees')
 export class EmployeesController {
@@ -32,7 +33,13 @@ export class EmployeesController {
 
   @Get()
   findAll(@Query() filtersEmployeeDto: FiltersEmployeeDto) {
-    return this.employeesService.findAll(filtersEmployeeDto);
+    // Selectores (view=options): la lista ligera completa. La tabla, siempre
+    // paginada (sin page/limit, la primera página).
+    return this.employeesService.findAll(
+      filtersEmployeeDto.view === 'options'
+        ? filtersEmployeeDto
+        : withDefaultPage(filtersEmployeeDto),
+    );
   }
 
   @Get('catalogs')

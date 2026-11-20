@@ -85,18 +85,20 @@ describe('CiaelsController (HTTP)', () => {
       );
     });
 
-    it('sin paginación devuelve la lista completa', async () => {
-      service.findAll.mockResolvedValue([]);
+    it('sin limit responde la primera página, nunca la lista completa', async () => {
+      await http.http().get('/ciaels').query({ page: 2 }).expect(200);
 
-      await http.http().get('/ciaels').query({ page: 1 }).expect(200, []);
-
-      expect(service.findAll).toHaveBeenCalled();
-      expect(service.findAllPaginated).not.toHaveBeenCalled();
+      expect(service.findAllPaginated).toHaveBeenCalledWith(
+        expect.objectContaining({ page: 2, limit: 10 }),
+      );
+      expect(service.findAll).not.toHaveBeenCalled();
     });
 
     it.each([
       ['fecha con otro formato', { startDate: '15/03/2026' }],
       ['página 0', { page: 0 }],
+      ['más de 100 por página', { page: 1, limit: 101 }],
+      ['todos (-1)', { page: 1, limit: -1 }],
     ])('responde 400 con %s', async (_c, query) => {
       await http.http().get('/ciaels').query(query).expect(400);
     });
