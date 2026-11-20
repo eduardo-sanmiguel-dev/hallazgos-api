@@ -816,6 +816,26 @@ describe('UsersService', () => {
       });
     });
 
+    it('consulta si es observador a la vez que carga al usuario', async () => {
+      const me = buildUser({ id: 12 });
+      let release!: (user: User) => void;
+      users.findOne.mockReturnValue(
+        new Promise<User>((resolve) => (release = resolve)) as never,
+      );
+      observers.count.mockResolvedValue(1);
+
+      const pending = runAsUser(me, () => service.getInformationCurrentUser());
+      await new Promise((resolve) => setImmediate(resolve));
+
+      // El usuario sigue en camino y la consulta de observador ya salió.
+      expect(observers.count).toHaveBeenCalledTimes(1);
+      release(me);
+      await expect(pending).resolves.toMatchObject({
+        id: 12,
+        isGembaWalkObserver: true,
+      });
+    });
+
     it('el administrador usa Gemba Walk aunque no esté registrado como observador', async () => {
       const admin = buildUser({ id: 12, role: ROLE_ADMINISTRADOR });
       users.findOne.mockResolvedValue(admin);

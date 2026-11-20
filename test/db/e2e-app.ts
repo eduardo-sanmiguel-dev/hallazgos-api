@@ -10,6 +10,7 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 
 import { registerEvidenceImageAccess } from '../../src/evidences/evidence-image-access.middleware.js';
+import { httpCacheHeaders } from '../../src/shared/middlewares/http-cache.middleware.js';
 import { AppModule } from '../../src/app.module.js';
 import { MailService } from '../../src/mail/mail.service.js';
 import { MailerService } from '@nestjs-modules/mailer';
@@ -58,6 +59,8 @@ export const createE2eApp = async (
 
   const app: INestApplication = moduleRef.createNestApplication();
   app.useGlobalPipes(createValidationPipe());
+  // Igual que main.ts.
+  app.use(httpCacheHeaders);
   app.use(cookieParser());
   registerEvidenceImageAccess(app);
   app.setGlobalPrefix('/api/v1');

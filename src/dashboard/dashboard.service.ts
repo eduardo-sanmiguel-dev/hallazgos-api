@@ -1199,28 +1199,28 @@ export class DashboardService {
       };
     };
 
-    const { total, seriesData } = await countByStatus(
-      parsedStartDate,
-      parsedEndDate,
-    );
-
     // Periodo de comparación, con la misma regla que el análisis EPP
     // (resolveBiEppPeriod). Para los indicadores del dashboard; si el rango
     // no admite comparación (más de 3 años), sin ella.
     const periodo = this.comparisonPeriod(startDate, endDate);
-    const anterior = periodo
-      ? await countByStatus(
-          this.parseDateFilter(
-            this.isoToDdMmYyyy(periodo.anterior.desde),
-            'La fecha de inicio',
-          ),
-          this.parseDateFilter(
-            this.isoToDdMmYyyy(periodo.anterior.hasta),
-            'La fecha de fin',
-            true,
-          ),
-        )
-      : null;
+    // El periodo elegido y el anterior no dependen uno del otro: se cuentan
+    // a la vez (antes, uno tras otro, y las gráficas esperan este resumen).
+    const [{ total, seriesData }, anterior] = await Promise.all([
+      countByStatus(parsedStartDate, parsedEndDate),
+      periodo
+        ? countByStatus(
+            this.parseDateFilter(
+              this.isoToDdMmYyyy(periodo.anterior.desde),
+              'La fecha de inicio',
+            ),
+            this.parseDateFilter(
+              this.isoToDdMmYyyy(periodo.anterior.hasta),
+              'La fecha de fin',
+              true,
+            ),
+          )
+        : null,
+    ]);
 
     return {
       total,
@@ -1894,16 +1894,25 @@ export class DashboardService {
       cancelledCount: string;
     };
 
-    let rows: RawPoint[] = [];
-
-    rows = (
-      await byResponsibleOrSupervisor(
+    // Los puntos y el resumen por estatus no dependen uno del otro: a la
+    // vez (antes, el resumen esperaba a los puntos).
+    const [{ result: rows }, statusByFilters] = await Promise.all([
+      byResponsibleOrSupervisor(
         responsibleIds,
         () => buildBaseQuery(),
         (query) => query.getRawMany<RawPoint>(),
         noRows,
-      )
-    ).result;
+      ),
+      this.findStatusByFilters(
+        manufacturingPlantId,
+        startDate,
+        endDate,
+        areaIds,
+        responsibleIds,
+        mainTypeIds,
+        states,
+      ),
+    ]);
 
     const statusPriority = ['Abierto', 'En progreso', 'Cerrado', 'Cancelado'];
 
@@ -1940,16 +1949,6 @@ export class DashboardService {
     const totalOpenEvidencesWithCoordinates = points.reduce(
       (acc, item) => acc + item.statusCounts.Abierto,
       0,
-    );
-
-    const statusByFilters = await this.findStatusByFilters(
-      manufacturingPlantId,
-      startDate,
-      endDate,
-      areaIds,
-      responsibleIds,
-      mainTypeIds,
-      states,
     );
 
     const totalOpenEvidences =
@@ -2222,10 +2221,11 @@ export class DashboardService {
           ? rowsByResponsibles
           : await buildSupervisorsQuery(false).getRawMany<RawRow>();
     } else {
-      const responsiblesRows =
-        await buildResponsiblesQuery().getRawMany<RawRow>();
-      const supervisorsRows =
-        await buildSupervisorsQuery(true).getRawMany<RawRow>();
+      // Responsables y supervisores son independientes: a la vez.
+      const [responsiblesRows, supervisorsRows] = await Promise.all([
+        buildResponsiblesQuery().getRawMany<RawRow>(),
+        buildSupervisorsQuery(true).getRawMany<RawRow>(),
+      ]);
 
       rows = [...responsiblesRows, ...supervisorsRows];
     }

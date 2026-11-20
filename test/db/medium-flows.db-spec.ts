@@ -198,6 +198,41 @@ describe('Regresión de flujos de prioridad media', () => {
       .set('Authorization', 'Bearer ' + e2e.tokens.general)
       .expect(404);
   });
+  it('las lecturas llevan ETag: sin cambios responden 304 sin cuerpo; las descargas no se guardan', async () => {
+    const auth = { Authorization: 'Bearer ' + e2e.tokens.general };
+    const first = await request(e2e.server)
+      .get('/api/v1/main-types')
+      .set(auth)
+      .expect(200);
+    expect(first.headers['cache-control']).toBe('private, no-cache');
+    const etag = first.headers.etag;
+    expect(etag).toMatch(/^W\/"/);
+
+    // Sin cambios: 304 y ningún dato.
+    const again = await request(e2e.server)
+      .get('/api/v1/main-types')
+      .set(auth)
+      .set('If-None-Match', etag)
+      .expect(304);
+    expect(again.text ?? '').toBe('');
+
+    // Otro ETag (cambió o es de otra respuesta): los datos completos.
+    await request(e2e.server)
+      .get('/api/v1/main-types')
+      .set(auth)
+      .set('If-None-Match', 'W/"otro"')
+      .expect(200);
+
+    // Una descarga (documento privado) nunca se guarda.
+    const excel = await request(e2e.server)
+      .get(
+        '/api/v1/evidences/download/xlsx?startDate=01/01/2026&endDate=31/12/2026&timeZone=America/Mexico_City',
+      )
+      .set(auth)
+      .expect(200);
+    expect(excel.headers['cache-control']).toBe('private, no-store');
+  });
+
   it('las fotos se entregan en AVIF o WebP según Accept, con el original intacto', async () => {
     const variants = mkdtempSync(join(tmpdir(), 'hallazgos-variants-'));
     const previous = process.env.IMAGE_VARIANTS_DIR;

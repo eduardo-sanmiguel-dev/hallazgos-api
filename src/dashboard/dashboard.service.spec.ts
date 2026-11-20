@@ -288,6 +288,64 @@ describe('DashboardService: reglas y resultados de reportes', () => {
       },
     );
   });
+  describe('consultas independientes en paralelo', () => {
+    // Retiene las consultas hasta soltar la compuerta: si van en paralelo,
+    // todas salen antes; en serie, solo la primera.
+    const gateRawMany = () => {
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => (release = resolve));
+      qb().getRawMany.mockImplementation((async () => {
+        await gate;
+        return [];
+      }) as never);
+      return release;
+    };
+    const untilCalls = async (calls: number) => {
+      for (let tick = 0; tick < 50; tick++) {
+        if (qb().getRawMany.mock.calls.length >= calls) return;
+        await new Promise((resolve) => setImmediate(resolve));
+      }
+    };
+
+    it('el resumen cuenta el periodo elegido y el anterior a la vez', async () => {
+      const release = gateRawMany();
+      const pending = invoke(
+        'findStatusByFilters',
+        1,
+        '01/10/2026',
+        '22/10/2026',
+      );
+      await untilCalls(2);
+      expect(qb().getRawMany).toHaveBeenCalledTimes(2);
+      release();
+      await expect(pending).resolves.toMatchObject({ total: 0 });
+    });
+
+    it('el mapa de calor pide los puntos y el resumen a la vez', async () => {
+      const release = gateRawMany();
+      const pending = invoke(
+        'findHeatmapByFilters',
+        1,
+        '01/10/2026',
+        '22/10/2026',
+      );
+      // Puntos + periodo elegido + periodo anterior.
+      await untilCalls(3);
+      expect(qb().getRawMany).toHaveBeenCalledTimes(3);
+      release();
+      await expect(pending).resolves.toMatchObject({ points: [] });
+    });
+
+    it('responsables asignados sin filtro: responsables y supervisores a la vez', async () => {
+      const release = gateRawMany();
+      const pending = invoke('findAssignedResponsiblesByFilters');
+      await untilCalls(2);
+      expect(qb().getRawMany).toHaveBeenCalledTimes(2);
+      release();
+      await expect(pending).resolves.toMatchObject({ total: 0 });
+    });
+  });
+
   describe('findStatusByFilters: comparación con el periodo anterior', () => {
     it('cuenta también el periodo anterior equivalente (mismos días del mes previo)', async () => {
       qb()

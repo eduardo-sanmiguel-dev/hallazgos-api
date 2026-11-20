@@ -14,6 +14,7 @@ import { createValidationPipe } from './shared/errors/validation-errors.js';
 import { ApiExceptionFilter } from './shared/filters/api-exception.filter.js';
 import { notifyProcessReady } from './shared/utils/process-ready.js';
 import { httpAccessLog } from './shared/middlewares/http-access-log.middleware.js';
+import { httpCacheHeaders } from './shared/middlewares/http-cache.middleware.js';
 import {
   createOpenObserveLogger,
   type ObserveConfig,
@@ -64,6 +65,12 @@ async function bootstrap() {
   // Validación de DTOs (whitelist, transformación) con los errores en
   // español y por campo (ver shared/errors/validation-errors.ts).
   app.useGlobalPipes(createValidationPipe());
+
+  // Caché HTTP: ETag débil (304 si no cambió) y Cache-Control privada; ver
+  // shared/middlewares/http-cache.middleware.ts. Antes de las fotos de
+  // evidencias, que fijan su propio no-store.
+  app.set('etag', 'weak');
+  app.use(httpCacheHeaders);
 
   app.use(cookieParser());
   if (observeLogger) app.use(httpAccessLog(observeLogger));

@@ -527,25 +527,29 @@ export class UsersService {
   async getInformationCurrentUser(): Promise<CurrentUser> {
     const userId = this.requestContext.userId;
 
-    const user = await this.userRepository.findOne({
-      where: {
-        id: userId,
-        isActive: true,
-        manufacturingPlants: {
+    // Si es observador de Gemba Walk no depende del usuario cargado (solo de
+    // su id y rol): se consulta a la vez. Se pide en cada carga de la UI.
+    const [user, isObserver] = await Promise.all([
+      this.userRepository.findOne({
+        where: {
+          id: userId,
           isActive: true,
+          manufacturingPlants: {
+            isActive: true,
+          },
         },
-      },
-      relations: ['manufacturingPlants', 'manufacturingPlants.country'],
-    });
+        relations: ['manufacturingPlants', 'manufacturingPlants.country'],
+      }),
+      isGembaWalkObserver(this.gembaWalkObserverRepository, {
+        userId,
+        isAdmin: this.requestContext.isAdmin,
+      }),
+    ]);
 
     if (!user) throw new NotFoundException(`Usuario #${userId} no encontrado`);
 
     await this.loadAssignments([user], ['zones', 'processes']);
     keepMatching(user, { plant: (plant) => plant.isActive });
-    const isObserver = await isGembaWalkObserver(
-      this.gembaWalkObserverRepository,
-      { userId, isAdmin: this.requestContext.isAdmin },
-    );
     // `password` no se selecciona (select: false): la copia no lo incluye.
     return {
       ...user,
