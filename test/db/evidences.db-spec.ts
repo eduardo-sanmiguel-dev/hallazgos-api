@@ -14,6 +14,7 @@ import { SecondaryType } from '../../src/secondary-types/entities/secondary-type
 import { binaryParser } from '../utils/index.js';
 import { createE2eApp, type E2eApp } from './e2e-app.js';
 import { saveEvidence, STATUSES } from './fixtures.js';
+import { recordQueries } from './query-recorder.js';
 
 // PNG de 1x1 para las imágenes de proceso y solución.
 const PNG = Buffer.from(
@@ -426,6 +427,114 @@ describe('E2E: hallazgos', () => {
 
       expect(firstPage.body.count).toBe(all.body.count);
       expect(firstPage.body.data).toHaveLength(Math.min(1, all.body.count));
+    });
+
+    it('el total se cuenta sin unir las colecciones de la lista y no cambia', async () => {
+      const { users, plants } = e2e.base;
+      // Varios supervisores y responsables: con las relaciones en el conteo
+      // cada hallazgo se multiplicaba en filas.
+      for (let i = 0; i < 2; i++)
+        await saveEvidence(e2e.dataSource, e2e.base, {
+          supervisors: [users.supervisor, users.general],
+          responsibles: [users.general, users.supervisor],
+        });
+      const expected = async (responsibleId?: number) => {
+        const [{ total }] = await e2e.dataSource.query(
+          `SELECT count(DISTINCT e.id)::int AS total
+             FROM evidence e
+             LEFT JOIN evidence_responsibles_user r ON r."evidenceId" = e.id
+            WHERE e."manufacturingPlantId" = $1
+              AND ($2::int IS NULL OR r."userId" = $2)`,
+          [plants.tepotzotlan.id, responsibleId ?? null],
+        );
+        return total as number;
+      };
+
+      let page;
+      const queries = await recordQueries(async () => {
+        page = await e2e
+          .call('get', '/evidences?page=1&limit=1', e2e.tokens.general)
+          .expect(200);
+      });
+      const countSql = queries.find((sql) => /^SELECT COUNT\(/i.test(sql));
+      expect(countSql).toBeDefined();
+      for (const relation of ['comments', 'supervisors', 'responsibles'])
+        expect(countSql).not.toContain(relation);
+      expect(page.body.data).toHaveLength(1);
+      expect(page.body.count).toBe(await expected());
+
+      // Filtrar por responsable sí une esa relación (y cuenta igual).
+      const filtered = await e2e
+        .call(
+          'get',
+          `/evidences?page=1&limit=1&responsible=${users.supervisor.id}`,
+          e2e.tokens.general,
+        )
+        .expect(200);
+      expect(filtered.body.count).toBe(await expected(users.supervisor.id));
+      expect(filtered.body.count).toBeGreaterThanOrEqual(2);
+    });
+
+    it('la página trae las colecciones completas sin unirlas entre sí', async () => {
+      const { users } = e2e.base;
+      const evidence = await saveEvidence(e2e.dataSource, e2e.base, {
+        supervisors: [users.supervisor, users.general],
+        responsibles: [users.general, users.supervisor],
+      });
+      await e2e.dataSource.getRepository(Comment).save([
+        { comment: 'Primero', evidence, user: users.general },
+        { comment: 'Segundo', evidence, user: users.supervisor },
+      ]);
+      const COLLECTION_TABLES = [
+        'evidence_supervisors_user',
+        'evidence_responsibles_user',
+        '"comments"',
+      ];
+      const emails = (list: { email: string }[]) =>
+        list.map(({ email }) => email).sort();
+
+      let page;
+      const queries = await recordQueries(async () => {
+        // Orden por id descendente: el recién creado es el primero.
+        page = await e2e
+          .call('get', '/evidences?page=1&limit=1', e2e.tokens.general)
+          .expect(200);
+      });
+
+      // Ninguna consulta junta dos colecciones (el producto cartesiano).
+      for (const sql of queries)
+        expect(
+          COLLECTION_TABLES.filter((table) => sql.includes(table)).length,
+        ).toBeLessThanOrEqual(1);
+      const [row] = page.body.data;
+      expect(row.id).toBe(evidence.id);
+      expect(emails(row.supervisors)).toEqual(
+        emails([users.general, users.supervisor]),
+      );
+      expect(emails(row.responsibles)).toEqual(
+        emails([users.general, users.supervisor]),
+      );
+      expect(
+        row.comments.map(({ comment, user }) => [comment, user.email]),
+      ).toEqual([
+        ['Primero', users.general.email],
+        ['Segundo', users.supervisor.email],
+      ]);
+
+      // Con filtro de responsable, la columna trae solo ese (como antes).
+      const filtered = await e2e
+        .call(
+          'get',
+          `/evidences?page=1&limit=1&responsible=${users.supervisor.id}`,
+          e2e.tokens.general,
+        )
+        .expect(200);
+      const [filteredRow] = filtered.body.data;
+      expect(filteredRow.id).toBe(evidence.id);
+      expect(emails(filteredRow.responsibles)).toEqual([
+        users.supervisor.email,
+      ]);
+      expect(filteredRow.supervisors).toHaveLength(2);
     });
 
     it('por HTTP siempre pagina: sin page la primera página y como máximo 100', async () => {

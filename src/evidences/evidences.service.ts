@@ -14,6 +14,7 @@ import {
   Between,
   type EntityTarget,
   type FindManyOptions,
+  type FindOptionsWhere,
   In,
   LessThanOrEqual,
   Repository,
@@ -1605,10 +1606,59 @@ export class EvidencesService {
     if (!options) return paginated ? { data: [], count: 0 } : [];
 
     // Con página y límite, la lista de hallazgos ({ data, count }); sin
-    // ellos, todos (descargas de Excel y PDF).
+    // ellos, todos (descarga en PDF).
     return paginated
-      ? findPaginated(this.evidenceRepository, options, page, limit)
+      ? this.findPage(options, page, limit)
       : this.evidenceRepository.find(options);
+  }
+
+  /**
+   * Página de la lista de hallazgos, en consultas livianas:
+   * - el total se cuenta solo con los filtros: con las 13 relaciones unía 18
+   *   tablas (~27 mil filas para ~3.5 mil hallazgos, ~31 ms en producción);
+   * - las colecciones (supervisores, responsables, comentarios) se cargan
+   *   aparte, una consulta por colección para toda la página: en el mismo
+   *   JOIN eran supervisores × responsables × comentarios filas por hallazgo
+   *   (~51 ms de promedio y picos de ~590 ms en producción).
+   */
+  private async findPage(
+    options: FindManyOptions<Evidence>,
+    page: number,
+    limit: number,
+  ) {
+    const result = await findPaginated(
+      this.evidenceRepository,
+      {
+        ...options,
+        relations: this.relations.filter(
+          (relation) => !EVIDENCE_COLLECTIONS.includes(relation as never),
+        ),
+      },
+      page,
+      limit,
+      { countWithoutRelations: true },
+    );
+    const ids = result.data.map(({ id }) => id);
+    if (!ids.length) return result;
+
+    // Con filtro de responsables, la columna muestra solo esos (antes los
+    // recortaba el mismo JOIN filtrado; igual que el Excel).
+    const { responsibles } = options.where as FindOptionsWhere<Evidence>;
+    // Una tras otra, como findOne.
+    for (const relation of EVIDENCE_COLLECTIONS) {
+      const rows = await this.evidenceRepository.find({
+        where: {
+          id: In(ids),
+          ...(relation === 'responsibles' && responsibles && { responsibles }),
+        },
+        relations: [relation],
+        order: { [relation]: { id: 'ASC' } },
+      });
+      const byId = new Map(rows.map((row) => [row.id, row[relation]]));
+      for (const evidence of result.data)
+        Object.assign(evidence, { [relation]: byId.get(evidence.id) ?? [] });
+    }
+    return result;
   }
 
   /**

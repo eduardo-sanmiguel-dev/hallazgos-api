@@ -620,13 +620,14 @@ describe('EvidencesService', () => {
       await expect(
         findPage(reporter, { manufacturingPlantId: 2 }),
       ).resolves.toEqual({ data: [], count: 0 });
-      expect(evidences.findAndCount).not.toHaveBeenCalled();
+      expect(evidences.count).not.toHaveBeenCalled();
+      expect(evidences.find).not.toHaveBeenCalled();
     });
 
     it('sin filtro de planta consulta solo las plantas del usuario', async () => {
       await findPage(reporter);
 
-      const [{ where }] = evidences.findAndCount.mock.calls[0];
+      const [{ where }] = evidences.count.mock.calls[0];
       expect(
         operand(
           (where as { manufacturingPlant: { id: unknown } }).manufacturingPlant
@@ -637,22 +638,106 @@ describe('EvidencesService', () => {
 
     it('pagina con skip/take y devuelve el total', async () => {
       const row = buildEvidence({ id: 5 });
-      evidences.findAndCount.mockResolvedValue([[row], 42]);
+      evidences.count.mockResolvedValue(42);
+      evidences.find.mockResolvedValue([row]);
 
       await expect(findPage(reporter, { page: 3, limit: 10 })).resolves.toEqual(
         { data: [row], count: 42 },
       );
-      expect(evidences.findAndCount.mock.calls[0][0]).toMatchObject({
+      expect(evidences.find.mock.calls[0][0]).toMatchObject({
         skip: 20,
         take: 10,
       });
-      expect(evidences.find).not.toHaveBeenCalled();
+    });
+
+    it('cuenta solo con los filtros, sin las relaciones de la lista', async () => {
+      evidences.count.mockResolvedValue(1);
+
+      await findPage(reporter, { status: 'Abierto' });
+
+      const [countOptions] = evidences.count.mock.calls[0];
+      expect(Object.keys(countOptions)).toEqual(['where']);
+      expect(countOptions.where).toBe(evidences.find.mock.calls[0][0].where);
+      expect(evidences.findAndCount).not.toHaveBeenCalled();
+    });
+
+    describe('colecciones de la página', () => {
+      const COLLECTIONS = ['supervisors', 'responsibles', 'comments'];
+      const collectionCalls = () =>
+        evidences.find.mock.calls.slice(1).map(([options]) => options);
+
+      beforeEach(() => {
+        evidences.count.mockResolvedValue(2);
+        evidences.find.mockImplementation(async (options) => {
+          const [relation] = (options?.relations ?? []) as string[];
+          if (!COLLECTIONS.includes(relation))
+            return [buildEvidence({ id: 5 }), buildEvidence({ id: 6 })];
+          // Solo el 5 tiene elementos en cada colección.
+          return [buildEvidence({ id: 5, [relation]: [{ id: 9 }] })];
+        });
+      });
+
+      it('la página no une colecciones; cada una va en una consulta para toda la página', async () => {
+        const { data } = (await findPage(reporter)) as { data: Evidence[] };
+
+        const [pageOptions] = evidences.find.mock.calls[0];
+        expect(pageOptions.relations).toEqual(
+          expect.arrayContaining(['manufacturingPlant', 'zone.area', 'user']),
+        );
+        for (const relation of COLLECTIONS)
+          expect(pageOptions.relations).not.toContain(relation);
+
+        expect(collectionCalls()).toHaveLength(3);
+        for (const [index, options] of collectionCalls().entries()) {
+          expect(options.relations).toEqual([COLLECTIONS[index]]);
+          expect(operand((options.where as { id: unknown }).id)).toEqual([
+            5, 6,
+          ]);
+          expect(options.where).not.toHaveProperty('responsibles');
+        }
+
+        // El que no tiene elementos queda con colecciones vacías.
+        expect(data[0]).toMatchObject({
+          supervisors: [{ id: 9 }],
+          responsibles: [{ id: 9 }],
+          comments: [{ id: 9 }],
+        });
+        expect(data[1]).toMatchObject({
+          supervisors: [],
+          responsibles: [],
+          comments: [],
+        });
+      });
+
+      it('con filtro de responsables, la columna trae solo esos', async () => {
+        await findPage(reporter, { responsible: 300 });
+
+        const [supervisors, responsibles, comments] = collectionCalls();
+        expect(
+          operand(
+            (responsibles.where as { responsibles: { id: unknown } })
+              .responsibles.id,
+          ),
+        ).toEqual([300]);
+        expect(supervisors.where).not.toHaveProperty('responsibles');
+        expect(comments.where).not.toHaveProperty('responsibles');
+      });
+
+      it('sin hallazgos en la página no consulta colecciones', async () => {
+        evidences.count.mockResolvedValue(0);
+
+        await findPage(reporter);
+
+        expect(evidences.find).not.toHaveBeenCalled();
+      });
     });
 
     it('limit -1 devuelve todo sin paginar (con el total)', async () => {
+      evidences.count.mockResolvedValue(3);
+
       await findPage(reporter, { limit: -1 });
 
-      const [options] = evidences.findAndCount.mock.calls[0];
+      const [options] = evidences.find.mock.calls[0];
       expect(options).not.toHaveProperty('take');
       expect(options).not.toHaveProperty('skip');
     });
