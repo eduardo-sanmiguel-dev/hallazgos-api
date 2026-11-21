@@ -21,21 +21,32 @@ import { User } from '../../users/entities/user.entity.js';
 import { Comment } from './comments.entity.js';
 import { Processes } from '../../processes/entities/processes.entity.js';
 
+// Planta + rango de fechas: dashboard y filtro por fechas del listado. Ver la
+// migración AddEvidenceQueryIndexes1794100000000.
 @Entity()
+@Index('IDX_evidence_manufacturingPlantId_createdAt', [
+  'manufacturingPlant',
+  'createdAt',
+])
 export class Evidence {
   @PrimaryGeneratedColumn()
   id: number;
 
+  // Las tres columnas de fotos se buscan por nombre de archivo en cada
+  // imagen que se sirve (evidence-image-access.middleware).
   @Column()
+  @Index('IDX_evidence_imgEvidence')
   imgEvidence: string;
 
   @Column({ default: '' })
+  @Index('IDX_evidence_imgSolution')
   imgSolution: string;
 
   @Column({ type: 'int', nullable: true, default: null })
   priorityDays?: number;
 
   @Column({ default: '' })
+  @Index('IDX_evidence_imgProcess')
   imgProcess: string;
 
   @Column({ default: null })
