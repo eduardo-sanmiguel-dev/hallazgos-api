@@ -18,6 +18,7 @@ import { ZonesModule } from '../zones/zones.module.js';
 import { UsersModule } from '../users/users.module.js';
 import { Comment } from './entities/comments.entity.js';
 import { ProcessesModule } from '../processes/processes.module.js';
+import { PdfRendererService } from './pdf/pdf-renderer.service.js';
 
 @Module({
   imports: [
@@ -40,7 +41,7 @@ import { ProcessesModule } from '../processes/processes.module.js';
     ProcessesModule,
   ],
   controllers: [EvidencesController],
-  providers: [EvidencesService],
+  providers: [EvidencesService, PdfRendererService],
   exports: [TypeOrmModule, EvidencesService],
 })
 export class EvidencesModule {}

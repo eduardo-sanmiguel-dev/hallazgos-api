@@ -1,4 +1,3 @@
-import * as fs from 'fs';
 import * as path from 'path';
 import { safeFilePath } from './safe-file-path.js';
 
@@ -16,22 +15,15 @@ export const formatDateToDDMMYYYY = (dateString: string) => {
   return `${date[2]}/${date[1]}/${date[0]}`;
 };
 
-export function uploadStaticImage(img: string): string {
-  if (!img) {
-    return null;
-  }
-
-  const routeImg = safeFilePath(
+/**
+ * Ruta de una imagen de public/static/images (relativa, p. ej.
+ * `evidences/foto.jpg`), o null si no existe o sale de la carpeta.
+ */
+export function staticImagePath(img: string): string | null {
+  return safeFilePath(
     path.join(process.cwd(), 'public', 'static', 'images'),
     img,
   );
-
-  if (!routeImg) {
-    return null;
-  }
-
-  const buffer = fs.readFileSync(routeImg);
-  return buffer.toString('base64');
 }
 
 export function calculateAge(birthDate: string | Date): number {

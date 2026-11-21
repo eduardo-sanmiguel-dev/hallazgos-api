@@ -1,8 +1,10 @@
 /**
  * E2E (app completa + base de pruebas): flujo de hallazgos.
  */
+import { randomUUID } from 'crypto';
 import { readdirSync, statSync, unlinkSync } from 'fs';
 import { join } from 'path';
+import sharp from 'sharp';
 import XlsxPopulate from 'xlsx-populate';
 
 import { Evidence } from '../../src/evidences/entities/evidence.entity.js';
@@ -591,6 +593,43 @@ describe('E2E: hallazgos', () => {
       // Las fotos subidas en estas pruebas son PNG de 1x1; la de "imagen no
       // encontrada" mide 225x225. Antes todas salían como esta última.
       expect(pdf).toMatch(/\/Width 1\b/);
+    });
+
+    it('una foto WebP no rompe el PDF (pdfmake solo acepta JPG y PNG)', async () => {
+      const repository = e2e.dataSource.getRepository(Evidence);
+      const [evidence] = await repository.find({
+        order: { id: 'ASC' },
+        take: 1,
+      });
+      const name = `db-spec-${randomUUID()}.webp`;
+      await sharp({
+        create: { width: 300, height: 200, channels: 3, background: '#2a6' },
+      })
+        .webp()
+        .toFile(join(IMAGES_DIR, name));
+      await repository.update(evidence.id, { imgEvidence: name });
+      try {
+        const res = await e2e
+          .call(
+            'get',
+            '/evidences/download/pdf?timeZone=America/Mexico_City',
+            e2e.tokens.general,
+          )
+          .buffer(true)
+          .parse(binaryParser)
+          .expect(200);
+
+        const pdf = (res.body as Buffer).toString('latin1');
+        expect(pdf.startsWith('%PDF')).toBe(true);
+        // Miniatura JPG (antes: 500 "Unknown image format").
+        expect(pdf).toMatch(/\/Width 100\b/);
+        expect(pdf).toContain('/DCTDecode');
+      } finally {
+        await repository.update(evidence.id, {
+          imgEvidence: evidence.imgEvidence,
+        });
+        unlinkSync(join(IMAGES_DIR, name));
+      }
     });
   });
 });

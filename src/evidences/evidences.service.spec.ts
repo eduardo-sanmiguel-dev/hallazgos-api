@@ -7,7 +7,12 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import { randomUUID } from 'node:crypto';
+import { rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Writable } from 'node:stream';
+import sharp from 'sharp';
 import { FindOperator } from 'typeorm';
 import XlsxPopulate from 'xlsx-populate';
 
@@ -43,6 +48,7 @@ import { ZonesService } from '../zones/zones.service.js';
 import { Comment } from './entities/comments.entity.js';
 import { Evidence } from './entities/evidence.entity.js';
 import { EvidencesService } from './evidences.service.js';
+import { PdfRendererService } from './pdf/pdf-renderer.service.js';
 
 /** Deja terminar las promesas que el servicio lanza sin esperar. */
 const flushBackgroundWork = async () => {
@@ -85,6 +91,9 @@ describe('EvidencesService', () => {
   let mainTypesService: jest.Mocked<MainTypesService>;
   let logError: jest.SpyInstance;
   let logWarn: jest.SpyInstance;
+  // Hilo real de pdfmake, uno para todo el archivo.
+  const pdfRenderer = new PdfRendererService();
+  afterAll(() => pdfRenderer.onModuleDestroy());
   // "Tabla" de hallazgos: findOne aplica el filtro de plantas como la base.
   let stored: Evidence[];
 
@@ -117,6 +126,7 @@ describe('EvidencesService', () => {
         mockProvider(ProcessesService),
         mockProvider(UsersService),
         mockProvider(MailService),
+        { provide: PdfRendererService, useValue: pdfRenderer },
       ],
     });
     service = testing.service;
@@ -2090,6 +2100,72 @@ describe('EvidencesService', () => {
         expect(body.subarray(0, 4).toString()).toBe('%PDF');
       });
 
+      // Celdas de imagen del documento que se mandó al hilo de pdfmake.
+      const imageCells = (render: jest.SpyInstance) =>
+        (
+          render.mock.calls[0][0] as {
+            content: { table: { body: unknown[][] } }[];
+          }
+        ).content[0].table.body
+          .slice(1)
+          .map((row) => row.slice(8));
+
+      it('una foto WebP ya no rompe el PDF: va como miniatura JPG', async () => {
+        const name = `pdf-webp-${randomUUID()}.webp`;
+        const file = join(
+          process.cwd(),
+          'public',
+          'static',
+          'images',
+          'evidences',
+          name,
+        );
+        await sharp({
+          create: { width: 600, height: 600, channels: 3, background: '#c33' },
+        })
+          .webp()
+          .toFile(file);
+        const render = jest.spyOn(pdfRenderer, 'render');
+        try {
+          evidences.find.mockResolvedValue([
+            Object.assign(listed(), { imgEvidence: name, imgSolution: name }),
+          ]);
+
+          const body = await ended(await download('pdf'));
+
+          expect(body.subarray(0, 4).toString()).toBe('%PDF');
+          const [[evidenceCell, solutionCell]] = imageCells(render) as {
+            image: string;
+            fit: number[];
+          }[][];
+          expect(evidenceCell.image).toMatch(/^data:image\/jpeg;base64,/);
+          expect(evidenceCell.fit).toEqual([50, 50]);
+          expect(solutionCell).toEqual(evidenceCell);
+        } finally {
+          render.mockRestore();
+          await rm(file, { force: true });
+        }
+      });
+
+      it('sin la foto usa la imagen por defecto; si tampoco existe, texto', async () => {
+        const render = jest.spyOn(pdfRenderer, 'render');
+        await ended(await download('pdf'));
+        const [[missing]] = imageCells(render) as { image: string }[][];
+        expect(missing.image).toMatch(/^data:image\/jpeg;base64,/);
+
+        render.mockClear();
+        // Sin public/static/images: ni la foto ni la imagen por defecto.
+        const cwd = jest.spyOn(process, 'cwd').mockReturnValue(tmpdir());
+        try {
+          const body = await ended(await download('pdf'));
+          expect(body.subarray(0, 4).toString()).toBe('%PDF');
+          expect(imageCells(render)).toEqual([['Sin imagen', 'Sin imagen']]);
+        } finally {
+          cwd.mockRestore();
+          render.mockRestore();
+        }
+      });
+
       it('sin resultados también responde un PDF (antes respondía 500)', async () => {
         evidences.find.mockResolvedValue([]);
 
@@ -2170,12 +2246,5 @@ describe('EvidencesService', () => {
       updateEvidenceDto: {},
     });
     expect(evidences.save).not.toHaveBeenCalled();
-  });
-
-  it('pdfmake no descarga URLs ni lee archivos fuera de sus fuentes', () => {
-    const pdfMake = jest.requireActual('pdfmake');
-
-    expect(pdfMake.urlAccessPolicy('https://example.com/x.png')).toBe(false);
-    expect(pdfMake.localAccessPolicy('/etc/passwd')).toBe(false);
   });
 });

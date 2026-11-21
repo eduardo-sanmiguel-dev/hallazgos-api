@@ -24,8 +24,6 @@ import type {
 } from 'pdfmake/interfaces.js';
 import ExcelJS from 'exceljs';
 import type { Response } from 'express';
-import { createRequire } from 'module';
-import { dirname, resolve, sep } from 'path';
 
 import { ManufacturingPlantsService } from '../manufacturing-plants/manufacturing-plants.service.js';
 import { ManufacturingPlant } from '../manufacturing-plants/entities/manufacturing-plant.entity.js';
@@ -47,6 +45,8 @@ import { ZonesService } from '../zones/zones.service.js';
 import { UsersService } from '../users/users.service.js';
 import { User } from '../users/entities/user.entity.js';
 import { MailService } from '../mail/mail.service.js';
+import { PdfRendererService } from './pdf/pdf-renderer.service.js';
+import { pdfThumbnails } from './pdf/pdf-thumbnail.js';
 import {
   CommentEvidenceDto,
   CreateEvidenceDto,
@@ -55,7 +55,7 @@ import {
   UpdateEvidenceDto,
 } from './dto/index.js';
 import {
-  uploadStaticImage,
+  staticImagePath,
   stringToDateWithTime,
   getColombiaNow,
   formatUtcOffsetLong,
@@ -90,22 +90,6 @@ import {
   EVIDENCE_DEFAULT_SORT,
   EVIDENCE_SORT_COLUMNS,
 } from './dto/query.evidence.dto.js';
-
-// pdfmake es CommonJS y su fuente se resuelve como archivo del paquete.
-const require = createRequire(import.meta.url);
-const pdfMake = require('pdfmake');
-const pdfFonts = require('pdfmake/fonts/Roboto');
-
-const PDF_FONTS_DIR = dirname(require.resolve('pdfmake/fonts/Roboto'));
-
-pdfMake.setFonts(pdfFonts);
-// Desde pdfmake 0.3 el servidor puede leer archivos locales y descargar URLs.
-// El reporte solo usa imágenes data: y las fuentes del paquete: se bloquea lo
-// demás, como hacía el build de navegador de 0.2 (y evita sus avisos).
-pdfMake.setUrlAccessPolicy(() => false);
-pdfMake.setLocalAccessPolicy((path: string) =>
-  resolve(path).startsWith(PDF_FONTS_DIR + sep),
-);
 
 const MISSING_EVIDENCE_MESSAGE =
   'Debe capturar o adjuntar una imagen como evidencia del hallazgo';
@@ -264,6 +248,7 @@ export class EvidencesService {
     private readonly processesService: ProcessesService,
     private readonly usersService: UsersService,
     private readonly mailService: MailService,
+    private readonly pdfRenderer: PdfRendererService,
   ) {}
 
   private parseDateFilter(
@@ -1306,21 +1291,29 @@ export class EvidencesService {
 
     const dataPdf = [];
 
-    const notFoundImage = uploadStaticImage('image-not-found.png');
+    // Miniaturas JPG (ver pdf-thumbnail.ts). Rutas relativas a
+    // public/static/images: con "/" al inicio, safeFilePath las rechaza y
+    // todas las fotos salían como "imagen no encontrada".
+    const photo = (name: string | null) =>
+      name ? staticImagePath(`evidences/${name}`) : null;
+    const [notFoundImage, ...thumbnails] = await pdfThumbnails([
+      staticImagePath('image-not-found.png'),
+      ...datos.flatMap((evidence) => [
+        photo(evidence.imgEvidence),
+        photo(evidence.imgSolution),
+      ]),
+    ]);
 
-    // Ruta relativa a public/static/images: con "/" al inicio,
-    // safeFilePath la rechaza como absoluta y todas las fotos salían como
-    // "imagen no encontrada".
-    for (const evidence of datos) {
-      const imgSolution =
-        uploadStaticImage(
-          evidence.imgSolution ? `evidences/${evidence.imgSolution}` : '',
-        ) || notFoundImage;
-      const imgEvidence =
-        uploadStaticImage(
-          evidence.imgEvidence ? `evidences/${evidence.imgEvidence}` : '',
-        ) || notFoundImage;
+    // Sin la foto ni la imagen de respaldo, texto: una imagen vacía hace
+    // fallar el PDF completo.
+    const imageCell = (thumbnail: string | null) => {
+      const image = thumbnail || notFoundImage;
+      return image
+        ? { image, fit: [50, 50] as [number, number] }
+        : 'Sin imagen';
+    };
 
+    for (const [index, evidence] of datos.entries()) {
       dataPdf.push([
         evidence.id,
         evidence.mainType.name,
@@ -1333,16 +1326,8 @@ export class EvidencesService {
           style: evidence.status === 'Cerrado' ? 'signature' : '',
         },
         stringToDateWithTime(evidence.createdAt),
-        {
-          image: `data:image/png;base64,${imgEvidence}`,
-          width: 50,
-          height: 50,
-        },
-        {
-          image: `data:image/png;base64,${imgSolution}`,
-          width: 50,
-          height: 50,
-        },
+        imageCell(thumbnails[index * 2]),
+        imageCell(thumbnails[index * 2 + 1]),
       ]);
     }
 
@@ -1364,7 +1349,8 @@ export class EvidencesService {
       ],
     };
 
-    const pdf: Buffer = await pdfMake.createPdf(docDefinition).getBuffer();
+    // En un hilo aparte: armar cientos de filas ocupa el CPU por segundos.
+    const pdf = await this.pdfRenderer.render(docDefinition);
 
     res.writeHead(200, {
       'Content-Type': 'application/pdf',

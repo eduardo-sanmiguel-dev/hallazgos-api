@@ -6,7 +6,7 @@
     "deleteOutDir": true,
     "tsConfigPath": "tsconfig.dev.json",
     "builder": "tsc",
-    "assets": ["mail/templates/**/*"],
+    "assets": ["mail/templates/**/*", "**/*.worker.mjs"],
     "watchAssets": true
   }
 }
