@@ -78,8 +78,55 @@ describe('MailOutboxService', () => {
     );
     const sql = query.mock.calls.map(([statement]) => statement as string);
     expect(sqlCalls('pg_advisory_xact_lock_shared(722, 1)')).toHaveLength(1);
-    expect(sqlCalls('INSERT INTO email_notifications')).toHaveLength(3);
     expect(sql[0]).toContain('pg_advisory_xact_lock_shared(722, 1)');
+  });
+  // Parámetros de cada fila de los INSERT (10 por destinatario).
+  const insertedRows = () =>
+    sqlCalls('INSERT INTO email_notifications').flatMap(([, args]) =>
+      Array.from({ length: args.length / 10 }, (_, row) =>
+        args.slice(row * 10, row * 10 + 10),
+      ),
+    );
+  it('inserts every recipient of the event with a single INSERT (no N+1)', async () => {
+    await mail.withOutbox(manager, () =>
+      createFor('a@test.com', 'b@test.com', 'c@test.com'),
+    );
+    const inserts = sqlCalls('INSERT INTO email_notifications');
+    expect(inserts).toHaveLength(1);
+    const [sql, args] = inserts[0];
+    expect(args).toHaveLength(30);
+    // Cada fila revisa la pausa de su propia cuenta de envío.
+    expect(sql).toContain('account=$4)');
+    expect(sql).toContain('account=$14)');
+    expect(sql).toContain('account=$24)');
+    expect(sql).toContain('$30,');
+    expect(insertedRows().map((row) => row[2])).toEqual([
+      'a@test.com',
+      'b@test.com',
+      'c@test.com',
+    ]);
+    // Todos del mismo evento.
+    expect(new Set(insertedRows().map((row) => row[1])).size).toBe(1);
+  });
+  it('splits very large events in INSERTs of 500 recipients', async () => {
+    const emails = Array.from({ length: 501 }, (_, i) => `u${i}@test.com`);
+    await mail.withOutbox(manager, () => createFor(...emails));
+    expect(
+      sqlCalls('INSERT INTO email_notifications').map(
+        ([, args]) => args.length,
+      ),
+    ).toEqual([5000, 10]);
+    expect(insertedRows().map((row) => row[2])).toEqual(emails);
+  });
+  it('inserts nothing when the work fails or sends no mail', async () => {
+    await expect(
+      mail.withOutbox(manager, async () => {
+        await createFor('a@test.com');
+        throw new Error('falló el alta');
+      }),
+    ).rejects.toThrow('falló el alta');
+    await mail.withOutbox(manager, async () => undefined);
+    expect(sqlCalls('INSERT INTO email_notifications')).toHaveLength(0);
   });
   it('takes the blob lock again in each new event (transaction)', async () => {
     await mail.withOutbox(manager, () => createFor('a@test.com'));
@@ -95,9 +142,11 @@ describe('MailOutboxService', () => {
   });
   it('shares the rendered HTML between recipients but seals each one with its own address', async () => {
     await mail.withOutbox(manager, () => createFor('a@test.com', 'b@test.com'));
-    const payloads = sqlCalls('INSERT INTO email_notifications').map(
-      ([, args]) =>
-        unseal<{ to: string; html: string }>(args[7], encryptionKey('test')),
+    const payloads = insertedRows().map((args) =>
+      unseal<{ to: string; html: string }>(
+        args[7] as string,
+        encryptionKey('test'),
+      ),
     );
     expect(payloads.map(({ to }) => to)).toEqual(['a@test.com', 'b@test.com']);
     expect(payloads[1].html).toBe(payloads[0].html);
@@ -120,7 +169,7 @@ describe('MailOutboxService', () => {
     await mail.withOutbox(manager, () =>
       createFor('a@test.com', ' A@test.com '),
     );
-    expect(sqlCalls('INSERT INTO email_notifications')).toHaveLength(1);
+    expect(insertedRows()).toHaveLength(1);
   });
   it('without MAIL_OUTBOX_DIR stores blobs in var/mail-outbox/blobs', async () => {
     const previous = process.cwd();

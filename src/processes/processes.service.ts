@@ -1,6 +1,7 @@
 import { catalogIncludesInactive } from '../shared/utils/catalog-visibility.js';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { findActiveByPlantQualifiedNames } from '../shared/utils/plant-qualified-names.js';
 
 import { type FindManyOptions, ILike, In, Repository } from 'typeorm';
 import { findPaginated } from '../shared/utils/index.js';
@@ -106,35 +107,9 @@ export class ProcessesService {
     return processes;
   }
 
-  async findAllByManufacturingPlantNames(
-    names: string[],
-  ): Promise<Processes[]> {
-    const processes = [];
-
-    // Sin nombres no hay procesos (antes respondía 500 con undefined).
-    if (!names?.length) return processes;
-
-    for (let i = 0; i < names.length; i++) {
-      // "Planta - Proceso": el proceso puede tener " - " en su nombre.
-      const [manufacturingPlantName, ...rest] = names[i].split(' - ');
-      const processesName = rest.join(' - ');
-      const process = await this.processesRepository.findOne({
-        where: {
-          name: processesName,
-          isActive: true,
-          manufacturingPlant: {
-            name: manufacturingPlantName,
-            isActive: true,
-          },
-        },
-      });
-
-      if (process) {
-        processes.push(process);
-      }
-    }
-
-    return processes;
+  /** Procesos activos por "Planta - Proceso", en una sola consulta. */
+  findAllByManufacturingPlantNames(names: string[]): Promise<Processes[]> {
+    return findActiveByPlantQualifiedNames(this.processesRepository, names);
   }
 
   async update(

@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { Logger } from '@nestjs/common';
 import { createE2eApp, type E2eApp } from './e2e-app.js';
+import { countMatching, recordQueries } from './query-recorder.js';
 
 describe('HTTP hallazgos with the real transactional mail outbox', () => {
   let app: E2eApp, directory: string;
@@ -57,7 +58,12 @@ describe('HTTP hallazgos with the real transactional mail outbox', () => {
         'mail-test.png',
       );
   it('commits the real hallazgo and its deduplicated pending recipients without calling SMTP', async () => {
-    const response = await create().expect(201);
+    let response: Awaited<ReturnType<typeof create>>;
+    const queries = await recordQueries(async () => {
+      response = await create().expect(201);
+    });
+    // Todos los destinatarios en un INSERT (antes, uno por destinatario).
+    expect(countMatching(queries, /INSERT INTO email_notifications/)).toBe(1);
     const rows = await app.dataSource.query(
       'SELECT * FROM email_notifications WHERE evidence_id=$1',
       [response.body.id],

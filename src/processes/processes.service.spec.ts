@@ -123,22 +123,36 @@ describe('ProcessesService', () => {
   });
 
   describe('findAllByManufacturingPlantNames', () => {
-    it('busca cada "Planta - Proceso" (aunque el proceso tenga guiones)', async () => {
-      processes.findOne
-        .mockResolvedValueOnce(stored())
-        .mockResolvedValueOnce(null);
+    it('busca todos los "Planta - Proceso" en una consulta (aunque tengan guiones)', async () => {
+      processes.find.mockResolvedValue([
+        {
+          ...stored(),
+          name: 'Producción - Turno 1',
+          manufacturingPlant: { name: 'Tepotzotlán' },
+        },
+      ] as never);
 
       await expect(
         service.findAllByManufacturingPlantNames([
           'Tepotzotlán - Producción - Turno 1',
           'Manizales - No existe',
         ]),
-      ).resolves.toEqual([stored()]);
-      expect(processes.findOne.mock.calls[0][0].where).toEqual({
-        name: 'Producción - Turno 1',
-        isActive: true,
-        manufacturingPlant: { name: 'Tepotzotlán', isActive: true },
-      });
+      ).resolves.toEqual([
+        expect.not.objectContaining({ manufacturingPlant: expect.anything() }),
+      ]);
+      expect(processes.find).toHaveBeenCalledTimes(1);
+      expect(processes.find.mock.calls[0][0].where).toEqual([
+        {
+          name: 'Producción - Turno 1',
+          isActive: true,
+          manufacturingPlant: { name: 'Tepotzotlán', isActive: true },
+        },
+        {
+          name: 'No existe',
+          isActive: true,
+          manufacturingPlant: { name: 'Manizales', isActive: true },
+        },
+      ]);
     });
 
     it('sin nombres devuelve vacío (antes respondía 500 con undefined)', async () => {

@@ -5,8 +5,10 @@
  * README.md). Antes compartía archivo con autenticación (dos apps en el mismo
  * proceso).
  */
+import { Zone } from '../../src/zones/entities/zone.entity.js';
 import { createE2eApp, type E2eApp } from './e2e-app.js';
 import { TEST_PASSWORD } from './fixtures.js';
+import { countMatching, recordQueries } from './query-recorder.js';
 
 describe('E2E: usuarios', () => {
   let e2e: E2eApp;
@@ -83,6 +85,63 @@ describe('E2E: usuarios', () => {
       .call('post', '/auth/login')
       .send({ email: 'general@hallazgos.test', password: TEST_PASSWORD })
       .expect(201);
+  });
+
+  it('asignar muchas zonas y procesos los busca en una sola consulta (antes, dos por cada uno)', async () => {
+    const { tepotzotlan, manizales } = e2e.base.plants;
+    const extra = await e2e.dataSource.getRepository(Zone).save(
+      ['Comedor', 'Patio - Sur', 'Andén 3'].map((name) => ({
+        name,
+        manufacturingPlant: tepotzotlan,
+        createdBy: e2e.base.users.admin,
+      })),
+    );
+    const zoneNames = [
+      'Tepotzotlán - Pasillo norte',
+      ...extra.map(({ name }) => `Tepotzotlán - ${name}`),
+      `Manizales - Bodega`,
+      'Tepotzotlán - No existe',
+    ];
+    const supervisor = {
+      ...newUser,
+      email: 'muchas-zonas@hallazgos.test',
+      rule: 'Supervisor',
+      manufacturingPlantNames: [tepotzotlan.name, manizales.name],
+      zoneNames,
+      processNames: ['Tepotzotlán - Producción', 'Manizales - Calidad'],
+    };
+
+    let id: number;
+    const created = await recordQueries(async () => {
+      ({
+        body: { id },
+      } = await e2e
+        .call('post', '/users', e2e.tokens.admin)
+        .send(supervisor)
+        .expect(201));
+    });
+    const edited = await recordQueries(() =>
+      e2e
+        .call('patch', `/users/${id}`, e2e.tokens.admin)
+        .send({ ...supervisor, password: '', zoneNames: zoneNames.slice(2) })
+        .expect(200),
+    );
+
+    for (const queries of [created, edited]) {
+      expect(countMatching(queries, /FROM "zones" "Zone"/)).toBe(1);
+      expect(countMatching(queries, /FROM "processes" "Processes"/)).toBe(1);
+    }
+    const { body } = await e2e
+      .call('get', `/users/${id}`, e2e.tokens.admin)
+      .expect(200);
+    // La que no existe se omite, como antes.
+    expect(body.zones.map(({ name }) => name).sort()).toEqual(
+      ['Andén 3', 'Bodega', 'Patio - Sur'].sort(),
+    );
+    expect(body.processes.map(({ name }) => name).sort()).toEqual([
+      'Calidad',
+      'Producción',
+    ]);
   });
 
   it('lista ordenada solo por columnas permitidas', async () => {

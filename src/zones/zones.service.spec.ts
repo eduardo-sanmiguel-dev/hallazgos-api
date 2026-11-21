@@ -216,25 +216,48 @@ describe('ZonesService', () => {
     });
   });
 
-  it('findAllByManufacturingPlantNames separa "Planta - Zona" (con guiones en el nombre)', async () => {
-    zones.findOne
-      .mockResolvedValueOnce({ id: 1 } as Zone)
-      .mockResolvedValueOnce(null);
+  it('findAllByManufacturingPlantNames busca todas en una consulta (antes, dos por zona)', async () => {
+    const plant = { name: 'Tepotzotlán' };
+    zones.find.mockResolvedValue([
+      { id: 2, name: 'Comedor', manufacturingPlant: plant },
+      { id: 1, name: 'Pasillo - Norte', manufacturingPlant: plant },
+    ] as Zone[]);
 
     await expect(
       service.findAllByManufacturingPlantNames([
         'Tepotzotlán - Pasillo - Norte',
         'Manizales - No existe',
+        'Tepotzotlán - Comedor',
       ]),
-    ).resolves.toEqual([{ id: 1 }]);
-    expect(zones.findOne.mock.calls[0][0].where).toEqual({
-      name: 'Pasillo - Norte',
-      isActive: true,
-      manufacturingPlant: { name: 'Tepotzotlán', isActive: true },
+    ).resolves.toEqual([
+      { id: 1, name: 'Pasillo - Norte' },
+      { id: 2, name: 'Comedor' },
+    ]);
+    expect(zones.find).toHaveBeenCalledTimes(1);
+    expect(zones.find.mock.calls[0][0]).toEqual({
+      where: [
+        {
+          name: 'Pasillo - Norte',
+          isActive: true,
+          manufacturingPlant: { name: 'Tepotzotlán', isActive: true },
+        },
+        {
+          name: 'No existe',
+          isActive: true,
+          manufacturingPlant: { name: 'Manizales', isActive: true },
+        },
+        {
+          name: 'Comedor',
+          isActive: true,
+          manufacturingPlant: { name: 'Tepotzotlán', isActive: true },
+        },
+      ],
+      relations: { manufacturingPlant: true },
     });
     await expect(service.findAllByManufacturingPlantNames([])).resolves.toEqual(
       [],
     );
+    expect(zones.find).toHaveBeenCalledTimes(1);
   });
 
   describe('update', () => {

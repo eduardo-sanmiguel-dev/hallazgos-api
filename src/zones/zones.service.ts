@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { findActiveByPlantQualifiedNames } from '../shared/utils/plant-qualified-names.js';
 import { RequestContextService } from '../shared/services/request-context.service.js';
 
 import { type FindManyOptions, ILike, In, Repository } from 'typeorm';
@@ -158,30 +159,9 @@ export class ZonesService {
     return zone;
   }
 
-  async findAllByManufacturingPlantNames(names: string[]): Promise<Zone[]> {
-    const zones = [];
-
-    if (!names?.length) return zones;
-
-    for (let i = 0; i < names.length; i++) {
-      const [manufacturingPlantName, ...rest] = names[i].split(' - ');
-      const zone = await this.zoneRepository.findOne({
-        where: {
-          name: rest.join(' - '),
-          isActive: true,
-          manufacturingPlant: {
-            name: manufacturingPlantName,
-            isActive: true,
-          },
-        },
-      });
-
-      if (zone) {
-        zones.push(zone);
-      }
-    }
-
-    return zones;
+  /** Zonas activas por "Planta - Zona", en una sola consulta. */
+  findAllByManufacturingPlantNames(names: string[]): Promise<Zone[]> {
+    return findActiveByPlantQualifiedNames(this.zoneRepository, names);
   }
 
   async update(id: number, updateZoneDto: UpdateZoneDto): Promise<Zone> {

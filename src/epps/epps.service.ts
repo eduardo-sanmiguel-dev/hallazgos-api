@@ -17,6 +17,37 @@ import { buildFileNameTimestamp } from '../shared/utils/index.js';
 import { buildEppFileName } from './epp-file-name.js';
 import { plantDeliveryDate } from './epp-delivery-date.js';
 
+/**
+ * Si un equipo se puede entregar otra vez: sin entrega previa, sí; con ella,
+ * cuando ya pasaron `deliveryFrequency` días.
+ */
+const deliveryWindow = (
+  lastDeliveryDate: Date | undefined,
+  deliveryFrequency: number | null,
+) => {
+  if (!lastDeliveryDate) {
+    return { canDeliver: true, message: 'El equipo puede ser entregado.' };
+  }
+
+  const now = new Date();
+  const nextDeliveryDate = new Date(lastDeliveryDate);
+  nextDeliveryDate.setDate(
+    nextDeliveryDate.getDate() + (deliveryFrequency || 0),
+  );
+
+  if (now >= nextDeliveryDate) {
+    return { canDeliver: true, message: 'El equipo puede ser entregado.' };
+  }
+  const daysRemaining = Math.ceil(
+    (nextDeliveryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+  );
+
+  return {
+    canDeliver: false,
+    message: `El equipo no puede ser entregado. Faltan ${daysRemaining} día(s) para la próxima entrega.`,
+  };
+};
+
 @Injectable()
 export class EppsService {
   private readonly relations: string[] = [
@@ -62,14 +93,9 @@ export class EppsService {
     return In(this.requestContext.manufacturingPlantIds);
   }
 
-  async validateDeliveryFrequency(
-    equipmentId: number,
-    employeeId: number,
-    historyRepository = this.eppEquipmentRepository,
-    equipmentRepository = this.equipmentRepository,
-  ) {
+  async validateDeliveryFrequency(equipmentId: number, employeeId: number) {
     // Solo equipos de las plantas del usuario: uno ajeno responde 404.
-    const equipment = await equipmentRepository.findOne({
+    const equipment = await this.equipmentRepository.findOne({
       where: {
         id: equipmentId,
         isActive: true,
@@ -81,7 +107,7 @@ export class EppsService {
       throw new NotFoundException(`Equipo #${equipmentId} no encontrado.`);
     }
 
-    const lastEpp = await historyRepository.findOne({
+    const lastEpp = await this.eppEquipmentRepository.findOne({
       where: {
         equipment: { id: equipmentId },
         isActive: true,
@@ -95,27 +121,35 @@ export class EppsService {
       },
     });
 
-    if (!lastEpp) {
-      return { canDeliver: true, message: 'El equipo puede ser entregado.' };
-    }
+    return deliveryWindow(lastEpp?.deliveryDate, equipment.deliveryFrequency);
+  }
 
-    const now = new Date();
-    const deliveryFrequency = equipment.deliveryFrequency || 0;
-    const nextDeliveryDate = new Date(lastEpp.deliveryDate);
-    nextDeliveryDate.setDate(nextDeliveryDate.getDate() + deliveryFrequency);
-
-    if (now >= nextDeliveryDate) {
-      return { canDeliver: true, message: 'El equipo puede ser entregado.' };
-    } else {
-      const daysRemaining = Math.ceil(
-        (nextDeliveryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
-      );
-
-      return {
-        canDeliver: false,
-        message: `El equipo no puede ser entregado. Faltan ${daysRemaining} día(s) para la próxima entrega.`,
-      };
-    }
+  /**
+   * Fecha de la última entrega activa de cada equipo al empleado, en una sola
+   * consulta (antes, una por equipo). Solo historial del empleado.
+   */
+  private async lastDeliveries(
+    historyRepository: Repository<EppEquipment>,
+    equipmentIds: number[],
+    employeeId: number,
+  ) {
+    const last = new Map<number, Date>();
+    if (!equipmentIds.length) return last;
+    const history = await historyRepository.find({
+      select: { id: true, deliveryDate: true, equipment: { id: true } },
+      where: {
+        equipment: { id: In(equipmentIds) },
+        isActive: true,
+        epp: { employee: { id: employeeId }, isActive: true },
+      },
+      relations: { equipment: true },
+      order: { deliveryDate: 'DESC' },
+    });
+    // Ordenado de la más reciente a la más antigua: se queda la primera.
+    for (const { equipment, deliveryDate } of history)
+      if (!last.has(Number(equipment.id)))
+        last.set(Number(equipment.id), deliveryDate);
+    return last;
   }
 
   async create(createEppDto: CreateEppDto) {
@@ -154,16 +188,18 @@ export class EppsService {
           `Colaborador #${employeeId} no encontrado.`,
         );
 
-      const rows = [];
-      for (const equipment of equipments) {
-        const current = await equipmentRepository.findOne({
-          where: {
-            id: equipment.id,
-            isActive: true,
-            manufacturingPlant: { id: In(plantIds) },
-          },
-          relations: ['manufacturingPlant', 'manufacturingPlant.country'],
-        });
+      // Todos los equipos en una consulta (antes, varias por equipo).
+      const found = await equipmentRepository.find({
+        where: {
+          id: In(equipments.map(({ id }) => id)),
+          isActive: true,
+          manufacturingPlant: { id: In(plantIds) },
+        },
+        relations: ['manufacturingPlant', 'manufacturingPlant.country'],
+      });
+      const byId = new Map(found.map((item) => [Number(item.id), item]));
+      const selected = equipments.map((equipment) => {
+        const current = byId.get(Number(equipment.id));
         if (
           !current ||
           !employee.manufacturingPlants.some(
@@ -173,33 +209,38 @@ export class EppsService {
         ) {
           throw new NotFoundException(`Equipo #${equipment.id} no encontrado.`);
         }
-        const frequency = current.deliveryFrequency
-          ? await this.validateDeliveryFrequency(
-              equipment.id,
-              employeeId,
-              historyRepository,
-              equipmentRepository,
-            )
-          : null;
-        rows.push({
+        return { equipment, current };
+      });
+
+      // Frecuencia: solo los equipos que la tienen configurada.
+      const lastDelivery = await this.lastDeliveries(
+        historyRepository,
+        selected
+          .filter(({ current }) => current.deliveryFrequency)
+          .map(({ current }) => Number(current.id)),
+        employeeId,
+      );
+      const deliveredAt = new Date();
+      const epp = await eppRepository.save({ employee, signature, createBy });
+      // Un solo INSERT para todos los renglones.
+      await historyRepository.save(
+        selected.map(({ equipment, current }) => ({
           equipment: current,
           quantity: equipment.quantity,
           observations: equipment.observations,
-          ...(frequency && { outOfRangeDelivery: !frequency.canDeliver }),
-        });
-      }
-      const deliveredAt = new Date();
-      const epp = await eppRepository.save({ employee, signature, createBy });
-      for (const row of rows) {
-        await historyRepository.save({
-          ...row,
+          ...(current.deliveryFrequency && {
+            outOfRangeDelivery: !deliveryWindow(
+              lastDelivery.get(Number(current.id)),
+              current.deliveryFrequency,
+            ).canDeliver,
+          }),
           epp,
           deliveryDate: plantDeliveryDate(
             deliveredAt,
-            row.equipment.manufacturingPlant.country?.name,
+            current.manufacturingPlant.country?.name,
           ),
-        });
-      }
+        })),
+      );
       return { message: 'EPP created successfully' };
     });
   }

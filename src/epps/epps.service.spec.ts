@@ -180,20 +180,24 @@ describe('EppsService', () => {
     };
     const withFrequency = { id: 3, deliveryFrequency: 30 };
     const withoutFrequency = { id: 4, deliveryFrequency: null };
+    /** Renglones del único save del historial. */
+    const savedRows = () =>
+      eppEquipments.save.mock.calls[0][0] as unknown as Record<
+        string,
+        unknown
+      >[];
 
     beforeEach(() => {
       employees.findOne.mockResolvedValue({
         id: 7,
         manufacturingPlants: [{ id: 1 }],
       } as Employee);
-      equipments.findOne.mockImplementation(async ({ where }) => {
-        const { id } = where as { id: number };
-        const base = id === 3 ? withFrequency : withoutFrequency;
-        return {
+      equipments.find.mockResolvedValue(
+        [withFrequency, withoutFrequency].map((base) => ({
           ...base,
           manufacturingPlant: { id: 1, country: { name: 'Colombia' } },
-        } as never;
-      });
+        })) as never,
+      );
       epps.save.mockImplementation(
         async (epp) => ({ id: 50, ...epp }) as never,
       );
@@ -211,38 +215,86 @@ describe('EppsService', () => {
           createBy: expect.objectContaining({ id: user.id }),
         }),
       );
-      expect(eppEquipments.save).toHaveBeenCalledTimes(2);
-      expect(eppEquipments.save).toHaveBeenCalledWith(
+      // Un solo INSERT con todos los renglones (antes, uno por equipo).
+      expect(eppEquipments.save).toHaveBeenCalledTimes(1);
+      expect(savedRows()).toEqual([
         expect.objectContaining({
           quantity: 1,
           observations: 'talla M',
           equipment: expect.objectContaining({ id: 3 }),
           epp: expect.objectContaining({ id: 50 }),
         }),
+        expect.objectContaining({
+          quantity: 2,
+          equipment: expect.objectContaining({ id: 4 }),
+        }),
+      ]);
+    });
+
+    it('busca todos los equipos y sus últimas entregas en una consulta cada uno', async () => {
+      await as(() => service.create(dto));
+
+      expect(equipments.find).toHaveBeenCalledTimes(1);
+      const [{ where }] = equipments.find.mock.calls[0] as [
+        { where: { id: unknown; manufacturingPlant: { id: unknown } } },
+      ];
+      expect(operand(where.id)).toEqual([3, 4]);
+      expect(operand(where.manufacturingPlant.id)).toEqual([1]);
+      expect(equipments.findOne).not.toHaveBeenCalled();
+      // Historial solo de los equipos con frecuencia, del empleado.
+      expect(eppEquipments.find).toHaveBeenCalledTimes(1);
+      const [history] = eppEquipments.find.mock.calls[0] as [
+        {
+          where: {
+            equipment: { id: unknown };
+            epp: { employee: { id: number } };
+          };
+          order: object;
+        },
+      ];
+      expect(operand(history.where.equipment.id)).toEqual([3]);
+      expect(history.where.epp.employee.id).toBe(7);
+      expect(history.order).toEqual({ deliveryDate: 'DESC' });
+      expect(eppEquipments.findOne).not.toHaveBeenCalled();
+    });
+
+    it('sin equipos con frecuencia no consulta el historial', async () => {
+      equipments.find.mockResolvedValue([
+        {
+          ...withoutFrequency,
+          manufacturingPlant: { id: 1, country: { name: 'México' } },
+        },
+      ] as never);
+
+      await as(() =>
+        service.create({ ...dto, equipments: [dto.equipments[1]] }),
       );
+
+      expect(eppEquipments.find).not.toHaveBeenCalled();
+      expect(savedRows()).toHaveLength(1);
     });
 
     it('valida todos los equipos antes de guardar la cabecera', async () => {
-      equipments.findOne.mockImplementation(async ({ where }) =>
-        (where as { id: number }).id === 4
-          ? null
-          : ({
-              ...withFrequency,
-              manufacturingPlant: { id: 1, country: { name: 'México' } },
-            } as never),
-      );
+      equipments.find.mockResolvedValue([
+        {
+          ...withFrequency,
+          manufacturingPlant: { id: 1, country: { name: 'México' } },
+        },
+      ] as never);
       await expect(as(() => service.create(dto))).rejects.toThrow(
-        NotFoundException,
+        new NotFoundException('Equipo #4 no encontrado.'),
       );
       expect(epps.save).not.toHaveBeenCalled();
       expect(eppEquipments.save).not.toHaveBeenCalled();
     });
 
     it('no permite equipos de una planta del usuario que no corresponda al empleado', async () => {
-      equipments.findOne.mockResolvedValue({
-        id: 3,
-        manufacturingPlant: { id: 2, country: { name: 'Colombia' } },
-      } as Equipment);
+      equipments.find.mockResolvedValue([
+        {
+          id: 3,
+          manufacturingPlant: { id: 2, country: { name: 'Colombia' } },
+        },
+      ] as Equipment[]);
       await expect(as(() => service.create(dto))).rejects.toThrow(
         NotFoundException,
       );
@@ -258,22 +310,28 @@ describe('EppsService', () => {
     });
 
     it('marca fuera de rango la entrega de un equipo antes de su frecuencia', async () => {
-      eppEquipments.findOne.mockResolvedValue({
-        deliveryDate: new Date(Date.now() - 5 * DAY),
-      } as EppEquipment);
+      // Más reciente primero (order DESC): cuenta la de hace 5 días.
+      eppEquipments.find.mockResolvedValue([
+        { equipment: { id: 3 }, deliveryDate: new Date(Date.now() - 5 * DAY) },
+        { equipment: { id: 3 }, deliveryDate: new Date(Date.now() - 90 * DAY) },
+      ] as EppEquipment[]);
 
       await as(() => service.create(dto));
 
-      const rows = eppEquipments.save.mock.calls.map(([row]) => row);
+      const rows = savedRows();
       expect(rows[0]).toMatchObject({ outOfRangeDelivery: true });
       // Sin frecuencia no se valida: el campo queda sin definir.
       expect(rows[1].outOfRangeDelivery).toBeUndefined();
     });
 
     it('dentro de la frecuencia permitida no la marca', async () => {
+      eppEquipments.find.mockResolvedValue([
+        { equipment: { id: 3 }, deliveryDate: new Date(Date.now() - 40 * DAY) },
+      ] as EppEquipment[]);
+
       await as(() => service.create(dto));
 
-      expect(eppEquipments.save.mock.calls[0][0]).toMatchObject({
+      expect(savedRows()[0]).toMatchObject({
         outOfRangeDelivery: false,
       });
     });
@@ -281,9 +339,7 @@ describe('EppsService', () => {
     it('la fecha de entrega es el día local de la planta del equipo', async () => {
       await as(() => service.create(dto));
 
-      const { deliveryDate } = eppEquipments.save.mock.calls[0][0] as {
-        deliveryDate: Date;
-      };
+      const { deliveryDate } = savedRows()[0] as { deliveryDate: Date };
       expect(deliveryDate.getUTCHours()).toBe(0);
     });
 
@@ -315,7 +371,7 @@ describe('EppsService', () => {
     });
 
     it('un equipo de otra planta o inactivo responde 404 sin guardar', async () => {
-      equipments.findOne.mockResolvedValue(null);
+      equipments.find.mockResolvedValue([]);
 
       await expect(as(() => service.create(dto))).rejects.toThrow(
         new NotFoundException('Equipo #3 no encontrado.'),

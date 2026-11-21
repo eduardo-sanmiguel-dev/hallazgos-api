@@ -9,6 +9,7 @@ import {
 import { Equipment } from '../../src/equipments/entities/index.js';
 import { Genre } from '../../src/genres/entities/genre.entity.js';
 import { createE2eApp, type E2eApp } from './e2e-app.js';
+import { countMatching, recordQueries } from './query-recorder.js';
 
 // PNG de 1x1 como firma (data URL, como la manda el UI).
 const SIGNATURE =
@@ -142,6 +143,84 @@ describe('E2E: EPP y equipos', () => {
 
     expect(res.body.canDeliver).toBe(false);
     expect(res.body.message).toMatch(/Faltan \d+ día\(s\)/);
+  });
+
+  it('una entrega de varios equipos no consulta ni guarda uno por uno', async () => {
+    const repo = <T>(entity: new () => T) =>
+      e2e.dataSource.getRepository(entity);
+    const { tepotzotlan } = e2e.base.plants;
+    const other = await repo(Employee).save({
+      code: 789,
+      name: 'Eva Ruiz',
+      area: employee.area,
+      position: employee.position,
+      gender: employee.gender,
+      manufacturingPlants: [tepotzotlan],
+    });
+    const [lentes, botas] = await repo(Equipment).save([
+      {
+        name: 'Lentes',
+        deliveryFrequency: 60,
+        manufacturingPlant: tepotzotlan,
+        createdBy: e2e.base.users.admin,
+      },
+      {
+        name: 'Botas',
+        manufacturingPlant: tepotzotlan,
+        createdBy: e2e.base.users.admin,
+      },
+    ]);
+    await e2e
+      .call('post', '/epps', e2e.tokens.general)
+      .send(delivery(other.id, casco.id))
+      .expect(201);
+
+    const queries = await recordQueries(() =>
+      e2e
+        .call('post', '/epps', e2e.tokens.general)
+        .send({
+          employeeId: other.id,
+          signature: SIGNATURE,
+          equipments: [casco, lentes, botas].map(({ id }) => ({
+            id,
+            quantity: 1,
+            observations: '',
+          })),
+        })
+        .expect(201),
+    );
+
+    // Antes: 2 consultas por equipo, otras 2-3 por cada uno con frecuencia y
+    // un INSERT por renglón.
+    expect(countMatching(queries, /^INSERT INTO "epp_equipment"/)).toBe(1);
+    expect(countMatching(queries, /FROM "equipment"/)).toBe(1);
+    expect(countMatching(queries, /FROM "epp_equipment"/)).toBe(1);
+    // El casco se entregó hace un momento (frecuencia de 30 días): fuera de
+    // rango. Los lentes nunca se entregaron; las botas no tienen frecuencia.
+    const rows = await e2e.dataSource.query(
+      `SELECT h."equipmentId" AS id, h."outOfRangeDelivery" AS out
+         FROM epp_equipment h JOIN epp ON epp.id = h."eppId"
+        WHERE epp."employeeId" = $1 ORDER BY h.id`,
+      [other.id],
+    );
+    expect(rows).toEqual([
+      { id: casco.id, out: false },
+      { id: casco.id, out: true },
+      { id: lentes.id, out: false },
+      { id: botas.id, out: false },
+    ]);
+
+    // Fuera del resto del archivo: las listas esperan solo sus datos.
+    await e2e.dataSource.query(
+      `DELETE FROM epp_equipment WHERE "eppId" IN
+         (SELECT id FROM epp WHERE "employeeId" = $1)`,
+      [other.id],
+    );
+    await e2e.dataSource.query('DELETE FROM epp WHERE "employeeId" = $1', [
+      other.id,
+    ]);
+    await repo(Equipment).delete([lentes.id, botas.id]);
+    await repo(Employee).remove(other);
   });
 
   it('descarga el formato de EPP del empleado (Excel)', async () => {

@@ -7,6 +7,7 @@
  */
 import { binaryParser } from '../utils/index.js';
 import { createE2eApp, type E2eApp } from './e2e-app.js';
+import { countMatching, recordQueries } from './query-recorder.js';
 
 describe('E2E: inspecciones de extintores', () => {
   let e2e: E2eApp;
@@ -109,5 +110,44 @@ describe('E2E: inspecciones de extintores', () => {
       .call('get', '/extinguisher-inspections/9999', e2e.tokens.supervisor)
       .expect(404);
     await e2e.call('get', '/extinguisher-inspections').expect(401);
+  });
+
+  it('editar conserva el historial de evaluaciones y no actualiza una por una', async () => {
+    const created = await e2e
+      .call('post', '/extinguisher-inspections', e2e.tokens.supervisor)
+      .send({
+        manufacturingPlantId: 1,
+        evaluations: [1, 2, 3].map((n) =>
+          evaluation({ extinguisherNumber: `H-${n}` }),
+        ),
+      })
+      .expect(201);
+    const id = created.body.id;
+    const edit = (numbers: number[]) =>
+      e2e
+        .call('patch', `/extinguisher-inspections/${id}`, e2e.tokens.supervisor)
+        .send({
+          evaluations: numbers.map((n) =>
+            evaluation({ extinguisherNumber: `E-${n}` }),
+          ),
+        })
+        .expect(200);
+
+    await edit([1, 2]);
+    const queries = await recordQueries(() => edit([3, 4]));
+
+    // Las desactivadas siguen ligadas a su inspección (historial): 3 + 2 + 2.
+    const [{ total, active }] = await e2e.dataSource.query(
+      `SELECT count(*)::int AS total,
+              count(*) FILTER (WHERE "isActive")::int AS active
+         FROM extinguisher_inspection_evaluations
+        WHERE "extinguisherInspectionId" = $1`,
+      [id],
+    );
+    expect({ total, active }).toEqual({ total: 7, active: 2 });
+    // Antes: un UPDATE por cada evaluación ya guardada para "ligarla" otra vez.
+    expect(
+      countMatching(queries, /^UPDATE "extinguisher_inspection_evaluations"/i),
+    ).toBe(1);
   });
 });

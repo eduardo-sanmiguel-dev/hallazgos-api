@@ -343,7 +343,13 @@ export class ExtinguisherInspectionsService {
           { updatedAt: new Date() },
         );
 
-        await inspectionRepository.save(updatedExtinguisherInspection);
+        // Sin `evaluations` (se cargan solo las activas): con ellas, TypeORM
+        // volvía a ligar cada una con un UPDATE (N+1) y desligaba el
+        // historial (las inactivas quedaban con extinguisherInspectionId NULL).
+        // Las evaluaciones se reemplazan abajo.
+        const { evaluations: _loaded, ...inspection } =
+          updatedExtinguisherInspection;
+        await inspectionRepository.save(inspection);
 
         if (evaluations) {
           await evaluationRepository
