@@ -36,6 +36,7 @@ import {
   mockProvider,
   type RepositoryMock,
   runAsUser,
+  spanRecorder,
 } from '../../test/utils/index.js';
 import { MailService } from '../mail/mail.service.js';
 import { MainTypesService } from '../main-types/main-types.service.js';
@@ -1934,6 +1935,24 @@ describe('EvidencesService', () => {
         const { file } = await downloadXlsx();
 
         expect(file.subarray(0, 2).toString()).toBe('PK');
+      });
+
+      it('traza el armado del Excel con las filas exportadas', async () => {
+        const recorder = spanRecorder();
+        recorder.install();
+        try {
+          await downloadXlsx();
+        } finally {
+          recorder.uninstall();
+        }
+
+        expect(recorder.spans).toEqual([
+          expect.objectContaining({
+            name: 'excel.build',
+            attributes: { 'excel.rows': 1 },
+            ended: true,
+          }),
+        ]);
       });
 
       it('trae los datos en una sola consulta y filtra la columna de responsables', async () => {

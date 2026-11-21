@@ -4,6 +4,8 @@ import { mkdir, rename, stat, unlink } from 'fs/promises';
 import { join } from 'path';
 import sharp, { type Sharp } from 'sharp';
 
+import { traced } from '../shared/tracing/traced.js';
+
 /**
  * Variantes AVIF y WebP de las fotos de evidencias e ICS.
  *
@@ -104,26 +106,36 @@ export class ImageVariantCache {
   ): Promise<string | null> {
     if (await isFile(target)) return target;
     if (this.failed.has(target)) return null;
-    await this.acquire();
-    // Nombre temporal propio: PM2 corre dos instancias y la otra puede estar
-    // generando la misma variante; rename deja el archivo completo o nada.
-    const temporary = `${target}.${randomUUID()}.tmp`;
-    try {
-      await mkdir(imageVariantsDir(), { recursive: true });
-      // rotate(): aplica la orientación EXIF, que la variante no conserva.
-      await encode(sharp(source).rotate(), format).toFile(temporary);
-      await rename(temporary, target);
-      return target;
-    } catch (error) {
-      await unlink(temporary).catch(() => undefined);
-      this.failed.add(target);
-      this.logger.warn(
-        `No se pudo generar la variante ${format} de ${source}: ${String(error)}`,
+    // Span solo cuando hay que convertir: la espera por un lugar libre
+    // (MAX_CONVERSIONS) va aparte del tiempo de sharp.
+    return traced('image.variant', { 'image.format': format }, async (span) => {
+      const queuedAt = performance.now();
+      await this.acquire();
+      span.setAttribute(
+        'image.queue_ms',
+        Math.round(performance.now() - queuedAt),
       );
-      return null;
-    } finally {
-      this.release();
-    }
+      // Nombre temporal propio: PM2 corre dos instancias y la otra puede estar
+      // generando la misma variante; rename deja el archivo completo o nada.
+      const temporary = `${target}.${randomUUID()}.tmp`;
+      try {
+        await mkdir(imageVariantsDir(), { recursive: true });
+        // rotate(): aplica la orientación EXIF, que la variante no conserva.
+        await encode(sharp(source).rotate(), format).toFile(temporary);
+        await rename(temporary, target);
+        return target;
+      } catch (error) {
+        await unlink(temporary).catch(() => undefined);
+        this.failed.add(target);
+        span.setAttribute('image.failed', true);
+        this.logger.warn(
+          `No se pudo generar la variante ${format} de ${source}: ${String(error)}`,
+        );
+        return null;
+      } finally {
+        this.release();
+      }
+    });
   }
 
   private acquire() {

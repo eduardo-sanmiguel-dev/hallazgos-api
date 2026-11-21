@@ -87,6 +87,7 @@ import {
   hasSupervisorOverride,
 } from './evidence-permissions.js';
 import { buildFindOrder } from '../shared/utils/sort.js';
+import { traced } from '../shared/tracing/traced.js';
 import {
   EVIDENCE_DEFAULT_SORT,
   EVIDENCE_SORT_COLUMNS,
@@ -1160,56 +1161,60 @@ export class EvidencesService {
     interrupted.catch(() => undefined);
 
     try {
-      const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({
-        stream: res,
-        useStyles: true,
-        useSharedStrings: true,
-      });
-
-      const sheet = workbook.addWorksheet('Hallazgos');
-      sheet.columns = headers.map(({ header }) => ({
-        width: Math.max(20, header.length + 4),
-      }));
-      const headerRow = sheet.addRow(headers.map(({ header }) => header));
-      headerRow.eachCell((cell) => {
-        cell.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: 'FF71BF44' },
-        };
-        cell.alignment = { horizontal: 'right' };
-      });
-      headerRow.commit();
-
-      for (const row of rows) {
-        const excelRow = sheet.addRow(
-          headers.map(({ key, isDate }) => cellValue(row, key, isDate)),
-        );
-        excelRow.alignment = { horizontal: 'right' };
-        headers.forEach(({ isDate }, index) => {
-          if (isDate) excelRow.getCell(index + 1).numFmt = EXCEL_DATE_FORMAT;
+      // Va escribiendo en la respuesta: el span incluye lo que tarda el
+      // cliente en recibirlo.
+      await traced('excel.build', { 'excel.rows': rows.length }, async () => {
+        const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({
+          stream: res,
+          useStyles: true,
+          useSharedStrings: true,
         });
-        excelRow.commit();
-      }
-      sheet.commit();
 
-      const filtersSheet = workbook.addWorksheet('Filtros', {
-        views: [{ state: 'frozen', ySplit: 1 }],
-      });
-      filtersSheet.columns = [0, 1].map((col) => ({
-        width:
-          Math.max(...filtersRows.map((row) => String(row[col]).length)) + 2,
-      }));
-      filtersRows.forEach(([field, value], index) => {
-        const excelRow = filtersSheet.addRow([field, value]);
-        excelRow.getCell(1).font = { bold: true };
-        excelRow.getCell(2).font = { bold: index === 0 };
-        excelRow.getCell(2).alignment = { horizontal: 'left' };
-        excelRow.commit();
-      });
-      filtersSheet.commit();
+        const sheet = workbook.addWorksheet('Hallazgos');
+        sheet.columns = headers.map(({ header }) => ({
+          width: Math.max(20, header.length + 4),
+        }));
+        const headerRow = sheet.addRow(headers.map(({ header }) => header));
+        headerRow.eachCell((cell) => {
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FF71BF44' },
+          };
+          cell.alignment = { horizontal: 'right' };
+        });
+        headerRow.commit();
 
-      await Promise.race([workbook.commit(), interrupted]);
+        for (const row of rows) {
+          const excelRow = sheet.addRow(
+            headers.map(({ key, isDate }) => cellValue(row, key, isDate)),
+          );
+          excelRow.alignment = { horizontal: 'right' };
+          headers.forEach(({ isDate }, index) => {
+            if (isDate) excelRow.getCell(index + 1).numFmt = EXCEL_DATE_FORMAT;
+          });
+          excelRow.commit();
+        }
+        sheet.commit();
+
+        const filtersSheet = workbook.addWorksheet('Filtros', {
+          views: [{ state: 'frozen', ySplit: 1 }],
+        });
+        filtersSheet.columns = [0, 1].map((col) => ({
+          width:
+            Math.max(...filtersRows.map((row) => String(row[col]).length)) + 2,
+        }));
+        filtersRows.forEach(([field, value], index) => {
+          const excelRow = filtersSheet.addRow([field, value]);
+          excelRow.getCell(1).font = { bold: true };
+          excelRow.getCell(2).font = { bold: index === 0 };
+          excelRow.getCell(2).alignment = { horizontal: 'left' };
+          excelRow.commit();
+        });
+        filtersSheet.commit();
+
+        await Promise.race([workbook.commit(), interrupted]);
+      });
     } catch (error) {
       // Los encabezados ya salieron: no se puede responder un error JSON.
       this.logger.error(

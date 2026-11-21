@@ -124,5 +124,10 @@ pnpm test:db       # si cambió SQL, una migración o una transacción
   invalida con cada escritura de TypeORM; una escritura con SQL crudo
   (`manager.query`) **no** lo invalida. Solo se cachea lo que no depende del
   usuario, o con lo que sí en la llave (`cacheScope()` del dashboard).
+- **Trazas (OpenTelemetry → OpenObserve, solo producción):** HTTP, Express y
+  SQL se trazan solos. Trabajo pesado dentro de Node (imágenes, PDF, Excel,
+  correos, archivos) va en `traced()` de `src/shared/tracing` para que una
+  petición lenta muestre dónde se fue el tiempo; subidas con
+  `TracedFileInterceptor` en vez de `FileInterceptor`.
 - Las skills de `.claude/skills` y `.agents/skills` son genéricas; este archivo
   manda sobre ellas.

@@ -1,4 +1,3 @@
-import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ImageFileValidationPipe,
   imageUploadOptions,
@@ -20,6 +19,7 @@ import {
 import { CreateIcsDto, FiltersIcsDto, UpdateIcsDto } from './dto/index.js';
 import { IcsService } from './ics.service.js';
 import { withDefaultPage } from '../shared/dto/pagination.decorators.js';
+import { TracedFileInterceptor } from '../shared/interceptors/traced-file.interceptor.js';
 
 // Archivo subido como `Express.Multer.File | undefined`: puede faltar y, con
 // la unión, los metadatos del decorador emiten Object directo (sin una
@@ -30,7 +30,9 @@ export class IcsController {
 
   @Post()
   @Idempotent()
-  @UseInterceptors(FileInterceptor('file', imageUploadOptions('evidence')))
+  @UseInterceptors(
+    TracedFileInterceptor('file', imageUploadOptions('evidence')),
+  )
   create(
     @Body() createIcsDto: CreateIcsDto,
     @UploadedFile(ImageFileValidationPipe)

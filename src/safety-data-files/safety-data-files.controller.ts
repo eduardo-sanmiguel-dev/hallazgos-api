@@ -13,7 +13,6 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 
 import type { Response } from 'express';
 import { basename } from 'path';
@@ -24,6 +23,7 @@ import { QuerySafetyDataFileDto } from './dto/index.js';
 import { hdsUploadOptions, PdfFileValidationPipe } from './hds-upload.js';
 import { SafetyDataFilesService } from './safety-data-files.service.js';
 import { withDefaultPage } from '../shared/dto/pagination.decorators.js';
+import { TracedFileInterceptor } from '../shared/interceptors/traced-file.interceptor.js';
 
 // Archivo subido como `Express.Multer.File | undefined`: puede faltar y, con
 // la unión, los metadatos del decorador emiten Object directo (sin una
@@ -45,7 +45,7 @@ export class SafetyDataFilesController {
   /** Sube una HDS nueva (PDF, campo `file`); el nombre es el del archivo. */
   @Post()
   @UseGuards(AdminGuard)
-  @UseInterceptors(FileInterceptor('file', hdsUploadOptions()))
+  @UseInterceptors(TracedFileInterceptor('file', hdsUploadOptions()))
   upload(
     @UploadedFile(PdfFileValidationPipe) file: Express.Multer.File | undefined,
   ) {
@@ -55,7 +55,7 @@ export class SafetyDataFilesController {
   /** Reemplaza el PDF de una HDS existente. */
   @Put(':id/file')
   @UseGuards(AdminGuard)
-  @UseInterceptors(FileInterceptor('file', hdsUploadOptions()))
+  @UseInterceptors(TracedFileInterceptor('file', hdsUploadOptions()))
   replace(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile(PdfFileValidationPipe) file: Express.Multer.File | undefined,

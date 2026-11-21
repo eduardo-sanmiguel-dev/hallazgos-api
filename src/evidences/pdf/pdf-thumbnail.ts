@@ -1,5 +1,7 @@
 import sharp from 'sharp';
 
+import { traced } from '../../shared/tracing/traced.js';
+
 /**
  * Miniaturas JPG para las celdas de imagen de los PDF (50×50 pt).
  *
@@ -42,16 +44,18 @@ const pdfThumbnail = async (file: string) => {
  * Miniaturas de varias imágenes, en el mismo orden, con concurrencia
  * limitada. Cada archivo distinto se procesa una sola vez.
  */
-export const pdfThumbnails = async (files: (string | null)[]) => {
+export const pdfThumbnails = (files: (string | null)[]) => {
   const unique = [...new Set(files.filter(Boolean))];
-  const thumbnails = new Map<string, string | null>();
-  let next = 0;
-  const lane = async () => {
-    while (next < unique.length) {
-      const file = unique[next++];
-      thumbnails.set(file, await pdfThumbnail(file));
-    }
-  };
-  await Promise.all(Array.from({ length: MAX_CONCURRENT }, lane));
-  return files.map((file) => (file ? thumbnails.get(file) : null));
+  return traced('pdf.thumbnails', { 'pdf.images': unique.length }, async () => {
+    const thumbnails = new Map<string, string | null>();
+    let next = 0;
+    const lane = async () => {
+      while (next < unique.length) {
+        const file = unique[next++];
+        thumbnails.set(file, await pdfThumbnail(file));
+      }
+    };
+    await Promise.all(Array.from({ length: MAX_CONCURRENT }, lane));
+    return files.map((file) => (file ? thumbnails.get(file) : null));
+  });
 };

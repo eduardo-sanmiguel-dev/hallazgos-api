@@ -4,6 +4,7 @@ import fsPromises from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import sharp from 'sharp';
+import { spanRecorder } from '../../test/utils/index.js';
 import {
   ImageVariantCache,
   imageVariantsDir,
@@ -106,6 +107,44 @@ describe('ImageVariantCache', () => {
       expect(rename).toHaveBeenCalledTimes(1);
     },
   );
+
+  describe('traza de la conversión', () => {
+    const recorder = spanRecorder();
+    beforeAll(() => recorder.install());
+    afterAll(() => recorder.uninstall());
+    beforeEach(() => recorder.reset());
+
+    it('un span por conversión, con el formato y la espera en cola', async () => {
+      const source = await savePhoto('traza.png');
+
+      await cache.resolve(source, 'traza.png', 'webp');
+      // Ya guardada: no hay conversión ni span.
+      await cache.resolve(source, 'traza.png', 'webp');
+
+      expect(recorder.spans).toEqual([
+        expect.objectContaining({
+          name: 'image.variant',
+          attributes: {
+            'image.format': 'webp',
+            'image.queue_ms': expect.any(Number),
+          },
+          ended: true,
+        }),
+      ]);
+    });
+
+    it('una conversión fallida lo marca en el span', async () => {
+      jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+      const source = join(originals, 'rota.png');
+      writeFileSync(source, 'no es una imagen');
+
+      await cache.resolve(source, 'rota.png', 'avif');
+
+      expect(recorder.spans[0].attributes).toMatchObject({
+        'image.failed': true,
+      });
+    });
+  });
 
   it('aplica la orientación EXIF del original', async () => {
     const source = join(originals, 'girada.jpg');

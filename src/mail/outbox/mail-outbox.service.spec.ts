@@ -8,7 +8,11 @@ import { join } from 'node:path';
 import { MailOutboxService } from './mail-outbox.service.js';
 import { MailService } from '../mail.service.js';
 import { encryptionKey, unseal } from './mail-payload.js';
-import { buildEvidence, buildUser } from '../../../test/utils/index.js';
+import {
+  buildEvidence,
+  buildUser,
+  spanRecorder,
+} from '../../../test/utils/index.js';
 
 describe('MailOutboxService', () => {
   let directory: string,
@@ -151,6 +155,25 @@ describe('MailOutboxService', () => {
     expect(payloads.map(({ to }) => to)).toEqual(['a@test.com', 'b@test.com']);
     expect(payloads[1].html).toBe(payloads[0].html);
     expect(payloads[0].html).toContain('Hallazgo');
+  });
+  it('traces the freezing of each recipient with its template', async () => {
+    const recorder = spanRecorder();
+    recorder.install();
+    try {
+      await mail.withOutbox(manager, () =>
+        createFor('a@test.com', 'b@test.com'),
+      );
+    } finally {
+      recorder.uninstall();
+    }
+    expect(recorder.spans).toEqual([
+      expect.objectContaining({
+        name: 'mail.freeze',
+        attributes: { 'mail.template': './create' },
+        ended: true,
+      }),
+      expect.objectContaining({ name: 'mail.freeze', ended: true }),
+    ]);
   });
   it('serializes password requests and cancels superseded pending ones', async () => {
     await mail.sendForgotPassword('person@test.com', 'secret-token', 7);

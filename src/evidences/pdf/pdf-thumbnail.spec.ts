@@ -3,6 +3,7 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import sharp from 'sharp';
 
+import { spanRecorder } from '../../../test/utils/index.js';
 import { pdfThumbnails } from './pdf-thumbnail.js';
 
 const decode = (uri: string) =>
@@ -55,6 +56,8 @@ describe('pdfThumbnails', () => {
   });
 
   it('respeta el orden, repite las iguales y devuelve null sin archivo o si no es imagen', async () => {
+    const recorder = spanRecorder();
+    recorder.install();
     const result = await pdfThumbnails([
       file('foto.jpg'),
       null,
@@ -68,6 +71,15 @@ describe('pdfThumbnails', () => {
     expect(result.slice(1, 4)).toEqual([null, null, null]);
     expect(result[4]).toBe(result[0]);
     expect(result[5]).toMatch(/^data:image\/jpeg;base64,/);
+    // Un span para todas, con las imágenes distintas que procesó.
+    recorder.uninstall();
+    expect(recorder.spans).toEqual([
+      expect.objectContaining({
+        name: 'pdf.thumbnails',
+        attributes: { 'pdf.images': 4 },
+        ended: true,
+      }),
+    ]);
   });
 
   it('sin imágenes no hace nada', async () => {

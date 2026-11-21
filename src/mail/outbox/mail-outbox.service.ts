@@ -4,6 +4,7 @@ import { DataSource, type EntityManager } from 'typeorm';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomUUID } from 'node:crypto';
 import type { ISendMailOptions } from '@nestjs-modules/mailer';
+import { traced } from '../../shared/tracing/traced.js';
 import { encryptionKey, freezeMail, seal } from './mail-payload.js';
 
 type Capture = {
@@ -122,11 +123,18 @@ export class MailOutboxService {
       'SELECT pg_advisory_xact_lock_shared(722, 1)',
     );
     await ctx.blobLock;
-    const frozen = await freezeMail(
-      options,
-      this.config.get<string>('MAIL_OUTBOX_DIR') || 'var/mail-outbox/blobs',
-      ctx.attachments,
-      ctx.rendered,
+    // Render (una vez por evento) y adjuntos congelados: trabajo dentro de
+    // Node que no se ve como SQL en la traza.
+    const frozen = await traced(
+      'mail.freeze',
+      { 'mail.template': String(options.template) },
+      () =>
+        freezeMail(
+          options,
+          this.config.get<string>('MAIL_OUTBOX_DIR') || 'var/mail-outbox/blobs',
+          ctx.attachments,
+          ctx.rendered,
+        ),
     );
     frozen.messageId = `<${id}@comportarte.com>`;
     // Se guarda al terminar la captura (insertRows), junto con los demás.

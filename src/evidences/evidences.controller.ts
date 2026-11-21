@@ -11,7 +11,6 @@ import {
   Query,
   Res,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ImageFileValidationPipe,
   imageUploadOptions,
@@ -30,6 +29,7 @@ import {
   UpdateEvidenceDto,
 } from './dto/index.js';
 import { withDefaultPage } from '../shared/dto/pagination.decorators.js';
+import { TracedFileInterceptor } from '../shared/interceptors/traced-file.interceptor.js';
 
 // Archivo subido como `Express.Multer.File | undefined`: puede faltar y, con
 // la unión, los metadatos del decorador emiten Object directo (sin una
@@ -40,7 +40,9 @@ export class EvidencesController {
 
   @Post()
   @Idempotent()
-  @UseInterceptors(FileInterceptor('file', imageUploadOptions('evidence')))
+  @UseInterceptors(
+    TracedFileInterceptor('file', imageUploadOptions('evidence')),
+  )
   create(
     @Body() createEvidenceDto: CreateEvidenceDto,
     @UploadedFile(ImageFileValidationPipe)
@@ -51,7 +53,9 @@ export class EvidencesController {
 
   @Post('/solution/:id')
   @Idempotent()
-  @UseInterceptors(FileInterceptor('file', imageUploadOptions('solution')))
+  @UseInterceptors(
+    TracedFileInterceptor('file', imageUploadOptions('solution')),
+  )
   saveSolution(
     @UploadedFile(ImageFileValidationPipe)
     file: Express.Multer.File | undefined,
@@ -63,7 +67,7 @@ export class EvidencesController {
 
   @Post('/process/:id')
   @Idempotent()
-  @UseInterceptors(FileInterceptor('file', imageUploadOptions('process')))
+  @UseInterceptors(TracedFileInterceptor('file', imageUploadOptions('process')))
   saveProcessStart(
     @UploadedFile(ImageFileValidationPipe)
     file: Express.Multer.File | undefined,

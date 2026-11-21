@@ -1,5 +1,6 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 
+import { spanRecorder } from '../../../test/utils/index.js';
 import { ERROR_CODES } from '../../shared/errors/error-codes.js';
 import {
   PDF_BUSY_MESSAGE,
@@ -9,8 +10,14 @@ import {
 // Usa el hilo real (render-pdf.worker.mjs) con pdfmake.
 describe('PdfRendererService', () => {
   let renderer: PdfRendererService;
+  const recorder = spanRecorder();
 
-  beforeEach(() => (renderer = new PdfRendererService()));
+  beforeAll(() => recorder.install());
+  afterAll(() => recorder.uninstall());
+  beforeEach(() => {
+    recorder.reset();
+    renderer = new PdfRendererService();
+  });
   afterEach(() => renderer.onModuleDestroy());
 
   it('arma el PDF en un hilo y lo devuelve como Buffer', async () => {
@@ -18,6 +25,13 @@ describe('PdfRendererService', () => {
 
     expect(Buffer.isBuffer(pdf)).toBe(true);
     expect(pdf.subarray(0, 4).toString()).toBe('%PDF');
+    expect(recorder.spans).toEqual([
+      expect.objectContaining({
+        name: 'pdf.render',
+        attributes: { 'pdf.queued': 0, 'pdf.bytes': pdf.length },
+        ended: true,
+      }),
+    ]);
   });
 
   it('pdfmake no descarga URLs ni lee archivos fuera de sus fuentes', async () => {
@@ -49,5 +63,10 @@ describe('PdfRendererService', () => {
       code: ERROR_CODES.tooManyRequests,
     });
     await expect(Promise.all(accepted)).resolves.toHaveLength(5);
+    // El rechazado vio la cola llena y quedó como error en su span.
+    expect(recorder.spans.map((span) => span.attributes['pdf.queued'])).toEqual(
+      [0, 0, 1, 2, 3, 4],
+    );
+    expect(recorder.spans[5].status?.message).toBe(PDF_BUSY_MESSAGE);
   });
 });

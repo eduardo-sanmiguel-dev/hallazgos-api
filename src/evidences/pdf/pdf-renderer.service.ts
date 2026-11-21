@@ -11,6 +11,7 @@ import {
   WorkerPool,
   WorkerPoolBusyError,
 } from '../../shared/utils/worker-pool.js';
+import { traced } from '../../shared/tracing/traced.js';
 
 /**
  * Hilo de pdfmake por proceso. Producción corre dos procesos (PM2): dos PDF a
@@ -40,17 +41,27 @@ export class PdfRendererService implements OnModuleDestroy {
     },
   );
 
-  async render(docDefinition: TDocumentDefinitions): Promise<Buffer> {
-    try {
-      return Buffer.from(await this.pool.run(docDefinition));
-    } catch (error) {
-      if (error instanceof WorkerPoolBusyError)
-        throw new HttpException(
-          apiError(PDF_BUSY_MESSAGE, ERROR_CODES.tooManyRequests),
-          HttpStatus.TOO_MANY_REQUESTS,
-        );
-      throw error;
-    }
+  // pdf.queued: PDF que ya esperaban; con el hilo ocupado, parte del tiempo
+  // del span es espera y no armado.
+  render(docDefinition: TDocumentDefinitions): Promise<Buffer> {
+    return traced(
+      'pdf.render',
+      { 'pdf.queued': this.pool.queued },
+      async (span) => {
+        try {
+          const pdf = Buffer.from(await this.pool.run(docDefinition));
+          span.setAttribute('pdf.bytes', pdf.length);
+          return pdf;
+        } catch (error) {
+          if (error instanceof WorkerPoolBusyError)
+            throw new HttpException(
+              apiError(PDF_BUSY_MESSAGE, ERROR_CODES.tooManyRequests),
+              HttpStatus.TOO_MANY_REQUESTS,
+            );
+          throw error;
+        }
+      },
+    );
   }
 
   onModuleDestroy() {
