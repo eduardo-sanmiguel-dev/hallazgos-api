@@ -11,6 +11,8 @@ import { DataSource } from 'typeorm';
 
 import { registerEvidenceImageAccess } from '../../src/evidences/evidence-image-access.middleware.js';
 import { httpCacheHeaders } from '../../src/shared/middlewares/http-cache.middleware.js';
+import { timingAllowOrigin } from '../../src/shared/middlewares/timing-allow-origin.middleware.js';
+import { corsOptions } from '../../src/config/cors.config.js';
 import { AppModule } from '../../src/app.module.js';
 import { MailService } from '../../src/mail/mail.service.js';
 import {
@@ -77,6 +79,8 @@ export const createE2eApp = async (
   const app: INestApplication = moduleRef.createNestApplication();
   app.useGlobalPipes(createValidationPipe());
   // Igual que main.ts.
+  app.enableCors(corsOptions(UI_ORIGIN()));
+  app.use(timingAllowOrigin(UI_ORIGIN()));
   app.use(httpCacheHeaders);
   app.use(cookieParser());
   registerEvidenceImageAccess(app);

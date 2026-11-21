@@ -15,6 +15,8 @@ import { ApiExceptionFilter } from './shared/filters/api-exception.filter.js';
 import { notifyProcessReady } from './shared/utils/process-ready.js';
 import { httpAccessLog } from './shared/middlewares/http-access-log.middleware.js';
 import { httpCacheHeaders } from './shared/middlewares/http-cache.middleware.js';
+import { timingAllowOrigin } from './shared/middlewares/timing-allow-origin.middleware.js';
+import { corsOptions } from './config/cors.config.js';
 import {
   createOpenObserveLogger,
   type ObserveConfig,
@@ -44,13 +46,10 @@ async function bootstrap() {
   // enviado desde fuera no se toma en cuenta (no viene de loopback).
   app.set('trust proxy', 'loopback');
 
-  app.enableCors({
-    origin: configService.get<string>('frontendUrl') || 'http://localhost:3000',
-    credentials: true,
-    // El front lee el nombre del archivo de las descargas y si un envío ya
-    // se había procesado (reintento con la misma clave de idempotencia).
-    exposedHeaders: ['Content-Disposition', 'Idempotent-Replayed'],
-  });
+  const frontendUrl =
+    configService.get<string>('frontendUrl') || 'http://localhost:3000';
+  app.enableCors(corsOptions(frontendUrl));
+  app.use(timingAllowOrigin(frontendUrl));
 
   // Cabeceras de seguridad. La API solo responde JSON y archivos, así que no
   // necesita CSP, y el front (otro origen) carga imágenes y PDFs de aquí:
