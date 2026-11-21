@@ -24,6 +24,11 @@ export const JoiValidationSchema = Joi.object({
     .uri({ scheme: ['redis', 'rediss'] })
     .optional(),
   MAIL_OUTBOX_DIR: Joi.string().optional(),
+  // Redis del caché de catálogos y dashboard (otro que el de correos). Sin él,
+  // todo se consulta en la base.
+  CACHE_REDIS_URL: Joi.string()
+    .uri({ scheme: ['redis', 'rediss'] })
+    .optional(),
   MAIL_HOST: Joi.string().required(),
   MAIL_USER: Joi.string().email().required(),
   MAIL_PASSWORD: Joi.string().required(),

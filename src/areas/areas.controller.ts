@@ -13,10 +13,15 @@ import {
 
 import { CreateAreaDto, QueryAreaDto, UpdateAreaDto } from './dto/index.js';
 import { AreasService } from './areas.service.js';
+import { CacheService } from '../shared/cache/cache.service.js';
+import { cachedCatalog } from '../shared/cache/cached-catalog.js';
 
 @Controller('areas')
 export class AreasController {
-  constructor(private readonly areasService: AreasService) {}
+  constructor(
+    private readonly areasService: AreasService,
+    private readonly cache: CacheService,
+  ) {}
 
   @Post()
   @UseGuards(AdminGuard)
@@ -26,7 +31,10 @@ export class AreasController {
 
   @Get()
   findAll(@Query() queryAreaDto: QueryAreaDto) {
-    return this.areasService.findAll(queryAreaDto);
+    // Igual para todos los usuarios: caché compartido (ver cachedCatalog).
+    return cachedCatalog(this.cache, 'areas', queryAreaDto, () =>
+      this.areasService.findAll(queryAreaDto),
+    );
   }
 
   @Get(':id')

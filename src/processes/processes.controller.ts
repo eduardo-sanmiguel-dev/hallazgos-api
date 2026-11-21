@@ -17,10 +17,15 @@ import {
   QueryProcessesDto,
   UpdateProcessesDto,
 } from './dto/index.js';
+import { CacheService } from '../shared/cache/cache.service.js';
+import { cachedCatalog } from '../shared/cache/cached-catalog.js';
 
 @Controller('Processes')
 export class ProcessesController {
-  constructor(private readonly processesService: ProcessesService) {}
+  constructor(
+    private readonly processesService: ProcessesService,
+    private readonly cache: CacheService,
+  ) {}
 
   @Post()
   @UseGuards(AdminGuard)
@@ -30,7 +35,10 @@ export class ProcessesController {
 
   @Get()
   findAll(@Query() queryProcessesDto: QueryProcessesDto) {
-    return this.processesService.findAll(queryProcessesDto);
+    // Igual para todos los usuarios: caché compartido (ver cachedCatalog).
+    return cachedCatalog(this.cache, 'processes', queryProcessesDto, () =>
+      this.processesService.findAll(queryProcessesDto),
+    );
   }
 
   @Get(':id')

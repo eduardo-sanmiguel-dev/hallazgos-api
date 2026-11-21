@@ -4,3 +4,4 @@ export * from './request-context.js';
 export * from './testing-module.js';
 export * from './http-app.js';
 export * from './crud-contract.js';
+export * from './memory-cache-client.js';

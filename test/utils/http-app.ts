@@ -7,6 +7,7 @@ import { Test } from '@nestjs/testing';
 import type { NextFunction, Request, Response } from 'express';
 import request, { Test as SupertestTest } from 'supertest';
 
+import { CacheService } from '../../src/shared/cache/cache.service.js';
 import { createValidationPipe } from '../../src/shared/errors/validation-errors.js';
 import { ApiExceptionFilter } from '../../src/shared/filters/api-exception.filter.js';
 import { RequestContextService } from '../../src/shared/services/request-context.service.js';
@@ -33,7 +34,15 @@ export const createHttpTestApp = async ({
 }: HttpTestAppOptions) => {
   const moduleRef = await Test.createTestingModule({
     controllers,
-    providers: [RequestContextService, ...providers],
+    // Caché sin Redis (consulta directo); una prueba puede pasar el suyo.
+    providers: [
+      RequestContextService,
+      {
+        provide: CacheService,
+        useValue: new CacheService({ get: () => undefined } as never),
+      },
+      ...providers,
+    ],
   }).compile();
 
   const session = { user };

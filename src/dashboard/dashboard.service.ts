@@ -122,6 +122,20 @@ export class DashboardService {
       .trim();
   }
 
+  /**
+   * Lo que, además de los filtros, cambia una gráfica según quién consulta:
+   * el usuario con tipos de hallazgo ocultos y las plantas del usuario (sin
+   * planta elegida se usan las suyas). Parte de la llave del caché.
+   */
+  cacheScope() {
+    return {
+      restricted: this.isRestrictedDashboardUser(),
+      plants: [...this.requestContext.manufacturingPlantIds].sort(
+        (a, b) => a - b,
+      ),
+    };
+  }
+
   private isRestrictedDashboardUser() {
     const user = this.requestContext.userOrNull;
     const currentEmail = this.normalizeForComparison(user?.email);

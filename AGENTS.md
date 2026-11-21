@@ -119,5 +119,10 @@ pnpm test:db       # si cambió SQL, una migración o una transacción
 - No leer ni modificar `.env.*` reales. `MAIL_OUTBOX_KEY` nunca cambia
   (descifra los correos en cola).
 - `data/hds/` y `public/static/images/evidences/` son datos reales.
+- **Caché Redis** (`src/shared/cache`, `CACHE_REDIS_URL`): listados de
+  catálogos (`cachedCatalog`) y gráficas `*-by-filters` del dashboard. Se
+  invalida con cada escritura de TypeORM; una escritura con SQL crudo
+  (`manager.query`) **no** lo invalida. Solo se cachea lo que no depende del
+  usuario, o con lo que sí en la llave (`cacheScope()` del dashboard).
 - Las skills de `.claude/skills` y `.agents/skills` son genéricas; este archivo
   manda sobre ellas.

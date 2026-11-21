@@ -255,6 +255,9 @@ importers:
       import-in-the-middle:
         specifier: ^3.5.2
         version: 3.5.3
+      ioredis:
+        specifier: 5.11.1
+        version: 5.11.1(supports-color@8.1.1)
       joi:
         specifier: ^18.3.2
         version: 18.3.2

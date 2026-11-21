@@ -43,6 +43,19 @@ describe('DashboardService: reglas y resultados de reportes', () => {
       new RequestContextService(),
     );
   });
+
+  it('cacheScope: si es el usuario restringido y sus plantas ordenadas (llave del caché)', async () => {
+    const scope = (session) => as(async () => service.cacheScope(), session);
+
+    await expect(
+      scope(
+        buildUser({ manufacturingPlants: [{ id: 3 }, { id: 1 }] as never }),
+      ),
+    ).resolves.toEqual({ restricted: false, plants: [1, 3] });
+    await expect(
+      scope(buildUser({ ...user, email: 'GLORA@hadainternational.com ' })),
+    ).resolves.toEqual({ restricted: true, plants: [1, 2] });
+  });
   const cases = [
     {
       method: 'findStatusByFilters',

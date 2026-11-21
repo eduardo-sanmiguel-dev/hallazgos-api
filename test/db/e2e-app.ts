@@ -13,6 +13,10 @@ import { registerEvidenceImageAccess } from '../../src/evidences/evidence-image-
 import { httpCacheHeaders } from '../../src/shared/middlewares/http-cache.middleware.js';
 import { AppModule } from '../../src/app.module.js';
 import { MailService } from '../../src/mail/mail.service.js';
+import {
+  CacheService,
+  type CacheClient,
+} from '../../src/shared/cache/cache.service.js';
 import { MailerService } from '@nestjs-modules/mailer';
 import { CreateMailOutbox1793900000000 } from '../../src/migrations/1793900000000-create-mail-outbox.js';
 import { createValidationPipe } from '../../src/shared/errors/validation-errors.js';
@@ -27,7 +31,11 @@ export const UI_ORIGIN = () =>
   originOf(process.env.FRONTEND_URL || 'http://localhost:3000');
 
 export const createE2eApp = async (
-  options: { persistentMail?: boolean } = {},
+  options: {
+    persistentMail?: boolean;
+    /** Redis del caché (p. ej. en memoria); sin él, no hay caché. */
+    cacheClient?: CacheClient;
+  } = {},
 ) => {
   await recreateTestSchema();
   if (options.persistentMail) {
@@ -55,6 +63,15 @@ export const createE2eApp = async (
       .overrideProvider(MailerService)
       .useValue({ sendMail: mail.sendCreate });
   else builder.overrideProvider(MailService).useValue(mail);
+  if (options.cacheClient)
+    builder
+      .overrideProvider(CacheService)
+      .useValue(
+        new CacheService(
+          { get: () => undefined } as never,
+          options.cacheClient,
+        ),
+      );
   const moduleRef = await builder.compile();
 
   const app: INestApplication = moduleRef.createNestApplication();

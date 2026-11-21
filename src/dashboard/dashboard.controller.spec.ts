@@ -7,6 +7,11 @@ import {
   type HttpTestApp,
   mockProvider,
 } from '../../test/utils/index.js';
+import { ConfigService } from '@nestjs/config';
+import {
+  CacheService,
+  type CacheClient,
+} from '../shared/cache/cache.service.js';
 import { DashboardController } from './dashboard.controller.js';
 import { DashboardService } from './dashboard.service.js';
 
@@ -256,5 +261,85 @@ describe('DashboardController (HTTP)', () => {
     await get(route, { year: '2026)--' }).expect(400);
 
     expect(service[method].mock.calls).toEqual([[undefined], [2026]]);
+  });
+});
+
+describe('DashboardController: caché de las gráficas por filtros', () => {
+  let http: HttpTestApp;
+  let service: Record<string, jest.Mock>;
+  const store = new Map<string, string>();
+  const client: CacheClient = {
+    get: async (key) => store.get(key) ?? null,
+    set: async (key, value) => store.set(key, value),
+    incr: async () => 1,
+    quit: async () => 'OK',
+  };
+  const filters = {
+    manufacturingPlantId: '1',
+    startDate: '01/01/2026',
+    endDate: '30/04/2026',
+  };
+
+  beforeAll(async () => {
+    http = await createHttpTestApp({
+      controllers: [DashboardController],
+      providers: [
+        mockProvider(DashboardService),
+        {
+          provide: CacheService,
+          useValue: new CacheService(
+            { get: () => undefined } as unknown as ConfigService,
+            client,
+          ),
+        },
+      ],
+      user: buildUser({
+        manufacturingPlants: [buildManufacturingPlant({ id: 1 })],
+      }),
+    });
+    service = http.get(DashboardService) as unknown as Record<
+      string,
+      jest.Mock
+    >;
+  });
+
+  afterAll(() => http.close());
+
+  beforeEach(() => {
+    store.clear();
+    jest.clearAllMocks();
+    service.findStatusByFilters.mockResolvedValue([{ status: 'Abierto' }]);
+    service.cacheScope.mockReturnValue({ restricted: false, plants: [1] });
+  });
+
+  const status = (query: object = filters) =>
+    http.http().get('/dashboard/status-by-filters').query(query).expect(200);
+
+  it('la misma gráfica con los mismos filtros se responde del caché', async () => {
+    const first = await status();
+    const second = await status();
+
+    expect(second.body).toEqual(first.body);
+    expect(service.findStatusByFilters).toHaveBeenCalledTimes(1);
+  });
+
+  it('otros filtros u otro alcance del usuario consultan de nuevo', async () => {
+    await status();
+    await status({ ...filters, states: 'Cerrado' });
+    service.cacheScope.mockReturnValue({ restricted: true, plants: [1] });
+    await status();
+
+    expect(service.findStatusByFilters).toHaveBeenCalledTimes(3);
+  });
+
+  it('UserPlantPipe corre antes del caché: una planta ajena es 404', async () => {
+    await status();
+
+    await http
+      .http()
+      .get('/dashboard/status-by-filters')
+      .query({ ...filters, manufacturingPlantId: '2' })
+      .expect(404);
+    expect(service.findStatusByFilters).toHaveBeenCalledTimes(1);
   });
 });

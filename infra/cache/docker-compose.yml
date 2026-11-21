@@ -1,0 +1,34 @@
+# Redis del caché de la API (catálogos y dashboard; ver src/shared/cache).
+# Aparte del de correos (infra/mail): ese no debe perder nada (noeviction,
+# AOF) y este descarta claves al llenarse y no guarda nada en disco.
+#
+# En el VPS: ~/comportarte-cache/{docker-compose.yml,redis.conf} y
+#   docker compose up -d
+# La API lo usa con CACHE_REDIS_URL=redis://:<clave>@127.0.0.1:6382/0
+name: comportarte-cache
+services:
+  redis:
+    image: redis@sha256:8da19c7399dca900c6822a1cf30f9d2285585e2c4b457ff4095b0f4500054d3f
+    container_name: comportarte-cache-redis
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:6382:6379'
+    command: ['redis-server', '/usr/local/etc/redis/redis.conf']
+    volumes:
+      - ./redis.conf:/usr/local/etc/redis/redis.conf:ro
+    mem_limit: 192m
+    cpus: 0.5
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          "REDISCLI_AUTH=$$(sed -n 's/^requirepass //p' /usr/local/etc/redis/redis.conf) redis-cli ping | grep -q PONG",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'

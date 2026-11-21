@@ -57,3 +57,6 @@ src/files/*temp-image.png
 
 # Immutable outbox attachment snapshots
 /var/mail-outbox/
+
+# Clave del Redis de caché (se copia de infra/cache/redis.conf.example).
+infra/cache/redis.conf

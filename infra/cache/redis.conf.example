@@ -1,0 +1,17 @@
+# Copiar como redis.conf (junto a docker-compose.yml) y cambiar la clave:
+#   openssl rand -hex 32
+# redis.conf no va al repositorio.
+requirepass CAMBIAR_POR_UNA_CLAVE_LARGA
+
+# Solo se publica en 127.0.0.1 del VPS (ver docker-compose.yml).
+bind 0.0.0.0
+protected-mode yes
+
+# Caché: sin persistencia y con tope de memoria.
+save ""
+appendonly no
+maxmemory 128mb
+# Descarta solo claves con TTL (las respuestas). Los contadores de generación
+# (cache:gen:*) no tienen TTL y nunca se descartan: si se perdieran, podrían
+# volver a leerse respuestas de una generación anterior.
+maxmemory-policy volatile-lru

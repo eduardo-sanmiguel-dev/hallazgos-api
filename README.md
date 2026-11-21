@@ -51,6 +51,7 @@ validan con Joi al arrancar: si falta una obligatoria, la API no inicia.
 | `MAIL_PORT`                                                   | No       | Puerto SMTP (587).                                                                                          |
 | `MAIL_OUTBOX_KEY`                                             | En prod. | Cifra los correos guardados; mínimo 32 caracteres y **no debe cambiar**.                                    |
 | `MAIL_REDIS_URL`                                              | No       | Redis de la cola de correos.                                                                                |
+| `CACHE_REDIS_URL`                                             | No       | Redis del caché (catálogos y dashboard); sin él no hay caché.                                               |
 | `MAIL_OUTBOX_DIR`                                             | No       | Carpeta de los adjuntos de los correos en cola.                                                             |
 | `GIST_SECRET_URL`                                             | Sí       | Interruptor remoto: en producción se comprueba al arrancar y cada hora, y la API se detiene si no coincide. |
 | `OBSERVE_ENDPOINT`, `OBSERVE_AUTH_HEADER`, `OBSERVE_STREAM`   | No       | Logs y trazas a OpenObserve; solo con `NODE_ENV=production`.                                                |

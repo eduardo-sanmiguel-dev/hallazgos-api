@@ -17,10 +17,15 @@ import {
   QueryMainTypeDto,
   UpdateMainTypeDto,
 } from './dto/index.js';
+import { CacheService } from '../shared/cache/cache.service.js';
+import { cachedCatalog } from '../shared/cache/cached-catalog.js';
 
 @Controller('main-types')
 export class MainTypesController {
-  constructor(private readonly mainTypesService: MainTypesService) {}
+  constructor(
+    private readonly mainTypesService: MainTypesService,
+    private readonly cache: CacheService,
+  ) {}
 
   @Post()
   @UseGuards(AdminGuard)
@@ -30,7 +35,10 @@ export class MainTypesController {
 
   @Get()
   findAll(@Query() queryMainTypeDto: QueryMainTypeDto) {
-    return this.mainTypesService.findAll(queryMainTypeDto);
+    // Igual para todos los usuarios: caché compartido (ver cachedCatalog).
+    return cachedCatalog(this.cache, 'mainTypes', queryMainTypeDto, () =>
+      this.mainTypesService.findAll(queryMainTypeDto),
+    );
   }
 
   @Get(':id')

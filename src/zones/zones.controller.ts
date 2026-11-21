@@ -13,10 +13,15 @@ import {
 
 import { ZonesService } from './zones.service.js';
 import { CreateZoneDto, QueryZoneDto, UpdateZoneDto } from './dto/index.js';
+import { CacheService } from '../shared/cache/cache.service.js';
+import { cachedCatalog } from '../shared/cache/cached-catalog.js';
 
 @Controller('zones')
 export class ZonesController {
-  constructor(private readonly zonesService: ZonesService) {}
+  constructor(
+    private readonly zonesService: ZonesService,
+    private readonly cache: CacheService,
+  ) {}
 
   @Post()
   @UseGuards(AdminGuard)
@@ -26,7 +31,10 @@ export class ZonesController {
 
   @Get()
   findAll(@Query() queryZoneDto: QueryZoneDto) {
-    return this.zonesService.findAll(queryZoneDto);
+    // Igual para todos los usuarios: caché compartido (ver cachedCatalog).
+    return cachedCatalog(this.cache, 'zones', queryZoneDto, () =>
+      this.zonesService.findAll(queryZoneDto),
+    );
   }
 
   @Get(':id')

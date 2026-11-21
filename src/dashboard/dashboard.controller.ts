@@ -11,10 +11,33 @@ import {
 import { AdminGuard } from '../shared/guards/admin.guard.js';
 import { UserPlantPipe } from '../shared/pipes/index.js';
 import { DashboardService } from './dashboard.service.js';
+import { CacheService } from '../shared/cache/cache.service.js';
+
+/** Gráficas por filtros que carga la página del dashboard. */
+type DashboardChart = Extract<keyof DashboardService, `find${string}ByFilters`>;
+type DashboardLoader = (...args: unknown[]) => Promise<unknown>;
 
 @Controller('dashboard')
 export class DashboardController {
-  constructor(private readonly dashboardService: DashboardService) {}
+  constructor(
+    private readonly dashboardService: DashboardService,
+    private readonly cache: CacheService,
+  ) {}
+
+  /**
+   * Gráfica del dashboard desde el caché (se invalida con cada escritura).
+   * Corre después de guards y pipes: UserPlantPipe ya validó la planta.
+   */
+  private cached<K extends DashboardChart>(
+    chart: K,
+    ...args: Parameters<DashboardService[K]>
+  ): ReturnType<DashboardService[K]> {
+    return this.cache.remember(
+      'dashboard',
+      [chart, args, this.dashboardService.cacheScope()],
+      () => (this.dashboardService[chart] as DashboardLoader)(...args),
+    ) as ReturnType<DashboardService[K]>;
+  }
 
   private parseAreaIds(areaIds?: string, areaId?: string): number[] {
     const source = areaIds || areaId || '';
@@ -186,7 +209,8 @@ export class DashboardController {
     @Query('mainTypeId') mainTypeId?: string,
     @Query('states') states?: string,
   ) {
-    return this.dashboardService.findStatusByFilters(
+    return this.cached(
+      'findStatusByFilters',
       manufacturingPlantId,
       startDate,
       endDate,
@@ -210,7 +234,8 @@ export class DashboardController {
     @Query('mainTypeId') mainTypeId?: string,
     @Query('states') states?: string,
   ) {
-    return this.dashboardService.findPriorityInterventionByFilters(
+    return this.cached(
+      'findPriorityInterventionByFilters',
       manufacturingPlantId,
       startDate,
       endDate,
@@ -234,7 +259,8 @@ export class DashboardController {
     @Query('mainTypeId') mainTypeId?: string,
     @Query('states') states?: string,
   ) {
-    return this.dashboardService.findRiskLevelByFilters(
+    return this.cached(
+      'findRiskLevelByFilters',
       manufacturingPlantId,
       startDate,
       endDate,
@@ -258,7 +284,8 @@ export class DashboardController {
     @Query('mainTypeId') mainTypeId?: string,
     @Query('states') states?: string,
   ) {
-    return this.dashboardService.findAreasByFilters(
+    return this.cached(
+      'findAreasByFilters',
       manufacturingPlantId,
       startDate,
       endDate,
@@ -282,7 +309,8 @@ export class DashboardController {
     @Query('mainTypeId') mainTypeId?: string,
     @Query('states') states?: string,
   ) {
-    return this.dashboardService.findMainTypesByFilters(
+    return this.cached(
+      'findMainTypesByFilters',
       manufacturingPlantId,
       startDate,
       endDate,
@@ -306,7 +334,8 @@ export class DashboardController {
     @Query('mainTypeId') mainTypeId?: string,
     @Query('states') states?: string,
   ) {
-    return this.dashboardService.findHeatmapByFilters(
+    return this.cached(
+      'findHeatmapByFilters',
       manufacturingPlantId,
       startDate,
       endDate,
@@ -330,7 +359,8 @@ export class DashboardController {
     @Query('mainTypeId') mainTypeId?: string,
     @Query('states') states?: string,
   ) {
-    return this.dashboardService.findAssignedResponsiblesByFilters(
+    return this.cached(
+      'findAssignedResponsiblesByFilters',
       manufacturingPlantId,
       startDate,
       endDate,
@@ -359,7 +389,8 @@ export class DashboardController {
     @Query('mainTypeId') mainTypeId?: string,
     @Query('states') states?: string,
   ) {
-    return this.dashboardService.findSankeyByFilters(
+    return this.cached(
+      'findSankeyByFilters',
       manufacturingPlantId,
       startDate,
       endDate,
@@ -383,7 +414,8 @@ export class DashboardController {
     @Query('mainTypeId') mainTypeId?: string,
     @Query('states') states?: string,
   ) {
-    return this.dashboardService.findPackedBubbleByFilters(
+    return this.cached(
+      'findPackedBubbleByFilters',
       manufacturingPlantId,
       startDate,
       endDate,
@@ -407,7 +439,8 @@ export class DashboardController {
     @Query('mainTypeId') mainTypeId?: string,
     @Query('states') states?: string,
   ) {
-    return this.dashboardService.findSolidGaugeKpiByFilters(
+    return this.cached(
+      'findSolidGaugeKpiByFilters',
       manufacturingPlantId,
       startDate,
       endDate,
@@ -431,7 +464,8 @@ export class DashboardController {
     @Query('mainTypeId') mainTypeId?: string,
     @Query('states') states?: string,
   ) {
-    return this.dashboardService.findAreaRangeLineByFilters(
+    return this.cached(
+      'findAreaRangeLineByFilters',
       manufacturingPlantId,
       startDate,
       endDate,
@@ -453,7 +487,8 @@ export class DashboardController {
     @Query('mainTypeId') mainTypeId?: string,
     @Query('states') states?: string,
   ) {
-    return this.dashboardService.findResponsiblesByFilters(
+    return this.cached(
+      'findResponsiblesByFilters',
       manufacturingPlantId,
       startDate,
       endDate,

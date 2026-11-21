@@ -19,6 +19,7 @@ import { HealthController } from '../src/health/health.controller.js';
 import { SafetyDataFilesController } from '../src/safety-data-files/safety-data-files.controller.js';
 import { SafetyDataFilesService } from '../src/safety-data-files/safety-data-files.service.js';
 import { RequestContextService } from '../src/shared/services/request-context.service.js';
+import { CacheService } from '../src/shared/cache/cache.service.js';
 import type { User } from '../src/users/entities/user.entity.js';
 
 // Pruebas HTTP de los controladores (supertest) con dependencias simuladas:
@@ -27,6 +28,7 @@ describe('API (e2e)', () => {
   let app: INestApplication;
 
   const dashboardService = {
+    cacheScope: jest.fn(() => ({ restricted: false, plants: [1] })),
     findAllEvidencesByMonth: jest.fn().mockResolvedValue([]),
     findGlobalSummary: jest.fn().mockResolvedValue({ ok: true }),
   };
@@ -86,6 +88,11 @@ describe('API (e2e)', () => {
         { provide: AuthService, useValue: authService },
         { provide: EppsService, useValue: eppsService },
         { provide: EquipmentsService, useValue: equipmentsService },
+        // Sin CACHE_REDIS_URL: consulta directo.
+        {
+          provide: CacheService,
+          useValue: new CacheService({ get: () => undefined } as never),
+        },
         RequestContextService,
       ],
     }).compile();

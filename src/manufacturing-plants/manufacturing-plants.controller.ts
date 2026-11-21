@@ -17,11 +17,14 @@ import {
   QueryManufacturingPlantDto,
   UpdateManufacturingPlantDto,
 } from './dto/index.js';
+import { CacheService } from '../shared/cache/cache.service.js';
+import { cachedCatalog } from '../shared/cache/cached-catalog.js';
 
 @Controller('manufacturing-plants')
 export class ManufacturingPlantsController {
   constructor(
     private readonly manufacturingPlantsService: ManufacturingPlantsService,
+    private readonly cache: CacheService,
   ) {}
 
   @Post()
@@ -32,7 +35,13 @@ export class ManufacturingPlantsController {
 
   @Get()
   findAll(@Query() queryManufacturingPlantDto: QueryManufacturingPlantDto) {
-    return this.manufacturingPlantsService.findAll(queryManufacturingPlantDto);
+    // Igual para todos los usuarios: caché compartido (ver cachedCatalog).
+    return cachedCatalog(
+      this.cache,
+      'manufacturingPlants',
+      queryManufacturingPlantDto,
+      () => this.manufacturingPlantsService.findAll(queryManufacturingPlantDto),
+    );
   }
 
   @Get(':id')

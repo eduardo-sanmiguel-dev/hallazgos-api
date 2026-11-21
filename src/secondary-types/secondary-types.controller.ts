@@ -17,10 +17,15 @@ import {
   QuerySecondaryTypeDto,
   UpdateSecondaryTypeDto,
 } from './dto/index.js';
+import { CacheService } from '../shared/cache/cache.service.js';
+import { cachedCatalog } from '../shared/cache/cached-catalog.js';
 
 @Controller('secondary-types')
 export class SecondaryTypesController {
-  constructor(private readonly secondaryTypesService: SecondaryTypesService) {}
+  constructor(
+    private readonly secondaryTypesService: SecondaryTypesService,
+    private readonly cache: CacheService,
+  ) {}
 
   @Post()
   @UseGuards(AdminGuard)
@@ -30,7 +35,13 @@ export class SecondaryTypesController {
 
   @Get()
   findAll(@Query() querySecondaryTypeDto: QuerySecondaryTypeDto) {
-    return this.secondaryTypesService.findAll(querySecondaryTypeDto);
+    // Igual para todos los usuarios: caché compartido (ver cachedCatalog).
+    return cachedCatalog(
+      this.cache,
+      'secondaryTypes',
+      querySecondaryTypeDto,
+      () => this.secondaryTypesService.findAll(querySecondaryTypeDto),
+    );
   }
 
   @Get('by/manufacturing-plant/:id')
