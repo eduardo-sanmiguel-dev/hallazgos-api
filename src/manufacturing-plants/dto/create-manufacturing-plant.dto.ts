@@ -12,8 +12,10 @@ export class CreateManufacturingPlantDto {
   @IsString()
   name: string;
 
+  // Solo http(s): la UI lo pone en un enlace; otro esquema (p. ej.
+  // `javascript:`) sería un XSS al hacer clic. Antes aceptaba también ftp.
   @IsNotEmpty()
-  @IsUrl()
+  @IsUrl({ protocols: ['http', 'https'] })
   link: string;
 
   // Antes se validaba como longitud (±180) y aceptaba latitudes imposibles.

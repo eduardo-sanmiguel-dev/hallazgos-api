@@ -125,6 +125,23 @@ describe('UsersService', () => {
       });
     });
 
+    it('sin plantNotifications no la manda: queda el default de la columna (recibe avisos)', async () => {
+      await service.create(dto);
+
+      // undefined: TypeORM no la incluye en el INSERT y aplica el default.
+      expect(
+        (users.save.mock.calls[0][0] as User).plantNotifications,
+      ).toBeUndefined();
+    });
+
+    it('el administrador puede crearlo sin avisos de la planta', async () => {
+      await service.create({ ...dto, plantNotifications: false });
+
+      expect(users.save.mock.calls[0][0]).toMatchObject({
+        plantNotifications: false,
+      });
+    });
+
     it('guarda la contraseña hasheada, nunca en texto plano', async () => {
       await service.create(dto);
 
@@ -479,6 +496,8 @@ describe('UsersService', () => {
       ).toBe('LOWER("email") IN (:...plant3Emails)');
       expect(where).toMatchObject({
         isActive: true,
+        // Quien se dio de baja de los avisos de planta no se incluye.
+        plantNotifications: true,
         manufacturingPlants: { id: 3 },
       });
       // La consulta real se prueba en test/db/users-relations.db-spec.ts.
@@ -502,6 +521,7 @@ describe('UsersService', () => {
       };
       expect(where).toMatchObject({
         isActive: true,
+        plantNotifications: true,
         manufacturingPlants: { id: 1 },
       });
       expectExcludes(where.email, TEST_ACCOUNTS);
@@ -928,6 +948,38 @@ describe('UsersService', () => {
         role: ROLE_ADMINISTRADOR,
         manufacturingPlants: [tepotzotlan],
       });
+    });
+
+    it.each([true, false])(
+      'cambia la casilla de avisos de la planta a %s',
+      async (plantNotifications) => {
+        users.findOne.mockResolvedValue(
+          Object.assign(existing(), {
+            plantNotifications: !plantNotifications,
+          }),
+        );
+
+        await service.update(30, {
+          rule: ROLE_ADMINISTRADOR,
+          manufacturingPlantNames: ['Tepotzotlán'],
+          plantNotifications,
+        });
+
+        expect(savedUser().plantNotifications).toBe(plantNotifications);
+      },
+    );
+
+    it('sin la casilla (UI anterior) conserva la preferencia actual', async () => {
+      users.findOne.mockResolvedValue(
+        Object.assign(existing(), { plantNotifications: false }),
+      );
+
+      await service.update(30, {
+        rule: ROLE_ADMINISTRADOR,
+        manufacturingPlantNames: ['Tepotzotlán'],
+      });
+
+      expect(savedUser().plantNotifications).toBe(false);
     });
 
     it('un supervisor conserva las zonas y procesos indicados', async () => {

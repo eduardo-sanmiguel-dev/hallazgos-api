@@ -103,6 +103,13 @@
                 <p style="margin: 16px 0 0 0; font-size: 12px; line-height: 19px; color: #6b7280;">
                   Mensaje automático de ComportArte. Por favor no respondas a este correo.
                 </p>
+                {{#if unsubscribeUrl}}
+                  {{! Solo en avisos a toda la planta: los personales y la recuperación de contraseña no lo llevan. }}
+                  <p style="margin: 6px 0 0 0; font-size: 12px; line-height: 19px; color: #6b7280;">
+                    Lo recibes porque eres usuario de esta planta.
+                    <a href="{{unsubscribeUrl}}" style="color: #6b7280; text-decoration: underline;">Dejar de recibir avisos de la planta</a>
+                  </p>
+                {{/if}}
                 <p style="margin: 6px 0 0 0; font-size: 11px; line-height: 17px; color: #9ca3af;">
                   © {{year}} Hada International · La magia de hacerlo bien.
                 </p>

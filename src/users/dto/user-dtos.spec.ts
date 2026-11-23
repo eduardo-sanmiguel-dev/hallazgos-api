@@ -2,6 +2,10 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 
 import { CreateUserDto } from './create-user.dto.js';
+import {
+  MailPreferencesTokenDto,
+  UpdateMailPreferencesDto,
+} from './mail-preferences.dto.js';
 import { QueryUserDto, USER_SORTABLE_COLUMNS } from './query-user.dto.js';
 import { UpdateUserDto } from './update-user.dto.js';
 
@@ -31,6 +35,27 @@ describe('DTOs de usuarios', () => {
       await expect(invalidFields(CreateUserDto, validUser)).resolves.toEqual(
         [],
       );
+    });
+
+    it.each([true, false])(
+      'acepta plantNotifications %s (al crear y al editar)',
+      async (plantNotifications) => {
+        await expect(
+          invalidFields(CreateUserDto, { ...validUser, plantNotifications }),
+        ).resolves.toEqual([]);
+        await expect(
+          invalidFields(UpdateUserDto, { ...validUser, plantNotifications }),
+        ).resolves.toEqual([]);
+      },
+    );
+
+    it('responde 400 si plantNotifications no es booleano', async () => {
+      await expect(
+        invalidFields(CreateUserDto, {
+          ...validUser,
+          plantNotifications: 'no',
+        }),
+      ).resolves.toEqual(['plantNotifications']);
     });
 
     it.each([
@@ -150,6 +175,39 @@ describe('DTOs de usuarios', () => {
       await expect(invalidFields(QueryUserDto, query)).resolves.toEqual([
         field,
       ]);
+    });
+  });
+
+  describe('preferencias de correo (enlace de baja)', () => {
+    it('acepta el token y la casilla', async () => {
+      await expect(
+        invalidFields(UpdateMailPreferencesDto, {
+          unsubscribeToken: '7.abc',
+          plantNotifications: false,
+        }),
+      ).resolves.toEqual([]);
+      await expect(
+        invalidFields(MailPreferencesTokenDto, { unsubscribeToken: '7.abc' }),
+      ).resolves.toEqual([]);
+    });
+
+    it.each([
+      ['sin token', { plantNotifications: false }, 'unsubscribeToken'],
+      [
+        'con un token demasiado largo',
+        { unsubscribeToken: 'x'.repeat(101), plantNotifications: false },
+        'unsubscribeToken',
+      ],
+      ['sin la casilla', { unsubscribeToken: '7.abc' }, 'plantNotifications'],
+      [
+        'con un campo de más',
+        { unsubscribeToken: '7.abc', plantNotifications: true, userId: 3 },
+        'userId',
+      ],
+    ])('responde 400 %s', async (_c, body, field) => {
+      await expect(
+        invalidFields(UpdateMailPreferencesDto, body),
+      ).resolves.toEqual([field]);
     });
   });
 });

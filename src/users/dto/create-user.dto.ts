@@ -3,6 +3,7 @@ import { Transform } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -43,4 +44,10 @@ export class CreateUserDto {
   @IsArray()
   @IsString({ each: true })
   processNames: string[];
+
+  // Recibe los avisos a toda la planta. Opcional: sin ella, true al crear y
+  // sin cambios al editar.
+  @IsOptional()
+  @IsBoolean()
+  plantNotifications?: boolean;
 }

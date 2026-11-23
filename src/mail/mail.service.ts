@@ -1,4 +1,8 @@
-import { RESET_TOKEN_PLACEHOLDER } from './outbox/mail-payload.js';
+import {
+  RESET_TOKEN_PLACEHOLDER,
+  UNSUBSCRIBE_URL_PLACEHOLDER,
+} from './outbox/mail-payload.js';
+import { createUnsubscribeToken } from './unsubscribe-token.js';
 import type { EntityManager } from 'typeorm';
 import type { ISendMailOptions } from '@nestjs-modules/mailer';
 import { MailOutboxService } from './outbox/mail-outbox.service.js';
@@ -184,6 +188,32 @@ export class MailService {
     }
   }
 
+  /**
+   * Enlace de baja de los avisos a toda la planta: va en el pie (como
+   * marcador, ver UNSUBSCRIBE_URL_PLACEHOLDER) y en List-Unsubscribe, que
+   * los clientes de correo muestran como "Cancelar suscripción". Los avisos
+   * personales no lo llevan. Sin FRONTEND_URL válida, sin enlace.
+   */
+  private unsubscribe(user: User, plantWide?: boolean) {
+    if (!plantWide) return {};
+    try {
+      const url = new URL('/unsubscribe', this.FRONTEND_URL);
+      url.searchParams.set(
+        'token',
+        createUnsubscribeToken(
+          user.id,
+          this.configService.get<string>('jwt.secretKey'),
+        ),
+      );
+      return {
+        context: { unsubscribeUrl: UNSUBSCRIBE_URL_PLACEHOLDER },
+        headers: { 'List-Unsubscribe': `<${url.toString()}>` },
+      };
+    } catch {
+      return {};
+    }
+  }
+
   /** Si la foto está en disco (separado para poder simularlo en pruebas). */
   protected imageOnDisk(fileName: string): boolean {
     try {
@@ -259,6 +289,8 @@ export class MailService {
         evidence.priorityDays,
       ),
       viewUrl: this.viewUrl(evidence),
+      // Plantillas estrictas: vacío salvo en avisos a la planta (unsubscribe).
+      unsubscribeUrl: '',
       steps: evidenceSteps(evidence, theme.accent, cancelled),
       details: evidenceDetails(evidence),
     };
@@ -299,20 +331,25 @@ export class MailService {
   async sendCreate({
     user,
     evidenceCurrent,
+    plantWide,
   }: {
     user: User;
     evidenceCurrent: Evidence;
+    plantWide?: boolean;
   }) {
     evidenceCurrent = this.withStoredImages(evidenceCurrent);
     const base = this.evidenceContext(evidenceCurrent, 'create');
+    const unsubscribe = this.unsubscribe(user, plantWide);
 
     return this.send({
       to: this.emailTest || user.email,
       from: this.sender('hallazgo creado'),
       subject: this.subject(evidenceCurrent),
       template: './create',
+      headers: unsubscribe.headers,
       context: {
         ...base,
+        ...unsubscribe.context,
         preheader: preheader(
           `${base.userWhoCreated} reportó en ${base.zone}: ${base.descripcion}`,
         ),
@@ -389,11 +426,14 @@ export class MailService {
   async sendSolution({
     user,
     evidenceCurrent,
+    plantWide,
   }: {
     user: User;
     evidenceCurrent: Evidence;
+    plantWide?: boolean;
   }) {
     evidenceCurrent = this.withStoredImages(evidenceCurrent);
+    const unsubscribe = this.unsubscribe(user, plantWide);
     const resolution = getResolution(
       evidenceCurrent.createdAt,
       evidenceCurrent.solutionDate,
@@ -407,8 +447,10 @@ export class MailService {
       from: this.sender('hallazgo solucionado'),
       subject: this.subject(evidenceCurrent),
       template: './solution',
+      headers: unsubscribe.headers,
       context: {
         ...base,
+        ...unsubscribe.context,
         preheader: preheader(
           [
             `Solucionado${resolution ? ` en ${resolution.daysLabel}` : ''}`,
@@ -517,12 +559,15 @@ export class MailService {
     cancelledBy,
     user,
     evidenceCurrent,
+    plantWide,
   }: {
     cancelledBy: User;
     user: User;
     evidenceCurrent: Evidence;
+    plantWide?: boolean;
   }) {
     evidenceCurrent = this.withStoredImages(evidenceCurrent);
+    const unsubscribe = this.unsubscribe(user, plantWide);
     const now = evidenceCurrent.updatedAt || new Date();
     const cancelledAt = stringToDateWithTime(now);
     const base = this.evidenceContext(evidenceCurrent, 'cancel', {
@@ -535,8 +580,10 @@ export class MailService {
       from: this.sender('hallazgo cancelado'),
       subject: this.subject(evidenceCurrent),
       template: './cancel',
+      headers: unsubscribe.headers,
       context: {
         ...base,
+        ...unsubscribe.context,
         preheader: preheader(
           `${cancelledBy.name} canceló el hallazgo. Ya no requiere seguimiento.`,
         ),
@@ -578,6 +625,8 @@ export class MailService {
       context: {
         year: new Date().getFullYear(),
         theme: mailTheme('account', 'ComportArte · Tu cuenta'),
+        // Transaccional: nunca lleva enlace de baja.
+        unsubscribeUrl: '',
         title: 'Restablece tu contraseña',
         subtitle: 'Solicitud para cambiar tu contraseña',
         preheader: preheader(

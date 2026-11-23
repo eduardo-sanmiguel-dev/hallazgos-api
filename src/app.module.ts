@@ -181,6 +181,10 @@ export class AppModule implements NestModule {
         // (token vencido o usuario desactivado); si no, la UI no podría
         // limpiarla y "/" la devolvería al dashboard una y otra vez.
         { path: 'auth/logout', method: RequestMethod.POST },
+        // Enlace de baja de los correos: se abre sin sesión y el token firmado
+        // identifica al usuario (ver MailPreferencesService).
+        { path: 'mail-preferences', method: RequestMethod.POST },
+        { path: 'mail-preferences/lookup', method: RequestMethod.POST },
         healthRoute,
       )
       .forRoutes('/');

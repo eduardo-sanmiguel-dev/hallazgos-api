@@ -376,6 +376,18 @@ describe('EvidencesService', () => {
 
       const notified = mail.sendCreate.mock.calls.map(([{ user }]) => user.id);
       expect(notified.sort()).toEqual([responsible.id, plantUser.id].sort());
+      // Solo el aviso a la planta lleva enlace de baja; al responsable le
+      // llega siempre.
+      const plantWideById = Object.fromEntries(
+        mail.sendCreate.mock.calls.map(([{ user, plantWide }]) => [
+          user.id,
+          plantWide,
+        ]),
+      );
+      expect(plantWideById).toEqual({
+        [responsible.id]: undefined,
+        [plantUser.id]: true,
+      });
     });
 
     it('sin responsables avisa solo a los usuarios de la planta', async () => {
@@ -1007,9 +1019,11 @@ describe('EvidencesService', () => {
           });
           await flushBackgroundWork();
           expect(mail.sendSolution).toHaveBeenCalledTimes(1);
+          // Aviso personal al creador: sin enlace de baja.
           expect(mail.sendSolution).toHaveBeenCalledWith({
             user: reporter,
             evidenceCurrent: result,
+            plantWide: false,
           });
           expect(usersService.findAllByPlant).not.toHaveBeenCalled();
         },
@@ -1531,6 +1545,9 @@ describe('EvidencesService', () => {
         expect(
           mail.sendSolution.mock.calls.map(([{ user }]) => user.id),
         ).toEqual([reporter.id]);
+        expect(mail.sendSolution).toHaveBeenCalledWith(
+          expect.objectContaining({ plantWide: false }),
+        );
         expect(usersService.findAllByPlant).not.toHaveBeenCalled();
       },
     );
@@ -1544,6 +1561,10 @@ describe('EvidencesService', () => {
       expect(mail.sendSolution.mock.calls.map(([{ user }]) => user.id)).toEqual(
         [plantUser.id, responsible.id],
       );
+      // Es un aviso a la planta: lleva el enlace de baja.
+      expect(
+        mail.sendSolution.mock.calls.map(([{ plantWide }]) => plantWide),
+      ).toEqual([true, true]);
     });
 
     it('sin correo del creador no usa a los usuarios de la planta como alternativa', async () => {
@@ -1565,7 +1586,7 @@ describe('EvidencesService', () => {
         const sent = type === 'create' ? mail.sendCreate : mail.sendCancel;
         expect(sent).toHaveBeenCalledTimes(1);
         expect(sent).toHaveBeenCalledWith(
-          expect.objectContaining({ user: plantUser }),
+          expect.objectContaining({ user: plantUser, plantWide: true }),
         );
       },
     );

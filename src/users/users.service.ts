@@ -101,6 +101,7 @@ export class UsersService {
       manufacturingPlantNames,
       zoneNames = [],
       processNames = [],
+      plantNotifications,
     } = createUserDto;
 
     const manufacturingPlants = await this.resolvePlants(
@@ -124,6 +125,7 @@ export class UsersService {
         manufacturingPlants,
         ...(zones.length && { zones }),
         ...(processes.length && { processes }),
+        ...(plantNotifications !== undefined && { plantNotifications }),
       }),
     );
 
@@ -305,11 +307,17 @@ export class UsersService {
     return { data, count };
   }
 
+  /**
+   * Destinatarios de los avisos a toda la planta. Quien se dio de baja
+   * (`plantNotifications` en false) no se incluye; los avisos personales no
+   * pasan por aquí.
+   */
   findAllByPlant(plantId: number): Promise<User[]> {
     if (plantId === 3) {
       return this.userRepository.find({
         where: {
           isActive: true,
+          plantNotifications: true,
           manufacturingPlants: {
             id: plantId,
           },
@@ -327,6 +335,7 @@ export class UsersService {
     return this.userRepository.find({
       where: {
         isActive: true,
+        plantNotifications: true,
         manufacturingPlants: {
           id: plantId,
         },
@@ -569,6 +578,7 @@ export class UsersService {
       manufacturingPlantNames,
       zoneNames,
       processNames,
+      plantNotifications,
     } = updateUserDto;
 
     const manufacturingPlants = await this.resolvePlants(
@@ -599,6 +609,9 @@ export class UsersService {
     user.zones = zones;
     user.processes = processes;
     user.manufacturingPlants = manufacturingPlants;
+    // Opcional: una UI anterior no la manda y se conserva la actual.
+    if (plantNotifications !== undefined)
+      user.plantNotifications = plantNotifications;
 
     return this.userRepository.save({ ...user });
   }

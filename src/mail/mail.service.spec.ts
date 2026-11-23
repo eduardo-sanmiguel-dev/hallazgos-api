@@ -17,7 +17,10 @@ describe('MailService', () => {
   const recipient = buildUser({ email: 'ana@hallazgos.test', name: 'Ana' });
   const actor = buildUser({ name: 'Supervisor Uno' });
 
-  const setup = async (environment = ENV_PRODUCTION) => {
+  const setup = async (
+    environment = ENV_PRODUCTION,
+    frontendUrl = 'https://ui.test/restore',
+  ) => {
     sendMail = jest.fn().mockResolvedValue(undefined);
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -29,8 +32,9 @@ describe('MailService', () => {
             get: (key: string) =>
               ({
                 'email.user': 'app@hallazgos.test',
-                frontendUrl: 'https://ui.test/restore',
+                frontendUrl,
                 environment,
+                'jwt.secretKey': 'secreto',
               })[key],
           },
         },
@@ -527,6 +531,91 @@ describe('MailService', () => {
         }),
       ).rejects.toThrow('Mail must be saved with its business transaction');
       expect(mailer.sendMail).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('enlace de baja', () => {
+    const UNSUBSCRIBE_HEADER =
+      /^<https:\/\/ui\.test\/unsubscribe\?token=\d+\.[\w-]{43}>$/;
+    const SENDS = {
+      create: (plantWide?: boolean) =>
+        service.sendCreate({
+          user: recipient,
+          evidenceCurrent: evidence(),
+          plantWide,
+        }),
+      cancel: (plantWide?: boolean) =>
+        service.sendCancel({
+          cancelledBy: actor,
+          user: recipient,
+          evidenceCurrent: evidence(),
+          plantWide,
+        }),
+      solution: (plantWide?: boolean) =>
+        service.sendSolution({
+          user: recipient,
+          evidenceCurrent: evidence({ solutionDate: new Date() }),
+          plantWide,
+        }),
+    };
+
+    it.each(Object.entries(SENDS))(
+      '%s a toda la planta: List-Unsubscribe con el token del destinatario y marcador en el pie',
+      async (_, send) => {
+        await send(true);
+
+        expect(sent().headers).toEqual({
+          'List-Unsubscribe': expect.stringMatching(UNSUBSCRIBE_HEADER),
+        });
+        // El token es del destinatario, no de quien hizo el cambio.
+        expect(sent().headers['List-Unsubscribe']).toContain(
+          `token=${recipient.id}.`,
+        );
+        expect(sent().context.unsubscribeUrl).toBe(
+          '__COMPORTARTE_UNSUBSCRIBE_URL__',
+        );
+      },
+    );
+
+    it.each(Object.entries(SENDS))(
+      '%s personal: sin enlace de baja',
+      async (_, send) => {
+        await send(false);
+
+        expect(sent().headers).toBeUndefined();
+        expect(sent().context.unsubscribeUrl).toBe('');
+      },
+    );
+
+    it('en progreso, reasignado y contraseña nunca llevan enlace', async () => {
+      await service.sendInProgress({
+        user: recipient,
+        startedBy: actor,
+        evidenceCurrent: evidence(),
+      });
+      await service.sendReassign({
+        user: recipient,
+        reassignedBy: actor,
+        evidenceCurrent: evidence(),
+        previousResponsibles: [],
+        currentResponsibles: [],
+      });
+      await service.sendForgotPassword('ana@hallazgos.test', 'token');
+
+      expect(sendMail).toHaveBeenCalledTimes(3);
+      for (const [mail] of sendMail.mock.calls) {
+        expect(mail.headers?.['List-Unsubscribe']).toBeUndefined();
+        expect(mail.context.unsubscribeUrl).toBe('');
+      }
+    });
+
+    it('sin FRONTEND_URL válida el aviso sale sin enlace', async () => {
+      await setup(ENV_PRODUCTION, 'no es una url');
+
+      await SENDS.create(true);
+
+      expect(sent().headers).toBeUndefined();
+      expect(sent().context.unsubscribeUrl).toBe('');
     });
   });
 });

@@ -35,6 +35,8 @@ export const FIELD_LABELS: Record<string, string> = {
   userId: 'Usuario',
   userIds: 'Usuarios',
   userName: 'Usuario',
+  plantNotifications: 'Avisos de la planta por correo',
+  unsubscribeToken: 'Enlace para dejar de recibir avisos',
 
   // Plantas, zonas, procesos y áreas
   manufacturingPlantId: 'Planta',

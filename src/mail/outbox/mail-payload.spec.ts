@@ -10,8 +10,13 @@ import fsPromises, {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { buildEvidence, buildUser } from '../../../test/utils/index.js';
 import { MailService } from '../mail.service.js';
-import { freezeMail } from './mail-payload.js';
+import {
+  UNSUBSCRIBE_URL_PLACEHOLDER,
+  freezeMail,
+  withUnsubscribeUrl,
+} from './mail-payload.js';
 
 // Una reasignación con 44 destinatarios tardaba 1.7 s: por cada uno se
 // compilaba la plantilla y se leía, hasheaba y copiaba cada foto. Ahora la
@@ -179,6 +184,72 @@ describe('freezeMail', () => {
       ).toEqual([]);
     } finally {
       failure.mockRestore();
+    }
+  });
+});
+
+describe('Enlace de baja al congelar el correo', () => {
+  const url = 'https://ui.test/unsubscribe?token=7.abc&x=1';
+  const html = `<a href="${UNSUBSCRIBE_URL_PLACEHOLDER}">baja</a>`;
+
+  it('cambia el marcador por la URL de List-Unsubscribe, escapada', () => {
+    expect(withUnsubscribeUrl(html, { 'List-Unsubscribe': `<${url}>` })).toBe(
+      '<a href="https://ui.test/unsubscribe?token=7.abc&amp;x=1">baja</a>',
+    );
+  });
+
+  it.each([
+    ['sin cabeceras', undefined],
+    ['sin List-Unsubscribe', { 'X-Otra': '1' }],
+    ['con un valor que no es <https://…>', { 'List-Unsubscribe': 'mailto:x' }],
+  ])('%s deja el HTML igual', (_, headers) => {
+    expect(withUnsubscribeUrl(html, headers)).toBe(html);
+  });
+
+  it('cada destinatario recibe su enlace aunque el HTML se renderice una vez', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'mail-unsubscribe-'));
+    try {
+      const sendMail = jest.fn();
+      const service = new MailService(
+        { sendMail } as unknown as MailerService,
+        new ConfigService({
+          email: { user: 'sender@test.com' },
+          environment: 'production',
+          frontendUrl: 'https://ui.test',
+          jwt: { secretKey: 'secreto' },
+        }),
+      );
+      const evidenceCurrent = buildEvidence({ id: 7, imgEvidence: '' });
+      for (const id of [1, 2])
+        await service.sendCreate({
+          user: buildUser({ id, email: `u${id}@test.com` }),
+          evidenceCurrent,
+          plantWide: true,
+        });
+      const rendered = new Map<string, Promise<string>>();
+      const [first, second] = await Promise.all(
+        sendMail.mock.calls.map(([mail]) =>
+          freezeMail(
+            { ...mail, attachments: [] },
+            join(directory, 'blobs'),
+            undefined,
+            rendered,
+          ),
+        ),
+      );
+
+      expect(rendered.size).toBe(1);
+      expect(first.html).toContain('https://ui.test/unsubscribe?token=1.');
+      expect(second.html).toContain('https://ui.test/unsubscribe?token=2.');
+      expect(first.html).toContain('Dejar de recibir avisos de la planta');
+      expect(first.html).not.toContain(UNSUBSCRIBE_URL_PLACEHOLDER);
+      expect(first.headers).toEqual({
+        'List-Unsubscribe': expect.stringMatching(
+          /^<https:\/\/ui\.test\/unsubscribe\?token=1\.[\w-]{43}>$/,
+        ),
+      });
+    } finally {
+      await rm(directory, { recursive: true, force: true });
     }
   });
 });

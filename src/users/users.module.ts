@@ -4,6 +4,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersService } from './users.service.js';
 import { E2eUserSeedService } from './e2e-user-seed.service.js';
 import { UsersController } from './users.controller.js';
+import { MailPreferencesController } from './mail-preferences.controller.js';
+import { MailPreferencesService } from './mail-preferences.service.js';
 import { User } from './entities/user.entity.js';
 import { GembaWalkObserver } from '../gemba-walk-observers/entities/gemba-walk-observer.entity.js';
 import { ManufacturingPlantsModule } from '../manufacturing-plants/manufacturing-plants.module.js';
@@ -17,8 +19,8 @@ import { ProcessesModule } from '../processes/processes.module.js';
     ZonesModule,
     ProcessesModule,
   ],
-  controllers: [UsersController],
-  providers: [UsersService, E2eUserSeedService],
+  controllers: [UsersController, MailPreferencesController],
+  providers: [UsersService, E2eUserSeedService, MailPreferencesService],
   exports: [TypeOrmModule, UsersService],
 })
 export class UsersModule {}

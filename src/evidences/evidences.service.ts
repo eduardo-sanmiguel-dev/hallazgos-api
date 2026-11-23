@@ -563,6 +563,8 @@ export class EvidencesService {
       reassignedBy?: User;
       previousResponsibles?: User[];
       currentResponsibles?: User[];
+      // Aviso a toda la planta: lleva el enlace de baja.
+      plantWide?: boolean;
     },
   ) {
     const requestUser = this.requestContext.user;
@@ -633,6 +635,8 @@ export class EvidencesService {
       reassignedBy?: User;
       previousResponsibles?: User[];
       currentResponsibles?: User[];
+      // Aviso a toda la planta: lleva el enlace de baja.
+      plantWide?: boolean;
     },
   ) {
     switch (type) {
@@ -640,6 +644,7 @@ export class EvidencesService {
         await this.mailService.sendCreate({
           user: userToSendEmail,
           evidenceCurrent,
+          plantWide: extra?.plantWide,
         });
         break;
       case 'cancel':
@@ -647,12 +652,14 @@ export class EvidencesService {
           cancelledBy: requestUser,
           user: userToSendEmail,
           evidenceCurrent,
+          plantWide: extra?.plantWide,
         });
         break;
       case 'solution':
         await this.mailService.sendSolution({
           user: userToSendEmail,
           evidenceCurrent,
+          plantWide: extra?.plantWide,
         });
         break;
       case 'reassign':
@@ -716,7 +723,11 @@ export class EvidencesService {
       return;
     }
 
-    await this.sendEmailUsers(plantUsers, evidenceCurrent, type);
+    // Solo el aviso a la planta lleva enlace de baja; el de solución al
+    // creador es personal.
+    await this.sendEmailUsers(plantUsers, evidenceCurrent, type, {
+      plantWide: !notifyCreator,
+    });
   }
 
   private async solutionWithMail(

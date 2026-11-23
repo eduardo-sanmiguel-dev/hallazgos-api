@@ -47,6 +47,11 @@ export class User {
   @Column({ default: 0 })
   tokenVersion: number;
 
+  // Recibe los avisos que se mandan a toda la planta. Se apaga con el enlace
+  // de baja del correo (mail-preferences) o desde el formulario de usuarios.
+  @Column({ default: true })
+  plantNotifications: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 

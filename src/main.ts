@@ -5,7 +5,7 @@ import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 
 import cookieParser from 'cookie-parser';
-import helmet from 'helmet';
+import { securityHeaders } from './shared/middlewares/security-headers.middleware.js';
 
 //import { ClusterService } from 'cluster.service';
 import { AppModule } from './app.module.js';
@@ -51,15 +51,9 @@ async function bootstrap() {
   app.enableCors(corsOptions(frontendUrl));
   app.use(timingAllowOrigin(frontendUrl));
 
-  // Cabeceras de seguridad. La API solo responde JSON y archivos, así que no
-  // necesita CSP, y el front (otro origen) carga imágenes y PDFs de aquí:
-  // CORP debe ser cross-origin.
-  app.use(
-    helmet({
-      contentSecurityPolicy: false,
-      crossOriginResourcePolicy: { policy: 'cross-origin' },
-    }),
-  );
+  // Cabeceras de seguridad, con una CSP que no permite nada (la API no sirve
+  // páginas). Ver shared/middlewares/security-headers.middleware.ts.
+  app.use(securityHeaders());
 
   // Validación de DTOs (whitelist, transformación) con los errores en
   // español y por campo (ver shared/errors/validation-errors.ts).

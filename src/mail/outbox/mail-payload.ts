@@ -20,6 +20,30 @@ import { MAIL_TEMPLATES_DIR } from '../mail.templates.js';
 
 export const RESET_TOKEN_PLACEHOLDER = '__COMPORTARTE_RESET_TOKEN__';
 
+/**
+ * Enlace de baja en el HTML. Es igual para todos los destinatarios, así que la
+ * plantilla se sigue renderizando una vez por aviso; al congelar el correo se
+ * cambia por la URL de cada uno, que viaja en la cabecera List-Unsubscribe.
+ */
+export const UNSUBSCRIBE_URL_PLACEHOLDER = '__COMPORTARTE_UNSUBSCRIBE_URL__';
+
+const escapeHtml = (value: string) =>
+  value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+
+/** HTML con la URL de baja de la cabecera `List-Unsubscribe: <url>`. */
+export function withUnsubscribeUrl(
+  html: string,
+  headers: ISendMailOptions['headers'],
+): string {
+  const value = (headers as Record<string, unknown> | undefined)?.[
+    'List-Unsubscribe'
+  ];
+  const url = /^<(https?:\/\/[^>\s]+)>$/.exec(String(value ?? ''))?.[1];
+  return url
+    ? html.split(UNSUBSCRIBE_URL_PLACEHOLDER).join(escapeHtml(url))
+    : html;
+}
+
 export function encryptionKey(secret: string): Buffer {
   if (!secret)
     throw new Error('MAIL_OUTBOX_KEY is required for persistent mail');
@@ -131,7 +155,10 @@ export async function freezeMail(
   rendered?: Map<string, Promise<string>>,
 ): Promise<ISendMailOptions> {
   const template = basename(String(options.template)).replace(/\.hbs$/, '');
-  const html = await renderMail(template, options.context, rendered);
+  const html = withUnsubscribeUrl(
+    await renderMail(template, options.context, rendered),
+    options.headers,
+  );
   const attachments = [];
   const root = resolve(directory);
   await mkdir(root, { recursive: true, mode: 0o700 });

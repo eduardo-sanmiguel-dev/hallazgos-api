@@ -56,6 +56,7 @@ describe('Plantillas de correo', () => {
                 'email.user': 'app@hallazgos.test',
                 frontendUrl,
                 environment: ENV_PRODUCTION,
+                'jwt.secretKey': 'secreto',
               })[key],
           },
         },
@@ -150,6 +151,24 @@ describe('Plantillas de correo', () => {
       expect(html).toContain('Ver hallazgo en ComportArte');
     },
   );
+
+  it('el aviso a toda la planta lleva el enlace de baja en el pie; el personal no', async () => {
+    await service.sendCreate({
+      user: recipient,
+      evidenceCurrent: evidence(),
+      plantWide: true,
+    });
+    await service.sendCreate({ user: recipient, evidenceCurrent: evidence() });
+    const [plantWide, personal] = await Promise.all(
+      sendMail.mock.calls.map(([mail]) => render(mail)),
+    );
+
+    // El marcador se cambia por la URL de cada destinatario al congelarlo.
+    expect(plantWide).toContain('href="__COMPORTARTE_UNSUBSCRIBE_URL__"');
+    expect(plantWide).toContain('Dejar de recibir avisos de la planta');
+    expect(personal).not.toContain('Dejar de recibir avisos');
+    expect(personal).not.toContain('__COMPORTARTE_UNSUBSCRIBE_URL__');
+  });
 
   it('sin FRONTEND_URL no hay botón (y el correo se envía igual)', async () => {
     await setup(undefined);
