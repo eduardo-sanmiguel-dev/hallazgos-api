@@ -28,6 +28,8 @@ describe('E2E: auth', () => {
 
       expect(res.body.token).toEqual(expect.any(String));
       expect(res.headers['set-cookie'][0]).toMatch(/^token=.+HttpOnly/i);
+      // Anti-CSRF: no viaja en nada que empiece en otro sitio.
+      expect(res.headers['set-cookie'][0]).toMatch(/SameSite=Strict/i);
     });
 
     it.each([
@@ -101,6 +103,34 @@ describe('E2E: auth', () => {
       await e2e
         .call('get', '/users/supervisors', e2e.tokens.general)
         .expect(200);
+    });
+
+    // Fetch Metadata: un formulario o una imagen de otro sitio no siempre
+    // manda Origin, pero el navegador sí marca Sec-Fetch-Site.
+    it('una escritura sin Origin marcada de otro sitio responde 403 aunque traiga sesión', async () => {
+      await request(e2e.server)
+        .post('/api/v1/auth/logout-all')
+        .set('Sec-Fetch-Site', 'cross-site')
+        .set('Sec-Fetch-Mode', 'no-cors')
+        .set('Authorization', `Bearer ${e2e.tokens.general}`)
+        .expect(403, /FORBIDDEN_ORIGIN/);
+      await e2e
+        .call('get', '/users/supervisors', e2e.tokens.general)
+        .expect(200);
+    });
+
+    it('otro sitio no puede leer el API como recurso; navegar a él sí llega', async () => {
+      await request(e2e.server)
+        .get('/api/v1/users/get-information-current-user')
+        .set('Sec-Fetch-Site', 'cross-site')
+        .set('Sec-Fetch-Mode', 'no-cors')
+        .set('Authorization', `Bearer ${e2e.tokens.general}`)
+        .expect(403, /FORBIDDEN_ORIGIN/);
+      await request(e2e.server)
+        .get('/api/v1/health')
+        .set('Sec-Fetch-Site', 'cross-site')
+        .set('Sec-Fetch-Mode', 'navigate')
+        .expect((res) => expect(res.status).not.toBe(403));
     });
 
     it('el login desde otro sitio también responde 403', async () => {

@@ -55,11 +55,13 @@ export class AuthService {
     return {
       httpOnly: true,
       secure: this.environment === ENV_PRODUCTION,
-      // Lax: el navegador no la manda en POST/PATCH/DELETE hechos desde otro
-      // sitio (CSRF). El UI (comportarte.com) y el API (api.comportarte.com)
-      // son el mismo sitio, así que no le afecta. Antes era None en
-      // producción. Segunda capa: OriginMiddleware.
-      sameSite: 'lax',
+      // Strict: el navegador no la manda en nada que empiece en otro sitio
+      // (formularios, imágenes ni enlaces), la primera capa contra CSRF. El
+      // UI (comportarte.com) y el API (api.comportarte.com) son el mismo
+      // sitio: sus llamadas la llevan siempre. Antes era Lax (se mandaba al
+      // seguir un enlace desde otro sitio) y antes None. Demás capas:
+      // OriginMiddleware.
+      sameSite: 'strict',
       path: '/',
       domain:
         this.environment === ENV_PRODUCTION ? 'comportarte.com' : 'localhost',

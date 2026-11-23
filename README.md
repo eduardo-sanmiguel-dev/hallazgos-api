@@ -64,13 +64,16 @@ validan con Joi al arrancar: si falta una obligatoria, la API no inicia.
 
 - **Prefijo** `/api/v1` para todas las rutas, salvo los archivos estáticos.
 - **Middlewares, en orden:** contexto de la petición → origen (anti-CSRF) → JWT.
-  El JWT llega en la cookie HttpOnly `token` (`SameSite=Lax`) o en
+  El JWT llega en la cookie HttpOnly `token` (`SameSite=Strict`) o en
   `Authorization: Bearer`.
-- **Anti-CSRF:** la cookie es `SameSite=Lax` (el navegador no la manda en
-  POST/PATCH/DELETE desde otro sitio) y `OriginMiddleware` rechaza con 403
-  (`FORBIDDEN_ORIGIN`) esas peticiones si su `Origin` no es `FRONTEND_URL`.
-  Sin `Origin` (curl, scripts) se aceptan. Reemplaza a la antigua cabecera
-  `x-app-key`, cuya clave iba en el JavaScript del UI.
+- **Anti-CSRF:** la cookie es `SameSite=Strict` (el navegador no la manda en
+  nada que empiece en otro sitio, ni al seguir un enlace) y `OriginMiddleware`
+  rechaza con 403 (`FORBIDDEN_ORIGIN`) las escrituras cuyo `Origin` no sea
+  `FRONTEND_URL`, las que `Sec-Fetch-Site` marca de otro origen aunque no
+  traigan `Origin`, y que otro sitio use el API como recurso (solo puede
+  navegar a él). Sin `Origin` ni `Sec-Fetch-Site` (curl, scripts, monitoreo)
+  se aceptan. Reemplaza a la antigua cabecera `x-app-key`, cuya clave iba en
+  el JavaScript del UI.
 - **Usuario en sesión:** se carga con **una sola consulta** (sus plantas activas
   son sus permisos) y vive en `RequestContextService`. Los servicios leen de ahí;
   nunca guardan el usuario en propiedades.

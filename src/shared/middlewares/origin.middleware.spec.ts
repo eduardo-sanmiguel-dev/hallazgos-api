@@ -11,10 +11,14 @@ import {
 const configWith = (frontendUrl?: string) =>
   ({ get: () => frontendUrl }) as unknown as ConfigService;
 
-const requestWith = (method: string, origin?: string) =>
+const requestWith = (
+  method: string,
+  origin?: string,
+  extra: Record<string, string | string[]> = {},
+) =>
   ({
     method,
-    headers: origin === undefined ? {} : { origin },
+    headers: { ...(origin === undefined ? {} : { origin }), ...extra },
   }) as unknown as Request;
 
 describe('OriginMiddleware', () => {
@@ -23,10 +27,27 @@ describe('OriginMiddleware', () => {
     configWith('https://comportarte.com/'),
   );
 
-  const run = (method: string, origin?: string) => {
+  const run = (
+    method: string,
+    origin?: string,
+    extra?: Record<string, string | string[]>,
+  ) => {
     const next = jest.fn();
-    middleware.use(requestWith(method, origin), response, next);
+    middleware.use(requestWith(method, origin, extra), response, next);
     return next;
+  };
+
+  /** Lanza el 403 de origen no permitido sin llamar a next. */
+  const expectForbidden = (
+    method: string,
+    origin?: string,
+    extra?: Record<string, string | string[]>,
+  ) => {
+    const next = jest.fn();
+    expect(() =>
+      middleware.use(requestWith(method, origin, extra), response, next),
+    ).toThrow(ForbiddenException);
+    expect(next).not.toHaveBeenCalled();
   };
 
   it.each(['POST', 'PATCH', 'PUT', 'DELETE'])(
@@ -84,5 +105,51 @@ describe('OriginMiddleware', () => {
     );
     expect(originOf('www.comportarte.com')).toBe('');
     expect(originOf(undefined)).toBe('');
+  });
+
+  describe('Fetch Metadata (Sec-Fetch-Site)', () => {
+    const fromSite = (site: string, mode = 'cors') => ({
+      'sec-fetch-site': site,
+      'sec-fetch-mode': mode,
+    });
+
+    it('una escritura sin Origin que el navegador marca de otro sitio se rechaza', () => {
+      expectForbidden('POST', undefined, fromSite('cross-site', 'no-cors'));
+      // Otro subdominio de comportarte.com: mismo sitio, pero no es el UI.
+      expectForbidden('DELETE', undefined, fromSite('same-site'));
+    });
+
+    it('otro sitio no puede usar el API como recurso (imagen, script, fetch)', () => {
+      for (const mode of ['no-cors', 'cors'])
+        expectForbidden('GET', undefined, fromSite('cross-site', mode));
+    });
+
+    it('otro sitio sí puede navegar al API (sin cookie, por SameSite=Strict)', () => {
+      expect(
+        run('GET', undefined, fromSite('cross-site', 'navigate')),
+      ).toHaveBeenCalledTimes(1);
+    });
+
+    it('el UI pasa: lecturas e imágenes del mismo sitio y escrituras con su Origin', () => {
+      expect(
+        run('GET', undefined, fromSite('same-site', 'no-cors')),
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        run('POST', 'https://comportarte.com', fromSite('same-site')),
+      ).toHaveBeenCalledTimes(1);
+      // Si el UI y el API compartieran origen, o el UI fuera de otro sitio.
+      expect(
+        run('PATCH', 'https://comportarte.com', fromSite('cross-site')),
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        run('POST', undefined, fromSite('same-origin')),
+      ).toHaveBeenCalledTimes(1);
+    });
+
+    it('una cabecera repetida se toma por su primer valor', () => {
+      expectForbidden('POST', undefined, {
+        'sec-fetch-site': ['cross-site', 'same-origin'],
+      });
+    });
   });
 });

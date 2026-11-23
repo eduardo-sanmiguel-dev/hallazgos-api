@@ -24,16 +24,31 @@ export const originOf = (url: string | undefined): string => {
   }
 };
 
+const header = (req: Request, name: string) => {
+  const value = req.headers[name];
+  return Array.isArray(value) ? value[0] : value;
+};
+
 /**
- * Protección CSRF (segunda capa; la primera es la cookie SameSite=Lax): una
- * petición que cambia datos solo se acepta si el navegador dice que viene
- * del UI (`FRONTEND_URL`, el mismo origen que permite CORS).
+ * Protección CSRF. Capas, de afuera hacia adentro:
  *
- * Los navegadores siempre mandan `Origin` en un POST/PATCH/DELETE hecho
- * desde otro sitio (formulario oculto, fetch), así que un ataque desde una
- * página ajena llega con su origen y se rechaza con 403. Sin `Origin` (curl,
- * scripts, pruebas) se deja pasar: no viajan con la cookie de la víctima.
- * `Origin: null` (iframes aislados, redirecciones) se rechaza.
+ * 1. Cookie de sesión `SameSite=Strict` (auth.service): el navegador no la
+ *    manda en nada que empiece en otro sitio, ni siquiera al seguir un
+ *    enlace. El UI (comportarte.com) y el API (api.comportarte.com) son el
+ *    mismo sitio, así que a la app no le afecta.
+ * 2. `Origin`: una petición que cambia datos solo se acepta si el navegador
+ *    dice que viene del UI (`FRONTEND_URL`, el mismo origen que permite
+ *    CORS). Los navegadores siempre lo mandan en un POST/PATCH/DELETE hecho
+ *    desde otra página. `Origin: null` (iframes aislados, redirecciones) se
+ *    rechaza.
+ * 3. Fetch Metadata (`Sec-Fetch-Site`, en todos los navegadores actuales):
+ *    sin `Origin`, una escritura que el navegador marca como de otro origen
+ *    también se rechaza; y otro sitio no puede usar el API como recurso
+ *    (imagen, script, fetch): solo navegar a él, sin cookie por la capa 1.
+ *
+ * Sin `Origin` ni `Sec-Fetch-Site` (curl, scripts, monitoreo) se deja pasar:
+ * no son el navegador de la víctima y no llevan su cookie. Con estas capas
+ * no hace falta un token anti-CSRF aparte.
  *
  * Reemplaza a la cabecera `x-app-key`, cuya clave iba en el JavaScript del UI
  * (no era secreta) y solo protegía de CSRF por ser una cabecera propia.
@@ -49,13 +64,27 @@ export class OriginMiddleware implements NestMiddleware {
   }
 
   use(req: Request, _res: Response, next: NextFunction) {
-    const origin = req.headers.origin;
+    const origin = header(req, 'origin');
+    const site = header(req, 'sec-fetch-site');
+    const safe = SAFE_METHODS.has(req.method.toUpperCase());
+    const fromUi = origin === this.allowedOrigin;
 
-    if (
-      SAFE_METHODS.has(req.method.toUpperCase()) ||
-      origin === undefined ||
-      origin === this.allowedOrigin
-    ) {
+    // Otro sitio solo puede navegar al API (abrir un enlace), nunca usarlo
+    // como recurso de su página.
+    const crossSiteResource =
+      site === 'cross-site' &&
+      !fromUi &&
+      !(safe && header(req, 'sec-fetch-mode') === 'navigate');
+
+    // Escrituras: del UI, o sin rastro de venir de un navegador en otra
+    // página (curl, scripts).
+    const foreignWrite =
+      !safe &&
+      !fromUi &&
+      (origin !== undefined ||
+        (site !== undefined && site !== 'same-origin' && site !== 'none'));
+
+    if (!crossSiteResource && !foreignWrite) {
       next();
       return;
     }

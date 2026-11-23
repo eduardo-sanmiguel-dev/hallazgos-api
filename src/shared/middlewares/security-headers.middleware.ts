@@ -8,6 +8,9 @@ import helmet from 'helmet';
  * ni incrustarse en otro sitio. Las imágenes y PDF que la UI muestra no se
  * ven afectados: la CSP de un recurso solo aplica cuando se abre como página.
  *
+ * HSTS (solo HTTPS, un año) y X-Frame-Options DENY explícitos: antes eran
+ * los valores por omisión de helmet (y el de iframes, SAMEORIGIN).
+ *
  * CORP cross-origin: el front (otro origen) carga imágenes y PDF de aquí.
  */
 export const securityHeaders = () =>
@@ -21,5 +24,7 @@ export const securityHeaders = () =>
         frameAncestors: ["'none'"],
       },
     },
+    strictTransportSecurity: { maxAge: 31_536_000, includeSubDomains: true },
+    xFrameOptions: { action: 'deny' },
     crossOriginResourcePolicy: { policy: 'cross-origin' },
   });
