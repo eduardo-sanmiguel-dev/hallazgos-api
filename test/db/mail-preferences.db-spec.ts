@@ -124,6 +124,38 @@ describe('E2E: preferencias de correo (enlace de baja)', () => {
     expect(await stored()).toBe(false);
   });
 
+  // El enlace de los correos nuevos no lleva token: la página usa la sesión.
+  it('con sesión ve y cambia su propia casilla; sin sesión responde 401', async () => {
+    await e2e.call('get', '/mail-preferences/me').expect(401);
+    await e2e
+      .call('patch', '/mail-preferences/me')
+      .send({ plantNotifications: false })
+      .expect(401);
+
+    const { body } = await e2e
+      .call('get', '/mail-preferences/me', e2e.tokens.general)
+      .expect(200);
+    expect(body).toEqual({
+      email: expect.stringMatching(/^g•+@hallazgos\.test$/),
+      plantNotifications: false,
+    });
+
+    const res = await e2e
+      .call('patch', '/mail-preferences/me', e2e.tokens.general)
+      .send({ plantNotifications: true })
+      .expect(200);
+    expect(res.body.plantNotifications).toBe(true);
+    expect(await stored()).toBe(true);
+  });
+
+  it('con sesión, un campo de más responde 400', async () => {
+    await e2e
+      .call('patch', '/mail-preferences/me', e2e.tokens.general)
+      .send({ plantNotifications: false, unsubscribeToken: token })
+      .expect(400);
+    expect(await stored()).toBe(true);
+  });
+
   // Al final: agota el límite por IP de este archivo.
   it('limita los intentos por IP (adivinar tokens)', async () => {
     const statuses: number[] = [];

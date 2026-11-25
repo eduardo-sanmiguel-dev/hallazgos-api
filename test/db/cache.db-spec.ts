@@ -1,9 +1,11 @@
 /**
- * E2E (app completa + base de pruebas): caché de catálogos y dashboard con un
+ * E2E (app completa + base de pruebas): caché de catálogos, dashboard y
+ * usuario en sesión con un
  * Redis en memoria. Lo que importa es la invalidación con TypeORM real: que
  * llegue con cada forma de escribir y después del COMMIT.
  */
 import { Evidence } from '../../src/evidences/entities/evidence.entity.js';
+import { User } from '../../src/users/entities/user.entity.js';
 import { Zone } from '../../src/zones/entities/zone.entity.js';
 import { memoryCacheClient } from '../utils/index.js';
 import { createE2eApp, type E2eApp } from './e2e-app.js';
@@ -117,5 +119,46 @@ describe('E2E: caché Redis de catálogos y dashboard', () => {
     expect(
       countMatching(await recordQueries(status), /FROM "evidence"/),
     ).toBeGreaterThan(0);
+  });
+
+  // Usuario de cada petición (JwtMiddleware → UsersService.findSessionUser).
+  const sessionQueries = (token: string) =>
+    recordQueries(() =>
+      e2e.call('get', '/zones?view=options', token).expect(200),
+    );
+  const SESSION_SQL = /LEFT JOIN "user_manufacturing_plants"/;
+
+  it('el usuario en sesión se consulta una vez y luego sale del caché', async () => {
+    await sessionQueries(e2e.tokens.supervisor);
+    expect(
+      countMatching(await sessionQueries(e2e.tokens.supervisor), SESSION_SQL),
+    ).toBe(0);
+  });
+
+  it('cambiar las plantas de un usuario invalida su sesión (tabla intermedia)', async () => {
+    await sessionQueries(e2e.tokens.supervisor);
+    const before = generation('sessions');
+
+    await e2e.dataSource
+      .createQueryBuilder()
+      .relation(User, 'manufacturingPlants')
+      .of(e2e.base.users.supervisor.id)
+      .add(e2e.base.plants.manizales.id);
+
+    expect(generation('sessions')).toBe(before + 1);
+    expect(
+      countMatching(await sessionQueries(e2e.tokens.supervisor), SESSION_SQL),
+    ).toBeGreaterThan(0);
+  });
+
+  // Al final: deja sin validez el token de este usuario en el archivo.
+  it('cerrar sesión en todos los dispositivos invalida al momento, aunque estuviera en caché', async () => {
+    await sessionQueries(e2e.tokens.general);
+
+    await e2e.call('post', '/auth/logout-all', e2e.tokens.general).expect(201);
+
+    await e2e
+      .call('get', '/zones?view=options', e2e.tokens.general)
+      .expect(401);
   });
 });

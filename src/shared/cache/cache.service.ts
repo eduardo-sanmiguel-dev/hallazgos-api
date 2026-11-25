@@ -15,7 +15,8 @@ import { Redis } from 'ioredis';
  * cuando se llena (volatile-lru, sin persistencia) y aquel no debe perder
  * nada (noeviction).
  *
- * Invalidación por generación: cada espacio (`catalogs`, `dashboard`) tiene un
+ * Invalidación por generación: cada espacio (`catalogs`, `dashboard`,
+ * `sessions`) tiene un
  * contador `cache:gen:<espacio>` que forma parte de cada llave. Una escritura
  * lo incrementa (después del commit, ver CacheInvalidationSubscriber) y todo
  * lo guardado antes deja de leerse; vence solo por su TTL. Una lectura que
@@ -23,13 +24,17 @@ import { Redis } from 'ioredis';
  *
  * Si Redis no está configurado o falla, se consulta la base como siempre.
  */
-export type CacheNamespace = 'catalogs' | 'dashboard';
+export type CacheNamespace = 'catalogs' | 'dashboard' | 'sessions';
 
 /** TTL de respaldo (segundos), por si alguna escritura no se ve. */
 const TTL: Record<CacheNamespace, number> = {
   catalogs: 10 * 60,
   // Algunas gráficas dependen de la fecha actual (vencidos, mes en curso).
   dashboard: 5 * 60,
+  // Usuario de cada petición (JwtMiddleware). Corto a propósito: si Redis
+  // fallara al invalidar, una sesión cerrada en todos los dispositivos
+  // seguiría valiendo como mucho este tiempo.
+  sessions: 60,
 };
 
 /** Respuestas más grandes no se guardan (no vale la pena moverlas). */
@@ -136,6 +141,22 @@ export class CacheService implements OnModuleDestroy {
         .catch((error) => this.warn('guardar', error));
     }
     return value;
+  }
+
+  /**
+   * Estado de Redis para /health y el deploy: `disabled` sin
+   * CACHE_REDIS_URL, `down` si no responde (la API sigue, contra la base).
+   * El 21-nov-2026 arrancó sin la contraseña (NOAUTH) y nadie lo notó.
+   */
+  async status(): Promise<'up' | 'down' | 'disabled'> {
+    if (!this.client) return 'disabled';
+    try {
+      await this.client.get('cache:gen:catalogs');
+      return 'up';
+    } catch (error) {
+      this.warn('revisar', error);
+      return 'down';
+    }
   }
 
   /** Deja de servir lo guardado en esos espacios. */

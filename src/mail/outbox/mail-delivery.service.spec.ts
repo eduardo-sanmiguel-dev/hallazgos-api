@@ -82,6 +82,30 @@ describe('MailDeliveryService', () => {
       expect.arrayContaining(['accepted', 'message']),
     );
   });
+  it('accepted mail without rejected recipients raises no review event', async () => {
+    await processRow();
+    expect(Logger.prototype.error).not.toHaveBeenCalled();
+  });
+  it('accepts a mail with some rejected recipients and asks for review without addresses', async () => {
+    sendMail.mockResolvedValue({
+      accepted: ['a@test.com'],
+      rejected: ['b@test.com', 'c@test.com'],
+      messageId: 'message',
+    });
+    await processRow();
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('provider_message_id=$5'),
+      expect.arrayContaining(['accepted', 'message']),
+    );
+    expect(Logger.prototype.error).toHaveBeenCalledWith({
+      component: 'mail-worker',
+      event: 'mail_review_required',
+      notification_id: 'id',
+      event_id: 'event',
+      category: 'recipients_rejected',
+      count: 2,
+    });
+  });
   it.each([
     [{ responseCode: 451 }, 'retry_wait'],
     [{ responseCode: 550 }, 'dead'],

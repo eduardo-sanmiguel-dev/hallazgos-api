@@ -16,6 +16,7 @@ import {
   buildManufacturingPlant,
   buildUser,
   createServiceTestingModule,
+  memoryCacheClient,
   mockProvider,
   type RepositoryMock,
   runAsUser,
@@ -27,6 +28,8 @@ import { User } from './entities/user.entity.js';
 import { GembaWalkObserver } from '../gemba-walk-observers/entities/gemba-walk-observer.entity.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { UsersService } from './users.service.js';
+import { CacheService } from '../shared/cache/cache.service.js';
+import { ConfigService } from '@nestjs/config';
 
 // Cuentas de prueba del equipo que no deben aparecer en los listados.
 const TEST_ACCOUNTS = [
@@ -51,6 +54,7 @@ describe('UsersService', () => {
   let plants: jest.Mocked<ManufacturingPlantsService>;
   let zones: jest.Mocked<ZonesService>;
   let processes: jest.Mocked<ProcessesService>;
+  let cache: CacheService;
 
   const tepotzotlan = buildManufacturingPlant({ id: 1, name: 'Tepotzotlán' });
   const zone = { id: 10, name: 'Almacén' };
@@ -63,9 +67,17 @@ describe('UsersService', () => {
         mockProvider(ManufacturingPlantsService),
         mockProvider(ZonesService),
         mockProvider(ProcessesService),
+        {
+          provide: CacheService,
+          useValue: new CacheService(
+            { get: () => undefined } as unknown as ConfigService,
+            memoryCacheClient(),
+          ),
+        },
       ],
     });
     service = testing.service;
+    cache = testing.get(CacheService);
     users = testing.repository(User);
     observers = testing.repository(GembaWalkObserver);
     observers.count.mockResolvedValue(0);
@@ -529,11 +541,48 @@ describe('UsersService', () => {
   });
 
   describe('findSessionUser', () => {
+    it('la siguiente petición sale del caché hasta que se invalida "sessions"', async () => {
+      users.find.mockResolvedValue([buildUser({ id: 9, name: 'Ana' })]);
+
+      await service.findSessionUser(9);
+      const cached = await service.findSessionUser(9);
+      expect(cached.name).toBe('Ana');
+      expect(users.find).toHaveBeenCalledTimes(1);
+
+      // Otra cuenta no comparte la entrada.
+      users.find.mockResolvedValue([buildUser({ id: 10, name: 'Luis' })]);
+      await expect(service.findSessionUser(10)).resolves.toMatchObject({
+        name: 'Luis',
+      });
+
+      // Guardar un usuario o sus plantas invalida (subscriber de TypeORM).
+      users.find.mockResolvedValue([buildUser({ id: 9, name: 'Ana María' })]);
+      await cache.invalidate(['sessions']);
+      await expect(service.findSessionUser(9)).resolves.toMatchObject({
+        name: 'Ana María',
+      });
+      expect(users.find).toHaveBeenCalledTimes(3);
+    });
+
+    it('un usuario no encontrado no se guarda en el caché', async () => {
+      users.find.mockResolvedValueOnce([]);
+      await expect(service.findSessionUser(9)).rejects.toThrow(
+        NotFoundException,
+      );
+
+      users.find.mockResolvedValueOnce([buildUser({ id: 9 })]);
+      await expect(service.findSessionUser(9)).resolves.toMatchObject({
+        id: 9,
+      });
+    });
+
     it('una sola consulta: usuario activo con sus plantas activas, sin zonas ni procesos', async () => {
       const user = buildUser({ id: 9 });
       users.find.mockResolvedValue([user]);
 
-      await expect(service.findSessionUser(9)).resolves.toBe(user);
+      await expect(service.findSessionUser(9)).resolves.toEqual(
+        JSON.parse(JSON.stringify(user)),
+      );
       expect(users.find).toHaveBeenCalledTimes(1);
       expect(users.find.mock.calls[0][0]).toEqual({
         where: {

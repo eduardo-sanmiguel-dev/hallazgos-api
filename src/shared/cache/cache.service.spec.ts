@@ -195,6 +195,28 @@ describe('CacheService', () => {
     expect(client.quit).toHaveBeenCalled();
   });
 
+  describe('status (health y deploy)', () => {
+    it('up si Redis responde', async () => {
+      await expect(cache.status()).resolves.toBe('up');
+    });
+
+    it('down si Redis falla (p. ej. NOAUTH), y lo avisa', async () => {
+      client.get.mockRejectedValueOnce(
+        new Error('NOAUTH Authentication required.'),
+      );
+      await expect(cache.status()).resolves.toBe('down');
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('NOAUTH Authentication required.'),
+      );
+    });
+
+    it('disabled sin CACHE_REDIS_URL', async () => {
+      await expect(new CacheService(config()).status()).resolves.toBe(
+        'disabled',
+      );
+    });
+  });
+
   describe('sin CACHE_REDIS_URL', () => {
     it('consulta siempre la base y no hace nada al invalidar o apagar', async () => {
       const disabled = new CacheService(config());

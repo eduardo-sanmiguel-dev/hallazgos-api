@@ -1,3 +1,5 @@
+import { ConfigService } from '@nestjs/config';
+import { CacheService } from '../shared/cache/cache.service.js';
 import { NotFoundException } from '@nestjs/common';
 import { FindOperator } from 'typeorm';
 import {
@@ -29,6 +31,12 @@ describe('UsersService: aislamiento por planta en HTTP', () => {
         mockProvider(ManufacturingPlantsService),
         mockProvider(ZonesService),
         mockProvider(ProcessesService),
+        {
+          provide: CacheService,
+          useValue: new CacheService({
+            get: () => undefined,
+          } as unknown as ConfigService),
+        },
       ],
     });
     service = testing.service;

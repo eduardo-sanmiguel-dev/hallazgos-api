@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource, type EntityManager } from 'typeorm';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { ISendMailOptions } from '@nestjs-modules/mailer';
 import { traced } from '../../shared/tracing/traced.js';
 import { encryptionKey, freezeMail, seal } from './mail-payload.js';
@@ -22,9 +22,23 @@ type Capture = {
   // Lock compartido contra el recolector de blobs: dura hasta el fin de la
   // transacción, así que basta pedirlo una vez por evento.
   blobLock?: Promise<unknown>;
-  // Parámetros de cada fila por guardar: se insertan todas juntas al terminar
-  // la captura, dentro de la misma transacción.
-  rows: unknown[][];
+  // Correos por guardar, uno por contenido distinto (clave: hash del correo
+  // sin destinatario). Se insertan todos juntos al terminar la captura,
+  // dentro de la misma transacción.
+  messages: Map<string, PendingMail>;
+};
+
+type PendingMail = {
+  mail: ISendMailOptions;
+  recipients: string[];
+  type: string;
+  evidenceId: number | null;
+};
+
+/** Id del hallazgo del asunto "Hallazgo #N · …" (null en los demás correos). */
+const evidenceIdOf = (subject: unknown) => {
+  const match = /Hallazgo #(\d+)/.exec(String(subject));
+  return match ? Number(match[1]) : null;
 };
 
 const PARAMS_PER_ROW = 10;
@@ -67,7 +81,7 @@ export class MailOutboxService {
       recipients: new Set(),
       attachments: new Map(),
       rendered: new Map(),
-      rows: [],
+      messages: new Map(),
     };
     return this.context.run(ctx, async () => {
       const result = await work();
@@ -77,11 +91,36 @@ export class MailOutboxService {
   }
 
   /**
-   * Un INSERT para todos los destinatarios del evento: antes era uno por
-   * destinatario (hasta 48 al crear un hallazgo). Un error aquí aborta la
-   * transacción del llamador, igual que antes.
+   * Un INSERT para todos los correos del evento. Un error aquí aborta la
+   * transacción del llamador, igual que antes. `recipient` guarda la lista
+   * de destinatarios del correo (uno o varios, separados por coma).
    */
-  private async insertRows({ manager, rows }: Capture) {
+  private async insertRows(ctx: Capture) {
+    const { manager, messages } = ctx;
+    const key = encryptionKey(this.config.get<string>('MAIL_OUTBOX_KEY'));
+    const rows = [...messages.values()].map(
+      ({ mail, recipients, type, evidenceId }) => {
+        const id = randomUUID();
+        return [
+          id,
+          ctx.event,
+          recipients.join(', '),
+          this.config.get<string>('MAIL_USER'),
+          type,
+          evidenceId,
+          ctx.userId ?? null,
+          seal(
+            {
+              ...addressed(mail, recipients),
+              messageId: `<${id}@comportarte.com>`,
+            },
+            key,
+          ),
+          ctx.expires,
+          type === 'reset' ? 1 : 10,
+        ];
+      },
+    );
     for (let start = 0; start < rows.length; start += ROWS_PER_INSERT) {
       const chunk = rows.slice(start, start + ROWS_PER_INSERT);
       await manager.query(
@@ -113,9 +152,6 @@ export class MailOutboxService {
     const recipient = String(options.to).trim().toLowerCase();
     if (ctx.recipients.has(recipient)) return;
     ctx.recipients.add(recipient);
-    const match = /Hallazgo #(\d+)/.exec(String(options.subject));
-    const id = randomUUID();
-    const key = encryptionKey(this.config.get<string>('MAIL_OUTBOX_KEY'));
     // Coordinate immutable blob creation with the daily garbage collector.
     // Es un lock de transacción: el primer destinatario lo toma y se libera
     // en el commit/rollback; repetirlo por cada uno solo sumaba consultas.
@@ -136,21 +172,40 @@ export class MailOutboxService {
           ctx.rendered,
         ),
     );
-    frozen.messageId = `<${id}@comportarte.com>`;
-    // Se guarda al terminar la captura (insertRows), junto con los demás.
-    ctx.rows.push([
-      id,
-      ctx.event,
-      recipient,
-      this.config.get<string>('MAIL_USER'),
-      ctx.type === 'reset'
-        ? 'reset'
-        : String(options.template).replace('./', ''),
-      match ? Number(match[1]) : null,
-      ctx.userId ?? null,
-      seal(frozen, key),
-      ctx.expires,
-      ctx.type === 'reset' ? 1 : 10,
-    ]);
+    // Mismo contenido (todo menos el destinatario) = mismo correo: un mensaje
+    // por aviso con todos sus destinatarios, en vez de una copia por persona
+    // (hasta 48 al crear un hallazgo, y cada una ocupaba "Enviados" del buzón
+    // remitente). Se guarda al terminar la captura (insertRows).
+    const content = createHash('sha256')
+      .update(JSON.stringify({ ...frozen, to: undefined }))
+      .digest('hex');
+    const message = ctx.messages.get(content);
+    if (message) {
+      message.recipients.push(recipient);
+      return;
+    }
+    ctx.messages.set(content, {
+      mail: frozen,
+      recipients: [recipient],
+      type:
+        ctx.type === 'reset'
+          ? 'reset'
+          : String(options.template).replace('./', ''),
+      evidenceId: evidenceIdOf(options.subject),
+    });
   }
 }
+
+/**
+ * Un destinatario va en "Para", como siempre. Varios van en copia oculta
+ * (sin "Para"): ninguno ve las direcciones de los demás ni puede responder a
+ * todos por error.
+ */
+const addressed = (
+  mail: ISendMailOptions,
+  recipients: string[],
+): ISendMailOptions => {
+  if (recipients.length === 1) return { ...mail, to: recipients[0] };
+  const { to: _to, ...rest } = mail;
+  return { ...rest, bcc: recipients };
+};

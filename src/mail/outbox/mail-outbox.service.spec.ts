@@ -91,10 +91,48 @@ describe('MailOutboxService', () => {
         args.slice(row * 10, row * 10 + 10),
       ),
     );
-  it('inserts every recipient of the event with a single INSERT (no N+1)', async () => {
+  const payloadOf = (row: unknown[]) =>
+    unseal<{ to?: string; bcc?: string[]; html: string; messageId: string }>(
+      row[7] as string,
+      encryptionKey('test'),
+    );
+  it('sends one mail per notice to all its recipients in BCC', async () => {
     await mail.withOutbox(manager, () =>
       createFor('a@test.com', 'b@test.com', 'c@test.com'),
     );
+    const rows = insertedRows();
+    expect(rows).toHaveLength(1);
+    expect(rows[0][2]).toBe('a@test.com, b@test.com, c@test.com');
+    const payload = payloadOf(rows[0]);
+    // Nadie ve las direcciones de los demás: sin "Para", todos en copia oculta.
+    expect(payload.to).toBeUndefined();
+    expect(payload.bcc).toEqual(['a@test.com', 'b@test.com', 'c@test.com']);
+    expect(payload.messageId).toBe(`<${rows[0][0]}@comportarte.com>`);
+    expect(payload.html).toContain('Hallazgo');
+  });
+  it('keeps a single recipient in "to"', async () => {
+    await mail.withOutbox(manager, () => createFor('a@test.com'));
+    const payload = payloadOf(insertedRows()[0]);
+    expect(payload.to).toBe('a@test.com');
+    expect(payload.bcc).toBeUndefined();
+  });
+  // Un aviso por hallazgo: contenidos distintos dentro del mismo evento.
+  const createForEvidences = async (count: number) => {
+    for (let id = 1; id <= count; id++)
+      await mail.sendCreate({
+        user: buildUser({ email: `u${id}@test.com` }),
+        evidenceCurrent: buildEvidence({
+          id,
+          imgEvidence: '',
+          supervisors: [],
+        }),
+      });
+  };
+  it('saves mails with different content apart, with a single INSERT (no N+1)', async () => {
+    await mail.withOutbox(manager, async () => {
+      await createForEvidences(2);
+      await createFor('a@test.com', 'b@test.com');
+    });
     const inserts = sqlCalls('INSERT INTO email_notifications');
     expect(inserts).toHaveLength(1);
     const [sql, args] = inserts[0];
@@ -104,23 +142,21 @@ describe('MailOutboxService', () => {
     expect(sql).toContain('account=$14)');
     expect(sql).toContain('account=$24)');
     expect(sql).toContain('$30,');
-    expect(insertedRows().map((row) => row[2])).toEqual([
-      'a@test.com',
-      'b@test.com',
-      'c@test.com',
+    expect(insertedRows().map((row) => [row[2], row[5]])).toEqual([
+      ['u1@test.com', 1],
+      ['u2@test.com', 2],
+      ['a@test.com, b@test.com', expect.any(Number)],
     ]);
     // Todos del mismo evento.
     expect(new Set(insertedRows().map((row) => row[1])).size).toBe(1);
   });
-  it('splits very large events in INSERTs of 500 recipients', async () => {
-    const emails = Array.from({ length: 501 }, (_, i) => `u${i}@test.com`);
-    await mail.withOutbox(manager, () => createFor(...emails));
+  it('splits very large events in INSERTs of 500 mails', async () => {
+    await mail.withOutbox(manager, () => createForEvidences(501));
     expect(
       sqlCalls('INSERT INTO email_notifications').map(
         ([, args]) => args.length,
       ),
     ).toEqual([5000, 10]);
-    expect(insertedRows().map((row) => row[2])).toEqual(emails);
   });
   it('inserts nothing when the work fails or sends no mail', async () => {
     await expect(
@@ -143,18 +179,6 @@ describe('MailOutboxService', () => {
       mail.withOutbox(manager, () => createFor('a@test.com', 'b@test.com')),
     ).rejects.toThrow('lock timeout');
     expect(sqlCalls('INSERT INTO email_notifications')).toHaveLength(0);
-  });
-  it('shares the rendered HTML between recipients but seals each one with its own address', async () => {
-    await mail.withOutbox(manager, () => createFor('a@test.com', 'b@test.com'));
-    const payloads = insertedRows().map((args) =>
-      unseal<{ to: string; html: string }>(
-        args[7] as string,
-        encryptionKey('test'),
-      ),
-    );
-    expect(payloads.map(({ to }) => to)).toEqual(['a@test.com', 'b@test.com']);
-    expect(payloads[1].html).toBe(payloads[0].html);
-    expect(payloads[0].html).toContain('Hallazgo');
   });
   it('traces the freezing of each recipient with its template', async () => {
     const recorder = spanRecorder();

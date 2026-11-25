@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RequestContextService } from '../shared/services/request-context.service.js';
+import { CacheService } from '../shared/cache/cache.service.js';
 
 import {
   type FindOptionsWhere,
@@ -90,6 +91,7 @@ export class UsersService {
     private readonly manufacturingPlantsService: ManufacturingPlantsService,
     private readonly zonesService: ZonesService,
     private readonly processesService: ProcessesService,
+    private readonly cache: CacheService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -358,7 +360,21 @@ export class UsersService {
    * procesos del usuario en sesión (un supervisor llega a tener 261 zonas).
    * Mismo criterio que findOne: inactivo o sin plantas activas → 404.
    */
-  async findSessionUser(id: number): Promise<User> {
+  /**
+   * Usuario de cada petición (JwtMiddleware) y de cada foto de hallazgo. Era
+   * la consulta que más tiempo le costaba a la base (~7 ms × ~8 000 por
+   * semana): ahora va en el caché `sessions` (60 s), que se invalida al
+   * guardar usuarios, plantas o sus asignaciones, incluido cerrar sesión en
+   * todos los dispositivos (ver CacheInvalidationSubscriber). Lo que sale del
+   * caché pasó por JSON: las fechas llegan como texto (nada las usa).
+   */
+  findSessionUser(id: number): Promise<User> {
+    return this.cache.remember('sessions', { id }, () =>
+      this.loadSessionUser(id),
+    );
+  }
+
+  private async loadSessionUser(id: number): Promise<User> {
     const [user] = await this.userRepository.find({
       where: {
         id,

@@ -37,9 +37,21 @@ const CATALOG_ENTITIES = new Set<unknown>([
   User,
 ]);
 
+/**
+ * Lo que cambia el usuario en sesión (UsersService.findSessionUser): el
+ * usuario (rol, activo, tokenVersion al cerrar sesión en todos lados), sus
+ * plantas y la asignación entre ambos. La tabla intermedia no tiene clase:
+ * se reconoce por su nombre.
+ */
+const SESSION_ENTITIES = new Set<unknown>([User, ManufacturingPlant]);
+const SESSION_TABLES = new Set(['user_manufacturing_plants']);
+
 const PENDING = 'cacheInvalidation';
 
-type Event = { metadata: { target: unknown }; queryRunner: QueryRunner };
+type Event = {
+  metadata: { target: unknown; tableName?: string };
+  queryRunner: QueryRunner;
+};
 
 /**
  * Invalida el caché en cada escritura de TypeORM (save, update, delete,
@@ -96,6 +108,11 @@ export class CacheInvalidationSubscriber implements EntitySubscriberInterface {
     const namespaces: CacheNamespace[] = CATALOG_ENTITIES.has(metadata.target)
       ? ['catalogs', 'dashboard']
       : ['dashboard'];
+    if (
+      SESSION_ENTITIES.has(metadata.target) ||
+      SESSION_TABLES.has(metadata.tableName)
+    )
+      namespaces.push('sessions');
     if (!queryRunner.isTransactionActive)
       return this.cache.invalidate(namespaces);
     const pending: Set<CacheNamespace> = (queryRunner.data[PENDING] ??=

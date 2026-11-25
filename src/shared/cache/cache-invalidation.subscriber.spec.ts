@@ -1,6 +1,7 @@
 import type { DataSource, QueryRunner } from 'typeorm';
 
 import { Evidence } from '../../evidences/entities/evidence.entity.js';
+import { ManufacturingPlant } from '../../manufacturing-plants/entities/manufacturing-plant.entity.js';
 import { User } from '../../users/entities/user.entity.js';
 import { Zone } from '../../zones/entities/zone.entity.js';
 import { CacheInvalidationSubscriber } from './cache-invalidation.subscriber.js';
@@ -13,8 +14,11 @@ describe('CacheInvalidationSubscriber', () => {
 
   const runner = (isTransactionActive: boolean) =>
     ({ isTransactionActive, data: {} }) as unknown as QueryRunner;
-  const event = (target: unknown, queryRunner: QueryRunner) =>
-    ({ metadata: { target }, queryRunner }) as never;
+  const event = (
+    target: unknown,
+    queryRunner: QueryRunner,
+    tableName?: string,
+  ) => ({ metadata: { target, tableName }, queryRunner }) as never;
   const invalidated = () =>
     invalidate.mock.calls.map(([namespaces]) => [...namespaces].sort());
 
@@ -33,12 +37,27 @@ describe('CacheInvalidationSubscriber', () => {
 
   it('fuera de transacción invalida al momento: catálogo → catálogos y dashboard', async () => {
     await subscriber.afterUpdate(event(Zone, runner(false)));
-    await subscriber.afterInsert(event(User, runner(false)));
 
-    expect(invalidated()).toEqual([
-      ['catalogs', 'dashboard'],
-      ['catalogs', 'dashboard'],
-    ]);
+    expect(invalidated()).toEqual([['catalogs', 'dashboard']]);
+  });
+
+  // El usuario en sesión (UsersService.findSessionUser) sale del caché.
+  it.each([
+    ['un usuario (rol, activo, cerrar sesión en todos lados)', User, undefined],
+    ['una planta', ManufacturingPlant, undefined],
+  ])('%s también invalida las sesiones', async (_, target, tableName) => {
+    await subscriber.afterUpdate(event(target, runner(false), tableName));
+
+    expect(invalidated()).toEqual([['catalogs', 'dashboard', 'sessions']]);
+  });
+
+  it('asignar o quitar plantas a un usuario invalida las sesiones', async () => {
+    await subscriber.afterInsert(
+      event('', runner(false), 'user_manufacturing_plants'),
+    );
+    await subscriber.afterRemove(event('', runner(false), 'user_zones'));
+
+    expect(invalidated()).toEqual([['dashboard', 'sessions'], ['dashboard']]);
   });
 
   it('cualquier otra entidad solo invalida el dashboard', async () => {

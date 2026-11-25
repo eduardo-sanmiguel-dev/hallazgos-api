@@ -423,7 +423,11 @@ export class MailDeliveryService {
         );
     }, 30_000);
     try {
-      let info: { messageId?: string; accepted?: unknown[] };
+      let info: {
+        messageId?: string;
+        accepted?: unknown[];
+        rejected?: unknown[];
+      };
       try {
         info = await this.mailer.sendMail(options);
       } catch (error) {
@@ -446,6 +450,20 @@ export class MailDeliveryService {
         return;
       }
       await this.finish(row, 'accepted', undefined, undefined, info.messageId);
+      // Correo con varios destinatarios: el servidor puede rechazar a unos y
+      // aceptar a los demás sin error. Antes cada uno tenía su fila y el
+      // rechazo quedaba como "dead"; ahora se avisa aquí (sin direcciones).
+      if (info.rejected?.length)
+        this.event(
+          'mail_review_required',
+          {
+            notification_id: row.id,
+            event_id: row.event_id,
+            category: 'recipients_rejected',
+            count: info.rejected.length,
+          },
+          true,
+        );
     } finally {
       clearInterval(timer);
     }

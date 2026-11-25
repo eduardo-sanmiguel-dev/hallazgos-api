@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
@@ -156,6 +157,34 @@ describe('MailService', () => {
       expect(JSON.stringify(sent().context)).not.toContain('cid":"imgEvidence');
       // No modifica el hallazgo original.
       expect(current.imgEvidence).toBe('seed-evidence.png');
+    });
+
+    // Solo la foto de la carga histórica falta a propósito: no ensucia los
+    // avisos. Una foto real que falte sí se avisa.
+    it.each([
+      [
+        'la foto de la carga histórica: solo debug',
+        'seed-evidence.png',
+        'debug',
+      ],
+      ['una foto real: aviso', 'uuid-perdida.png', 'warn'],
+    ])('%s', async (_, imgEvidence, level) => {
+      const debug = jest.spyOn(Logger.prototype, 'debug').mockImplementation();
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+      imageOnDisk.mockReturnValue(false as never);
+
+      await service.sendCreate({
+        user: recipient,
+        evidenceCurrent: evidence({ imgEvidence }),
+      });
+
+      const [used, unused] = level === 'debug' ? [debug, warn] : [warn, debug];
+      expect(used).toHaveBeenCalledWith(
+        expect.stringContaining(`imgEvidence (${imgEvidence})`),
+      );
+      expect(unused).not.toHaveBeenCalled();
+      debug.mockRestore();
+      warn.mockRestore();
     });
 
     it.each([
@@ -535,8 +564,6 @@ describe('MailService', () => {
   });
 
   describe('enlace de baja', () => {
-    const UNSUBSCRIBE_HEADER =
-      /^<https:\/\/ui\.test\/unsubscribe\?token=\d+\.[\w-]{43}>$/;
     const SENDS = {
       create: (plantWide?: boolean) =>
         service.sendCreate({
@@ -560,17 +587,15 @@ describe('MailService', () => {
     };
 
     it.each(Object.entries(SENDS))(
-      '%s a toda la planta: List-Unsubscribe con el token del destinatario y marcador en el pie',
+      '%s a toda la planta: List-Unsubscribe sin token (igual para todos) y marcador en el pie',
       async (_, send) => {
         await send(true);
 
+        // Sin token personal: el mismo correo sirve a todos los destinatarios
+        // y la página pide iniciar sesión.
         expect(sent().headers).toEqual({
-          'List-Unsubscribe': expect.stringMatching(UNSUBSCRIBE_HEADER),
+          'List-Unsubscribe': '<https://ui.test/unsubscribe>',
         });
-        // El token es del destinatario, no de quien hizo el cambio.
-        expect(sent().headers['List-Unsubscribe']).toContain(
-          `token=${recipient.id}.`,
-        );
         expect(sent().context.unsubscribeUrl).toBe(
           '__COMPORTARTE_UNSUBSCRIBE_URL__',
         );

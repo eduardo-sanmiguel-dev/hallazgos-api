@@ -2,6 +2,10 @@ import { mkdtemp, rm, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { ISendMailOptions } from '@nestjs-modules/mailer';
+import { encryptionKey, unseal } from '../../src/mail/outbox/mail-payload.js';
+import { UsersService } from '../../src/users/users.service.js';
 import { createE2eApp, type E2eApp } from './e2e-app.js';
 import { countMatching, recordQueries } from './query-recorder.js';
 
@@ -68,10 +72,28 @@ describe('HTTP hallazgos with the real transactional mail outbox', () => {
       'SELECT * FROM email_notifications WHERE evidence_id=$1',
       [response.body.id],
     );
-    expect(rows.length).toBeGreaterThan(0);
+    // Un correo por aviso, no por persona: el personal (responsables) y el
+    // de toda la planta, este con todos en copia oculta. Nadie se repite.
+    const plantEmails = (
+      await app.app
+        .get(UsersService)
+        .findAllByPlant(app.base.plants.tepotzotlan.id)
+    ).map(({ email }) => email.trim().toLowerCase());
+    const recipientsOf = (row: { recipient: string }) =>
+      row.recipient.split(', ');
+    expect(rows.flatMap(recipientsOf).sort()).toEqual([...plantEmails].sort());
     expect(new Set(rows.map((x) => x.event_id)).size).toBe(1);
-    expect(new Set(rows.map((x) => x.recipient)).size).toBe(rows.length);
     expect(rows.every((x) => x.status === 'pending')).toBe(true);
+    const key = encryptionKey(
+      app.app.get(ConfigService).get<string>('MAIL_OUTBOX_KEY'),
+    );
+    const [plantWide] = rows.filter((x) => recipientsOf(x).length > 1);
+    const mail = unseal<ISendMailOptions>(plantWide.payload, key);
+    expect(mail.to).toBeUndefined();
+    expect(mail.bcc).toEqual(recipientsOf(plantWide));
+    expect(mail.headers).toEqual({
+      'List-Unsubscribe': expect.stringMatching(/\/unsubscribe>$/),
+    });
     expect(app.mail.sendCreate).not.toHaveBeenCalled();
   });
   it('rolls back the hallazgo when notification persistence fails', async () => {

@@ -84,6 +84,31 @@ describe('MailPreferencesService', () => {
     expect(users.update).not.toHaveBeenCalled();
   });
 
+  it('con la sesión muestra y cambia la casilla del usuario activo', async () => {
+    await expect(service.findForUser(7)).resolves.toEqual({
+      email: 'p••••••@planta.com',
+      plantNotifications: true,
+    });
+    await expect(service.updateForUser(7, false)).resolves.toEqual({
+      email: 'p••••••@planta.com',
+      plantNotifications: false,
+    });
+    expect(users.findOne).toHaveBeenCalledWith({
+      where: { id: 7, isActive: true },
+      select: { id: true, email: true, plantNotifications: true },
+    });
+    expect(users.update).toHaveBeenCalledWith(7, { plantNotifications: false });
+  });
+
+  it('con la sesión de un usuario desactivado responde 404 y no cambia nada', async () => {
+    users.findOne.mockResolvedValue(null);
+
+    await expect(service.updateForUser(7, false)).rejects.toThrow(
+      NotFoundException,
+    );
+    expect(users.update).not.toHaveBeenCalled();
+  });
+
   it.each([
     ['persona@planta.com', 'p••••••@planta.com'],
     ['ab@x.com', 'a•••@x.com'],

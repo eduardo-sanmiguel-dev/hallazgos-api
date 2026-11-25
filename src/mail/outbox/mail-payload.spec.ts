@@ -206,7 +206,7 @@ describe('Enlace de baja al congelar el correo', () => {
     expect(withUnsubscribeUrl(html, headers)).toBe(html);
   });
 
-  it('cada destinatario recibe su enlace aunque el HTML se renderice una vez', async () => {
+  it('todos los destinatarios reciben el mismo enlace (sin token): el aviso sale en un solo correo', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'mail-unsubscribe-'));
     try {
       const sendMail = jest.fn();
@@ -239,15 +239,16 @@ describe('Enlace de baja al congelar el correo', () => {
       );
 
       expect(rendered.size).toBe(1);
-      expect(first.html).toContain('https://ui.test/unsubscribe?token=1.');
-      expect(second.html).toContain('https://ui.test/unsubscribe?token=2.');
+      expect(first.html).toContain('href="https://ui.test/unsubscribe"');
+      expect(first.html).not.toContain('token=');
       expect(first.html).toContain('Dejar de recibir avisos de la planta');
       expect(first.html).not.toContain(UNSUBSCRIBE_URL_PLACEHOLDER);
+      // Mismo HTML y cabeceras: el outbox los agrupa en un solo correo.
+      expect(second.html).toBe(first.html);
       expect(first.headers).toEqual({
-        'List-Unsubscribe': expect.stringMatching(
-          /^<https:\/\/ui\.test\/unsubscribe\?token=1\.[\w-]{43}>$/,
-        ),
+        'List-Unsubscribe': '<https://ui.test/unsubscribe>',
       });
+      expect(second.headers).toEqual(first.headers);
     } finally {
       await rm(directory, { recursive: true, force: true });
     }

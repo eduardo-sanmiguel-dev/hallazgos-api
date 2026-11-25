@@ -97,8 +97,6 @@ export default {
     '!config/**',
     '!migrations/**',
     '!database/**',
-    // Seed de datos de ejemplo de hallazgos (no es lógica de la app).
-    '!evidences/evidences-seed.service.ts',
     // Sin uso: solo se referencia en un bloque comentado de main.ts.
     '!cluster.service.ts',
     ...findReexportOnlyIndexes(SRC),

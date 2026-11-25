@@ -2,7 +2,6 @@ import {
   RESET_TOKEN_PLACEHOLDER,
   UNSUBSCRIBE_URL_PLACEHOLDER,
 } from './outbox/mail-payload.js';
-import { createUnsubscribeToken } from './unsubscribe-token.js';
 import type { EntityManager } from 'typeorm';
 import type { ISendMailOptions } from '@nestjs-modules/mailer';
 import { MailOutboxService } from './outbox/mail-outbox.service.js';
@@ -111,6 +110,13 @@ const getResolution = (
 const names = (users: User[]) => users.map(({ name }) => name).join(', ');
 
 type ImageField = 'imgEvidence' | 'imgProcess' | 'imgSolution';
+
+/**
+ * Foto que nunca existió: la carga histórica del 4-may-2026 (hallazgos
+ * 3176-3496, desde Excel) la dejó en todos sus hallazgos. Que falte es lo
+ * esperado; una foto real que falte sí se avisa.
+ */
+const HISTORICAL_LOAD_IMAGE = 'seed-evidence.png';
 const IMAGE_FIELDS: ImageField[] = ['imgEvidence', 'imgProcess', 'imgSolution'];
 
 @Injectable()
@@ -193,18 +199,15 @@ export class MailService {
    * marcador, ver UNSUBSCRIBE_URL_PLACEHOLDER) y en List-Unsubscribe, que
    * los clientes de correo muestran como "Cancelar suscripción". Los avisos
    * personales no lo llevan. Sin FRONTEND_URL válida, sin enlace.
+   *
+   * Es el mismo para todos (sin token personal): así el aviso sale en un
+   * solo correo para todos sus destinatarios. La página pide iniciar sesión.
+   * Los enlaces con token de correos anteriores siguen funcionando.
    */
-  private unsubscribe(user: User, plantWide?: boolean) {
+  private unsubscribe(plantWide?: boolean) {
     if (!plantWide) return {};
     try {
       const url = new URL('/unsubscribe', this.FRONTEND_URL);
-      url.searchParams.set(
-        'token',
-        createUnsubscribeToken(
-          user.id,
-          this.configService.get<string>('jwt.secretKey'),
-        ),
-      );
       return {
         context: { unsubscribeUrl: UNSUBSCRIBE_URL_PLACEHOLDER },
         headers: { 'List-Unsubscribe': `<${url.toString()}>` },
@@ -235,7 +238,10 @@ export class MailService {
       (field) => evidence[field] && !this.imageOnDisk(evidence[field]),
     );
     if (missing.length === 0) return evidence;
-    this.logger.warn(
+    const expected = missing.every(
+      (field) => evidence[field] === HISTORICAL_LOAD_IMAGE,
+    );
+    this.logger[expected ? 'debug' : 'warn'](
       `Hallazgo #${evidence.id}: el correo sale sin ${missing
         .map((field) => `${field} (${evidence[field]})`)
         .join(', ')} porque la imagen no existe en disco`,
@@ -339,7 +345,7 @@ export class MailService {
   }) {
     evidenceCurrent = this.withStoredImages(evidenceCurrent);
     const base = this.evidenceContext(evidenceCurrent, 'create');
-    const unsubscribe = this.unsubscribe(user, plantWide);
+    const unsubscribe = this.unsubscribe(plantWide);
 
     return this.send({
       to: this.emailTest || user.email,
@@ -433,7 +439,7 @@ export class MailService {
     plantWide?: boolean;
   }) {
     evidenceCurrent = this.withStoredImages(evidenceCurrent);
-    const unsubscribe = this.unsubscribe(user, plantWide);
+    const unsubscribe = this.unsubscribe(plantWide);
     const resolution = getResolution(
       evidenceCurrent.createdAt,
       evidenceCurrent.solutionDate,
@@ -567,7 +573,7 @@ export class MailService {
     plantWide?: boolean;
   }) {
     evidenceCurrent = this.withStoredImages(evidenceCurrent);
-    const unsubscribe = this.unsubscribe(user, plantWide);
+    const unsubscribe = this.unsubscribe(plantWide);
     const now = evidenceCurrent.updatedAt || new Date();
     const cancelledAt = stringToDateWithTime(now);
     const base = this.evidenceContext(evidenceCurrent, 'cancel', {

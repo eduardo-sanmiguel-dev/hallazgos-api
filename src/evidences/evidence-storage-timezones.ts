@@ -48,7 +48,7 @@ import {
  * - Hallazgo 2879 (México, createdAt 2026-02-25 18:32:42) cae dentro de la
  *   ventana del cambio de TZ; se toma como hora de México (decisión del negocio).
  * - 321 hallazgos sembrados (ids 3176-3496, Hada International) tienen
- *   createdAt fijo '2026-05-04 09:00:00' puesto por evidences-seed.service.ts.
+ *   createdAt fijo '2026-05-04 09:00:00' puesto por el seeder de esa carga (ya eliminado).
  * - 72 hallazgos con createdAt '2024-05-17 10:48:46.619667' (microsegundos de
  *   now() de Postgres, probablemente al crear la columna): no es una hora real.
  */

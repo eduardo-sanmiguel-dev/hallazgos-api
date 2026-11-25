@@ -7,13 +7,20 @@ import {
 
 import { DataSource } from 'typeorm';
 
+import { CacheService } from '../shared/cache/cache.service.js';
+
 // Estado del servicio para monitoreo / balanceadores. Público (sin JWT) y sin
-// datos sensibles: solo indica si la API y la BD responden.
+// datos sensibles: solo indica si la API, la BD y la caché responden. Sin la
+// caché la API funciona (consulta la base): se informa sin responder 503, y
+// el deploy lo revisa aparte.
 @Controller('health')
 export class HealthController {
   private readonly logger = new Logger(HealthController.name);
 
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly cache: CacheService,
+  ) {}
 
   @Get()
   async check() {
@@ -30,6 +37,7 @@ export class HealthController {
     return {
       status: 'ok',
       database: 'up',
+      cache: await this.cache.status(),
       uptimeSeconds: Math.round(process.uptime()),
     };
   }

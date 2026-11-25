@@ -328,7 +328,11 @@ describe('API (e2e)', () => {
       const { body } = await request(app.getHttpServer())
         .get('/health')
         .expect(200);
-      expect(body).toMatchObject({ status: 'ok', database: 'up' });
+      expect(body).toMatchObject({
+        status: 'ok',
+        database: 'up',
+        cache: 'disabled',
+      });
     });
 
     it('responde 503 cuando la BD no responde', async () => {

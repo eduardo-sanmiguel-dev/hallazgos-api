@@ -12,3 +12,9 @@ export class UpdateMailPreferencesDto extends MailPreferencesTokenDto {
   @IsBoolean()
   plantNotifications: boolean;
 }
+
+/** Cambio con la sesión iniciada (sin token). */
+export class UpdateOwnMailPreferencesDto {
+  @IsBoolean()
+  plantNotifications: boolean;
+}

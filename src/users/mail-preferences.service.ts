@@ -20,9 +20,9 @@ export const maskEmail = (email: string) => {
 };
 
 /**
- * Preferencia de avisos a toda la planta, desde el enlace del correo y sin
- * sesión: el token firmado identifica al usuario y solo permite ver o cambiar
- * esta casilla.
+ * Preferencia de avisos a toda la planta: desde el enlace con token de los
+ * correos anteriores (sin sesión; el token firmado identifica al usuario y
+ * solo permite ver o cambiar esta casilla) o con la sesión iniciada.
  */
 @Injectable()
 export class MailPreferencesService {
@@ -37,6 +37,10 @@ export class MailPreferencesService {
       token,
       this.configService.get<string>('jwt.secretKey'),
     );
+    return this.activeUser(userId);
+  }
+
+  private async activeUser(userId: number | null): Promise<User> {
     const user =
       userId &&
       (await this.userRepository.findOne({
@@ -67,7 +71,29 @@ export class MailPreferencesService {
     token: string,
     plantNotifications: boolean,
   ): Promise<MailPreferences> {
-    const user = await this.userFor(token);
+    return this.save(await this.userFor(token), plantNotifications);
+  }
+
+  /**
+   * Los mismos datos para el usuario en sesión: el enlace de los correos ya
+   * no lleva token (un mismo correo va a varios destinatarios) y la página
+   * pide iniciar sesión.
+   */
+  async findForUser(userId: number): Promise<MailPreferences> {
+    return this.view(await this.activeUser(userId));
+  }
+
+  async updateForUser(
+    userId: number,
+    plantNotifications: boolean,
+  ): Promise<MailPreferences> {
+    return this.save(await this.activeUser(userId), plantNotifications);
+  }
+
+  private async save(
+    user: User,
+    plantNotifications: boolean,
+  ): Promise<MailPreferences> {
     // Solo la casilla: el resto del usuario (sesiones, plantas) no cambia.
     await this.userRepository.update(user.id, { plantNotifications });
     return this.view({ email: user.email, plantNotifications });

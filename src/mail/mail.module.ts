@@ -4,7 +4,6 @@ import { ConfigService } from '@nestjs/config';
 import { MailerModule } from '@nestjs-modules/mailer';
 
 import { MailService } from './mail.service.js';
-import { mailTemplateConfig } from './mail.templates.js';
 
 @Global()
 @Module({
@@ -41,7 +40,10 @@ import { mailTemplateConfig } from './mail.templates.js';
           /*defaults: {
             from: `Hallazgos App`,
           },*/
-          ...mailTemplateConfig(),
+          // Sin adaptador de plantillas: el outbox ya guarda el HTML
+          // renderizado (mail-payload) y este MailerService nunca envía en la
+          // API (lo hace mail-worker). Con el adaptador avisaba en cada
+          // arranque que faltaba la dependencia opcional preview-email.
         };
       },
       inject: [ConfigService],
