@@ -12,9 +12,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildEvidence, buildUser } from '../../../test/utils/index.js';
 import { MailService } from '../mail.service.js';
+import { MAIL_TEMPLATES_DIR } from '../mail.templates.js';
 import {
   UNSUBSCRIBE_URL_PLACEHOLDER,
   freezeMail,
+  warmMailTemplates,
   withUnsubscribeUrl,
 } from './mail-payload.js';
 
@@ -188,6 +190,59 @@ describe('freezeMail', () => {
   });
 });
 
+describe('warmMailTemplates', () => {
+  const previous = process.env.NODE_ENV;
+  afterEach(() => {
+    jest.restoreAllMocks();
+    process.env.NODE_ENV = previous;
+  });
+
+  it('compila todas las plantillas: el primer aviso ya no lee ni compila la suya', async () => {
+    const real = fsPromises.readdir.bind(fsPromises);
+    // Un archivo que no es plantilla y una plantilla rota no lo detienen.
+    jest
+      .spyOn(fsPromises, 'readdir')
+      .mockImplementation((async (path: string) =>
+        path === MAIL_TEMPLATES_DIR
+          ? [...(await real(path)), 'LEEME.txt', 'rota.hbs']
+          : real(path)) as never);
+
+    await expect(warmMailTemplates()).resolves.toBeUndefined();
+
+    const reads = jest.spyOn(fsPromises, 'readFile');
+    const directory = await mkdtemp(join(tmpdir(), 'mail-warm-'));
+    try {
+      await freezeMail({ template: './cancel', context: {} }, directory).catch(
+        () => undefined,
+      );
+      expect(
+        reads.mock.calls.filter(([path]) => String(path).endsWith('.hbs')),
+      ).toEqual([]);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('en desarrollo no hace nada (no hay caché que llenar)', async () => {
+    process.env.NODE_ENV = 'development';
+    const listing = jest.spyOn(fsPromises, 'readdir');
+
+    await warmMailTemplates();
+
+    expect(listing).not.toHaveBeenCalled();
+  });
+
+  it('sin la carpeta de plantillas no falla', async () => {
+    jest
+      .spyOn(fsPromises, 'readdir')
+      .mockRejectedValue(
+        Object.assign(new Error('ENOENT'), { code: 'ENOENT' }),
+      );
+
+    await expect(warmMailTemplates()).resolves.toBeUndefined();
+  });
+});
+
 describe('Enlace de baja al congelar el correo', () => {
   const url = 'https://ui.test/unsubscribe?token=7.abc&x=1';
   const html = `<a href="${UNSUBSCRIBE_URL_PLACEHOLDER}">baja</a>`;
@@ -222,7 +277,7 @@ describe('Enlace de baja al congelar el correo', () => {
       const evidenceCurrent = buildEvidence({ id: 7, imgEvidence: '' });
       for (const id of [1, 2])
         await service.sendCreate({
-          user: buildUser({ id, email: `u${id}@test.com` }),
+          users: [buildUser({ id, email: `u${id}@test.com` })],
           evidenceCurrent,
           plantWide: true,
         });

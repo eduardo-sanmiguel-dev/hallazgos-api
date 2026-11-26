@@ -15,6 +15,7 @@ import { CreateIcsDto, FiltersIcsDto, UpdateIcsDto } from './dto/index.js';
 import { Ics } from './entities/ics.entity.js';
 import { buildFindOrder } from '../shared/utils/sort.js';
 import { ICS_DEFAULT_SORT, ICS_SORT_COLUMNS } from './dto/filters-ics.dto.js';
+import { imageVariants } from '../evidences/evidence-image-variants.js';
 
 @Injectable()
 export class IcsService {
@@ -35,7 +36,10 @@ export class IcsService {
     private readonly rulesOfLifeRepository: Repository<RulesOfLife>,
   ) {}
 
-  async create(createIcsDto: CreateIcsDto, file: Express.Multer.File) {
+  async create(
+    createIcsDto: CreateIcsDto,
+    file: Express.Multer.File | undefined,
+  ) {
     const createdBy = this.requestContext.userId;
 
     const {
@@ -109,7 +113,7 @@ export class IcsService {
 
     const totalCorrectPeople = totalPeople - totalIncorrectPeople;
 
-    return this.icsRepository.save({
+    const ics = await this.icsRepository.save({
       description,
       totalPeople,
       totalCorrectPeople,
@@ -135,6 +139,10 @@ export class IcsService {
       imgEvidence,
       employees: employeesIds.map((id) => ({ id })),
     });
+    // Ya guardada: su AVIF se genera en segundo plano para que la primera
+    // vista no espere a la conversión (ver evidence-image-variants).
+    imageVariants.prepareUpload(file?.filename);
+    return ics;
   }
 
   async catalogs() {

@@ -88,6 +88,7 @@ import {
 } from './evidence-permissions.js';
 import { buildFindOrder } from '../shared/utils/sort.js';
 import { traced } from '../shared/tracing/traced.js';
+import { imageVariants } from './evidence-image-variants.js';
 import {
   EVIDENCE_DEFAULT_SORT,
   EVIDENCE_SORT_COLUMNS,
@@ -415,19 +416,46 @@ export class EvidencesService {
     );
   }
 
-  create(dto: CreateEvidenceDto, file: Express.Multer.File) {
-    return this.transactionalMail((repository) =>
-      this.createWithMail(dto, file, repository),
+  /**
+   * Foto ya guardada con su hallazgo: su AVIF se genera en segundo plano para
+   * que la primera vista no espere a la conversión. Solo si todo salió bien:
+   * si falla, un interceptor borra la foto.
+   */
+  private async withImageVariant<T>(
+    file: Express.Multer.File | undefined,
+    work: Promise<T>,
+  ): Promise<T> {
+    const result = await work;
+    imageVariants.prepareUpload(file?.filename);
+    return result;
+  }
+
+  create(dto: CreateEvidenceDto, file: Express.Multer.File | undefined) {
+    return this.withImageVariant(
+      file,
+      this.transactionalMail((repository) =>
+        this.createWithMail(dto, file, repository),
+      ),
     );
   }
-  saveSolution(id: number, file: Express.Multer.File, description: string) {
-    return this.transactionalMail((repository) =>
-      this.solutionWithMail(id, file, description, repository),
+  saveSolution(
+    id: number,
+    file: Express.Multer.File | undefined,
+    description: string,
+  ) {
+    return this.withImageVariant(
+      file,
+      this.transactionalMail((repository) =>
+        this.solutionWithMail(id, file, description, repository),
+      ),
     );
   }
-  saveProcessStart(id: number, file: Express.Multer.File) {
-    return this.transactionalMail((repository) =>
-      this.processWithMail(id, file, repository),
+  saveProcessStart(id: number, file: Express.Multer.File | undefined) {
+    return this.withImageVariant(
+      file,
+      this.transactionalMail((repository) =>
+        this.processWithMail(id, file, repository),
+      ),
     );
   }
   reassignResponsibles(id: number, dto: ReassignResponsiblesDto) {
@@ -588,28 +616,25 @@ export class EvidencesService {
       `sendEmailUsers: Usuarios a notificar para la planta ${evidenceCurrent.manufacturingPlant.name}: ${users.length}`,
     );
 
-    // Nunca lanza: un correo fallido se registra y no detiene a los demás ni
-    // afecta la operación (el cambio ya se guardó).
-    for (let i = 0, size = users.length; i < size; i++) {
-      const userToSendEmail = users[i];
-
-      try {
-        await this.sendEmailByType(
-          type,
-          userToSendEmail,
-          evidenceCurrent,
-          requestUser,
-          extra,
-        );
-      } catch (error) {
-        if (this.mailService.capturingMail) throw error;
-        this.logEmailError(
-          type,
-          evidenceCurrent,
-          `el usuario ${userToSendEmail?.id}`,
-          error,
-        );
-      }
+    // Un solo aviso para todos: el outbox lo arma y congela una vez (antes,
+    // una vez por destinatario). Dentro de la transacción, un fallo la aborta;
+    // fuera de ella solo se registra y la operación sigue.
+    try {
+      await this.sendEmailByType(
+        type,
+        users,
+        evidenceCurrent,
+        requestUser,
+        extra,
+      );
+    } catch (error) {
+      if (this.mailService.capturingMail) throw error;
+      this.logEmailError(
+        type,
+        evidenceCurrent,
+        `los usuarios ${users.map((user) => user?.id).join(', ')}`,
+        error,
+      );
     }
   }
 
@@ -628,7 +653,7 @@ export class EvidencesService {
 
   private async sendEmailByType(
     type: string,
-    userToSendEmail: User,
+    users: User[],
     evidenceCurrent: Evidence,
     requestUser: User,
     extra?: {
@@ -642,7 +667,7 @@ export class EvidencesService {
     switch (type) {
       case 'create':
         await this.mailService.sendCreate({
-          user: userToSendEmail,
+          users,
           evidenceCurrent,
           plantWide: extra?.plantWide,
         });
@@ -650,21 +675,21 @@ export class EvidencesService {
       case 'cancel':
         await this.mailService.sendCancel({
           cancelledBy: requestUser,
-          user: userToSendEmail,
+          users,
           evidenceCurrent,
           plantWide: extra?.plantWide,
         });
         break;
       case 'solution':
         await this.mailService.sendSolution({
-          user: userToSendEmail,
+          users,
           evidenceCurrent,
           plantWide: extra?.plantWide,
         });
         break;
       case 'reassign':
         await this.mailService.sendReassign({
-          user: userToSendEmail,
+          users,
           reassignedBy: extra?.reassignedBy || requestUser,
           evidenceCurrent,
           previousResponsibles: extra?.previousResponsibles || [],
@@ -1861,7 +1886,7 @@ export class EvidencesService {
       repository,
     );
 
-    // Persistir un correo por destinatario antes del commit.
+    // Persistir el aviso antes del commit.
     await this.notifyByEmail({
       manufacturingPlant,
       evidenceCurrent: evidence,

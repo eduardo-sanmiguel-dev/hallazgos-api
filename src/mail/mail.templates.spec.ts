@@ -95,7 +95,8 @@ describe('Plantillas de correo', () => {
   };
 
   const SENDERS = {
-    create: (e) => service.sendCreate({ user: recipient, evidenceCurrent: e }),
+    create: (e) =>
+      service.sendCreate({ users: [recipient], evidenceCurrent: e }),
     'in-progress': (e) =>
       service.sendInProgress({
         user: recipient,
@@ -103,10 +104,10 @@ describe('Plantillas de correo', () => {
         evidenceCurrent: e,
       }),
     solution: (e) =>
-      service.sendSolution({ user: recipient, evidenceCurrent: e }),
+      service.sendSolution({ users: [recipient], evidenceCurrent: e }),
     reassign: (e) =>
       service.sendReassign({
-        user: recipient,
+        users: [recipient],
         reassignedBy: actor,
         evidenceCurrent: e,
         previousResponsibles: [buildUser({ name: 'R1' })],
@@ -115,7 +116,7 @@ describe('Plantillas de correo', () => {
     cancel: (e) =>
       service.sendCancel({
         cancelledBy: actor,
-        user: recipient,
+        users: [recipient],
         evidenceCurrent: e,
       }),
   } satisfies Record<string, (e: ReturnType<typeof evidence>) => Promise<void>>;
@@ -154,11 +155,14 @@ describe('Plantillas de correo', () => {
 
   it('el aviso a toda la planta lleva el enlace de baja en el pie; el personal no', async () => {
     await service.sendCreate({
-      user: recipient,
+      users: [recipient],
       evidenceCurrent: evidence(),
       plantWide: true,
     });
-    await service.sendCreate({ user: recipient, evidenceCurrent: evidence() });
+    await service.sendCreate({
+      users: [recipient],
+      evidenceCurrent: evidence(),
+    });
     const [plantWide, personal] = await Promise.all(
       sendMail.mock.calls.map(([mail]) => render(mail)),
     );
@@ -172,7 +176,10 @@ describe('Plantillas de correo', () => {
 
   it('sin FRONTEND_URL no hay botón (y el correo se envía igual)', async () => {
     await setup(undefined);
-    await service.sendCreate({ user: recipient, evidenceCurrent: evidence() });
+    await service.sendCreate({
+      users: [recipient],
+      evidenceCurrent: evidence(),
+    });
     const html = await render(sendMail.mock.calls[0][0]);
 
     expect(html).not.toContain('Ver hallazgo en ComportArte');
@@ -180,7 +187,10 @@ describe('Plantillas de correo', () => {
 
   // Mismos colores de estatus que la UI.
   it('el color sigue al estatus: nuevo en ámbar, reasignado con el estatus actual', async () => {
-    await service.sendCreate({ user: recipient, evidenceCurrent: evidence() });
+    await service.sendCreate({
+      users: [recipient],
+      evidenceCurrent: evidence(),
+    });
     await SENDERS.reassign(evidence({ status: 'En progreso' }));
     const [created, reassigned] = sendMail.mock.calls.map(
       ([mail]) => (mail.context as { theme: { accent: string } }).theme.accent,
@@ -203,7 +213,7 @@ describe('Plantillas de correo', () => {
 
   it('el texto de los usuarios sale escapado', async () => {
     await service.sendCreate({
-      user: recipient,
+      users: [recipient],
       evidenceCurrent: evidence({
         description: '<img src=x onerror=alert(1)> derrame',
         user: buildUser({ name: '<b>Ana</b>' }),
@@ -218,7 +228,7 @@ describe('Plantillas de correo', () => {
 
   it('la solución muestra hallazgo, avance y solución en orden, y la resolución en tiempo', async () => {
     await service.sendSolution({
-      user: recipient,
+      users: [recipient],
       evidenceCurrent: evidence({
         ...withPhotos,
         descriptionSolution: 'Se colocó charola antiderrames',
@@ -259,7 +269,7 @@ describe('Plantillas de correo', () => {
 
   it('sin foto de avance (cerrado sin pasar por "en progreso"): antes y después', async () => {
     await service.sendSolution({
-      user: recipient,
+      users: [recipient],
       evidenceCurrent: evidence({ ...withPhotos, imgProcess: null }),
     });
     const mail = sendMail.mock.calls[0][0];
@@ -290,7 +300,7 @@ describe('Plantillas de correo', () => {
 
   it('el seguimiento dice quién lo inició y quién lo cerró, con las fechas', async () => {
     await service.sendSolution({
-      user: recipient,
+      users: [recipient],
       evidenceCurrent: evidence({
         startProcessDate: new Date(2026, 9, 1, 9, 0),
         solutionDate: new Date(2026, 9, 2, 10, 0),
@@ -308,7 +318,7 @@ describe('Plantillas de correo', () => {
 
   it('solucionado sin pasar por "en proceso" (hallazgos anteriores): sin registro', async () => {
     await service.sendSolution({
-      user: recipient,
+      users: [recipient],
       evidenceCurrent: evidence({
         startProcessDate: null,
         solutionDate: new Date(),
@@ -335,7 +345,7 @@ describe('Plantillas de correo', () => {
   it('la cancelación cierra el seguimiento con "Cancelado"', async () => {
     await service.sendCancel({
       cancelledBy: actor,
-      user: recipient,
+      users: [recipient],
       evidenceCurrent: evidence(),
     });
     const html = await render(sendMail.mock.calls[0][0]);

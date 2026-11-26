@@ -105,6 +105,24 @@ function compiledTemplate(template: string): Promise<Template> {
   return compiled;
 }
 
+/**
+ * Compila todas las plantillas al arrancar: compilar la primera vez sumaba
+ * 30-90 ms al primer aviso de cada proceso (y PM2 reinicia en cada deploy).
+ * En desarrollo no hay caché que llenar. Nunca lanza: una plantilla que no
+ * compila falla después, en el aviso que la use, como antes.
+ */
+export async function warmMailTemplates(): Promise<void> {
+  if (process.env.NODE_ENV === 'development') return;
+  try {
+    const names = (await readdir(MAIL_TEMPLATES_DIR))
+      .filter((name) => name.endsWith('.hbs'))
+      .map((name) => basename(name, '.hbs'));
+    await Promise.allSettled(names.map(compiledTemplate));
+  } catch {
+    // Sin la carpeta, cada aviso informa el error al renderizar.
+  }
+}
+
 /** Copia inmutable (por contenido) de un adjunto; devuelve su ruta. */
 async function freezeAttachment(source: string, root: string) {
   const data = await readFile(source);

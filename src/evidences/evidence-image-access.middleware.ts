@@ -6,16 +6,16 @@ import { UsersService } from '../users/users.service.js';
 import { Ics } from '../ics/entities/ics.entity.js';
 import { Evidence } from './entities/evidence.entity.js';
 import { safeFilePath } from '../shared/utils/safe-file-path.js';
-import { join, posix } from 'path';
+import { posix } from 'path';
 import {
-  ImageVariantCache,
+  evidenceImagesDir,
+  imageVariants,
   preferredImageVariant,
 } from './evidence-image-variants.js';
 
 @Injectable()
 export class EvidenceImageAccessMiddleware implements NestMiddleware {
   private readonly logger = new Logger(EvidenceImageAccessMiddleware.name);
-  private readonly variants = new ImageVariantCache();
   constructor(
     private readonly jwt: JwtService,
     private readonly users: UsersService,
@@ -83,10 +83,7 @@ export class EvidenceImageAccessMiddleware implements NestMiddleware {
         found = await this.dataSource
           .getRepository(Ics)
           .exists({ where: { imgEvidence: filename, manufacturingPlant } });
-      const file = safeFilePath(
-        join(process.cwd(), 'public', 'static', 'images', 'evidences'),
-        filename,
-      );
+      const file = safeFilePath(evidenceImagesDir(), filename);
       if (!found || !file) {
         res
           .status(404)
@@ -95,7 +92,7 @@ export class EvidenceImageAccessMiddleware implements NestMiddleware {
       }
       const format = preferredImageVariant(req.headers.accept, filename);
       const served = format
-        ? await this.variants.resolve(file, filename, format)
+        ? await imageVariants.resolve(file, filename, format)
         : file;
       res.sendFile(served, { cacheControl: false }, (error) => {
         if (error && !res.headersSent)

@@ -150,12 +150,22 @@ export class MailService {
     return this.outbox.capture(manager, work);
   }
 
+  /**
+   * `to` puede ser una lista: el outbox guarda un solo correo para todos
+   * (ver MailOutboxService.enqueue).
+   */
   private async send(options: ISendMailOptions): Promise<void> {
     if (this.outbox?.capturing) return this.outbox.enqueue(options);
     // Only isolated rendering/transport tests instantiate without an outbox.
     if (this.outbox)
       throw new Error('Mail must be saved with its business transaction');
-    await this.mailerService.sendMail(options);
+    for (const to of [options.to].flat())
+      await this.mailerService.sendMail({ ...options, to });
+  }
+
+  /** Correos de los destinatarios (en desarrollo, solo la cuenta de prueba). */
+  private recipients(users: User[]) {
+    return this.emailTest ? [this.emailTest] : users.map(({ email }) => email);
   }
 
   get emailTest() {
@@ -334,12 +344,17 @@ export class MailService {
       : null;
   }
 
+  /**
+   * Avisos de un hallazgo (crear, reasignar, solucionar, cancelar): un correo
+   * para todos los `users`, armado una vez (el contenido no depende del
+   * destinatario).
+   */
   async sendCreate({
-    user,
+    users,
     evidenceCurrent,
     plantWide,
   }: {
-    user: User;
+    users: User[];
     evidenceCurrent: Evidence;
     plantWide?: boolean;
   }) {
@@ -348,7 +363,7 @@ export class MailService {
     const unsubscribe = this.unsubscribe(plantWide);
 
     return this.send({
-      to: this.emailTest || user.email,
+      to: this.recipients(users),
       from: this.sender('hallazgo creado'),
       subject: this.subject(evidenceCurrent),
       template: './create',
@@ -374,13 +389,13 @@ export class MailService {
   }
 
   async sendReassign({
-    user,
+    users,
     reassignedBy,
     evidenceCurrent,
     previousResponsibles,
     currentResponsibles,
   }: {
-    user: User;
+    users: User[];
     reassignedBy: User;
     evidenceCurrent: Evidence;
     previousResponsibles: User[];
@@ -394,7 +409,7 @@ export class MailService {
         : 'Sin responsables asignados';
 
     return this.send({
-      to: this.emailTest || user.email,
+      to: this.recipients(users),
       from: this.sender('hallazgo reasignado'),
       subject: this.subject(evidenceCurrent),
       template: './reassign',
@@ -430,11 +445,11 @@ export class MailService {
   }
 
   async sendSolution({
-    user,
+    users,
     evidenceCurrent,
     plantWide,
   }: {
-    user: User;
+    users: User[];
     evidenceCurrent: Evidence;
     plantWide?: boolean;
   }) {
@@ -449,7 +464,7 @@ export class MailService {
     const closedBy = evidenceCurrent.closedBy?.name || '';
 
     return this.send({
-      to: this.emailTest || user.email,
+      to: this.recipients(users),
       from: this.sender('hallazgo solucionado'),
       subject: this.subject(evidenceCurrent),
       template: './solution',
@@ -563,12 +578,12 @@ export class MailService {
 
   async sendCancel({
     cancelledBy,
-    user,
+    users,
     evidenceCurrent,
     plantWide,
   }: {
     cancelledBy: User;
-    user: User;
+    users: User[];
     evidenceCurrent: Evidence;
     plantWide?: boolean;
   }) {
@@ -582,7 +597,7 @@ export class MailService {
     });
 
     return this.send({
-      to: this.emailTest || user.email,
+      to: this.recipients(users),
       from: this.sender('hallazgo cancelado'),
       subject: this.subject(evidenceCurrent),
       template: './cancel',

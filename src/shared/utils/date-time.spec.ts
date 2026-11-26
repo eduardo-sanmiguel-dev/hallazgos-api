@@ -8,6 +8,18 @@ describe('stringToDateWithTime', () => {
     expect(date.getTime()).toBe(instant);
   });
 
+  // Los nombres fijos coinciden con los que daba Intl.DateTimeFormat('es').
+  it.each(Array.from({ length: 12 }, (_, month) => month))(
+    'mes %i con el mismo nombre que Intl en español',
+    (month) => {
+      const date = new Date(2026, month, 15, 8, 5);
+      const name = new Intl.DateTimeFormat('es', { month: 'long' }).format(
+        date,
+      );
+      expect(stringToDateWithTime(date)).toBe(`15 de ${name} de 2026 8:05`);
+    },
+  );
+
   it.each([
     ['2026-10-20', '20 de octubre de 2026 0:00'],
     ['2026-10', '1 de octubre de 2026 0:00'],

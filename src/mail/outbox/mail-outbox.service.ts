@@ -1,11 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource, type EntityManager } from 'typeorm';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash, randomUUID } from 'node:crypto';
 import type { ISendMailOptions } from '@nestjs-modules/mailer';
 import { traced } from '../../shared/tracing/traced.js';
-import { encryptionKey, freezeMail, seal } from './mail-payload.js';
+import {
+  encryptionKey,
+  freezeMail,
+  seal,
+  warmMailTemplates,
+} from './mail-payload.js';
 
 type Capture = {
   manager: EntityManager;
@@ -54,12 +59,16 @@ const valuesOf = (row: number) => {
 };
 
 @Injectable()
-export class MailOutboxService {
+export class MailOutboxService implements OnModuleInit {
   private readonly context = new AsyncLocalStorage<Capture>();
   constructor(
     private readonly db: DataSource,
     private readonly config: ConfigService,
   ) {}
+  /** Plantillas listas antes del primer aviso (sin retrasar el arranque). */
+  onModuleInit() {
+    void warmMailTemplates();
+  }
   get capturing(): boolean {
     return !!this.context.getStore();
   }
@@ -146,12 +155,23 @@ export class MailOutboxService {
       await this.capture(manager, work, 'reset', userId);
     });
   }
+  /**
+   * Guarda un aviso para uno o varios destinatarios (`to` puede ser una
+   * lista): se congela una vez y no una por persona (con 45 destinatarios,
+   * armarlo y congelarlo por cada uno sumaba ~100 ms al alta en el VPS).
+   * Quien ya recibe otro aviso del mismo evento (p. ej. el responsable que
+   * también es de la planta) no recibe este.
+   */
   async enqueue(options: ISendMailOptions): Promise<void> {
     const ctx = this.context.getStore();
     if (!ctx) throw new Error('Persistent mail requires a transaction');
-    const recipient = String(options.to).trim().toLowerCase();
-    if (ctx.recipients.has(recipient)) return;
-    ctx.recipients.add(recipient);
+    const recipients = [
+      ...new Set(
+        [options.to].flat().map((to) => String(to).trim().toLowerCase()),
+      ),
+    ].filter((recipient) => !ctx.recipients.has(recipient));
+    if (recipients.length === 0) return;
+    for (const recipient of recipients) ctx.recipients.add(recipient);
     // Coordinate immutable blob creation with the daily garbage collector.
     // Es un lock de transacción: el primer destinatario lo toma y se libera
     // en el commit/rollback; repetirlo por cada uno solo sumaba consultas.
@@ -181,12 +201,12 @@ export class MailOutboxService {
       .digest('hex');
     const message = ctx.messages.get(content);
     if (message) {
-      message.recipients.push(recipient);
+      message.recipients.push(...recipients);
       return;
     }
     ctx.messages.set(content, {
       mail: frozen,
-      recipients: [recipient],
+      recipients,
       type:
         ctx.type === 'reset'
           ? 'reset'

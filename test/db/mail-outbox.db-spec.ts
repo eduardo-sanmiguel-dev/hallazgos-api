@@ -104,7 +104,7 @@ describe('Mail outbox: real PostgreSQL, controlled SMTP transport', () => {
   }
   async function render() {
     await mail.sendCreate({
-      user: buildUser({ email: 'recipient@example.test' }),
+      users: [buildUser({ email: 'recipient@example.test' })],
       evidenceCurrent: buildEvidence({ imgEvidence: '', supervisors: [] }),
     });
   }

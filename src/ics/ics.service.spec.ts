@@ -10,6 +10,7 @@ import {
 import { RulesOfLife } from '../rules-of-life/entities/index.js';
 import { Ics } from './entities/ics.entity.js';
 import { IcsService } from './ics.service.js';
+import { ImageVariantCache } from '../evidences/evidence-image-variants.js';
 
 describe('IcsService', () => {
   let service: IcsService;
@@ -30,7 +31,15 @@ describe('IcsService', () => {
     employeesIds: [5, 6],
   };
 
+  let prepareUpload: jest.SpyInstance;
+
+  afterEach(() => prepareUpload.mockRestore());
+
   beforeEach(async () => {
+    // Sin convertir de verdad las fotos de prueba (no existen en disco).
+    prepareUpload = jest
+      .spyOn(ImageVariantCache.prototype, 'prepareUpload')
+      .mockImplementation();
     const testing = await createServiceTestingModule(IcsService, {
       repositories: [Ics, RulesOfLife],
     });
@@ -76,6 +85,8 @@ describe('IcsService', () => {
           employees: [{ id: 5 }, { id: 6 }],
         }),
       );
+      // Ya guardado: la variante AVIF de la foto se genera aparte.
+      expect(prepareUpload).toHaveBeenCalledWith('uuid-evidence.png');
     });
 
     it('redondea el porcentaje a 2 decimales e incluye estándar y área si llegan', async () => {

@@ -93,9 +93,14 @@ validan con Joi al arrancar: si falta una obligatoria, la API no inicia.
   plantilla oficial con `exceljs` la reescribe completa y puede perder formato.
 - **Imágenes de evidencias:** `/static/images/evidences/*` exige sesión y planta.
   Al navegador que acepta AVIF o WebP (cabecera `Accept`) se le entrega una
-  variante en ese formato, generada con `sharp` la primera vez que se pide y
-  guardada en `data/image-variants/` (`IMAGE_VARIANTS_DIR`); el original JPG/PNG
-  no cambia y es el que usan los correos y los PDF.
+  variante en ese formato, guardada en `data/image-variants/`
+  (`IMAGE_VARIANTS_DIR`); el original JPG/PNG no cambia y es el que usan los
+  correos y los PDF. Convertir tarda ~0.8 s por foto, así que nunca se espera:
+  la API convierte a AVIF en segundo plano cada foto recién guardada y, si se
+  pide una variante que aún no existe, entrega el original y la genera para la
+  siguiente vista. Las fotos anteriores se convierten con
+  `nice -n 19 pnpm variants:backfill` (después de `pnpm build`; se puede
+  interrumpir y repetir).
 - **Hojas de datos de seguridad (HDS):** los PDF viven en `data/hds/`
   (`HDS_DIR`), fuera del repositorio; la tabla `safety_data_files` es el
   catálogo. Los administradores las suben, reemplazan y eliminan desde la UI

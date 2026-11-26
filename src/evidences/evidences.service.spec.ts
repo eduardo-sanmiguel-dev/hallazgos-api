@@ -49,9 +49,15 @@ import { ZonesService } from '../zones/zones.service.js';
 import { Comment } from './entities/comments.entity.js';
 import { Evidence } from './entities/evidence.entity.js';
 import { EvidencesService } from './evidences.service.js';
+import { ImageVariantCache } from './evidence-image-variants.js';
 import { PdfRendererService } from './pdf/pdf-renderer.service.js';
 
 /** Deja terminar las promesas que el servicio lanza sin esperar. */
+/** Ids de los destinatarios de todos los avisos enviados con `method`. */
+const recipientIds = (method: {
+  mock: { calls: [{ users: { id: number }[] }][] };
+}) => method.mock.calls.flatMap(([{ users }]) => users.map((user) => user.id));
+
 const flushBackgroundWork = async () => {
   for (let i = 0; i < 10; i++) await new Promise(setImmediate);
 };
@@ -218,15 +224,22 @@ describe('EvidencesService', () => {
     expect(values).toMatchObject(changes);
   };
 
+  let prepareUpload: jest.SpyInstance;
+
   beforeEach(async () => {
     logError = jest.spyOn(Logger.prototype, 'error').mockImplementation();
     logWarn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    // Sin convertir de verdad las fotos de prueba (no existen en disco).
+    prepareUpload = jest
+      .spyOn(ImageVariantCache.prototype, 'prepareUpload')
+      .mockImplementation();
     await setup();
   });
 
   afterEach(() => {
     logError.mockRestore();
     logWarn.mockRestore();
+    prepareUpload.mockRestore();
   });
 
   describe('create', () => {
@@ -264,6 +277,15 @@ describe('EvidencesService', () => {
         responsibles: [responsible],
       });
       expect(usersService.findOne).toHaveBeenCalledWith(reporter.id);
+      // Ya guardado: la variante AVIF se genera aparte.
+      expect(prepareUpload).toHaveBeenCalledWith('uuid-evidence.png');
+    });
+
+    it('si no se guarda, no pide la variante de la foto (el interceptor la borra)', async () => {
+      usersService.findSupervisor.mockResolvedValue([]);
+
+      await expect(create()).rejects.toThrow(BadRequestException);
+      expect(prepareUpload).not.toHaveBeenCalled();
     });
 
     it('busca supervisores de la zona y responsables del proceso en esa planta', async () => {
@@ -374,20 +396,17 @@ describe('EvidencesService', () => {
       await create();
       await flushBackgroundWork();
 
-      const notified = mail.sendCreate.mock.calls.map(([{ user }]) => user.id);
-      expect(notified.sort()).toEqual([responsible.id, plantUser.id].sort());
-      // Solo el aviso a la planta lleva enlace de baja; al responsable le
-      // llega siempre.
-      const plantWideById = Object.fromEntries(
-        mail.sendCreate.mock.calls.map(([{ user, plantWide }]) => [
-          user.id,
+      // Un aviso por tipo con todos sus destinatarios. Solo el aviso a la
+      // planta lleva enlace de baja; al responsable le llega siempre.
+      expect(
+        mail.sendCreate.mock.calls.map(([{ users, plantWide }]) => [
+          users.map((user) => user.id),
           plantWide,
         ]),
-      );
-      expect(plantWideById).toEqual({
-        [responsible.id]: undefined,
-        [plantUser.id]: true,
-      });
+      ).toEqual([
+        [[responsible.id], undefined],
+        [[plantUser.id], true],
+      ]);
     });
 
     it('sin responsables avisa solo a los usuarios de la planta', async () => {
@@ -396,8 +415,7 @@ describe('EvidencesService', () => {
       await create();
       await flushBackgroundWork();
 
-      const notified = mail.sendCreate.mock.calls.map(([{ user }]) => user.id);
-      expect(notified).toEqual([plantUser.id]);
+      expect(recipientIds(mail.sendCreate)).toEqual([plantUser.id]);
     });
 
     it('en desarrollo todos los correos van a la cuenta de desarrollo', async () => {
@@ -406,25 +424,24 @@ describe('EvidencesService', () => {
       await create();
       await flushBackgroundWork();
 
-      const notified = mail.sendCreate.mock.calls.map(([{ user }]) => user.id);
-      expect(notified).toEqual([devUser.id, devUser.id]);
+      expect(recipientIds(mail.sendCreate)).toEqual([devUser.id, devUser.id]);
     });
 
-    it('si falla un correo, el hallazgo queda creado, se avisa a los demás y el error queda en el log', async () => {
+    it('sin outbox, si falla un aviso el hallazgo queda creado, se manda el otro y el error queda en el log', async () => {
       const background = trackBackgroundEmails(service);
-      mail.sendCreate.mockImplementation(async ({ user }) => {
-        if (user.id === responsible.id) throw new Error('SMTP caído');
+      mail.sendCreate.mockImplementation(async ({ users }) => {
+        if (users[0].id === responsible.id) throw new Error('SMTP caído');
       });
 
       await expect(create()).resolves.toEqual({ id: 900 });
 
       await expect(background.rejections()).resolves.toEqual([]);
       expect(mail.sendCreate).toHaveBeenCalledWith(
-        expect.objectContaining({ user: plantUser }),
+        expect.objectContaining({ users: [plantUser] }),
       );
       expect(logError).toHaveBeenCalledWith(
         expect.stringContaining(
-          `No se pudo enviar el correo de creación del hallazgo #900 a el usuario ${responsible.id}: SMTP caído`,
+          `No se pudo enviar el correo de creación del hallazgo #900 a los usuarios ${responsible.id}: SMTP caído`,
         ),
       );
     });
@@ -819,6 +836,7 @@ describe('EvidencesService', () => {
         imgProcess: 'uuid-process.png',
         startProcessDate: result.startProcessDate,
       });
+      expect(prepareUpload).toHaveBeenCalledWith('uuid-process.png');
     });
 
     it('registra quién lo inició (el usuario de la sesión)', async () => {
@@ -1021,11 +1039,12 @@ describe('EvidencesService', () => {
           expect(mail.sendSolution).toHaveBeenCalledTimes(1);
           // Aviso personal al creador: sin enlace de baja.
           expect(mail.sendSolution).toHaveBeenCalledWith({
-            user: reporter,
+            users: [reporter],
             evidenceCurrent: result,
             plantWide: false,
           });
           expect(usersService.findAllByPlant).not.toHaveBeenCalled();
+          expect(prepareUpload).toHaveBeenCalledWith('uuid-solution.png');
         },
       );
 
@@ -1212,7 +1231,9 @@ describe('EvidencesService', () => {
             }),
           );
           await flushBackgroundWork();
-          expect(mail.sendReassign).toHaveBeenCalledTimes(2);
+          // Un solo aviso para el responsable anterior y el nuevo.
+          expect(mail.sendReassign).toHaveBeenCalledTimes(1);
+          expect(recipientIds(mail.sendReassign)).toHaveLength(2);
         },
       );
 
@@ -1236,7 +1257,7 @@ describe('EvidencesService', () => {
         ).resolves.toMatchObject({ responsibles: [newResponsible] });
         await flushBackgroundWork();
         // Se registran ambos destinatarios antes del commit.
-        expect(mail.sendReassign).toHaveBeenCalledTimes(2);
+        expect(recipientIds(mail.sendReassign)).toHaveLength(2);
       });
 
       it.each(FINAL)(
@@ -1542,9 +1563,7 @@ describe('EvidencesService', () => {
       async (plantId) => {
         await notify(plantId);
 
-        expect(
-          mail.sendSolution.mock.calls.map(([{ user }]) => user.id),
-        ).toEqual([reporter.id]);
+        expect(recipientIds(mail.sendSolution)).toEqual([reporter.id]);
         expect(mail.sendSolution).toHaveBeenCalledWith(
           expect.objectContaining({ plantWide: false }),
         );
@@ -1558,13 +1577,15 @@ describe('EvidencesService', () => {
       await notify(3);
 
       expect(usersService.findAllByPlant).toHaveBeenCalledWith(3);
-      expect(mail.sendSolution.mock.calls.map(([{ user }]) => user.id)).toEqual(
-        [plantUser.id, responsible.id],
+      // Un solo aviso a la planta, con el enlace de baja.
+      expect(mail.sendSolution).toHaveBeenCalledTimes(1);
+      expect(recipientIds(mail.sendSolution)).toEqual([
+        plantUser.id,
+        responsible.id,
+      ]);
+      expect(mail.sendSolution).toHaveBeenCalledWith(
+        expect.objectContaining({ plantWide: true }),
       );
-      // Es un aviso a la planta: lleva el enlace de baja.
-      expect(
-        mail.sendSolution.mock.calls.map(([{ plantWide }]) => plantWide),
-      ).toEqual([true, true]);
     });
 
     it('sin correo del creador no usa a los usuarios de la planta como alternativa', async () => {
@@ -1586,7 +1607,7 @@ describe('EvidencesService', () => {
         const sent = type === 'create' ? mail.sendCreate : mail.sendCancel;
         expect(sent).toHaveBeenCalledTimes(1);
         expect(sent).toHaveBeenCalledWith(
-          expect.objectContaining({ user: plantUser, plantWide: true }),
+          expect.objectContaining({ users: [plantUser], plantWide: true }),
         );
       },
     );
@@ -1598,9 +1619,7 @@ describe('EvidencesService', () => {
 
         await notify(plantId);
 
-        expect(
-          mail.sendSolution.mock.calls.map(([{ user }]) => user.id),
-        ).toEqual([devUser.id]);
+        expect(recipientIds(mail.sendSolution)).toEqual([devUser.id]);
       },
     );
   });
@@ -1618,7 +1637,7 @@ describe('EvidencesService', () => {
 
       expect(mail.sendCancel).toHaveBeenCalledWith({
         cancelledBy: expect.objectContaining({ id: supervisor.id }),
-        user: responsible,
+        users: [responsible],
         evidenceCurrent: expect.objectContaining({ id: 40 }),
       });
     });
@@ -1627,7 +1646,7 @@ describe('EvidencesService', () => {
       await send('solution');
 
       expect(mail.sendSolution).toHaveBeenCalledWith({
-        user: responsible,
+        users: [responsible],
         evidenceCurrent: expect.objectContaining({ id: 40 }),
       });
     });
@@ -1640,7 +1659,7 @@ describe('EvidencesService', () => {
       });
 
       expect(mail.sendReassign).toHaveBeenCalledWith({
-        user: responsible,
+        users: [responsible],
         reassignedBy: reporter,
         evidenceCurrent: expect.objectContaining({ id: 40 }),
         previousResponsibles: [responsible],

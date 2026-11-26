@@ -8,6 +8,10 @@
 #   2. corre backup-prod.sh y devuelve su codigo real;
 #   3. si falla sin que el script lo haya registrado, escribe ERROR en
 #      ULTIMO_RESPALDO.txt y en la bitacora, y avisa con msg.exe.
+#
+# Si el ultimo respaldo fue OK hace menos de -SkipIfRecentHours (p. ej. se
+# reinicio la PC y se disparo otra vez "al iniciar sesion"), no repite: solo
+# lo anota en la bitacora. -Force respalda de todos modos.
 
 param(
   [string]$Dest = "C:\Users\eduar\proyects\hallazgos\backups-db",
@@ -15,6 +19,8 @@ param(
   [string]$Script = (Join-Path $PSScriptRoot "backup-prod.sh"),
   [int]$Attempts = 10,
   [int]$RetrySeconds = 30,
+  [double]$SkipIfRecentHours = 1,
+  [switch]$Force,
   [switch]$NoNotify
 )
 
@@ -23,12 +29,28 @@ function ConvertTo-WslPath([string]$path) {
   "/mnt/" + $full.Substring(0, 1).ToLower() + ($full.Substring(2) -replace '\\', '/')
 }
 
-function Write-Failure([string]$reason) {
+function Write-Log([string]$line) {
   $now = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
   $logs = Join-Path $Dest "logs"
   New-Item -ItemType Directory -Force -Path $logs | Out-Null
   $logfile = Join-Path $logs ("backup-" + (Get-Date -Format "yyyy-MM") + ".log")
-  Add-Content -Path $logfile -Value "$now ERROR (lanzador): $reason"
+  Add-Content -Path $logfile -Value "$now $line"
+}
+
+# Fecha del ultimo respaldo OK segun ULTIMO_RESPALDO.txt ("OK yyyy-MM-dd HH:mm:ss"),
+# o $null si no hay, fallo o no se entiende.
+function Get-LastOk {
+  $status = Join-Path $Dest "ULTIMO_RESPALDO.txt"
+  if (-not (Test-Path $status)) { return $null }
+  $first = Get-Content $status -TotalCount 1
+  if ($first -notmatch '^OK (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})') { return $null }
+  [datetime]::ParseExact($Matches[1], "yyyy-MM-dd HH:mm:ss",
+    [System.Globalization.CultureInfo]::InvariantCulture)
+}
+
+function Write-Failure([string]$reason) {
+  $now = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+  Write-Log "ERROR (lanzador): $reason"
   Set-Content -Path (Join-Path $Dest "ULTIMO_RESPALDO.txt") -Value "ERROR $now - $reason"
   if (-not $NoNotify) {
     msg.exe '*' "Fallo el respaldo de produccion de Hallazgos: $reason" 2>$null
@@ -36,6 +58,16 @@ function Write-Failure([string]$reason) {
 }
 
 $started = Get-Date
+
+# 0. No repetir un respaldo reciente.
+if (-not $Force) {
+  $lastOk = Get-LastOk
+  if ($lastOk -and $lastOk -le $started -and ($started - $lastOk).TotalHours -lt $SkipIfRecentHours) {
+    $ago = [math]::Floor(($started - $lastOk).TotalMinutes)
+    Write-Log "Omitido: ya hay un respaldo OK de hace $ago min ($($lastOk.ToString('yyyy-MM-dd HH:mm:ss')))"
+    exit 0
+  }
+}
 
 # 1. Esperar a WSL.
 $ready = $false

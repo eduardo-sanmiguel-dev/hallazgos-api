@@ -55,6 +55,12 @@ La tarea no llama a WSL directo sino a `run-backup.ps1`, que espera a que WSL
 esté listo (al iniciar sesión puede tardar) y, si el respaldo falla, escribe
 `ERROR` en `ULTIMO_RESPALDO.txt`, lo anota en la bitácora y muestra el aviso.
 
+Si el último respaldo fue `OK` hace menos de 1 hora (por ejemplo, se reinició
+la PC y se volvió a disparar "al iniciar sesión"), `run-backup.ps1` no repite:
+solo anota `Omitido: ...` en la bitácora. Para forzarlo:
+`run-backup.ps1 -Force` (o `-SkipIfRecentHours <horas>` para otro umbral).
+`respaldar-prod.ps1` llama directo a `backup-prod.sh` y siempre respalda.
+
 Pruebas (sin red):
 
 - Retención: `bash infra/backup/backup-prod.test.sh`.

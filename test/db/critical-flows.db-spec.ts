@@ -332,8 +332,8 @@ describe('Flujos críticos con PostgreSQL', () => {
           .findOneByOrFail({ id: evidence.id })
       ).status,
     ).toBe(STATUSES.closed);
-    const recipients = e2e.mail.sendSolution.mock.calls.map(
-      ([payload]) => payload.user.id,
+    const recipients = e2e.mail.sendSolution.mock.calls.flatMap(([payload]) =>
+      payload.users.map((user) => user.id),
     );
     expect(new Set(recipients).size).toBe(recipients.length);
   });

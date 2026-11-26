@@ -48,7 +48,7 @@ describe('MailOutboxService', () => {
   });
   const create = () =>
     mail.sendCreate({
-      user: buildUser({ email: 'person@test.com' }),
+      users: [buildUser({ email: 'person@test.com' })],
       evidenceCurrent: buildEvidence({ imgEvidence: '', supervisors: [] }),
     });
   it('captures a frozen encrypted notification using the caller transaction', async () => {
@@ -72,7 +72,7 @@ describe('MailOutboxService', () => {
     const evidence = buildEvidence({ imgEvidence: '', supervisors: [] });
     for (const email of emails)
       await mail.sendCreate({
-        user: buildUser({ email }),
+        users: [buildUser({ email })],
         evidenceCurrent: evidence,
       });
   };
@@ -120,7 +120,7 @@ describe('MailOutboxService', () => {
   const createForEvidences = async (count: number) => {
     for (let id = 1; id <= count; id++)
       await mail.sendCreate({
-        user: buildUser({ email: `u${id}@test.com` }),
+        users: [buildUser({ email: `u${id}@test.com` })],
         evidenceCurrent: buildEvidence({
           id,
           imgEvidence: '',
@@ -180,25 +180,6 @@ describe('MailOutboxService', () => {
     ).rejects.toThrow('lock timeout');
     expect(sqlCalls('INSERT INTO email_notifications')).toHaveLength(0);
   });
-  it('traces the freezing of each recipient with its template', async () => {
-    const recorder = spanRecorder();
-    recorder.install();
-    try {
-      await mail.withOutbox(manager, () =>
-        createFor('a@test.com', 'b@test.com'),
-      );
-    } finally {
-      recorder.uninstall();
-    }
-    expect(recorder.spans).toEqual([
-      expect.objectContaining({
-        name: 'mail.freeze',
-        attributes: { 'mail.template': './create' },
-        ended: true,
-      }),
-      expect.objectContaining({ name: 'mail.freeze', ended: true }),
-    ]);
-  });
   it('serializes password requests and cancels superseded pending ones', async () => {
     await mail.sendForgotPassword('person@test.com', 'secret-token', 7);
     expect(query.mock.calls[0]).toEqual([
@@ -241,7 +222,7 @@ describe('MailOutboxService', () => {
       );
       await plain.withOutbox(manager, () =>
         plain.sendCreate({
-          user: buildUser({ email: 'a@test.com' }),
+          users: [buildUser({ email: 'a@test.com' })],
           evidenceCurrent: buildEvidence({ imgEvidence: '', supervisors: [] }),
         }),
       );
@@ -251,6 +232,64 @@ describe('MailOutboxService', () => {
     } finally {
       process.chdir(previous);
     }
+  });
+  // Un solo recorder por archivo: traced() conserva el tracer que obtuvo.
+  describe('mail.freeze spans', () => {
+    const recorder = spanRecorder();
+    beforeAll(() => recorder.install());
+    afterAll(() => recorder.uninstall());
+    beforeEach(() => recorder.reset());
+    const freezeSpans = async (work: () => Promise<void>) => {
+      await mail.withOutbox(manager, work);
+      return recorder.spans.filter((span) => span.name === 'mail.freeze');
+    };
+    it('traces the freezing of each notice with its template', async () => {
+      // Dos llamadas (como dos avisos): dos congelados.
+      expect(
+        await freezeSpans(() => createFor('a@test.com', 'b@test.com')),
+      ).toEqual([
+        expect.objectContaining({
+          name: 'mail.freeze',
+          attributes: { 'mail.template': './create' },
+          ended: true,
+        }),
+        expect.objectContaining({ name: 'mail.freeze', ended: true }),
+      ]);
+    });
+    it('freezes a notice once for all its recipients', async () => {
+      const spans = await freezeSpans(() =>
+        mail.sendCreate({
+          users: ['a@test.com', 'b@test.com', 'c@test.com'].map((email) =>
+            buildUser({ email }),
+          ),
+          evidenceCurrent: buildEvidence({ imgEvidence: '', supervisors: [] }),
+        }),
+      );
+      expect(spans).toHaveLength(1);
+      expect(insertedRows().map((row) => row[2])).toEqual([
+        'a@test.com, b@test.com, c@test.com',
+      ]);
+    });
+    it('leaves out recipients already notified in the event, and freezes nothing when none is new', async () => {
+      const evidence = buildEvidence({ imgEvidence: '', supervisors: [] });
+      const notify = (...emails: string[]) =>
+        mail.sendCreate({
+          users: emails.map((email) => buildUser({ email })),
+          evidenceCurrent: evidence,
+        });
+      const spans = await freezeSpans(async () => {
+        await notify('a@test.com');
+        await notify('A@test.com', 'b@test.com', 'b@test.com');
+        await notify('a@test.com', 'b@test.com');
+      });
+      expect(spans).toHaveLength(2);
+      expect(insertedRows().map((row) => row[2])).toEqual([
+        'a@test.com, b@test.com',
+      ]);
+    });
+  });
+  it('compiles the templates on start without waiting for them', () => {
+    expect(service.onModuleInit()).toBeUndefined();
   });
   it('requires a transaction to enqueue', async () => {
     await expect(service.enqueue({})).rejects.toThrow('transaction');

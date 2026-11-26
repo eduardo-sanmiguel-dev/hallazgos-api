@@ -20,6 +20,7 @@ import { join } from 'path';
 import { randomUUID } from 'crypto';
 import { createE2eApp, type E2eApp } from './e2e-app.js';
 import { saveEvidence } from './fixtures.js';
+import { imageVariants } from '../../src/evidences/evidence-image-variants.js';
 
 describe('Regresión de flujos de prioridad media', () => {
   let e2e: E2eApp;
@@ -273,12 +274,19 @@ describe('Regresión de flujos de prioridad media', () => {
           })
           .expect(200);
 
+      // La primera vista no espera la conversión: recibe el original y la
+      // variante se genera aparte para la siguiente.
+      const first = await get('image/avif,image/webp,*/*');
+      expect(first.headers['content-type']).toBe('image/jpeg');
+      await imageVariants.prepare(full, filename, 'avif');
       const avif = await get('image/avif,image/webp,*/*');
       expect(avif.headers['content-type']).toBe('image/avif');
       expect(avif.headers.vary).toContain('Accept');
       expect(avif.headers['cache-control']).toContain('no-store');
       expect(avif.body.length).toBeLessThan(original.length);
 
+      await get('image/webp,*/*');
+      await imageVariants.prepare(full, filename, 'webp');
       const webp = await get('image/webp,*/*');
       expect(webp.headers['content-type']).toBe('image/webp');
       expect(webp.body.length).toBeLessThan(original.length);

@@ -78,7 +78,7 @@ describe('MailService', () => {
   describe('sendCreate', () => {
     it('manda el hallazgo con su prioridad, días restantes e imagen adjunta desde disco', async () => {
       await service.sendCreate({
-        user: recipient,
+        users: [recipient],
         evidenceCurrent: evidence(),
       });
 
@@ -107,13 +107,31 @@ describe('MailService', () => {
       });
     });
 
+    it('arma el aviso una vez para todos; sin outbox lo manda a cada uno por separado', async () => {
+      const other = buildUser({ email: 'beto@hallazgos.test' });
+
+      await service.sendCreate({
+        users: [recipient, other],
+        evidenceCurrent: evidence(),
+      });
+
+      expect(imageOnDisk).toHaveBeenCalledTimes(1);
+      expect(sendMail.mock.calls.map(([mail]) => mail.to)).toEqual([
+        'ana@hallazgos.test',
+        'beto@hallazgos.test',
+      ]);
+      expect(sendMail.mock.calls[1][0].context).toBe(
+        sendMail.mock.calls[0][0].context,
+      );
+    });
+
     it('prioridad fuera del catálogo muestra solo los días; sin prioridad, vacío', async () => {
       await service.sendCreate({
-        user: recipient,
+        users: [recipient],
         evidenceCurrent: evidence({ priorityDays: 5 }),
       });
       await service.sendCreate({
-        user: recipient,
+        users: [recipient],
         evidenceCurrent: evidence({ priorityDays: null, imgEvidence: '' }),
       });
 
@@ -128,7 +146,7 @@ describe('MailService', () => {
     it('propaga un rechazo SMTP para que el worker pueda clasificarlo', async () => {
       sendMail.mockRejectedValue(new Error('SMTP caído'));
       await expect(
-        service.sendCreate({ user: recipient, evidenceCurrent: evidence() }),
+        service.sendCreate({ users: [recipient], evidenceCurrent: evidence() }),
       ).rejects.toThrow('SMTP caído');
     });
   });
@@ -151,7 +169,10 @@ describe('MailService', () => {
 
     it('el correo de solución sale sin la foto faltante ni su referencia', async () => {
       const current = seeded();
-      await service.sendSolution({ user: recipient, evidenceCurrent: current });
+      await service.sendSolution({
+        users: [recipient],
+        evidenceCurrent: current,
+      });
 
       expect(photoCids()).toEqual(['imgSolution']);
       expect(JSON.stringify(sent().context)).not.toContain('cid":"imgEvidence');
@@ -174,7 +195,7 @@ describe('MailService', () => {
       imageOnDisk.mockReturnValue(false as never);
 
       await service.sendCreate({
-        user: recipient,
+        users: [recipient],
         evidenceCurrent: evidence({ imgEvidence }),
       });
 
@@ -191,7 +212,7 @@ describe('MailService', () => {
       [
         'sendCreate',
         () =>
-          service.sendCreate({ user: recipient, evidenceCurrent: seeded() }),
+          service.sendCreate({ users: [recipient], evidenceCurrent: seeded() }),
       ],
       [
         'sendInProgress',
@@ -206,7 +227,7 @@ describe('MailService', () => {
         'sendCancel',
         () =>
           service.sendCancel({
-            user: recipient,
+            users: [recipient],
             cancelledBy: actor,
             evidenceCurrent: seeded(),
           }),
@@ -215,7 +236,7 @@ describe('MailService', () => {
         'sendReassign',
         () =>
           service.sendReassign({
-            user: recipient,
+            users: [recipient],
             reassignedBy: actor,
             evidenceCurrent: seeded(),
             previousResponsibles: [],
@@ -247,7 +268,7 @@ describe('MailService', () => {
 
     it('todo va a la cuenta de pruebas y las imágenes se leen del disco', async () => {
       await service.sendCreate({
-        user: recipient,
+        users: [recipient],
         evidenceCurrent: evidence(),
       });
 
@@ -256,12 +277,22 @@ describe('MailService', () => {
         join(LOCAL_EVIDENCE_IMAGES_DIR, 'uuid-evidence.png'),
       );
     });
+
+    it('varios destinatarios: un solo correo a la cuenta de pruebas', async () => {
+      await service.sendCreate({
+        users: [recipient, buildUser({ email: 'beto@hallazgos.test' })],
+        evidenceCurrent: evidence(),
+      });
+
+      expect(sendMail).toHaveBeenCalledTimes(1);
+      expect(sent().to).toBe('eduardo-266@hotmail.com');
+    });
   });
 
   describe('sendReassign', () => {
     it('lista responsables anteriores y actuales y quién reasignó', async () => {
       await service.sendReassign({
-        user: recipient,
+        users: [recipient],
         reassignedBy: actor,
         evidenceCurrent: evidence(),
         previousResponsibles: [buildUser({ name: 'R1' })],
@@ -283,7 +314,7 @@ describe('MailService', () => {
 
     it('sin responsables usa textos por defecto y sin imagen no adjunta', async () => {
       await service.sendReassign({
-        user: recipient,
+        users: [recipient],
         reassignedBy: actor,
         evidenceCurrent: evidence({ imgEvidence: '' }),
         previousResponsibles: [],
@@ -302,7 +333,7 @@ describe('MailService', () => {
 
       await expect(
         service.sendReassign({
-          user: recipient,
+          users: [recipient],
           reassignedBy: actor,
           evidenceCurrent: evidence(),
           previousResponsibles: [],
@@ -315,7 +346,7 @@ describe('MailService', () => {
   describe('sendSolution', () => {
     it('adjunta la imagen de solución desde el disco (ruta válida también en Linux)', async () => {
       await service.sendSolution({
-        user: recipient,
+        users: [recipient],
         evidenceCurrent: evidence({
           imgSolution: 'uuid-solution.png',
           solutionDate: new Date(Date.now() - 1 * DAY),
@@ -341,7 +372,7 @@ describe('MailService', () => {
 
     it('incluye quién lo inició (con la fecha) y quién lo cerró', async () => {
       await service.sendSolution({
-        user: recipient,
+        users: [recipient],
         evidenceCurrent: evidence({
           startProcessDate: new Date(2026, 9, 21, 9, 30),
           solutionDate: new Date(2026, 9, 22, 10, 0),
@@ -359,7 +390,7 @@ describe('MailService', () => {
 
     it('en hallazgos sin ese registro, los campos van vacíos', async () => {
       await service.sendSolution({
-        user: recipient,
+        users: [recipient],
         evidenceCurrent: evidence({ solutionDate: new Date() }),
       });
 
@@ -372,7 +403,7 @@ describe('MailService', () => {
 
     it('resuelto después de la prioridad: fuera de tiempo con los días de retraso', async () => {
       await service.sendSolution({
-        user: recipient,
+        users: [recipient],
         evidenceCurrent: evidence({
           createdAt: new Date(Date.now() - 20 * DAY),
           solutionDate: new Date(),
@@ -390,14 +421,14 @@ describe('MailService', () => {
 
     it('sin prioridad siempre está en tiempo; sin fecha de solución no hay resolución', async () => {
       await service.sendSolution({
-        user: recipient,
+        users: [recipient],
         evidenceCurrent: evidence({
           priorityDays: null,
           solutionDate: new Date(Date.now() - 2 * DAY),
         }),
       });
       await service.sendSolution({
-        user: recipient,
+        users: [recipient],
         evidenceCurrent: evidence({ solutionDate: null }),
       });
 
@@ -414,7 +445,7 @@ describe('MailService', () => {
 
     it('conserva las fechas en español y la duración en el correo de solución', async () => {
       await service.sendSolution({
-        user: recipient,
+        users: [recipient],
         evidenceCurrent: evidence({
           createdAt: new Date(2026, 9, 20, 8, 5),
           solutionDate: new Date(2026, 9, 20, 9, 6, 1),
@@ -430,7 +461,7 @@ describe('MailService', () => {
 
     it('fechas inválidas no rompen el correo', async () => {
       await service.sendSolution({
-        user: recipient,
+        users: [recipient],
         evidenceCurrent: evidence({ solutionDate: 'no-es-fecha' as never }),
       });
 
@@ -480,7 +511,7 @@ describe('MailService', () => {
     it('indica quién canceló', async () => {
       await service.sendCancel({
         cancelledBy: actor,
-        user: recipient,
+        users: [recipient],
         evidenceCurrent: evidence(),
       });
 
@@ -494,7 +525,7 @@ describe('MailService', () => {
     it('sin fecha de actualización usa la hora actual como fecha de cancelación', async () => {
       await service.sendCancel({
         cancelledBy: actor,
-        user: recipient,
+        users: [recipient],
         evidenceCurrent: evidence({ updatedAt: null }),
       });
 
@@ -505,7 +536,7 @@ describe('MailService', () => {
     it('sin imagen no adjunta', async () => {
       await service.sendCancel({
         cancelledBy: actor,
-        user: recipient,
+        users: [recipient],
         evidenceCurrent: evidence({ imgEvidence: '' }),
       });
 
@@ -555,7 +586,7 @@ describe('MailService', () => {
       await expect(
         withOutbox.sendCancel({
           cancelledBy: actor,
-          user: recipient,
+          users: [recipient],
           evidenceCurrent: evidence(),
         }),
       ).rejects.toThrow('Mail must be saved with its business transaction');
@@ -567,20 +598,20 @@ describe('MailService', () => {
     const SENDS = {
       create: (plantWide?: boolean) =>
         service.sendCreate({
-          user: recipient,
+          users: [recipient],
           evidenceCurrent: evidence(),
           plantWide,
         }),
       cancel: (plantWide?: boolean) =>
         service.sendCancel({
           cancelledBy: actor,
-          user: recipient,
+          users: [recipient],
           evidenceCurrent: evidence(),
           plantWide,
         }),
       solution: (plantWide?: boolean) =>
         service.sendSolution({
-          user: recipient,
+          users: [recipient],
           evidenceCurrent: evidence({ solutionDate: new Date() }),
           plantWide,
         }),
@@ -619,7 +650,7 @@ describe('MailService', () => {
         evidenceCurrent: evidence(),
       });
       await service.sendReassign({
-        user: recipient,
+        users: [recipient],
         reassignedBy: actor,
         evidenceCurrent: evidence(),
         previousResponsibles: [],

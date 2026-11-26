@@ -11,10 +11,16 @@ import { traced } from '../shared/tracing/traced.js';
  *
  * El original (JPG/PNG) no se toca: lo usan los correos y los PDF, que no
  * aceptan estos formatos. Al navegador que los acepta (cabecera Accept) se le
- * entrega la variante, que se genera la primera vez que se pide y se guarda
- * en data/image-variants (fuera de public: solo se llega a ella después de
- * revisar sesión y planta). Con fotos reales, AVIF pesa ~75 % menos que el
- * original y WebP ~70 %.
+ * entrega la variante, guardada en data/image-variants (fuera de public: solo
+ * se llega a ella después de revisar sesión y planta). Con fotos reales, AVIF
+ * pesa ~75 % menos que el original y WebP ~70 %.
+ *
+ * Convertir una foto del celular a AVIF tarda ~0.8 s (hasta 2.7 s) en el VPS,
+ * así que nunca se hace esperando la respuesta: la foto recién subida se
+ * convierte en segundo plano al guardarse (prepareUpload) y, si un navegador
+ * pide una variante que aún no existe, recibe el original y la variante se
+ * genera aparte para la siguiente vista. Las fotos anteriores se convierten
+ * con scripts/image-variants (backfillImageVariants).
  */
 export type ImageVariantFormat = 'avif' | 'webp';
 
@@ -32,6 +38,10 @@ sharp.cache(false);
 // Conversiones a la vez por proceso: una lista con muchas fotos nuevas no
 // acapara el CPU de la API.
 const MAX_CONVERSIONS = 2;
+
+/** Carpeta de las fotos subidas (evidencias e ICS). */
+export const evidenceImagesDir = () =>
+  join(process.cwd(), 'public', 'static', 'images', 'evidences');
 
 /** Carpeta de las variantes (por omisión, data/image-variants del proyecto). */
 export const imageVariantsDir = () =>
@@ -53,7 +63,7 @@ export const preferredImageVariant = (
   return null;
 };
 
-const isFile = (path: string) =>
+export const isFile = (path: string) =>
   stat(path).then(
     (info) => info.isFile(),
     () => false,
@@ -69,8 +79,9 @@ export class ImageVariantCache {
   private readonly waiting: (() => void)[] = [];
 
   /**
-   * Archivo a entregar: la variante si existe (o se pudo generar) y pesa
-   * menos que el original; si no, el original. Nunca lanza.
+   * Archivo a entregar: la variante si ya existe y pesa menos que el original;
+   * si no, el original. No espera conversiones: una variante que falta se
+   * genera en segundo plano para la siguiente vista. Nunca lanza.
    */
   async resolve(
     source: string,
@@ -79,24 +90,50 @@ export class ImageVariantCache {
   ): Promise<string> {
     const target = join(imageVariantsDir(), `${filename}.${format}`);
     try {
-      let variant = this.pending.get(target);
-      if (variant === undefined) {
-        variant = this.ensure(source, target, format).finally(() =>
-          this.pending.delete(target),
-        );
-        this.pending.set(target, variant);
+      if (!(await isFile(target))) {
+        void this.prepare(source, filename, format);
+        return source;
       }
-      const path = await variant;
-      if (!path) return source;
       const [original, converted] = await Promise.all([
         stat(source),
-        stat(path),
+        stat(target),
       ]);
       // Una imagen diminuta (p. ej. una firma en PNG) puede crecer.
-      return converted.size < original.size ? path : source;
+      return converted.size < original.size ? target : source;
     } catch {
       return source;
     }
+  }
+
+  /**
+   * Genera la variante si falta y espera a que termine (subidas y relleno).
+   * Devuelve su ruta, o null si no se pudo convertir. Nunca lanza.
+   */
+  prepare(
+    source: string,
+    filename: string,
+    format: ImageVariantFormat,
+  ): Promise<string | null> {
+    const target = join(imageVariantsDir(), `${filename}.${format}`);
+    let variant = this.pending.get(target);
+    if (variant === undefined) {
+      variant = this.ensure(source, target, format).finally(() =>
+        this.pending.delete(target),
+      );
+      this.pending.set(target, variant);
+    }
+    return variant;
+  }
+
+  /**
+   * Foto recién guardada: convierte en segundo plano su AVIF (lo aceptan los
+   * navegadores de todos los usuarios) para que la primera vista no espere a
+   * la conversión. Llamar después de guardar con éxito: si la petición falla,
+   * un interceptor borra la foto. No espera ni lanza.
+   */
+  prepareUpload(filename?: string) {
+    if (!filename || !preferredImageVariant('image/avif', filename)) return;
+    void this.prepare(join(evidenceImagesDir(), filename), filename, 'avif');
   }
 
   private async ensure(
@@ -152,3 +189,9 @@ export class ImageVariantCache {
     else this.running--;
   }
 }
+
+/**
+ * Caché compartida del proceso: el middleware de imágenes y las subidas
+ * comparten el límite de conversiones simultáneas y las que están en curso.
+ */
+export const imageVariants = new ImageVariantCache();

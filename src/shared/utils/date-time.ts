@@ -27,12 +27,30 @@ const parseDate = (value: string | Date): Date => {
   return new Date(value);
 };
 
+// Nombres fijos en vez de Intl.DateTimeFormat: crear el formateador en cada
+// llamada era lo más caro de armar un correo (varias fechas por aviso), y el
+// mes sale de getMonth(), en la misma zona que el día y la hora.
+const MONTHS = [
+  'enero',
+  'febrero',
+  'marzo',
+  'abril',
+  'mayo',
+  'junio',
+  'julio',
+  'agosto',
+  'septiembre',
+  'octubre',
+  'noviembre',
+  'diciembre',
+];
+
 /** Formato español de correos y PDF, en la zona horaria del proceso. */
 export const stringToDateWithTime = (value: string | Date): string => {
   const date = parseDate(value);
   if (Number.isNaN(date.getTime())) return 'Fecha inválida';
 
-  const month = new Intl.DateTimeFormat('es', { month: 'long' }).format(date);
+  const month = MONTHS[date.getMonth()];
   const year = String(date.getFullYear()).padStart(4, '0');
   const minutes = String(date.getMinutes()).padStart(2, '0');
   return `${date.getDate()} de ${month} de ${year} ${date.getHours()}:${minutes}`;
